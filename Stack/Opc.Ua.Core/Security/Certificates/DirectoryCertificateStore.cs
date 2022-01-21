@@ -16,6 +16,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
@@ -286,74 +287,117 @@ namespace Opc.Ua
                 return null;
             }
 
-            foreach (FileInfo file in m_certificateSubdir.GetFiles("*.der"))
+            // on some sytems, specifically in virtualized environments,
+            // reloading a previously saved private key may fail on the first attempt.
+            int retryCounter = 3;
+            while (retryCounter-- > 0)
             {
-                try
+                bool certificateFound = false;
+                Exception importException = null;
+                foreach (FileInfo file in m_certificateSubdir.GetFiles("*.der"))
                 {
-                    X509Certificate2 certificate = new X509Certificate2(file.FullName);
-
-                    if (!String.IsNullOrEmpty(thumbprint))
+                    try
                     {
-                        if (!string.Equals(certificate.Thumbprint, thumbprint, StringComparison.CurrentCultureIgnoreCase))
+                        X509Certificate2 certificate = new X509Certificate2(file.FullName);
+
+                        if (!String.IsNullOrEmpty(thumbprint))
                         {
+                            if (!string.Equals(certificate.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+                        }
+
+                        if (!String.IsNullOrEmpty(subjectName))
+                        {
+                            if (!X509Utils.CompareDistinguishedName(subjectName, certificate.Subject))
+                            {
+                                if (subjectName.Contains('='))
+                                {
+                                    continue;
+                                }
+
+                                if (!X509Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    continue;
+                                }
+
+                            }
+                        }
+
+                        string fileRoot = file.Name.Substring(0, file.Name.Length - file.Extension.Length);
+
+                        StringBuilder filePath = new StringBuilder()
+                            .Append(m_privateKeySubdir.FullName)
+                            .Append(Path.DirectorySeparatorChar)
+                            .Append(fileRoot);
+
+                        X509KeyStorageFlags[] storageFlags = {
+                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet,
+                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet
+                        };
+
+                        FileInfo privateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
+                        if (!privateKeyFile.Exists)
+                        {
+                            Utils.Trace(Utils.TraceMasks.Security, "A private key for the certificate with thumbprint [{0}] does not exist.", certificate.Thumbprint);
                             continue;
                         }
+                        certificateFound = true;
+                        password = password ?? String.Empty;
+                        foreach (var flag in storageFlags)
+                        {
+                            try
+                            {
+                                certificate = new X509Certificate2(
+                                    privateKeyFile.FullName,
+                                    password,
+                                    flag);
+                                if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                                {
+                                    Utils.Trace(Utils.TraceMasks.Security, "Imported the private key for [{0}].", certificate.Thumbprint);
+                                    return certificate;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                importException = ex;
+                                certificate?.Dispose();
+                                certificate = null;
+                            }
+                        }
                     }
-
-                    if (!String.IsNullOrEmpty(subjectName))
+                    catch (Exception e)
                     {
-                        if (!X509Utils.CompareDistinguishedName(subjectName, certificate.Subject))
-                        {
-                            if (subjectName.Contains('='))
-                            {
-                                continue;
-                            }
-
-                            if (!X509Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.OrdinalIgnoreCase)))
-                            {
-                                continue;
-                            }
-
-                        }
-                    }
-
-                    string fileRoot = file.Name.Substring(0, file.Name.Length - file.Extension.Length);
-
-                    StringBuilder filePath = new StringBuilder()
-                        .Append(m_privateKeySubdir.FullName)
-                        .Append(Path.DirectorySeparatorChar)
-                        .Append(fileRoot);
-
-                    X509KeyStorageFlags[] storageFlags = {
-                        X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet,
-                        X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet
-                    };
-
-                    FileInfo privateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
-                    password = password ?? String.Empty;
-                    foreach (var flag in storageFlags)
-                    {
-                        try
-                        {
-                            certificate = new X509Certificate2(
-                                privateKeyFile.FullName,
-                                password,
-                                flag);
-                            if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
-                            {
-                                return certificate;
-                            }
-                        }
-                        catch (Exception)
-                        {
-                            certificate?.Dispose();
-                            certificate = null;
-                        }
+                        Utils.Trace(e, "Could not load private key for certificate {0}", subjectName);
                     }
                 }
-                catch (Exception e)
+
+                // found a certificate, but some error occurred
+                if (certificateFound)
                 {
-                    Utils.Trace(e, "Could not load private key for certificate " + subjectName);
+                    Utils.Trace(Utils.TraceMasks.Security, "The private key for the certificate with subject {0} failed to import.", subjectName);
+                    if (importException != null)
+                    {
+                        Utils.Trace(importException, "Certificate import error: {0}", importException.Message);
+                    }
+                }
+                else
+                {
+                    if (!String.IsNullOrEmpty(thumbprint))
+                    {
+                        Utils.Trace(Utils.TraceMasks.Security, "A Private key for the certificate with thumbpint {0} was not found.", thumbprint);
+                    }
+                    // if no certificate was found, no need to retry
+                    break;
+                }
+
+                // retry within a few ms
+                if (retryCounter > 0)
+                {
+                    const int retryDelay = 100;
+                    Utils.Trace(Utils.TraceMasks.Security, "Retry to import private key after {0} ms.", retryDelay);
+                    Thread.Sleep(retryDelay);
                 }
             }
 
@@ -795,16 +839,18 @@ namespace Opc.Ua
             }
 
             // write file.
-            BinaryWriter writer = new BinaryWriter(fileInfo.Open(FileMode.Create));
-
-            try
+            using (FileStream fileStream = fileInfo.Open(FileMode.Create))
+            using (BinaryWriter writer = new BinaryWriter(fileStream))
             {
-                writer.Write(data);
-            }
-            finally
-            {
-                writer.Flush();
-                writer.Dispose();
+                try
+                {
+                    writer.Write(data);
+                }
+                finally
+                {
+                    writer.Flush();
+                    fileStream.Flush();
+                }
             }
 
             m_certificateSubdir.Refresh();
