@@ -839,18 +839,15 @@ namespace Opc.Ua
             }
 
             // write file.
-            using (FileStream fileStream = fileInfo.Open(FileMode.Create))
-            using (BinaryWriter writer = new BinaryWriter(fileStream))
+            BinaryWriter writer = new BinaryWriter(fileInfo.Open(FileMode.Create));
+            try
             {
-                try
-                {
-                    writer.Write(data);
-                }
-                finally
-                {
-                    writer.Flush();
-                    fileStream.Flush();
-                }
+                writer.Write(data);
+            }
+            finally
+            {
+                writer.Flush();
+                writer.Dispose();
             }
 
             m_certificateSubdir.Refresh();
