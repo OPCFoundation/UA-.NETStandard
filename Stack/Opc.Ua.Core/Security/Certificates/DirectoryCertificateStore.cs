@@ -310,8 +310,9 @@ namespace Opc.Ua
                 return null;
             }
 
-            // on some sytems, specifically in virtualized environments,
-            // reloading a previously saved private key may fail on the first attempt.
+            // on some platforms, specifically in virtualized environments,
+            // reloading a previously created and saved private key may fail on the first attempt.
+            const int retryDelay = 100;
             int retryCounter = 3;
             while (retryCounter-- > 0)
             {
@@ -340,18 +341,17 @@ namespace Opc.Ua
                                     continue;
                                 }
 
-                            if (!X509Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.OrdinalIgnoreCase)))
-                            {
-                                continue;
+                                if (!X509Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    continue;
+                                }
                             }
                         }
-                    }
-
-                    // skip if not RSA certificate
-                    if (X509Utils.GetRSAPublicKeySize(certificate) < 0)
-                    {
-                        continue;
-                    }
+                        // skip if not RSA certificate
+                        if (X509Utils.GetRSAPublicKeySize(certificate) < 0)
+                        {
+                            continue;
+                        }
 
                         string fileRoot = file.Name.Substring(0, file.Name.Length - file.Extension.Length);
 
@@ -368,9 +368,10 @@ namespace Opc.Ua
                         FileInfo privateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
                         if (!privateKeyFile.Exists)
                         {
-                            Utils.Trace(Utils.TraceMasks.Security, "A private key for the certificate with thumbprint [{0}] does not exist.", certificate.Thumbprint);
+                            Utils.LogError(Utils.TraceMasks.Security, "A private key for the certificate with thumbprint [{0}] does not exist.", certificate.Thumbprint);
                             continue;
                         }
+
                         certificateFound = true;
                         password = password ?? String.Empty;
                         foreach (var flag in storageFlags)
@@ -383,7 +384,7 @@ namespace Opc.Ua
                                     flag);
                                 if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                                 {
-                                    Utils.Trace(Utils.TraceMasks.Security, "Imported the private key for [{0}].", certificate.Thumbprint);
+                                    Utils.LogInfo(Utils.TraceMasks.Security, "Imported the private key for [{0}].", certificate.Thumbprint);
                                     return certificate;
                                 }
                             }
@@ -397,34 +398,33 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Could not load private key for certificate {0}", subjectName);
+                        Utils.LogError(e, "Could not load private key for certificate {0}", subjectName);
                     }
                 }
 
                 // found a certificate, but some error occurred
                 if (certificateFound)
                 {
-                    Utils.Trace(Utils.TraceMasks.Security, "The private key for the certificate with subject {0} failed to import.", subjectName);
+                    Utils.LogError(Utils.TraceMasks.Security, "The private key for the certificate with subject {0} failed to import.", subjectName);
                     if (importException != null)
                     {
-                        Utils.Trace(importException, "Certificate import error: {0}", importException.Message);
+                        Utils.LogError(importException, "Certificate import failed.");
                     }
                 }
                 else
                 {
                     if (!String.IsNullOrEmpty(thumbprint))
                     {
-                        Utils.Trace(Utils.TraceMasks.Security, "A Private key for the certificate with thumbpint {0} was not found.", thumbprint);
+                        Utils.LogError(Utils.TraceMasks.Security, "A Private key for the certificate with thumbpint {0} was not found.", thumbprint);
                     }
-                    // if no certificate was found, no need to retry
+                    // if no private key was found, no need to retry
                     break;
                 }
 
                 // retry within a few ms
                 if (retryCounter > 0)
                 {
-                    const int retryDelay = 100;
-                    Utils.Trace(Utils.TraceMasks.Security, "Retry to import private key after {0} ms.", retryDelay);
+                    Utils.LogInfo(Utils.TraceMasks.Security, "Retry to import private key after {0} ms.", retryDelay);
                     Thread.Sleep(retryDelay);
                 }
             }
@@ -866,18 +866,15 @@ namespace Opc.Ua
             }
 
             // write file.
-            using (FileStream fileStream = fileInfo.Open(FileMode.Create))
-            using (BinaryWriter writer = new BinaryWriter(fileStream))
+            BinaryWriter writer = new BinaryWriter(fileInfo.Open(FileMode.Create));
+            try
             {
-                try
-                {
-                    writer.Write(data);
-                }
-                finally
-                {
-                    writer.Flush();
-                    fileStream.Flush();
-                }
+                writer.Write(data);
+            }
+            finally
+            {
+                writer.Flush();
+                writer.Dispose();
             }
 
             m_certificateSubdir.Refresh();
