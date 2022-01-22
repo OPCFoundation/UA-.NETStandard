@@ -72,6 +72,10 @@ namespace Opc.Ua.Security.Certificates
         public const string RsaPkcs1Sha512 = "1.2.840.113549.1.1.13";
 
         /// <summary>
+        /// The Oid string for a EC public key.
+        /// </summary>
+        public const string ECPublicKey = "1.2.840.10045.2.1";
+        /// <summary>
         /// The Oid string for ECDsa signature with SHA1 hash.
         /// </summary>
         public const string ECDsaWithSha1 = "1.2.840.10045.4.1";

@@ -579,6 +579,7 @@ namespace Opc.Ua.Configuration
                 new StatusCode[] {
                     StatusCodes.BadCertificateUntrusted,
                     StatusCodes.BadCertificateTimeInvalid,
+                    StatusCodes.BadCertificateIssuerTimeInvalid,
                     StatusCodes.BadCertificateHostNameInvalid,
                     StatusCodes.BadCertificateRevocationUnknown,
                     StatusCodes.BadCertificateIssuerRevocationUnknown,
@@ -834,7 +835,8 @@ namespace Opc.Ua.Configuration
             Utils.LogCertificate("Deleting application instance certificate and private key.", certificate);
 
             // delete trusted peer certificate.
-            if (configuration.SecurityConfiguration != null && configuration.SecurityConfiguration.TrustedPeerCertificates != null)
+            if (configuration.SecurityConfiguration != null && 
+                configuration.SecurityConfiguration.TrustedPeerCertificates != null)
             {
                 string thumbprint = id.Thumbprint;
 
