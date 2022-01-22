@@ -377,9 +377,8 @@ namespace Opc.Ua.Security.Certificates
                 ? X509Extensions.BuildAuthorityKeyIdentifier(IssuerCAKeyCert)
                 : new X509AuthorityKeyIdentifierExtension(
                     ski.SubjectKeyIdentifier.FromHexString(),
-                    SubjectName,
-                    m_serialNumber
-                    );
+                    IssuerName,
+                    m_serialNumber);
             request.CertificateExtensions.Add(authorityKeyIdentifier);
 
             X509KeyUsageFlags keyUsageFlags;

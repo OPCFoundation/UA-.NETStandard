@@ -472,9 +472,9 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the CRLs in the store.
         /// </summary>
-        public List<X509CRL> EnumerateCRLs()
+        public X509CRLCollection EnumerateCRLs()
         {
-            List<X509CRL> crls = new List<X509CRL>();
+            var crls = new X509CRLCollection();
 
             // check for CRL.
             DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
@@ -494,15 +494,14 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the CRLs for the issuer.
         /// </summary>
-        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public X509CRLCollection EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
             if (issuer == null)
             {
                 throw new ArgumentNullException(nameof(issuer));
             }
 
-            List<X509CRL> crls = new List<X509CRL>();
-
+            var crls = new X509CRLCollection();
             foreach (X509CRL crl in EnumerateCRLs())
             {
                 if (!X509Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))

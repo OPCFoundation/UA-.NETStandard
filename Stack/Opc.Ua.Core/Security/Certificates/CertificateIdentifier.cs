@@ -893,17 +893,17 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the CRLs in the store.
         /// </summary>
-        public List<X509CRL> EnumerateCRLs()
+        public X509CRLCollection EnumerateCRLs()
         {
-            return new List<X509CRL>();
+            return new X509CRLCollection();
         }
 
         /// <summary>
         /// Returns the CRLs for the issuer.
         /// </summary>
-        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public X509CRLCollection EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
-            return new List<X509CRL>();
+            return new X509CRLCollection();
         }
 
         /// <summary>
