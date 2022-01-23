@@ -169,20 +169,22 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
-        public Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider)
+        public async Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider)
         {
-            if (this.StoreType == CertificateStoreType.Directory)
+            if (this.StoreType != CertificateStoreType.X509Store)
             {
-                using (DirectoryCertificateStore store = new DirectoryCertificateStore())
+                using (ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType))
                 {
-                    store.Open(this.StorePath);
-                    string password = passwordProvider?.GetPassword(this);
-                    m_certificate = store.LoadPrivateKey(this.Thumbprint, this.SubjectName, password);
-                    return Task.FromResult(m_certificate);
+                    if (store.SupportsLoadPrivateKey)
+                    {
+                        store.Open(this.StorePath);
+                        string password = passwordProvider?.GetPassword(this);
+                        m_certificate = await store.LoadPrivateKey(this.Thumbprint, this.SubjectName, password).ConfigureAwait(false);
+                        return m_certificate;
+                    }
                 }
             }
-
-            return Find(true);
+            return await Find(true);
         }
 
         /// <summary>
@@ -608,33 +610,22 @@ namespace Opc.Ua
         #endregion
 
         #region ICertificateStore Members
-        /// <summary>
-        /// Opens the store at the specified location.
-        /// </summary>
-        /// <param name="location">The location.</param>
+        /// <inheritdoc/>
         /// <remarks>
-        /// The syntax depends on the store implementation.
+        /// The certificate identifier store ignores the location.
         /// </remarks>
         public void Open(string location)
         {
             // nothing to do.
         }
 
-        /// <summary>
-        /// Closes the store.
-        /// </summary>
+        /// <inheritdoc/>
         public void Close()
         {
             // nothing to do.
         }
 
-        /// <summary>
-        /// Enumerates the certificates in the store.
-        /// </summary>
-        /// <remarks>
-        /// Identifiers which do not refer to valid certificates are ignored.
-        /// </remarks>
-        /// <returns>The list of valid certificates in the store.</returns>
+        /// <inheritdoc/>
         public async Task<X509Certificate2Collection> Enumerate()
         {
             X509Certificate2Collection collection = new X509Certificate2Collection();
@@ -652,11 +643,7 @@ namespace Opc.Ua
             return collection;
         }
 
-        /// <summary>
-        /// Adds a certificate to the store.
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
-        /// <param name="password">The password of the certificate.</param>
+        /// <inheritdoc/>
         public async Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
@@ -678,11 +665,7 @@ namespace Opc.Ua
             this.Add(new CertificateIdentifier(certificate));
         }
 
-        /// <summary>
-        /// Deletes a certificate from the store.
-        /// </summary>
-        /// <param name="thumbprint">The thumbprint.</param>
-        /// <returns>True if the certificate exists.</returns>
+        /// <inheritdoc/>
         public async Task<bool> Delete(string thumbprint)
         {
             if (String.IsNullOrEmpty(thumbprint))
@@ -704,11 +687,7 @@ namespace Opc.Ua
             return false;
         }
 
-        /// <summary>
-        /// Finds the certificate with the specified thumprint.
-        /// </summary>
-        /// <param name="thumbprint">The thumbprint.</param>
-        /// <returns>The matching certificate</returns>
+        /// <inheritdoc/>
         public async Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
             if (String.IsNullOrEmpty(thumbprint))
@@ -729,46 +708,43 @@ namespace Opc.Ua
             return new X509Certificate2Collection();
         }
 
-        /// <summary>
-        /// Whether the store support CRLs.
-        /// </summary>
-        public bool SupportsCRLs { get { return false; } }
+        /// <inheritdoc/>
+        public bool SupportsLoadPrivateKey => false;
 
-        /// <summary>
-        /// Checks if issuer has revoked the certificate.
-        /// </summary>
+        /// <inheritdoc/>
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        {
+            return Task.FromResult<X509Certificate2>(null);
+        }
+
+        /// <inheritdoc/>
+        public bool SupportsCRLs => false;
+
+        /// <inheritdoc/>
         public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
             return Task.FromResult((StatusCode)StatusCodes.BadNotSupported);
         }
 
-        /// <summary>
-        /// Returns the CRLs in the store.
-        /// </summary>
+        /// <inheritdoc/>
         public Task<X509CRLCollection> EnumerateCRLs()
         {
             return Task.FromResult(new X509CRLCollection());
         }
 
-        /// <summary>
-        /// Returns the CRLs for the issuer.
-        /// </summary>
+        /// <inheritdoc/>
         public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
             return Task.FromResult(new X509CRLCollection());
         }
 
-        /// <summary>
-        /// Adds a CRL to the store.
-        /// </summary>
+        /// <inheritdoc/>
         public Task AddCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
-        /// <summary>
-        /// Removes a CRL from the store.
-        /// </summary>
+        /// <inheritdoc/>
         public Task<bool> DeleteCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);

@@ -166,7 +166,7 @@ namespace Opc.Ua
                         store = storeType.CreateStore();
                         break;
                     }
-                    throw new ArgumentException($"Invalid store type name: {storeType}", nameof(storeType));
+                    throw new ArgumentException($"Invalid store type name: {storeTypeName}");
                 }
             }
             return store;
@@ -219,7 +219,7 @@ namespace Opc.Ua
         }
         #endregion public methods
 
-        #region internal methods
+        #region Internal Methods
         internal static ICertificateStoreType GetCertificateStoreTypeByName(string storeTypeName)
         {
             ICertificateStoreType result;
@@ -228,9 +228,9 @@ namespace Opc.Ua
         }
 
         internal static IReadOnlyCollection<string> RegisteredStoreTypeNames => s_registeredStoreTypes.Keys;
-        #endregion internal methods
+        #endregion 
 
-        #region data members
+        #region Data Members
         /// <summary>
         /// A windows certificate store.
         /// </summary>
@@ -240,7 +240,7 @@ namespace Opc.Ua
         /// A directory certificate store.
         /// </summary>
         public const string Directory = "Directory";
-        #endregion data members
+        #endregion
 
         #region Static Members
         private static readonly Dictionary<string, ICertificateStoreType> s_registeredStoreTypes;

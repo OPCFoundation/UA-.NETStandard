@@ -973,7 +973,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task TestSHA1Rejected(bool trusted, bool rejectSHA1)
         {
 #if NET472_OR_GREATER || NETCOREAPP3_1_OR_GREATER
-            Assert.Ignore("SHA1 is unsupported on .NET Core 3.1");
+            Assert.Ignore("Create SHA1 certificates is unsupported on this .NET version");
 #endif
             var cert = CertificateFactory.CreateCertificate(null, null, "CN=SHA1 signed", null)
                 .SetHashAlgorithm(HashAlgorithmName.SHA1)

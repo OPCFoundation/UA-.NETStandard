@@ -146,7 +146,7 @@ namespace Opc.Ua
 
                 if (certificate.HasPrivateKey)
                 {
-                    string passcode = password ?? String.Empty;
+                    string passcode = password ?? string.Empty;
                     data = certificate.Export(X509ContentType.Pkcs12, passcode);
                 }
                 else
@@ -240,10 +240,11 @@ namespace Opc.Ua
                     if (entry.CertificateWithPrivateKey != null)
                     {
                         certificates.Add(entry.CertificateWithPrivateKey);
-                        return Task.FromResult(certificates);
                     }
-
-                    certificates.Add(entry.Certificate);
+                    else
+                    {
+                        certificates.Add(entry.Certificate);
+                    }
                 }
 
                 return Task.FromResult(certificates);
@@ -293,19 +294,23 @@ namespace Opc.Ua
 
             return entry.PrivateKeyFile.FullName;
         }
+
+        /// <inheritdoc/>
+        public bool SupportsLoadPrivateKey => true;
+
         /// <summary>
         /// Loads the private key from a PFX file in the certificate store.
         /// </summary>
-        public X509Certificate2 LoadPrivateKey(string thumbprint, string subjectName, string password)
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
         {
             if (m_certificateSubdir == null || !m_certificateSubdir.Exists)
             {
-                return null;
+                return Task.FromResult<X509Certificate2>(null);
             }
 
             if (string.IsNullOrEmpty(thumbprint) && string.IsNullOrEmpty(subjectName))
             {
-                return null;
+                return Task.FromResult<X509Certificate2>(null);
             }
 
             foreach (FileInfo file in m_certificateSubdir.GetFiles("*.der"))
@@ -368,7 +373,7 @@ namespace Opc.Ua
                                 flag);
                             if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                             {
-                                return certificate;
+                                return Task.FromResult(certificate);
                             }
                         }
                         catch (Exception)
@@ -384,7 +389,7 @@ namespace Opc.Ua
                 }
             }
 
-            return null;
+            return Task.FromResult<X509Certificate2>(null);
         }
 
         /// <inheritdoc/>
@@ -632,12 +637,12 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        Entry entry = new Entry();
-
-                        entry.Certificate = new X509Certificate2(file.FullName);
-                        entry.CertificateFile = file;
-                        entry.PrivateKeyFile = null;
-                        entry.CertificateWithPrivateKey = null;
+                        Entry entry = new Entry {
+                            Certificate = new X509Certificate2(file.FullName),
+                            CertificateFile = file,
+                            PrivateKeyFile = null,
+                            CertificateWithPrivateKey = null
+                        };
 
                         if (!NoPrivateKeys)
                         {
@@ -648,31 +653,13 @@ namespace Opc.Ua
                             filePath.Append(Path.DirectorySeparatorChar);
                             filePath.Append(fileRoot);
 
+                            // check for PFX file.
                             entry.PrivateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
 
-                            // check for PFX file.
-                            if (entry.PrivateKeyFile.Exists)
+                            // TODO: load the private keys?
+                            if (!entry.PrivateKeyFile.Exists)
                             {
-                                try
-                                {
-                                    X509Certificate2 certificate = new X509Certificate2(
-                                        entry.PrivateKeyFile.FullName
-                                    );
-
-                                    if (certificate.HasPrivateKey)
-                                    {
-                                        entry.CertificateWithPrivateKey = certificate;
-                                    }
-                                }
-                                catch (Exception e)
-                                {
-                                    Utils.LogError(e, "Could not load private key certificate from file: {0}", entry.PrivateKeyFile.Name);
-                                }
-                            }
-
-                            // check for PEM file.
-                            else
-                            {
+                                // check for PEM file.
                                 entry.PrivateKeyFile = new FileInfo(filePath.ToString() + ".pem");
 
                                 if (!entry.PrivateKeyFile.Exists)

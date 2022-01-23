@@ -64,6 +64,21 @@ namespace Opc.Ua
         Task<X509Certificate2Collection> FindByThumbprint(string thumbprint);
 
         /// <summary>
+        /// If the store supports the LoadPrivateKey operation.
+        /// </summary>
+        bool SupportsLoadPrivateKey { get; }
+
+        /// <summary>
+        /// Finds the certificate with the specified thumprint.
+        /// </summary>
+        /// <param name="thumbprint">The thumbprint.</param>
+        /// <param name="subjectName">The certificate subject.</param>
+        /// <param name="password">The certificate password.</param>
+        /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
+        /// <returns>The matching certificate with private key</returns>
+        Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password);
+
+        /// <summary>
         /// Checks if issuer has revoked the certificate.
         /// </summary>
         Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate);

@@ -120,7 +120,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.Add(X509Certificate2, string)" />
+        /// <inheritdoc/>
         public Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
@@ -193,6 +193,16 @@ namespace Opc.Ua
 
                 return Task.FromResult(collection);
             }
+        }
+
+        /// <inheritdoc/>
+        public bool SupportsLoadPrivateKey => false;
+
+        /// <inheritdoc/>
+        /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        {
+            return Task.FromResult<X509Certificate2>(null);
         }
 
         /// <inheritdoc/>

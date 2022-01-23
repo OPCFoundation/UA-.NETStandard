@@ -121,6 +121,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
             => m_innerStore.IsRevoked(issuer, certificate);
 
+        public bool SupportsLoadPrivateKey => m_innerStore.SupportsLoadPrivateKey;
+
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+            => m_innerStore.LoadPrivateKey(thumbprint, subjectName, password);
+
         public static int InstancesCreated => s_instancesCreated;
 
         #region data members
