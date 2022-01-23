@@ -52,19 +52,19 @@ namespace Opc.Ua
             // nothing to do
         }
 
-        /// <summary cref="ICertificateStore.Open(string)" />
+        /// <summary cref="ICertificateStore.Open(string, bool)" />
         /// <remarks>
         /// Syntax: StoreLocation\StoreName
         /// Example:
         ///   CurrentUser\My
         /// </remarks>
-        public void Open(string path)
+        public void Open(string location, bool noPrivateKeys = true)
         {
-            if (path == null) throw new ArgumentNullException(nameof(path));
+            if (location == null) throw new ArgumentNullException(nameof(location));
 
-            path = path.Trim();
+            location = location.Trim();
 
-            if (string.IsNullOrEmpty(path))
+            if (string.IsNullOrEmpty(location))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
@@ -72,17 +72,17 @@ namespace Opc.Ua
             }
 
             // extract store name.
-            int index = path.IndexOf('\\');
+            int index = location.IndexOf('\\');
             if (index == -1)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
                     "Path does not specify a store name. Path={0}",
-                    path);
+                    location);
             }
 
             // extract store location.
-            string storeLocation = path.Substring(0, index);
+            string storeLocation = location.Substring(0, index);
             bool found = false;
             foreach (StoreLocation availableLocation in (StoreLocation[])Enum.GetValues(typeof(StoreLocation)))
             {
@@ -101,7 +101,7 @@ namespace Opc.Ua
                     message.ToString(), storeLocation);
             }
 
-            m_storeName = path.Substring(index + 1);
+            m_storeName = location.Substring(index + 1);
         }
 
         /// <inheritdoc/>
@@ -109,6 +109,9 @@ namespace Opc.Ua
         {
             // nothing to do
         }
+
+        /// <inheritdoc/>
+        public string StoreType => CertificateStoreType.X509Store;
 
         /// <inheritdoc/>
         public Task<X509Certificate2Collection> Enumerate()

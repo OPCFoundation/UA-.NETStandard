@@ -36,9 +36,41 @@ namespace Opc.Ua
     /// The RevocationMode specifies whether this check should be done each time a certificate
     /// in the list are used.
     /// </remarks>
-    public partial class CertificateTrustList : CertificateStoreIdentifier
+    public partial class CertificateTrustList : CertificateStoreIdentifier, IDisposable
     {
         #region Public Methods
+        /// <summary>
+        /// OpenStore to use a cached store of the trust list,
+        /// no private keys.
+        /// </summary>
+        public override ICertificateStore OpenStore()
+        {
+            if (m_store == null || m_store.StoreType != this.StoreType)
+            {
+                m_store = CreateStore(this.StoreType);
+            }
+            m_store.Open(this.StorePath, true);
+            return m_store;
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        /// <summary>
+        /// Implements the dispose function.
+        /// </summary>
+        public virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Utils.SilentDispose(m_store);
+                m_store = null;
+            }
+        }
+
         /// <summary>
         /// Returns the certificates in the trust list.
         /// </summary>
@@ -47,16 +79,11 @@ namespace Opc.Ua
         {
             X509Certificate2Collection collection = new X509Certificate2Collection();
 
-            CertificateStoreIdentifier id = new CertificateStoreIdentifier();
-
-            id.StoreType = this.StoreType;
-            id.StorePath = this.StorePath;
-
-            if (!String.IsNullOrEmpty(id.StorePath))
+            if (!String.IsNullOrEmpty(this.StorePath))
             {
                 try
                 {
-                    ICertificateStore store = id.OpenStore();
+                    ICertificateStore store = OpenStore();
 
                     try
                     {
@@ -86,6 +113,10 @@ namespace Opc.Ua
 
             return collection;
         }
+        #endregion
+
+        #region Private Members
+        ICertificateStore m_store;
         #endregion
     }
     #endregion

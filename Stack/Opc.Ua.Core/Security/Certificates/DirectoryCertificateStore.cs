@@ -56,6 +56,14 @@ namespace Opc.Ua
             if (disposing)
             {
                 Close();
+                lock (m_lock)
+                {
+                    m_certificates.Clear();
+                    m_directory = null;
+                    m_certificateSubdir = null;
+                    m_privateKeySubdir = null;
+                    m_lastDirectoryCheck = DateTime.MinValue;
+                }
             }
         }
         #endregion
@@ -68,41 +76,36 @@ namespace Opc.Ua
         {
             get { return m_directory; }
         }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether any private keys are found in the store.
-        /// </summary>
-        /// <value>
-        ///   <c>true</c> if [no private keys]; otherwise, <c>false</c>.
-        /// </value>
-        private bool NoPrivateKeys { get; set; }
         #endregion
 
         #region ICertificateStore Members
         /// <inheritdoc/>
-        public void Open(string location)
+        public void Open(string location, bool noPrivateKeys = false)
         {
             lock (m_lock)
             {
                 location = Utils.ReplaceSpecialFolderNames(location);
-                m_directory = new DirectoryInfo(location);
-                m_certificateSubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "certs");
-                m_privateKeySubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "private");
+                if (m_directory?.FullName.Equals(location, StringComparison.Ordinal) != true ||
+                    NoPrivateKeys != noPrivateKeys)
+                {
+                    NoPrivateKeys = noPrivateKeys;
+                    m_directory = new DirectoryInfo(location);
+                    m_certificateSubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "certs");
+                    m_privateKeySubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "private");
+                    m_certificates.Clear();
+                    m_lastDirectoryCheck = DateTime.MinValue;
+                }
             }
         }
 
         /// <inheritdoc/>
         public void Close()
         {
-            lock (m_lock)
-            {
-                m_directory = null;
-                m_certificateSubdir = null;
-                m_privateKeySubdir = null;
-                m_certificates.Clear();
-                m_lastDirectoryCheck = DateTime.MinValue;
-            }
+            // intentionally keep information cached, dispose frees up resources
         }
+
+        /// <inheritdoc/>
+        public string StoreType => CertificateStoreType.Directory;
 
         /// <inheritdoc/>
         public Task<X509Certificate2Collection> Enumerate()
@@ -145,7 +148,8 @@ namespace Opc.Ua
                     throw new ArgumentException("A certificate with the same thumbprint is already in the store.");
                 }
 
-                if (certificate.HasPrivateKey)
+                bool writePrivateKey = !NoPrivateKeys && certificate.HasPrivateKey;
+                if (writePrivateKey)
                 {
                     string passcode = password ?? string.Empty;
                     data = certificate.Export(X509ContentType.Pkcs12, passcode);
@@ -159,9 +163,9 @@ namespace Opc.Ua
                 string fileName = GetFileName(certificate);
 
                 // write the private and public key.
-                WriteFile(data, fileName, certificate.HasPrivateKey);
+                WriteFile(data, fileName, writePrivateKey);
 
-                if (certificate.HasPrivateKey)
+                if (writePrivateKey)
                 {
                     WriteFile(certificate.RawData, fileName, false);
                 }
@@ -304,7 +308,7 @@ namespace Opc.Ua
         /// </summary>
         public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
         {
-            if (m_certificateSubdir == null || !m_certificateSubdir.Exists)
+            if (NoPrivateKeys || m_certificateSubdir == null || !m_certificateSubdir.Exists)
             {
                 return null;
             }
@@ -636,6 +640,14 @@ namespace Opc.Ua
 
         #region Private Methods
         /// <summary>
+        /// Gets or sets a value indicating whether any private keys are found in the store.
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if [no private keys]; otherwise, <c>false</c>.
+        /// </value>
+        private bool NoPrivateKeys { get; set; }
+
+        /// <summary>
         /// Reads the current contents of the directory from disk.
         /// </summary>
         private IDictionary<string, Entry> Load(string thumbprint)
@@ -715,7 +727,8 @@ namespace Opc.Ua
 
                         m_certificates[entry.Certificate.Thumbprint] = entry;
 
-                        if (!String.IsNullOrEmpty(thumbprint) && thumbprint == entry.Certificate.Thumbprint)
+                        if (!String.IsNullOrEmpty(thumbprint) &&
+                            thumbprint.Equals(entry.Certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
                         {
                             incompleteSearch = true;
                             break;
@@ -832,7 +845,6 @@ namespace Opc.Ua
 
             // create the directory.
             FileInfo fileInfo = new FileInfo(filePath.ToString());
-
             if (!fileInfo.Directory.Exists)
             {
                 fileInfo.Directory.Create();

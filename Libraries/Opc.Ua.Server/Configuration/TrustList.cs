@@ -320,9 +320,9 @@ namespace Opc.Ua.Server
                     TrustListMasks masks = (TrustListMasks)trustList.SpecifiedLists;
 
                     X509Certificate2Collection issuerCertificates = null;
-                    List<X509CRL> issuerCrls = null;
+                    X509CRLCollection issuerCrls = null;
                     X509Certificate2Collection trustedCertificates = null;
-                    List<X509CRL> trustedCrls = null;
+                    X509CRLCollection trustedCrls = null;
 
                     // test integrity of all CRLs
                     if ((masks & TrustListMasks.IssuerCertificates) != 0)
@@ -335,7 +335,7 @@ namespace Opc.Ua.Server
                     }
                     if ((masks & TrustListMasks.IssuerCrls) != 0)
                     {
-                        issuerCrls = new List<X509CRL>();
+                        issuerCrls = new X509CRLCollection();
                         foreach (var crl in trustList.IssuerCrls)
                         {
                             issuerCrls.Add(new X509CRL(crl));
@@ -351,7 +351,7 @@ namespace Opc.Ua.Server
                     }
                     if ((masks & TrustListMasks.TrustedCrls) != 0)
                     {
-                        trustedCrls = new List<X509CRL>();
+                        trustedCrls = new X509CRLCollection();
                         foreach (var crl in trustList.TrustedCrls)
                         {
                             trustedCrls.Add(new X509CRL(crl));
@@ -494,7 +494,7 @@ namespace Opc.Ua.Server
                     }
 
                     // delete all CRLs signed by cert
-                    var crlsToDelete = new List<X509CRL>();
+                    var crlsToDelete = new X509CRLCollection();
                     foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
                     {
                         foreach (var cert in certCollection)
@@ -565,7 +565,7 @@ namespace Opc.Ua.Server
 
         private async Task<bool> UpdateStoreCrls(
             string storePath,
-            IList<X509CRL> updatedCrls)
+            X509CRLCollection updatedCrls)
         {
             bool result = true;
             try

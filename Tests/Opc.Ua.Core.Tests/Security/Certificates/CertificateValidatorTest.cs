@@ -140,7 +140,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 m_crlRevokedChain[i] = CertificateFactory.RevokeCertificate(
                     m_caChain[i],
-                    new List<X509CRL>() { m_crlChain[i] },
+                    new X509CRLCollection() { m_crlChain[i] },
                     new X509Certificate2Collection { m_caChain[i + 1] });
             }
 
@@ -175,7 +175,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // create a CRL with all apps revoked
             m_crlRevokedChain[kCaChainCount - 1] = CertificateFactory.RevokeCertificate(
                 m_caChain[kCaChainCount - 1],
-                new List<X509CRL>() { m_crlChain[kCaChainCount - 1] },
+                new X509CRLCollection() { m_crlChain[kCaChainCount - 1] },
                 m_appCerts);
 
             // create signed expired app certs

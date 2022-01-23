@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -27,15 +26,21 @@ namespace Opc.Ua
         /// Opens the store at the specified location.
         /// </summary>
         /// <param name="location">The location.</param>
+        /// <param name="noPrivateKeys">Indicates whether any private keys are found in the store. Default <c>true</c>.</param>
         /// <remarks>
         /// The syntax depends on the store implementation.
         /// </remarks>
-        void Open(string location);
+        void Open(string location, bool noPrivateKeys = true);
 
         /// <summary>
         /// Closes the store.
         /// </summary>
         void Close();
+
+        /// <summary>
+        /// The store type.
+        /// </summary>
+        string StoreType { get; }
 
         /// <summary>
         /// Enumerates the certificates in the store.

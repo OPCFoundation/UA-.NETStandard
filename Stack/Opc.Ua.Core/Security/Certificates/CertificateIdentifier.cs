@@ -177,7 +177,7 @@ namespace Opc.Ua
                 {
                     if (store.SupportsLoadPrivateKey)
                     {
-                        store.Open(this.StorePath);
+                        store.Open(this.StorePath, false);
                         string password = passwordProvider?.GetPassword(this);
                         m_certificate = await store.LoadPrivateKey(this.Thumbprint, this.SubjectName, password).ConfigureAwait(false);
                         return m_certificate;
@@ -207,7 +207,15 @@ namespace Opc.Ua
                 // open store.
                 using (ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType))
                 {
-                    store.Open(StorePath);
+                    store.Open(StorePath, false);
+
+                    if (needPrivateKey && store.SupportsLoadPrivateKey)
+                    {
+                        var message = new StringBuilder();
+                        message.AppendLine("Load a certificate with private key from store {0}.");
+                        message.AppendLine("Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).");
+                        Utils.LogWarning(message.ToString(), StoreType);
+                    }
 
                     X509Certificate2Collection collection = await store.Enumerate().ConfigureAwait(false);
 
@@ -216,14 +224,6 @@ namespace Opc.Ua
                     if (certificate != null)
                     {
                         m_certificate = certificate;
-
-                        if (needPrivateKey && this.StoreType == CertificateStoreType.Directory)
-                        {
-                            var message = new StringBuilder();
-                            message.AppendLine("Loaded a certificate with private key from the directory store.");
-                            message.AppendLine("Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).");
-                            Utils.LogError(message.ToString());
-                        }
                     }
                 }
             }
@@ -486,7 +486,7 @@ namespace Opc.Ua
         public ICertificateStore OpenStore()
         {
             ICertificateStore store = CertificateStoreIdentifier.CreateStore(this.StoreType);
-            store.Open(this.StorePath);
+            store.Open(this.StorePath, false);
             return store;
         }
         #endregion
@@ -614,7 +614,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The certificate identifier store ignores the location.
         /// </remarks>
-        public void Open(string location)
+        public void Open(string location, bool noPrivateKeys)
         {
             // nothing to do.
         }
@@ -624,6 +624,9 @@ namespace Opc.Ua
         {
             // nothing to do.
         }
+
+        /// <inheritdoc/>
+        public string StoreType => nameof(CertificateIdentifierCollection);
 
         /// <inheritdoc/>
         public async Task<X509Certificate2Collection> Enumerate()

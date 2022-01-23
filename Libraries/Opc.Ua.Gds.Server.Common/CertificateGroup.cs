@@ -371,11 +371,6 @@ namespace Opc.Ua.Gds.Server
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot find issuer certificate in store.");
                 }
 
-                if (!certCA.HasPrivateKey)
-                {
-                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
-                }
-
                 CertificateIdentifier certCAIdentifier = new CertificateIdentifier(certCA) {
                     StorePath = storePath,
                     StoreType = CertificateStoreIdentifier.DetermineStoreType(storePath)
@@ -387,7 +382,12 @@ namespace Opc.Ua.Gds.Server
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Failed to load issuer private key. Is the password correct?");
                 }
 
-                List<X509CRL> certCACrl = await store.EnumerateCRLs(certCA, false).ConfigureAwait(false);
+                if (!certCAWithPrivateKey.HasPrivateKey)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
+                }
+
+                var certCACrl = await store.EnumerateCRLs(certCA, false).ConfigureAwait(false);
 
                 var certificateCollection = new X509Certificate2Collection() { };
                 if (!isCACert)

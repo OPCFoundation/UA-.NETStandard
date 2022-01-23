@@ -625,12 +625,12 @@ namespace Opc.Ua.Configuration.Tests
                 .SetRSAKeySize(keySize)
                 .CreateForRSA();
 
-            var result = new X509Certificate2Collection();
-            result.Add(appCert);
-            result.Add(new X509Certificate2(rootCA.RawData));
+            var result = new X509Certificate2Collection {
+                appCert,
+                new X509Certificate2(rootCA.RawData)
+            };
             return result;
         }
-
         #endregion
 
         #region Private Fields

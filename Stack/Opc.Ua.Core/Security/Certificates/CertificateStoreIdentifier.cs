@@ -175,7 +175,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an object that can be used to access the store.
         /// </summary>
-        public ICertificateStore OpenStore()
+        public virtual ICertificateStore OpenStore()
         {
             ICertificateStore store = CreateStore(this.StoreType);
             store.Open(this.StorePath);
@@ -207,7 +207,7 @@ namespace Opc.Ua
             s_registeredStoreTypes = new Dictionary<string, ICertificateStoreType>();
         }
 
-        #region public methods
+        #region Public Methods
         /// <summary>
         /// Registers a new certificate store type that con be specified in config files.
         /// </summary>
@@ -217,7 +217,7 @@ namespace Opc.Ua
         {
             s_registeredStoreTypes.Add(storeTypeName, storeType);
         }
-        #endregion public methods
+        #endregion
 
         #region Internal Methods
         internal static ICertificateStoreType GetCertificateStoreTypeByName(string storeTypeName)

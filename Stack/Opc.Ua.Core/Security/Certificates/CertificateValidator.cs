@@ -495,22 +495,10 @@ namespace Opc.Ua
                     try
                     {
                         ICertificateStore store = m_rejectedCertificateStore.OpenStore();
-
                         try
                         {
                             store.Delete(certificate.Thumbprint);
-                            // save only public key
-                            if (certificate.HasPrivateKey)
-                            {
-                                using (var cert = new X509Certificate2(certificate.RawData))
-                                {
-                                    store.Add(cert);
-                                }
-                            }
-                            else
-                            {
-                                store.Add(certificate);
-                            }
+                            store.Add(certificate);
                         }
                         finally
                         {

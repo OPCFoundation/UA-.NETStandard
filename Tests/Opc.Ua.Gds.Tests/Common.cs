@@ -291,17 +291,17 @@ namespace Opc.Ua.Gds.Tests
     {
         private static Random m_random = new Random();
 
-        public static void CleanupTrustList(ICertificateStore store, bool dispose = true)
+        public static async Task CleanupTrustList(ICertificateStore store, bool dispose = true)
         {
-            var certs = store.Enumerate().Result;
+            var certs = await store.Enumerate();
             foreach (var cert in certs)
             {
-                store.Delete(cert.Thumbprint);
+                await store.Delete(cert.Thumbprint);
             }
-            var crls = store.EnumerateCRLs().Result;
+            var crls = await store.EnumerateCRLs();
             foreach (var crl in crls)
             {
-                store.DeleteCRL(crl);
+                await store.DeleteCRL(crl);
             }
             if (dispose)
             {
