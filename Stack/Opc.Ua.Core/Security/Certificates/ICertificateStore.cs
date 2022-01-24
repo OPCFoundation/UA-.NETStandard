@@ -43,6 +43,11 @@ namespace Opc.Ua
         string StoreType { get; }
 
         /// <summary>
+        /// The store path used to open the store.
+        /// </summary>
+        string StorePath { get; }
+
+        /// <summary>
         /// Enumerates the certificates in the store.
         /// </summary>
         Task<X509Certificate2Collection> Enumerate();

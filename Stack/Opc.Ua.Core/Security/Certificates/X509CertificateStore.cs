@@ -15,7 +15,6 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -49,7 +48,10 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            // nothing to do
+            if (disposing)
+            {
+                Close();
+            }
         }
 
         /// <summary cref="ICertificateStore.Open(string, bool)" />
@@ -62,6 +64,8 @@ namespace Opc.Ua
         {
             if (location == null) throw new ArgumentNullException(nameof(location));
 
+            m_storePath = location;
+            m_noPrivateKeys = noPrivateKeys;
             location = location.Trim();
 
             if (string.IsNullOrEmpty(location))
@@ -114,6 +118,9 @@ namespace Opc.Ua
         public string StoreType => CertificateStoreType.X509Store;
 
         /// <inheritdoc/>
+        public string StorePath => m_storePath;
+
+        /// <inheritdoc/>
         public Task<X509Certificate2Collection> Enumerate()
         {
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
@@ -134,7 +141,7 @@ namespace Opc.Ua
                 if (!store.Certificates.Contains(certificate))
                 {
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER || NET472_OR_GREATER
-                    if (certificate.HasPrivateKey &&
+                    if (certificate.HasPrivateKey && !m_noPrivateKeys &&
                         (Environment.OSVersion.Platform == PlatformID.Win32NT))
                     {
                         // see https://github.com/dotnet/runtime/issues/29144
@@ -147,6 +154,12 @@ namespace Opc.Ua
                     }
                     else
 #endif
+                    if (certificate.HasPrivateKey && m_noPrivateKeys)
+                    {
+                        // ensure no private key is added to store
+                        store.Add(new X509Certificate2(certificate.RawData));
+                    }
+                    else
                     {
                         store.Add(certificate);
                     }
@@ -247,7 +260,9 @@ namespace Opc.Ua
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
+        private bool m_noPrivateKeys;
         private string m_storeName;
+        private string m_storePath;
         private StoreLocation m_storeLocation;
     }
 }

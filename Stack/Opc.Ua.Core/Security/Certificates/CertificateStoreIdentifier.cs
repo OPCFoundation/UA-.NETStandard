@@ -78,7 +78,7 @@ namespace Opc.Ua
 #if NETFRAMEWORK
         public static readonly string DefaultPKIRoot = Path.Combine("%CommonApplicationData%", "OPC Foundation", "pki");
 #else
-        public static readonly string DefaultPKIRoot = Path.Combine("%LocalApplicationData%","OPC Foundation","pki");
+        public static readonly string DefaultPKIRoot = Path.Combine("%LocalApplicationData%", "OPC Foundation", "pki");
 #endif
 
         /// <summary>
@@ -173,8 +173,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns an object that can be used to access the store.
+        /// Returns an object to access the store containing the certificates.
         /// </summary>
+        /// <remarks>
+        /// Opens an instance of the store which contains public keys.
+        /// </remarks>
+        /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
         public virtual ICertificateStore OpenStore()
         {
             ICertificateStore store = CreateStore(this.StoreType);
@@ -183,10 +187,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Opens the store.
+        /// Returns an object to access the store containing the certificates.
         /// </summary>
-        /// <param name="path">The path.</param>
-        /// <returns>The store.</returns>
+        /// <remarks>
+        /// Opens an instance of the store which contains public keys.
+        /// </remarks>
+        /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
         public static ICertificateStore OpenStore(string path)
         {
             ICertificateStore store = CertificateStoreIdentifier.CreateStore(CertificateStoreIdentifier.DetermineStoreType(path));

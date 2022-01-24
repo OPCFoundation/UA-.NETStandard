@@ -55,7 +55,6 @@ namespace Opc.Ua
             // clean up managed resources.
             if (disposing)
             {
-                Close();
                 lock (m_lock)
                 {
                     m_certificates.Clear();
@@ -65,6 +64,7 @@ namespace Opc.Ua
                     m_lastDirectoryCheck = DateTime.MinValue;
                 }
             }
+            Close();
         }
         #endregion
 
@@ -84,12 +84,13 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                location = Utils.ReplaceSpecialFolderNames(location);
-                if (m_directory?.FullName.Equals(location, StringComparison.Ordinal) != true ||
+                var trimmedLocation = Utils.ReplaceSpecialFolderNames(location);
+                if (m_directory?.FullName.Equals(trimmedLocation, StringComparison.Ordinal) != true ||
                     NoPrivateKeys != noPrivateKeys)
                 {
                     NoPrivateKeys = noPrivateKeys;
-                    m_directory = new DirectoryInfo(location);
+                    StorePath = location;
+                    m_directory = new DirectoryInfo(trimmedLocation);
                     m_certificateSubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "certs");
                     m_privateKeySubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "private");
                     m_certificates.Clear();
@@ -106,6 +107,9 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public string StoreType => CertificateStoreType.Directory;
+
+        /// <inheritdoc/>
+        public string StorePath { get; private set; }
 
         /// <inheritdoc/>
         public Task<X509Certificate2Collection> Enumerate()

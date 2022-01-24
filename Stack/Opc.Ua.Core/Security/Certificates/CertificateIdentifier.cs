@@ -480,9 +480,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns an object that can be used to access the store containing the certificate.
+        /// Returns an object to access the store containing the certificate.
         /// </summary>
-        /// <returns>An instance of the <see cref="ICertificateStore"/> poined out by the current value of </returns>
+        /// <remarks>
+        /// Opens a store which contains public and private keys.
+        /// </remarks>
+        /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
         public ICertificateStore OpenStore()
         {
             ICertificateStore store = CertificateStoreIdentifier.CreateStore(this.StoreType);
@@ -627,6 +630,9 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public string StoreType => nameof(CertificateIdentifierCollection);
+
+        /// <inheritdoc/>
+        public string StorePath => string.Empty;
 
         /// <inheritdoc/>
         public async Task<X509Certificate2Collection> Enumerate()

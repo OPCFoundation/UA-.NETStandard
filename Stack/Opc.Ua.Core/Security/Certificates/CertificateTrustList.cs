@@ -36,38 +36,32 @@ namespace Opc.Ua
     /// The RevocationMode specifies whether this check should be done each time a certificate
     /// in the list are used.
     /// </remarks>
-    public partial class CertificateTrustList : CertificateStoreIdentifier, IDisposable
+    public partial class CertificateTrustList : CertificateStoreIdentifier
     {
         #region Public Methods
         /// <summary>
-        /// OpenStore to use a cached store of the trust list,
-        /// no private keys.
+        /// Returns an object to access the store containing the certificate of the trustlist.
         /// </summary>
+        /// <remarks>
+        /// Opens a cached instance of the store which contains public keys.
+        /// To take advantage of the certificate cache use <see cref="ICertificateStore.Close"/>
+        /// and let the CertificateTrustList handle the dispose.
+        /// Disposing the store has no functional impact but may
+        /// enforce unnecessary refresh of the cached certificate store.
+        /// </remarks>
+        /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
         public override ICertificateStore OpenStore()
         {
-            if (m_store == null || m_store.StoreType != this.StoreType)
+            lock (m_lock)
             {
-                m_store = CreateStore(this.StoreType);
-            }
-            m_store.Open(this.StorePath, true);
-            return m_store;
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            Dispose(true);
-        }
-
-        /// <summary>
-        /// Implements the dispose function.
-        /// </summary>
-        public virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Utils.SilentDispose(m_store);
-                m_store = null;
+                if (m_store == null ||
+                    m_store.StoreType != this.StoreType ||
+                    m_store.StorePath != this.StorePath)
+                {
+                    m_store = CreateStore(this.StoreType);
+                }
+                m_store.Open(this.StorePath, true);
+                return m_store;
             }
         }
 
@@ -81,24 +75,21 @@ namespace Opc.Ua
 
             if (!String.IsNullOrEmpty(this.StorePath))
             {
+                ICertificateStore store = null;
                 try
                 {
-                    ICertificateStore store = OpenStore();
-
-                    try
-                    {
-                        collection = await store.Enumerate().ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        store.Close();
-                    }
+                    store = OpenStore();
+                    collection = await store.Enumerate().ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
-                    // TODO check all StorePath references to not leak information
                     Utils.LogError("Could not load certificates from store: {0}.", this.StorePath);
                 }
+                finally
+                {
+                    store?.Close();
+                }
+
             }
 
             foreach (CertificateIdentifier trustedCertificate in TrustedCertificates)
@@ -116,7 +107,8 @@ namespace Opc.Ua
         #endregion
 
         #region Private Members
-        ICertificateStore m_store;
+        private object m_lock = new object();
+        private ICertificateStore m_store;
         #endregion
     }
     #endregion
