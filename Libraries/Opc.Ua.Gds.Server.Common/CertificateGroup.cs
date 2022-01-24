@@ -389,7 +389,7 @@ namespace Opc.Ua.Gds.Server
 
                 var certCACrl = await store.EnumerateCRLs(certCA, false).ConfigureAwait(false);
 
-                var certificateCollection = new X509Certificate2Collection() { };
+                var certificateCollection = new X509Certificate2Collection();
                 if (!isCACert)
                 {
                     certificateCollection.Add(certificate);
