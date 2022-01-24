@@ -90,6 +90,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public string StoreType => StoreTypePrefix.Substring(0, StoreTypePrefix.Length - 1);
 
         /// <inheritdoc/>
+        public string StorePath => m_innerStore.StorePath;
+
+        /// <inheritdoc/>
         public Task Add(X509Certificate2 certificate, string password = null)
         {
             return m_innerStore.Add(certificate, password);
