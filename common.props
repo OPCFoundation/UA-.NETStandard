@@ -37,7 +37,7 @@
     <!-- VS 2017 workaround -->
     <When  Condition="'$(RCS)' == 'true'">
       <ItemGroup>
-        <PackageReference Include="Roslynator.Analyzers" Version="3.3.0" PrivateAssets="All" />
+        <PackageReference Include="Roslynator.Analyzers" Version="4.0.0" PrivateAssets="All" />
       </ItemGroup>
     </When>
   </Choose>
