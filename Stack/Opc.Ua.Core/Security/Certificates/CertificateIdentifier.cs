@@ -184,7 +184,7 @@ namespace Opc.Ua
                     }
                 }
             }
-            return await Find(true);
+            return await Find(true).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -629,7 +629,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string StoreType => nameof(CertificateIdentifierCollection);
+        public string StoreType => string.Empty;
 
         /// <inheritdoc/>
         public string StorePath => string.Empty;

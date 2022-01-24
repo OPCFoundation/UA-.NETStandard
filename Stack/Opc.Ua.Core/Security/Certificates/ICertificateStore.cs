@@ -26,7 +26,7 @@ namespace Opc.Ua
         /// Opens the store at the specified location.
         /// </summary>
         /// <param name="location">The location.</param>
-        /// <param name="noPrivateKeys">Indicates whether any private keys are found in the store. Default <c>true</c>.</param>
+        /// <param name="noPrivateKeys">Indicates whether NO private keys are found in the store. Default <c>true</c>.</param>
         /// <remarks>
         /// The syntax depends on the store implementation.
         /// </remarks>

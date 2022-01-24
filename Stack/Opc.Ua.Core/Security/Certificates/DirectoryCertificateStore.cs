@@ -437,7 +437,7 @@ namespace Opc.Ua
                 if (retryCounter > 0)
                 {
                     Utils.LogInfo(Utils.TraceMasks.Security, "Retry to import private key after {0} ms.", retryDelay);
-                    await Task.Delay(retryDelay);
+                    await Task.Delay(retryDelay).ConfigureAwait(false);
                 }
             }
 
@@ -716,7 +716,8 @@ namespace Opc.Ua
                             // check for PFX file.
                             entry.PrivateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
 
-                            // TODO: load the private keys?
+                            // note: only obtain the filenames for delete, loading the private keys
+                            // without authorization causes false negatives (LogErrors)
                             if (!entry.PrivateKeyFile.Exists)
                             {
                                 // check for PEM file.
