@@ -818,7 +818,7 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                store.Close();
+                store?.Close();
             }
             return result;
         }
@@ -858,7 +858,7 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                store.Close();
+                store?.Close();
             }
             return result;
         }
