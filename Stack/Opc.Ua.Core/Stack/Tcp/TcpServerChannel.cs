@@ -122,7 +122,7 @@ namespace Opc.Ua.Bindings
 
             if (ar == null)
             {
-                throw new ArgumentException(nameof(result));
+                throw new ArgumentException("EndReverseConnect is called with invalid IAsyncResult.", nameof(result));
             }
 
             if (!ar.WaitForComplete())
