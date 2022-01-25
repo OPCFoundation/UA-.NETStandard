@@ -253,7 +253,7 @@ namespace Opc.Ua.Client
             m_latestAcknowledgementsSent = new Dictionary<uint, uint>();
             m_identityHistory = new List<IUserIdentity>();
             m_outstandingRequests = new LinkedList<AsyncRequestState>();
-            m_keepAliveInterval = 5000;
+            m_keepAliveInterval = 50000;
             m_sessionName = "";
             m_deleteSubscriptionsOnClose = true;
 
@@ -1266,28 +1266,6 @@ namespace Opc.Ua.Client
                 m_reconnecting = false;
             }
         }
-
-#if TODO
-        /// <summary>
-        /// Function to republish
-        /// </summary>
-        public void Republish()
-        {
-            int publishCount = 0;
-            lock (SyncRoot)
-            {
-                publishCount = m_subscriptions.Count;
-            }
-
-            // refill pipeline.
-            for (int ii = 0; ii < publishCount; ii++)
-            {
-                BeginPublish(OperationTimeout);
-            }
-
-            StartKeepAliveTimer();
-        }
-#endif
 
         /// <summary>
         /// Saves all the subscriptions of the session.

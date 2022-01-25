@@ -541,22 +541,30 @@ namespace Opc.Ua.Server
 
             var monitoredItems = m_monitoredItems.Values.ToList();
             var errors = new List<ServiceResult>(monitoredItems.Count);
-            for (int ii=0; ii<monitoredItems.Count; ii++)
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 errors.Add(null);
             }
 
             m_server.NodeManager.TransferMonitoredItems(context, sendInitialValues, monitoredItems, errors);
 
-            // TODO: handle errors?
+            int badTransfers = 0;
+            for (int ii = 0; ii < errors.Count; ii++)
+            {
+                if (ServiceResult.IsBad(errors[ii]))
+                {
+                    badTransfers++;
+                }
+            }
+
+            if (badTransfers > 0)
+            {
+                Utils.LogTrace("Failed to transfer {0} Monitored Items", badTransfers);
+            }
 
             lock (DiagnosticsWriteLock)
             {
                 m_diagnostics.SessionId = m_session.Id;
-
-                m_diagnostics.TransferRequestCount = 0;
-                m_diagnostics.TransferredToSameClientCount = 0;
-                m_diagnostics.TransferredToAltClientCount = 0;
             }
         }
 
@@ -2231,7 +2239,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the subscription to durable mode.
         /// </summary>
-       public ServiceResult SetSubscriptionDurable(uint lifeTimeInHours, out uint revisedLifeTimeInHours)
+        public ServiceResult SetSubscriptionDurable(uint lifeTimeInHours, out uint revisedLifeTimeInHours)
         {
             lock (m_lock)
             {
