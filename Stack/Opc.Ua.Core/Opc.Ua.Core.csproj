@@ -24,6 +24,7 @@
     <None Remove="Schema\Opc.Ua.Types.bsd" />
     <None Remove="Schema\Opc.Ua.Types.xsd" />
     <None Remove="Types\Schemas\BuiltInTypes.bsd" />
+    <None Remove="Types\Schemas\BuiltInTypes.xsd" />
     <None Remove="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
 
@@ -32,6 +33,7 @@
     <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
     <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes" />
+    <EmbeddedResource Include="Types\Schemas\BuiltInTypes.xsd" />
     <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
     <EmbeddedResource Include="Schema\ServerCapabilities.csv" />
     <EmbeddedResource Include="Types\Schemas\BuiltInTypes.bsd" />

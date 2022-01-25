@@ -176,6 +176,8 @@ namespace Opc.Ua.Schema.Xml
         /// </summary>
         protected static readonly string[][] WellKnownDictionaries = new string[][]
         {
+            new string[] { Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Types.Schemas.BuiltInTypes.xsd" },
+            new string[] { Namespaces.OpcUa, "Opc.Ua.Schema.Opc.Ua.Types.xsd" },
             new string[] { Namespaces.OpcUaXsd, "Opc.Ua.Schema.Opc.Ua.Types.xsd" }
         };
         private XmlSchema m_schema;

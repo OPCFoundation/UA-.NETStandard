@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+
+<xs:schema
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:tns="http://opcfoundation.org/UA/BuiltInTypes/"
+  targetNamespace="http://opcfoundation.org/UA/BuiltInTypes/"
+  elementFormDefault="qualified"
+>
+  <xs:element name="Boolean" nillable="true" type="xs:boolean" />
+
+  <xs:complexType name="ListOfBoolean">
+    <xs:sequence>
+      <xs:element name="Boolean" type="xs:boolean" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfBoolean" type="tns:ListOfBoolean" nillable="true"></xs:element>
+
+  <xs:element name="SByte" nillable="true" type="xs:byte" />
+
+  <xs:complexType name="ListOfSByte">
+    <xs:sequence>
+      <xs:element name="SByte" type="xs:byte" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfSByte" type="tns:ListOfSByte" nillable="true"></xs:element>
+
+  <xs:element name="Byte" nillable="true" type="xs:unsignedByte" />
+
+  <xs:complexType name="ListOfByte">
+    <xs:sequence>
+      <xs:element name="Byte" type="xs:unsignedByte" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfByte" type="tns:ListOfByte" nillable="true"></xs:element>
+
+  <xs:element name="Int16" nillable="true" type="xs:short" />
+
+  <xs:complexType name="ListOfInt16">
+    <xs:sequence>
+      <xs:element name="Int16" type="xs:short" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfInt16" type="tns:ListOfInt16" nillable="true"></xs:element>
+
+  <xs:element name="UInt16" nillable="true" type="xs:unsignedShort" />
+
+  <xs:complexType name="ListOfUInt16">
+    <xs:sequence>
+      <xs:element name="UInt16" type="xs:unsignedShort" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfUInt16" type="tns:ListOfUInt16" nillable="true"></xs:element>
+
+  <xs:element name="Int32" nillable="true" type="xs:int" />
+
+  <xs:complexType name="ListOfInt32">
+    <xs:sequence>
+      <xs:element name="Int32" type="xs:int" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfInt32" type="tns:ListOfInt32" nillable="true"></xs:element>
+
+  <xs:element name="UInt32" nillable="true" type="xs:unsignedInt" />
+
+  <xs:complexType name="ListOfUInt32">
+    <xs:sequence>
+      <xs:element name="UInt32" type="xs:unsignedInt" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfUInt32" type="tns:ListOfUInt32" nillable="true"></xs:element>
+
+  <xs:element name="Int64" nillable="true" type="xs:long" />
+
+  <xs:complexType name="ListOfInt64">
+    <xs:sequence>
+      <xs:element name="Int64" type="xs:long" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfInt64" type="tns:ListOfInt64" nillable="true"></xs:element>
+
+  <xs:element name="UInt64" nillable="true" type="xs:unsignedLong" />
+
+  <xs:complexType name="ListOfUInt64">
+    <xs:sequence>
+      <xs:element name="UInt64" type="xs:unsignedLong" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfUInt64" type="tns:ListOfUInt64" nillable="true"></xs:element>
+
+  <xs:element name="Float" nillable="true" type="xs:float" />
+
+  <xs:complexType name="ListOfFloat">
+    <xs:sequence>
+      <xs:element name="Float" type="xs:float" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfFloat" type="tns:ListOfFloat" nillable="true"></xs:element>
+
+  <xs:element name="Double" nillable="true" type="xs:double" />
+
+  <xs:complexType name="ListOfDouble">
+    <xs:sequence>
+      <xs:element name="Double" type="xs:double" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDouble" type="tns:ListOfDouble" nillable="true"></xs:element>
+
+  <xs:element name="String" nillable="true" type="xs:string" />
+
+  <xs:complexType name="ListOfString">
+    <xs:sequence>
+      <xs:element name="String" type="xs:string" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfString" type="tns:ListOfString" nillable="true"></xs:element>
+
+  <xs:element name="DateTime" nillable="true" type="xs:dateTime" />
+
+  <xs:complexType name="ListOfDateTime">
+    <xs:sequence>
+      <xs:element name="DateTime" type="xs:dateTime" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDateTime" type="tns:ListOfDateTime" nillable="true"></xs:element>
+
+  <xs:complexType name="Guid">
+    <xs:sequence>
+      <xs:element name="String" type="xs:string" minOccurs="0" maxOccurs="1" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="Guid" type="tns:Guid" nillable="true"></xs:element>
+
+  <xs:complexType name="ListOfGuid">
+    <xs:sequence>
+      <xs:element name="Guid" type="tns:Guid" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfGuid" type="tns:ListOfGuid" nillable="true"></xs:element>
+
+  <xs:element name="ByteString" nillable="true" type="xs:base64Binary" />
+
+  <xs:complexType name="ListOfByteString">
+    <xs:sequence>
+      <xs:element name="ByteString" type="xs:base64Binary" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfByteString" type="tns:ListOfByteString" nillable="true"></xs:element>
+
+  <xs:complexType name="ListOfXmlElement">
+    <xs:sequence>
+      <xs:element name="XmlElement" minOccurs="0" maxOccurs="unbounded" nillable="true">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:any minOccurs="0" processContents="lax"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfXmlElement" type="tns:ListOfXmlElement" nillable="true"></xs:element>
+
+  <xs:complexType name="NodeId">
+    <xs:sequence>
+      <xs:element name="Identifier" type="xs:string" minOccurs="0" maxOccurs="1" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="NodeId" type="tns:NodeId" nillable="true"></xs:element>
+
+  <xs:complexType name="ListOfNodeId">
+    <xs:sequence>
+      <xs:element name="NodeId" type="tns:NodeId" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfNodeId" type="tns:ListOfNodeId" nillable="true"></xs:element>
+
+  <xs:complexType name="ExpandedNodeId">
+    <xs:sequence>
+      <xs:element name="Identifier" type="xs:string" minOccurs="0" maxOccurs="1" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ExpandedNodeId" type="tns:ExpandedNodeId" nillable="true"></xs:element>
+
+  <xs:complexType name="ListOfExpandedNodeId">
+    <xs:sequence>
+      <xs:element name="ExpandedNodeId" type="tns:ExpandedNodeId" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfExpandedNodeId" type="tns:ListOfExpandedNodeId" nillable="true"></xs:element>
+
+  <xs:complexType name="StatusCode">
+    <xs:sequence>
+      <xs:element name="Code" type="xs:unsignedInt" minOccurs="0" maxOccurs="1" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="StatusCode" type="tns:StatusCode" nillable="true"></xs:element>
+
+  <xs:complexType name="ListOfStatusCode">
+    <xs:sequence>
+      <xs:element name="StatusCode" type="tns:StatusCode" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfStatusCode" type="tns:ListOfStatusCode" nillable="true"></xs:element>
+
+  <xs:complexType name="DiagnosticInfo">
+    <xs:sequence>
+      <xs:element name="SymbolicId" type="xs:int" minOccurs="0" maxOccurs="1" />
+      <xs:element name="NamespaceUri" type="xs:int" minOccurs="0" maxOccurs="1" />
+      <xs:element name="Locale" type="xs:int" minOccurs="0" maxOccurs="1" />
+      <xs:element name="LocalizedText" type="xs:int" minOccurs="0" maxOccurs="1" />
+      <xs:element name="AdditionalInfo" type="xs:string" minOccurs="0" maxOccurs="1" />
+      <xs:element name="InnerStatusCode" type="tns:StatusCode" minOccurs="0" maxOccurs="1" />
+      <xs:element name="InnerDiagnosticInfo" type="tns:DiagnosticInfo" minOccurs="0" maxOccurs="1" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="DiagnosticInfo" type="tns:DiagnosticInfo" nillable="true"></xs:element>
+
+  <xs:complexType name="ListOfDiagnosticInfo">
+    <xs:sequence>
+      <xs:element name="DiagnosticInfo" type="tns:DiagnosticInfo" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDiagnosticInfo" type="tns:ListOfDiagnosticInfo" nillable="true"></xs:element>
+
+  <xs:complexType name="LocalizedText">
+    <xs:sequence>
+      <xs:element name="Locale" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Text" type="xs:string" minOccurs="0"  nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="LocalizedText" type="tns:LocalizedText" nillable="true" />
+
+  <xs:complexType name="ListOfLocalizedText">
+    <xs:sequence>
+      <xs:element name="LocalizedText" type="tns:LocalizedText" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfLocalizedText" type="tns:ListOfLocalizedText" nillable="true"></xs:element>
+
+  <xs:complexType name="QualifiedName">
+    <xs:sequence>
+      <xs:element name="NamespaceIndex" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="Name" type="xs:string" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="QualifiedName" type="tns:QualifiedName" nillable="true" />
+
+  <xs:complexType name="ListOfQualifiedName">
+    <xs:sequence>
+      <xs:element name="QualifiedName" type="tns:QualifiedName" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfQualifiedName" type="tns:ListOfQualifiedName" nillable="true"></xs:element>
+
+  <xs:complexType name="ExtensionObject">
+    <xs:sequence>
+      <xs:element name="TypeId" type="tns:ExpandedNodeId" minOccurs="0" nillable="true" />
+      <xs:element name="Body" minOccurs="0" nillable="true">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:any minOccurs="0" processContents="lax"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ExtensionObject" type="tns:ExtensionObject" nillable="true" />
+
+  <xs:complexType name="ListOfExtensionObject">
+    <xs:sequence>
+      <xs:element name="ExtensionObject" type="tns:ExtensionObject" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfExtensionObject" type="tns:ListOfExtensionObject" nillable="true"></xs:element>
+
+  <xs:complexType name="Variant">
+    <xs:sequence>
+      <xs:element name="Value" minOccurs="0" nillable="true">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:any minOccurs="0" processContents="lax"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="Variant" type="tns:Variant" nillable="true" />
+
+  <xs:complexType name="ListOfVariant">
+    <xs:sequence>
+      <xs:element name="Variant" type="tns:Variant" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfVariant" type="tns:ListOfVariant" nillable="true"></xs:element>
+
+  <xs:complexType name="DataValue">
+    <xs:sequence>
+      <xs:element name="Value" type="tns:Variant" minOccurs="0" nillable="true" />
+      <xs:element name="StatusCode" type="tns:StatusCode" minOccurs="0" />
+      <xs:element name="SourceTimestamp" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="ServerTimestamp" type="xs:dateTime" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="DataValue" type="tns:DataValue" nillable="true"/>
+
+  <xs:complexType name="ListOfDataValue">
+    <xs:sequence>
+      <xs:element name="DataValue" type="tns:DataValue" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDataValue" type="tns:ListOfDataValue" nillable="true"></xs:element>
+
+</xs:schema>
