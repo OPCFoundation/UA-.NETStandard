@@ -92,7 +92,6 @@ namespace Opc.Ua.Client.Tests
             // start client
             await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
             m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
-            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -101,9 +100,6 @@ namespace Opc.Ua.Client.Tests
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
-            m_session.Close();
-            m_session.Dispose();
-            m_session = null;
             await m_serverFixture.StopAsync().ConfigureAwait(false);
             await Task.Delay(1000).ConfigureAwait(false);
         }
@@ -112,9 +108,21 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public void SetUp()
+        public async Task SetUp()
         {
+            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
             m_serverFixture.SetTraceOutput(TestContext.Out);
+        }
+
+        /// <summary>
+        /// Tear down the Server and the Client.
+        /// </summary>
+        [TearDown]
+        public void TearDownAsync()
+        {
+            m_session.Close(100);
+            m_session.Dispose();
+            m_session = null;
         }
         #endregion
 
@@ -468,6 +476,13 @@ namespace Opc.Ua.Client.Tests
                     DisableMonitoredItemCache = true,
                     PublishingEnabled = true
                 };
+
+                subscription.FastDataChangeCallback = (_, notification, __) => {
+                    notification.MonitoredItems.ForEach(item => {
+                        Interlocked.Increment(ref numOfNotifications);
+                    });
+                };
+
                 subscriptionList.Add(subscription);
 
                 var list = Enumerable.Range(1, MonitoredItemsPerSubscription).Select(_ => new MonitoredItem(subscription.DefaultItem) {
@@ -481,13 +496,9 @@ namespace Opc.Ua.Client.Tests
                 Assert.True(result);
                 await subscription.CreateAsync().ConfigureAwait(false);
                 var publishInterval = (int)subscription.CurrentPublishingInterval;
-                TestContext.Out.WriteLine($"CurrentPublishingInterval: {publishInterval}");
 
-                subscription.FastDataChangeCallback = (_, notification, __) => {
-                    notification.MonitoredItems.ForEach(item => {
-                        Interlocked.Increment(ref numOfNotifications);
-                    });
-                };
+                TestContext.Out.WriteLine($"Id: {subscription.Id} CurrentPublishingInterval: {publishInterval}");
+
             }
 
             var stopwatch = Stopwatch.StartNew();
@@ -499,7 +510,7 @@ namespace Opc.Ua.Client.Tests
             {
                 // use the sample server default for max publish request count
                 Assert.GreaterOrEqual(MaxServerPublishRequest, m_session.GoodPublishRequestCount);
-                await Task.Delay(100).ConfigureAwait(false);
+                await Task.Delay(500).ConfigureAwait(false);
             }
 
             foreach (var subscription in subscriptionList)
