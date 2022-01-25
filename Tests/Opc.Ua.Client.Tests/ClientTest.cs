@@ -661,7 +661,7 @@ namespace Opc.Ua.Client.Tests
                     TimeoutHint = MaxTimeout
                 };
                 var transferTestServices = new ClientTestServices(transferSession);
-                CommonTestWorkers.TransferSubscriptionTest(transferTestServices, requestHeader, subscriptionIds, sendInitialData);
+                CommonTestWorkers.TransferSubscriptionTest(transferTestServices, requestHeader, subscriptionIds, sendInitialData, false);
 
                 // verify the notification of message transfer
                 requestHeader = new RequestHeader {

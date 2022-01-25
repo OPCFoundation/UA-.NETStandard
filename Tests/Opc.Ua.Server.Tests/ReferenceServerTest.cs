@@ -330,14 +330,14 @@ namespace Opc.Ua.Server.Tests
         /// Transfer subscription from closed session to the other.
         /// </summary>
         [Theory]
-        public void TransferSubscriptionSessionClosed(bool sendInitialData)
+        public void TransferSubscriptionSessionClosed(bool sendInitialData, bool useSecurity)
         {
             var serverTestServices = new ServerTestServices(m_server);
             // save old security context, test fixture can only work with one session
             var securityContext = SecureChannelContext.Current;
             try
             {
-                RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("ClosedSession");
+                RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("ClosedSession", useSecurity);
                 var transferSecurityContext = SecureChannelContext.Current;
                 var namespaceUris = m_server.CurrentInstance.NamespaceUris;
                 NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
@@ -350,14 +350,17 @@ namespace Opc.Ua.Server.Tests
 
                 //restore security context, transfer abandoned subscription
                 SecureChannelContext.Current = securityContext;
-                CommonTestWorkers.TransferSubscriptionTest(serverTestServices, m_requestHeader, subscriptionIds, sendInitialData);
+                CommonTestWorkers.TransferSubscriptionTest(serverTestServices, m_requestHeader, subscriptionIds, sendInitialData, !useSecurity);
 
-                // subscription was deleted, expect 'BadNoSubscription'
-                var sre = Assert.Throws<ServiceResultException>(() => {
-                    m_requestHeader.Timestamp = DateTime.UtcNow;
-                    CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
-                });
-                Assert.AreEqual(StatusCodes.BadNoSubscription, sre.StatusCode);
+                if (useSecurity)
+                {
+                    // subscription was deleted, expect 'BadNoSubscription'
+                    var sre = Assert.Throws<ServiceResultException>(() => {
+                        m_requestHeader.Timestamp = DateTime.UtcNow;
+                        CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
+                    });
+                    Assert.AreEqual(StatusCodes.BadNoSubscription, sre.StatusCode);
+                }
             }
             finally
             {
@@ -372,7 +375,7 @@ namespace Opc.Ua.Server.Tests
         /// Transfer subscription with a monitored item from one session to the other.
         /// </summary>
         [Theory]
-        public void TransferSubscription(bool sendInitialData)
+        public void TransferSubscription(bool sendInitialData, bool useSecurity)
         {
             var serverTestServices = new ServerTestServices(m_server);
             // save old security context, test fixture can only work with one session
@@ -384,13 +387,16 @@ namespace Opc.Ua.Server.Tests
                 CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader,
                     testSet, out var subscriptionIds);
 
-                RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("TransferSession");
+                RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("TransferSession", useSecurity);
                 var transferSecurityContext = SecureChannelContext.Current;
-                CommonTestWorkers.TransferSubscriptionTest(serverTestServices, transferRequestHeader, subscriptionIds, sendInitialData);
+                CommonTestWorkers.TransferSubscriptionTest(serverTestServices, transferRequestHeader, subscriptionIds, sendInitialData, !useSecurity);
 
-                //restore security context
-                SecureChannelContext.Current = securityContext;
-                CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
+                if (useSecurity)
+                {
+                    //restore security context
+                    SecureChannelContext.Current = securityContext;
+                    CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
+                }
 
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
                 SecureChannelContext.Current = transferSecurityContext;

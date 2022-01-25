@@ -474,7 +474,8 @@ namespace Opc.Ua.Server.Tests
             IServerTestServices services,
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
-            bool sendInitialData)
+            bool sendInitialData,
+            bool expectAccessDenied)
         {
             Assert.AreEqual(1, subscriptionIds.Count);
 
@@ -488,15 +489,20 @@ namespace Opc.Ua.Server.Tests
             foreach (var transferResult in transferResults)
             {
                 TestContext.Out.WriteLine("TransferResult: {0}", transferResult.StatusCode);
-                if (transferResult.StatusCode.Code == StatusCodes.BadUserAccessDenied)
+                if (expectAccessDenied)
                 {
-                    // TODO: fix session activate, anonymous user cannot transfer subscription without security
                     Assert.AreEqual(StatusCodes.BadUserAccessDenied, transferResult.StatusCode.Code);
-                    Assert.Inconclusive("TransferResult: {0}", transferResult.StatusCode);
-                    return;
                 }
-                Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
-                Assert.AreEqual(1, transferResult.AvailableSequenceNumbers.Count);
+                else
+                {
+                    Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
+                    Assert.AreEqual(1, transferResult.AvailableSequenceNumbers.Count);
+                }
+            }
+
+            if (expectAccessDenied)
+            {
+                return;
             }
 
             requestHeader.Timestamp = DateTime.UtcNow;
