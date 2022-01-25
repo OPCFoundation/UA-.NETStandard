@@ -1151,6 +1151,8 @@ namespace Opc.Ua.Server
                 {
                     // find subscription.
                     Subscription subscription = null;
+                    Session ownerSession = null;
+
                     lock (m_lock)
                     {
                         if (!m_subscriptions.TryGetValue(subscriptionIds[ii], out subscription))
@@ -1163,73 +1165,53 @@ namespace Opc.Ua.Server
                             }
                             continue;
                         }
-                    }
 
-                    // check if new and old sessions are different
-                    var ownerSession = subscription.Session;
-                    if (ownerSession != null)
-                    {
-                        if (!NodeId.IsNull(ownerSession.Id) && ownerSession.Id == context.Session.Id)
+                        lock (subscription.DiagnosticsLock)
                         {
-                            result.StatusCode = StatusCodes.BadNothingToDo;
-                            results.Add(result);
-                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                            {
-                                diagnosticInfos.Add(null);
-                            }
-                            continue;
+                            SubscriptionDiagnosticsDataType diagnostics = subscription.Diagnostics;
+                            diagnostics.TransferRequestCount++;
                         }
 
-                        // The Server shall validate that the Client of that Session is operating on behalf of the same user
-                        // and that the potentially new Client supports the Profiles that are necessary for the Subscription.
-                        // --> Bad_UserAccessDenied
-                        // TODO: handle case when session was abandoned
-
-                        bool invalidIdentity = !Utils.IsEqual(ownerSession.IdentityToken, context.Session.IdentityToken);
-
-                        // special case UserNameIdentityToken, only the user name is relevant.
-                        if (invalidIdentity &&
-                            (ownerSession.IdentityToken is UserNameIdentityToken oldUser) &&
-                            (context.Session.IdentityToken is UserNameIdentityToken newUser))
+                        // check if new and old sessions are different
+                        ownerSession = subscription.Session;
+                        if (ownerSession != null)
                         {
-                            invalidIdentity = !string.Equals(oldUser.UserName, newUser.UserName, StringComparison.Ordinal);
-                        }
-
-                        // Test if anonymous user is using a matching application Uri
-                        // and Sign or SignAndEncrypt
-                        if (!invalidIdentity &&
-                            (context.Session.IdentityToken is AnonymousIdentityToken))
-                        {
-                            // validate anonymous user uses secure channel 
-                            var securityMode = context.ChannelContext.EndpointDescription.SecurityMode;
-                            if (securityMode != MessageSecurityMode.Sign &&
-                                securityMode != MessageSecurityMode.SignAndEncrypt)
+                            if (!NodeId.IsNull(ownerSession.Id) && ownerSession.Id == context.Session.Id)
                             {
-                                invalidIdentity = true;
+                                result.StatusCode = StatusCodes.BadNothingToDo;
+                                results.Add(result);
+                                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                                {
+                                    diagnosticInfos.Add(null);
+                                }
+                                continue;
                             }
-                            // validate the same client application Uri requests the transfer
-                            var applicationUri = context.ChannelContext.EndpointDescription.Server.ApplicationUri;
-                            // TODO: compare with previous app uri
-                        }
-
-                        if (invalidIdentity)
-                        {
-                            result.StatusCode = StatusCodes.BadUserAccessDenied;
-                            results.Add(result);
-                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                            {
-                                diagnosticInfos.Add(null);
-                            }
-                            continue;
                         }
                     }
 
-#if TODO //check the client profile
-                    // --> Bad_InsufficientClientProfile
-                    if (oldSession == null ||
-                        !oldSession.CheckSecurityPolicyOfEndpoint(context.ChannelContext.EndpointDescription))
+                    // get the identity of the current or last owner
+                    UserIdentityToken ownerIdentity = subscription.OwnerIdentity;
+
+                    // Validate the identity of the user who owns/owned the subscription
+                    // is the same as the new owner.
+                    bool validIdentity = Utils.IsEqualUserIdentity(ownerIdentity, context.Session.IdentityToken);
+
+                    // Test if anonymous user is using a
+                    // secure session using Sign or SignAndEncrypt
+                    if (validIdentity && (ownerIdentity is AnonymousIdentityToken))
                     {
-                        result.StatusCode = StatusCodes.BadInsufficientClientProfile;
+                        var securityMode = context.ChannelContext.EndpointDescription.SecurityMode;
+                        if (securityMode != MessageSecurityMode.Sign &&
+                            securityMode != MessageSecurityMode.SignAndEncrypt)
+                        {
+                            validIdentity = false;
+                        }
+                    }
+
+                    // continue if identity check failed
+                    if (!validIdentity)
+                    {
+                        result.StatusCode = StatusCodes.BadUserAccessDenied;
                         results.Add(result);
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
@@ -1237,7 +1219,6 @@ namespace Opc.Ua.Server
                         }
                         continue;
                     }
-#endif
 
                     // transfer session, add subscription to publish queue
                     lock (m_lock)
@@ -1266,11 +1247,22 @@ namespace Opc.Ua.Server
 
                     lock (m_statusMessagesLock)
                     {
-                        if (!m_statusMessages.TryGetValue(context.SessionId, out var messagesQueue) ||
-                            messagesQueue == null)
+                        var processedQueue = new Queue<StatusMessage>();
+                        if (m_statusMessages.TryGetValue(context.SessionId, out var messagesQueue) &&
+                            messagesQueue != null)
                         {
-                            m_statusMessages[context.SessionId] = new Queue<StatusMessage>();
+                            // There must not be any messages left from
+                            // the transferred subscription
+                            foreach (var statusMessage in messagesQueue)
+                            {
+                                if (statusMessage.SubscriptionId == subscription.Id)
+                                {
+                                    continue;
+                                }
+                                processedQueue.Enqueue(statusMessage);
+                            }
                         }
+                        m_statusMessages[context.SessionId] = processedQueue;
                     }
 
                     if (context.Session != null)
@@ -1289,21 +1281,33 @@ namespace Opc.Ua.Server
                     // Notify old session with Good_SubscriptionTransferred.
                     if (ownerSession != null)
                     {
-                        // TODO: Who counts diagnostics of old session
-
-                        if (!NodeId.IsNull(ownerSession.Id) && m_statusMessages.TryGetValue(ownerSession.Id, out var queue))
+                        lock (ownerSession.DiagnosticsLock)
                         {
-                            var message = new StatusMessage {
-                                SubscriptionId = subscription.Id,
-                                Message = subscription.SubscriptionTransferred()
-                            };
-                            queue.Enqueue(message);
+                            SessionDiagnosticsDataType diagnostics = ownerSession.SessionDiagnostics;
+                            diagnostics.CurrentSubscriptionsCount--;
+                        }
+                        // add the Good_SubscriptionTransferred
+                        lock (m_statusMessagesLock)
+                        {
+                            if (!NodeId.IsNull(ownerSession.Id) && m_statusMessages.TryGetValue(ownerSession.Id, out var queue))
+                            {
+                                var message = new StatusMessage {
+                                    SubscriptionId = subscription.Id,
+                                    Message = subscription.SubscriptionTransferred()
+                                };
+                                queue.Enqueue(message);
+                            }
                         }
                     }
 
                     // Return the sequence numbers that are available for retransmission.
-                    // The Client should acknowledge all Messages in this list for which it will not request retransmission.
                     result.AvailableSequenceNumbers = subscription.AvailableSequenceNumbersForRetransmission();
+
+                    lock (subscription.DiagnosticsLock)
+                    {
+                        SubscriptionDiagnosticsDataType diagnostics = subscription.Diagnostics;
+                        diagnostics.TransferredToSameClientCount++;
+                    }
 
                     // save results.
                     results.Add(result);

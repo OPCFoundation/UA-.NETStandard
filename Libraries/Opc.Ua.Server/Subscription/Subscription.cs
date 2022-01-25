@@ -208,6 +208,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The owner identity.
+        /// </summary>
+        public UserIdentityToken OwnerIdentity
+        {
+            get { return (m_session != null) ? m_session.IdentityToken : m_savedOwnerIdentity; }
+        }
+
+        /// <summary>
         /// Queues an item that is ready to publish.
         /// </summary>
         public void ItemReadyToPublish(IMonitoredItem monitoredItem)
@@ -545,6 +553,10 @@ namespace Opc.Ua.Server
             lock (DiagnosticsWriteLock)
             {
                 m_diagnostics.SessionId = m_session.Id;
+
+                m_diagnostics.TransferRequestCount = 0;
+                m_diagnostics.TransferredToSameClientCount = 0;
+                m_diagnostics.TransferredToAltClientCount = 0;
             }
         }
 
@@ -555,7 +567,11 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                m_session = null;
+                if (m_session != null)
+                {
+                    m_savedOwnerIdentity = m_session.IdentityToken;
+                    m_session = null;
+                }
             }
 
             lock (DiagnosticsWriteLock)
@@ -2361,6 +2377,7 @@ namespace Opc.Ua.Server
         private IServerInternal m_server;
         private Session m_session;
         private uint m_id;
+        private UserIdentityToken m_savedOwnerIdentity;
         private double m_publishingInterval;
         private uint m_maxLifetimeCount;
         private uint m_maxKeepAliveCount;
