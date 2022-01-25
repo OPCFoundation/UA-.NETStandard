@@ -276,7 +276,9 @@ dotnet_code_quality.CA1822.api_surface                                        = 
 
 # CA3075: Insecure DTD processing in XML
 dotnet_diagnostic.CA3075.severity                                             = warning
+dotnet_diagnostic.CA3077.severity                                             = warning
 
 # RCS1090: Add call to 'ConfigureAwait' (or vice versa)
+# Opt-In to avoid many warnings in WinForms apps
 dotnet_diagnostic.RCS1090.severity                                            = silent
 

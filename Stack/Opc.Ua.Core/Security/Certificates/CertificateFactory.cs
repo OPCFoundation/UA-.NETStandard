@@ -98,12 +98,21 @@ namespace Opc.Ua
                     return certificate;
                 }
 
+                if (ensurePrivateKeyAccessible)
+                {
+                    if (!X509Utils.VerifyRSAKeyPair(certificate, certificate))
+                    {
+                        Utils.LogWarning("Trying to add certificate to cache with invalid private key.");
+                        return null;
+                    }
+                }
+
                 // update the cache.
                 m_certificates[certificate.Thumbprint] = certificate;
 
                 if (m_certificates.Count > 100)
                 {
-                    Utils.Trace("WARNING - Process certificate cache has {0} certificates in it.", m_certificates.Count);
+                    Utils.LogWarning("Certificate cache has {0} certificates in it.", m_certificates.Count);
                 }
 
             }
@@ -197,7 +206,7 @@ namespace Opc.Ua
         /// </summary>
         public static X509CRL RevokeCertificate(
             X509Certificate2 issuerCertificate,
-            List<X509CRL> issuerCrls,
+            X509CRLCollection issuerCrls,
             X509Certificate2Collection revokedCertificates
             )
         {
@@ -215,7 +224,7 @@ namespace Opc.Ua
         /// </remarks>
         public static X509CRL RevokeCertificate(
             X509Certificate2 issuerCertificate,
-            List<X509CRL> issuerCrls,
+            X509CRLCollection issuerCrls,
             X509Certificate2Collection revokedCertificates,
             DateTime thisUpdate,
             DateTime nextUpdate
@@ -272,7 +281,7 @@ namespace Opc.Ua
             return new X509CRL(crlBuilder.CreateForRSA(issuerCertificate));
         }
 
-#if NETSTANDARD2_1 || NET5_0
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
         /// Creates a certificate signing request from an existing certificate.
         /// </summary>
@@ -593,7 +602,7 @@ namespace Opc.Ua
 
             if (domainNames != null && domainNames.Count > 0)
             {
-                if (!subjectName.Contains("DC=") && !subjectName.Contains("="))
+                if (!subjectName.Contains("DC=") && !subjectName.Contains('='))
                 {
                     subjectName += Utils.Format(", DC={0}", domainNames[0]);
                 }

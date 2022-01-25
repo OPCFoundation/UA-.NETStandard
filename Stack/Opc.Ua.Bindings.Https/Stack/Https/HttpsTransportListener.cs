@@ -30,8 +30,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.Extensions.Hosting;
 
 
 namespace Opc.Ua.Bindings
@@ -243,11 +243,30 @@ namespace Opc.Ua.Bindings
 #else
             httpsOptions.SslProtocols = SslProtocols.None;
 #endif
-            m_hostBuilder.UseKestrel(options => {
-                options.ListenAnyIP(m_uri.Port, listenOptions => {
-                    listenOptions.UseHttps(httpsOptions);
+            bool bindToSpecifiedAddress = true;
+            UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
+            if (hostType == UriHostNameType.Dns || hostType == UriHostNameType.Unknown || hostType == UriHostNameType.Basic)
+            {
+                bindToSpecifiedAddress = false;
+            }
+
+            if (bindToSpecifiedAddress)
+            {
+                IPAddress ipAddress = IPAddress.Parse(m_uri.Host);
+                m_hostBuilder.UseKestrel(options => {
+                    options.Listen(ipAddress, m_uri.Port, listenOptions => {
+                        listenOptions.UseHttps(httpsOptions);
+                    });
                 });
-            });
+            }
+            else
+            {
+                m_hostBuilder.UseKestrel(options => {
+                    options.ListenAnyIP(m_uri.Port, listenOptions => {
+                        listenOptions.UseHttps(httpsOptions);
+                    });
+                });
+            }
 
             m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
             m_hostBuilder.UseStartup<Startup>();
@@ -313,13 +332,14 @@ namespace Opc.Ua.Bindings
 
                 if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) && input.TypeId != DataTypeIds.CreateSessionRequest)
                 {
-                    if (context.Request.Headers.Keys.Contains("Authorization"))
+                    if (context.Request.Headers.ContainsKey("Authorization"))
                     {
                         foreach (string value in context.Request.Headers["Authorization"])
                         {
                             if (value.StartsWith("Bearer"))
                             {
-                                input.RequestHeader.AuthenticationToken = new NodeId(value.Substring("Bearer ".Length).Trim());
+                                // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
+                                input.RequestHeader.AuthenticationToken = new NodeId(value.Substring("Bearer ".Length).Trim(), 0);
                             }
                         }
                     }
@@ -349,10 +369,11 @@ namespace Opc.Ua.Bindings
                 }
 
                 if (endpoint == null &&
-                    input.TypeId != DataTypeIds.GetEndpointsRequest)
+                    input.TypeId != DataTypeIds.GetEndpointsRequest &&
+                    input.TypeId != DataTypeIds.FindServersRequest)
                 {
                     var message = "Connection refused, invalid security policy.";
-                    Utils.Trace(Utils.TraceMasks.Error, message);
+                    Utils.LogError(message);
                     context.Response.ContentLength = message.Length;
                     context.Response.ContentType = "text/plain";
                     context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
@@ -372,7 +393,7 @@ namespace Opc.Ua.Bindings
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1_OR_GREATER || NET5_0
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER || NETCOREAPP3_1_OR_GREATER
                 await context.Response.Body.WriteAsync(response.AsMemory(0, response.Length)).ConfigureAwait(false);
 #else
                 await context.Response.Body.WriteAsync(response, 0, response.Length).ConfigureAwait(false);
@@ -380,7 +401,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "HTTPSLISTENER - Unexpected error processing request.");
+                Utils.LogError(e, "HTTPSLISTENER - Unexpected error processing request.");
                 context.Response.ContentLength = e.Message.Length;
                 context.Response.ContentType = "text/plain";
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;

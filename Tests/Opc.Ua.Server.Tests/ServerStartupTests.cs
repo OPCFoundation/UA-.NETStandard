@@ -58,11 +58,10 @@ namespace Opc.Ua.Server.Tests
             var fixture = new ServerFixture<StandardServer>();
             Assert.NotNull(fixture);
             fixture.UriScheme = uriScheme;
-
             var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
             fixture.SetTraceOutput(TestContext.Out);
             Assert.NotNull(server);
-            await Task.Delay(1000);
+            await Task.Delay(1000).ConfigureAwait(false);
             await fixture.StopAsync().ConfigureAwait(false);
         }
         #endregion

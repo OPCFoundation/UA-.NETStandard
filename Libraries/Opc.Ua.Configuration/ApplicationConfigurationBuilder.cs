@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Xml;
@@ -96,55 +98,46 @@ namespace Opc.Ua.Configuration
         {
             pkiRoot = DefaultPKIRoot(pkiRoot);
             appRoot = appRoot == null ? pkiRoot : DefaultPKIRoot(appRoot);
-            rejectedRoot = DefaultPKIRoot(rejectedRoot);
+            rejectedRoot = rejectedRoot == null ? pkiRoot : DefaultPKIRoot(rejectedRoot);
             var appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
             var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
             var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
-            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration
-            {
+            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
                 // app cert store
-                ApplicationCertificate = new CertificateIdentifier()
-                {
+                ApplicationCertificate = new CertificateIdentifier() {
                     StoreType = appStoreType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Application, appRoot),
                     SubjectName = Utils.ReplaceDCLocalhost(subjectName)
                 },
                 // App trusted & issuer
-                TrustedPeerCertificates = new CertificateTrustList()
-                {
+                TrustedPeerCertificates = new CertificateTrustList() {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Trusted, pkiRoot)
                 },
-                TrustedIssuerCertificates = new CertificateTrustList()
-                {
+                TrustedIssuerCertificates = new CertificateTrustList() {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Issuer, pkiRoot)
                 },
                 // Https trusted & issuer
-                TrustedHttpsCertificates = new CertificateTrustList()
-                {
+                TrustedHttpsCertificates = new CertificateTrustList() {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.TrustedHttps, pkiRoot)
                 },
-                HttpsIssuerCertificates = new CertificateTrustList()
-                {
+                HttpsIssuerCertificates = new CertificateTrustList() {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.IssuerHttps, pkiRoot)
                 },
                 // User trusted & issuer
-                TrustedUserCertificates = new CertificateTrustList()
-                {
+                TrustedUserCertificates = new CertificateTrustList() {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.TrustedUser, pkiRoot)
                 },
-                UserIssuerCertificates = new CertificateTrustList()
-                {
+                UserIssuerCertificates = new CertificateTrustList() {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.IssuerUser, pkiRoot)
                 },
                 // rejected store
-                RejectedCertificateStore = new CertificateTrustList()
-                {
+                RejectedCertificateStore = new CertificateTrustList() {
                     StoreType = rejectedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
                 },
@@ -250,23 +243,32 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerSelected AddUnsecurePolicyNone()
+        public IApplicationConfigurationBuilderServerSelected AddUnsecurePolicyNone(bool addPolicy = true)
         {
-            AddSecurityPolicies(false, false, true);
+            if (addPolicy)
+            {
+                AddSecurityPolicies(false, false, true);
+            }
             return this;
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerSelected AddSignPolicies()
+        public IApplicationConfigurationBuilderServerSelected AddSignPolicies(bool addPolicies = true)
         {
-            AddSecurityPolicies(true, false, false);
+            if (addPolicies)
+            {
+                AddSecurityPolicies(true, false, false);
+            }
             return this;
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies()
+        public IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies(bool addPolicies = true)
         {
-            AddSecurityPolicies(false, false, false);
+            if (addPolicies)
+            {
+                AddSecurityPolicies(false, false, false);
+            }
             return this;
         }
 
@@ -773,25 +775,35 @@ namespace Opc.Ua.Configuration
             var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
             if (pkiRootType.Equals(CertificateStoreType.Directory, StringComparison.OrdinalIgnoreCase))
             {
+                string leafPath = "";
+                // see https://reference.opcfoundation.org/v104/GDS/docs/F.1/
                 switch (trustListType)
                 {
-                    case TrustlistType.Application:
-                        return pkiRoot + "/own";
-                    case TrustlistType.Trusted:
-                        return pkiRoot + "/trusted";
-                    case TrustlistType.Issuer:
-                        return pkiRoot + "/issuer";
-                    case TrustlistType.TrustedHttps:
-                        return pkiRoot + "/trustedHttps";
-                    case TrustlistType.IssuerHttps:
-                        return pkiRoot + "/issuerHttps";
-                    case TrustlistType.TrustedUser:
-                        return pkiRoot + "/trustedUser";
-                    case TrustlistType.IssuerUser:
-                        return pkiRoot + "/issuerUser";
-                    case TrustlistType.Rejected:
-                        return pkiRoot + "/rejected";
+                    case TrustlistType.Application: leafPath = "own"; break;
+                    case TrustlistType.Trusted: leafPath = "trusted"; break;
+                    case TrustlistType.Issuer: leafPath = "issuer"; break;
+                    case TrustlistType.TrustedHttps: leafPath = "trustedHttps"; break;
+                    case TrustlistType.IssuerHttps: leafPath = "issuerHttps"; break;
+                    case TrustlistType.TrustedUser: leafPath = "trustedUser"; break;
+                    case TrustlistType.IssuerUser: leafPath = "issuerUser"; break;
+                    case TrustlistType.Rejected: leafPath = "rejected"; break;
                 }
+                // Caller may have already provided the leaf path, then no need to add.
+                int startIndex = pkiRoot.Length - leafPath.Length;
+                char lastChar = pkiRoot.Last();
+                if (lastChar == Path.DirectorySeparatorChar ||
+                    lastChar == Path.AltDirectorySeparatorChar)
+                {
+                    startIndex--;
+                }
+                if (startIndex > 0)
+                {
+                    if (pkiRoot.Substring(startIndex, leafPath.Length).Equals(leafPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return pkiRoot;
+                    }
+                }
+                return Path.Combine(pkiRoot, leafPath);
             }
             else if (pkiRootType.Equals(CertificateStoreType.X509Store, StringComparison.OrdinalIgnoreCase))
             {
@@ -828,9 +840,9 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Add specified groups of security policies and security modes.
         /// </summary>
-        /// <param name="includeSign"></param>
-        /// <param name="deprecated"></param>
-        /// <param name="policyNone"></param>
+        /// <param name="includeSign">Include the Sign only policies.</param>
+        /// <param name="deprecated">Include the deprecated policies.</param>
+        /// <param name="policyNone">Include policy 'None'. (no security!)</param>
         private void AddSecurityPolicies(bool includeSign = false, bool deprecated = false, bool policyNone = false)
         {
             // create list of supported policies
@@ -847,6 +859,7 @@ namespace Opc.Ua.Configuration
                         deprecatedPolicyList.Add(uri);
                     }
                 }
+                defaultPolicyUris = deprecatedPolicyList.ToArray();
             }
 
             foreach (MessageSecurityMode securityMode in typeof(MessageSecurityMode).GetEnumValues())
@@ -876,8 +889,7 @@ namespace Opc.Ua.Configuration
         private bool InternalAddPolicy(ServerSecurityPolicyCollection policies, MessageSecurityMode securityMode, string policyUri)
         {
             if (securityMode == MessageSecurityMode.Invalid) throw new ArgumentException("Invalid security mode selected", nameof(securityMode));
-            var newPolicy = new ServerSecurityPolicy()
-            {
+            var newPolicy = new ServerSecurityPolicy() {
                 SecurityMode = securityMode,
                 SecurityPolicyUri = policyUri
             };

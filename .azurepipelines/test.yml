@@ -33,6 +33,13 @@ jobs:
   pool:
     vmImage: $(poolImage)
   steps:
+  - task: UseDotNet@2
+    displayName: 'Install .NET 6.0'
+    condition: and(eq('${{parameters.framework}}', 'net6.0'), ne(variables['poolImage'], 'windows-2022'))
+    inputs:
+      packageType: 'sdk'
+      version: '6.0.x'
+      includePreviewVersions: true
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=5.8.x'

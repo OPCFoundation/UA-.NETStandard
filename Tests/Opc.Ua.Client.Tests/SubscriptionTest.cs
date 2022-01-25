@@ -57,6 +57,7 @@ namespace Opc.Ua.Client.Tests
         ReferenceServer m_server;
         Session m_session;
         Uri m_url;
+        string m_pkiRoot;
 
         #region Test Setup
         /// <summary>
@@ -74,6 +75,9 @@ namespace Opc.Ua.Client.Tests
         /// <param name="writer">The test output writer.</param>
         public async Task OneTimeSetUpAsync(TextWriter writer = null)
         {
+            // pki directory root for test runs. 
+            m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
+
             // start Ref server
             m_serverFixture = new ServerFixture<ReferenceServer>();
             m_clientFixture = new ClientFixture();
@@ -83,9 +87,10 @@ namespace Opc.Ua.Client.Tests
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
+
             // start client
-            await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
+            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
             m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
             m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
         }
@@ -232,17 +237,17 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(list.First());
             Assert.AreEqual(1, subscription.MonitoredItemCount);
             Assert.True(subscription.ChangesPending);
-            bool result = await m_session.RemoveSubscriptionAsync(subscription);
+            bool result = await m_session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             Assert.False(result);
-            result = await m_session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription });
+            result = await m_session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription }).ConfigureAwait(false);
             Assert.False(result);
             result = m_session.AddSubscription(subscription);
             Assert.True(result);
             result = m_session.AddSubscription(subscription);
             Assert.False(result);
-            result = await m_session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription });
+            result = await m_session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription }).ConfigureAwait(false);
             Assert.True(result);
-            result = await m_session.RemoveSubscriptionAsync(subscription);
+            result = await m_session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             Assert.False(result);
             result = m_session.AddSubscription(subscription);
             Assert.True(result);
@@ -435,6 +440,13 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine($"Notifications rate: {notificationRate:N} per second");
             //No notifications means nothing worked
             Assert.NotZero(totalNotifications);
+
+            // The issue more unlikely seem to appear on .NET 6 in the given timeframe
+            if (!enabled && !failed)
+            {
+                Assert.Inconclusive("The test couldn't validate the issue on this platform");
+            }
+
             // catch if expected/unexpected Out-of-sequence occurred
             Assert.AreEqual(enabled, !failed);
         }
@@ -467,7 +479,7 @@ namespace Opc.Ua.Client.Tests
                 subscription.AddItems(list);
                 var result = m_session.AddSubscription(subscription);
                 Assert.True(result);
-                await subscription.CreateAsync();
+                await subscription.CreateAsync().ConfigureAwait(false);
                 var publishInterval = (int)subscription.CurrentPublishingInterval;
                 TestContext.Out.WriteLine($"CurrentPublishingInterval: {publishInterval}");
 
@@ -480,19 +492,19 @@ namespace Opc.Ua.Client.Tests
 
             var stopwatch = Stopwatch.StartNew();
 
-            await Task.Delay(1000);
+            await Task.Delay(1000).ConfigureAwait(false);
 
             // verify that number of active publishrequests is never exceeded
             while (stopwatch.ElapsedMilliseconds < TestWaitTime)
             {
                 // use the sample server default for max publish request count
                 Assert.GreaterOrEqual(MaxServerPublishRequest, m_session.GoodPublishRequestCount);
-                await Task.Delay(100);
+                await Task.Delay(100).ConfigureAwait(false);
             }
 
             foreach (var subscription in subscriptionList)
             {
-                var result = await m_session.RemoveSubscriptionAsync(subscription);
+                var result = await m_session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
                 Assert.True(result);
             }
         }

@@ -49,8 +49,11 @@ namespace Opc.Ua
                     {
                         builder.Append('.');
                     }
-
+#if NET5_0_OR_GREATER || NETSTANDARD2_1
+                    builder.Append(fields[ii].AsSpan(3));
+#else
                     builder.Append(fields[ii].Substring(3));
+#endif
                 }
             }
 
@@ -108,7 +111,11 @@ namespace Opc.Ua
         {
             using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
             {
-                return rsaPublicKey.KeySize;
+                if (rsaPublicKey != null)
+                {
+                    return rsaPublicKey.KeySize;
+                }
+                return -1;
             }
         }
 
@@ -527,7 +534,7 @@ namespace Opc.Ua
                         throw new ArgumentException("Invalid store type");
                     }
 
-                    store.Open(storePath);
+                    store.Open(storePath, false);
                     store.Add(certificate, password).Wait();
                     store.Close();
                 }

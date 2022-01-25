@@ -17,7 +17,6 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
-
     /// <summary>
     /// Interface between listener and UA TCP channel
     /// </summary>

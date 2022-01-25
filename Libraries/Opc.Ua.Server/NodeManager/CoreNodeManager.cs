@@ -212,7 +212,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected error disposing a Node object.");
+                    Utils.LogError(e, "Unexpected error disposing a Node object.");
                 }
             }
         }
@@ -2455,7 +2455,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Error deleting node: {0}", nodeId);
+                    Utils.LogError(e, "Error deleting node: {0}", nodeId);
                 }
             }
             else
@@ -2559,7 +2559,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Error deleting references for node: {0}", current.Key);
+                    Utils.LogError(e, "Error deleting references for node: {0}", current.Key);
                 }
             }            
         }

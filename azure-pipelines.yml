@@ -2,6 +2,18 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+trigger:
+  batch: 'true'
+  branches:
+    include:
+    - '*'
+  paths:
+    include:
+    - '*' 
+    exclude:
+    - 'Docs/*' 
+    - 'README.md' 
+
 pr: 
   autoCancel: 'true'
   branches:
@@ -29,8 +41,15 @@ stages:
   displayName: 'Build Solutions'
   jobs:
   - template: .azurepipelines/sln.yml
+    parameters:
+      poolImage: 'windows-2022'
+      jobnamesuffix: win2022
+  - template: .azurepipelines/sln.yml
+    parameters:
+      poolImage: 'windows-2019'
+      jobnamesuffix: win2019
 - stage: testrelease
-  dependsOn: []
+  dependsOn: [build]
   displayName: 'Test Core and SDK Release'
   jobs:
   - template: .azurepipelines/test.yml
@@ -41,15 +60,17 @@ stages:
       jobnamesuffix: net462
   - template: .azurepipelines/test.yml
     parameters:
-      framework: netcoreapp2.1
-      configuration: Release
-  - template: .azurepipelines/test.yml
-    parameters:
       configuration: Release
       framework: netcoreapp3.1
       jobnamesuffix: core3
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      framework: net6.0
+      agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"; mac = "macOS-11"}'
+      jobnamesuffix: net60
 - stage: testdebug
-  dependsOn: []
+  dependsOn: [build]
   displayName: 'Test Core and SDK Debug'
   jobs:
   - template: .azurepipelines/test.yml
@@ -59,9 +80,10 @@ stages:
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
+  condition: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
   jobs:
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
-      poolImage: 'ubuntu-18.04'
+      poolImage: 'ubuntu-20.04'
       jobnamesuffix: netcore31

@@ -19211,8 +19211,8 @@ namespace Opc.Ua
         InsufficientTrafficClassBandwidth = 3,
 
         /// <remarks />
-        [EnumMember(Value = "StreamIDInUse_4")]
-        StreamIDInUse = 4,
+        [EnumMember(Value = "StreamIdInUse_4")]
+        StreamIdInUse = 4,
 
         /// <remarks />
         [EnumMember(Value = "StreamDestinationAddressInUse_5")]
@@ -19227,28 +19227,28 @@ namespace Opc.Ua
         LatencyHasChanged = 7,
 
         /// <remarks />
-        [EnumMember(Value = "EgressPortNotAVBCapable_8")]
-        EgressPortNotAVBCapable = 8,
+        [EnumMember(Value = "EgressPortNotAvbCapable_8")]
+        EgressPortNotAvbCapable = 8,
 
         /// <remarks />
         [EnumMember(Value = "UseDifferentDestinationAddress_9")]
         UseDifferentDestinationAddress = 9,
 
         /// <remarks />
-        [EnumMember(Value = "OutOfMSRPResources_10")]
-        OutOfMSRPResources = 10,
+        [EnumMember(Value = "OutOfMsrpResources_10")]
+        OutOfMsrpResources = 10,
 
         /// <remarks />
-        [EnumMember(Value = "OutOfMMRPResources_11")]
-        OutOfMMRPResources = 11,
+        [EnumMember(Value = "OutOfMmrpResources_11")]
+        OutOfMmrpResources = 11,
 
         /// <remarks />
         [EnumMember(Value = "CannotStoreDestinationAddress_12")]
         CannotStoreDestinationAddress = 12,
 
         /// <remarks />
-        [EnumMember(Value = "PriorityIsNoAnSRCLass_13")]
-        PriorityIsNoAnSRCLass = 13,
+        [EnumMember(Value = "PriorityIsNotAnSrcClass_13")]
+        PriorityIsNotAnSrcClass = 13,
 
         /// <remarks />
         [EnumMember(Value = "MaxFrameSizeTooLarge_14")]
@@ -19259,8 +19259,8 @@ namespace Opc.Ua
         MaxFanInPortsLimitReached = 15,
 
         /// <remarks />
-        [EnumMember(Value = "FirstValueChangedForStreamID_16")]
-        FirstValueChangedForStreamID = 16,
+        [EnumMember(Value = "FirstValueChangedForStreamId_16")]
+        FirstValueChangedForStreamId = 16,
 
         /// <remarks />
         [EnumMember(Value = "VlanBlockedOnEgress_17")]
@@ -19283,16 +19283,16 @@ namespace Opc.Ua
         MaxLatencyExceeded = 21,
 
         /// <remarks />
-        [EnumMember(Value = "BridgeDoesNotProvideNetworkID_22")]
-        BridgeDoesNotProvideNetworkID = 22,
+        [EnumMember(Value = "BridgeDoesNotProvideNetworkId_22")]
+        BridgeDoesNotProvideNetworkId = 22,
 
         /// <remarks />
         [EnumMember(Value = "StreamTransformNotSupported_23")]
         StreamTransformNotSupported = 23,
 
         /// <remarks />
-        [EnumMember(Value = "StreamIDTypeNotSupported_24")]
-        StreamIDTypeNotSupported = 24,
+        [EnumMember(Value = "StreamIdTypeNotSupported_24")]
+        StreamIdTypeNotSupported = 24,
 
         /// <remarks />
         [EnumMember(Value = "FeatureNotSupported_25")]

@@ -11,14 +11,8 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using System.Xml;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Reflection;
-using System.Threading;
 
 namespace Opc.Ua
 {       
@@ -529,7 +523,7 @@ namespace Opc.Ua
                 node.ReferenceTable.Add(referenceTypeId, true, this.Parent.NodeId);
             }
 
-            if (!NodeId.IsNull(this.TypeDefinitionId))
+            if (!NodeId.IsNull(m_typeDefinitionId) && IsObjectOrVariable)
             {
                 node.ReferenceTable.Add(ReferenceTypeIds.HasTypeDefinition, false, this.TypeDefinitionId);
             }
@@ -711,7 +705,7 @@ namespace Opc.Ua
         {
             base.PopulateBrowser(context, browser);
 
-            if (!NodeId.IsNull(m_typeDefinitionId))
+            if (!NodeId.IsNull(m_typeDefinitionId) && IsObjectOrVariable)
             {
                 if (browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false))
                 {
@@ -739,7 +733,9 @@ namespace Opc.Ua
             }
         }
         #endregion
-        
+
+        private bool IsObjectOrVariable => ((this.NodeClass & (NodeClass.Variable | NodeClass.Object)) != 0);
+
         #region Private Fields
         private NodeState m_parent;
         private NodeId m_referenceTypeId;

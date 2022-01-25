@@ -50,6 +50,11 @@ namespace Opc.Ua.PubSub
 
         #region Events
         /// <summary>
+        /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives a message via its active connections
+        /// </summary>
+        public event EventHandler<RawDataReceivedEventArgs> RawDataReceived;
+
+        /// <summary>
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSets
         /// </summary>
         public event EventHandler<SubscribedDataEventArgs> DataReceived;
@@ -58,6 +63,12 @@ namespace Opc.Ua.PubSub
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSet MetaData
         /// </summary>
         public event EventHandler<SubscribedDataEventArgs> MetaDataReceived;
+
+        /// <summary>
+        /// Event that is triggered before the configuration is updated with a new MetaData 
+        /// The configuration will not be updated if <see cref="ConfigurationUpdatingEventArgs.Cancel"/> flag is set on true.
+        /// </summary>
+        public event EventHandler<ConfigurationUpdatingEventArgs> ConfigurationUpdating;
         #endregion
 
         #region Event Callbacks
@@ -137,6 +148,7 @@ namespace Opc.Ua.PubSub
         /// Get reference to current DataStore. Write here all node values needed to be published by this PubSubApplication
         /// </summary>
         public IUaPubSubDataStore DataStore { get { return m_dataStore; } }
+
         #endregion
 
         #region Internal Properties
@@ -243,6 +255,25 @@ namespace Opc.Ua.PubSub
 
         #region Internal Methods
         /// <summary>
+        /// Raise <see cref="RawDataReceived"/> event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaiseRawDataReceivedEvent(RawDataReceivedEventArgs e)
+        {
+            try
+            {
+                if (RawDataReceived != null)
+                {
+                    RawDataReceived(this, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.RaiseRawDataReceivedEvent");
+            }
+        }
+
+        /// <summary>
         /// Raise DataReceived event
         /// </summary>
         /// <param name="e"></param>
@@ -257,7 +288,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaiseSubscriptionRecievedEvent");
+                Utils.Trace(ex, "UaPubSubApplication.RaiseDataReceivedEvent");
             }
         }
 
@@ -279,11 +310,30 @@ namespace Opc.Ua.PubSub
                 Utils.Trace(ex, "UaPubSubApplication.RaiseMetaDataReceivedEvent");
             }
         }
+
+        /// <summary>
+        /// Raise <see cref="ConfigurationUpdating"/> event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaiseConfigurationUpdatingEvent(ConfigurationUpdatingEventArgs e)
+        {
+            try
+            {
+                if (ConfigurationUpdating != null)
+                {
+                    ConfigurationUpdating(this, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.RaiseConfigurationUpdatingEvent");
+            }
+        }
         #endregion
 
         #region Private Methods - UaPubSubConfigurator event handlers
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.PublishedDataSetAdded"/> event
+        /// Handler for PublishedDataSetAdded event
         /// </summary>
         private void UaPubSubConfigurator_PublishedDataSetAdded(object sender, PublishedDataSetEventArgs e)
         {
@@ -291,7 +341,7 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.PublishedDataSetRemoved"/> event
+        /// Handler for PublishedDataSetRemoved event
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -301,7 +351,7 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.ConnectionRemoved"/> event
+        /// Handler for ConnectionRemoved event
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -324,7 +374,7 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.ConnectionAdded"/> event
+        /// Handler for ConnectionAdded event
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>

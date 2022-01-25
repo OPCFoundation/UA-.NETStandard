@@ -56,6 +56,7 @@ namespace Opc.Ua
         }
         #endregion
     }
+
     /// <summary>
     /// Represents the location of a configuration file.
     /// </summary>
@@ -315,7 +316,7 @@ namespace Opc.Ua
             {
                 using (FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
                 {
-                    configuration = await Load(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider);
+                    configuration = await Load(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider).ConfigureAwait(false);
                 }
             }
             catch (Exception e)

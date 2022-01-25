@@ -184,9 +184,9 @@ namespace Opc.Ua.Export
                     UAMethod value = new UAMethod();
                     value.Executable = o.Executable;
 
-                    if (o.TypeDefinitionId != null && !o.TypeDefinitionId.IsNullNodeId && o.TypeDefinitionId != o.NodeId)
+                    if (o.MethodDeclarationId != null && !o.MethodDeclarationId.IsNullNodeId && o.MethodDeclarationId != o.NodeId)
                     {
-                        value.MethodDeclarationId = Export(o.TypeDefinitionId, context.NamespaceUris);
+                        value.MethodDeclarationId = Export(o.MethodDeclarationId, context.NamespaceUris);
                     }
 
                     if (o.Parent != null)
@@ -530,7 +530,7 @@ namespace Opc.Ua.Export
                     MethodState value = new MethodState(null);
                     value.Executable = o.Executable;
                     value.UserExecutable = o.Executable;
-                    value.TypeDefinitionId = ImportNodeId(o.MethodDeclarationId, context.NamespaceUris, true);
+                    value.MethodDeclarationId = ImportNodeId(o.MethodDeclarationId, context.NamespaceUris, true);
                     importedNode = value;
                     break;
                 }
@@ -924,9 +924,13 @@ namespace Opc.Ua.Export
                         }
 
                         output.ValueRank = field.ValueRank;
+
                         if (field.ArrayDimensions != null && field.ArrayDimensions.Count != 0)
                         {
-                            output.ArrayDimensions = BaseVariableState.ArrayDimensionsToXml(field.ArrayDimensions);
+                            if (output.ValueRank > 1 || field.ArrayDimensions[0] > 0)
+                            {
+                                output.ArrayDimensions = BaseVariableState.ArrayDimensionsToXml(field.ArrayDimensions);
+                            }
                         }
 
                         output.MaxStringLength = field.MaxStringLength;
@@ -992,11 +996,11 @@ namespace Opc.Ua.Export
             if (source.Field != null)
             {
                 // check if definition is for enumeration or structure.
-                bool isStructure = Array.Exists<DataTypeField>(source.Field, delegate (DataTypeField fieldLookup) {
-                    return fieldLookup.Value == -1;
+                bool isEnumeration = Array.Exists<DataTypeField>(source.Field, delegate (DataTypeField fieldLookup) {
+                    return fieldLookup.Value != -1;
                 });
 
-                if (isStructure)
+                if (!isEnumeration)
                 {
                     StructureDefinition sd = new StructureDefinition();
                     sd.BaseDataType = ImportNodeId(source.BaseType, namespaceUris, true);
@@ -1038,9 +1042,12 @@ namespace Opc.Ua.Export
                             output.Description = Import(field.Description);
                             output.DataType = ImportNodeId(field.DataType, namespaceUris, true);
                             output.ValueRank = field.ValueRank;
-                            if (!string.IsNullOrWhiteSpace(field.ArrayDimensions))
+                            if (!String.IsNullOrWhiteSpace(field.ArrayDimensions))
                             {
-                                output.ArrayDimensions = new UInt32Collection(BaseVariableState.ArrayDimensionsFromXml(field.ArrayDimensions));
+                                if (output.ValueRank > 1 || field.ArrayDimensions[0] > 0)
+                                {
+                                    output.ArrayDimensions = new UInt32Collection(BaseVariableState.ArrayDimensionsFromXml(field.ArrayDimensions));
+                                }
                             }
 
                             output.MaxStringLength = field.MaxStringLength;

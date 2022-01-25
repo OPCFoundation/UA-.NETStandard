@@ -43,11 +43,10 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Save a <see cref="PubSubConfigurationDataType"/> instance as XML
         /// </summary>
-        /// <param name="pubSubConfiguration">The configuratiomn object that shall be saved in the file.</param>
+        /// <param name="pubSubConfiguration">The configuration object that shall be saved in the file.</param>
         /// <param name="filePath">The file path from where the configuration shall be saved.</param>
         public static void SaveConfiguration(PubSubConfigurationDataType pubSubConfiguration, string filePath)
         {
-
             Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
 
             XmlWriterSettings settings = new XmlWriterSettings();

@@ -388,16 +388,16 @@ namespace Opc.Ua
             if (sre != null)
             {
                 result = new ServiceResult(sre);
-
-                Utils.Trace(
-                    Utils.TraceMasks.Service,
-                    "Service Fault Occured. Reason={0}",
-                    result);
+                Utils.LogWarning("SERVER - Service Fault Occured. Reason={0}", result.StatusCode);
+                if (sre.StatusCode == StatusCodes.BadUnexpectedError)
+                {
+                    Utils.LogWarning(Utils.TraceMasks.StackTrace, sre, sre.ToString());
+                }
             }
             else
             {
                 result = new ServiceResult(exception, StatusCodes.BadUnexpectedError);
-                Utils.Trace(exception, "SERVER - Unexpected Service Fault: {0}", exception.Message);
+                Utils.LogError(exception, "SERVER - Unexpected Service Fault: {0}", exception.Message);
             }
 
             fault.ResponseHeader.ServiceResult = result.Code;
@@ -824,7 +824,6 @@ namespace Opc.Ua
 
                     // call the service.
                     m_response = m_service.Invoke(m_request);
-
                 }
                 catch (Exception e)
                 {

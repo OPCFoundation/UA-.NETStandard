@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,24 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Net;
-
-namespace Opc.Ua.PubSub.Encoding
+namespace Quickstarts.ReferenceServer
 {
     /// <summary>
-    /// EventArgs class for UadpMessage received
+    /// Defines constants for namespaces used by the servers.
     /// </summary>
-    internal class UadpDataEventArgs : EventArgs
+    public static partial class Namespaces
     {
         /// <summary>
-        /// Uadp message bytes
+        /// The namespace for the nodes provided by the reference server.
         /// </summary>
-        internal byte[] Message { get; set; }
-
-        /// <summary>
-        /// Get the Source EndPoint
-        /// </summary>
-        internal IPEndPoint SourceEndPoint { get; set; }
+        public const string ReferenceServer = "http://opcfoundation.org/Quickstarts/ReferenceServer";
     }
 }

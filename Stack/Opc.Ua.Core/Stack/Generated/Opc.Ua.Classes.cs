@@ -50028,20 +50028,20 @@ namespace Opc.Ua
     #endif
     #endregion
 
-    #region TestingConditionSubClassState Class
-    #if (!OPCUA_EXCLUDE_TestingConditionSubClassState)
+    #region TestingConditionClassState Class
+    #if (!OPCUA_EXCLUDE_TestingConditionClassState)
     /// <summary>
-    /// Stores an instance of the TestingConditionSubClassType ObjectType.
+    /// Stores an instance of the TestingConditionClassType ObjectType.
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class TestingConditionSubClassState : BaseConditionClassState
+    public partial class TestingConditionClassState : BaseConditionClassState
     {
         #region Constructors
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public TestingConditionSubClassState(NodeState parent) : base(parent)
+        public TestingConditionClassState(NodeState parent) : base(parent)
         {
         }
 
@@ -50050,7 +50050,7 @@ namespace Opc.Ua
         /// </summary>
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TestingConditionSubClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TestingConditionClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -50083,8 +50083,8 @@ namespace Opc.Ua
 
         #region Initialization String
         private const string InitializationString =
-           "//////////8EYIACAQAAAAAAJAAAAFRlc3RpbmdDb25kaXRpb25TdWJDbGFzc1R5cGVJbnN0YW5jZQEA" +
-           "RUMBAEVDRUMAAP////8AAAAA";
+           "//////////8EYIACAQAAAAAAIQAAAFRlc3RpbmdDb25kaXRpb25DbGFzc1R5cGVJbnN0YW5jZQEARUMB" +
+           "AEVDRUMAAP////8AAAAA";
         #endregion
         #endif
         #endregion

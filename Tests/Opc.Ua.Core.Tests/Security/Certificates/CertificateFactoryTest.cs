@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 var cert = CertificateFactory.CreateCertificate($"CN=Test Cert {i}")
                     .SetIssuer(issuerCertificate)
-                    .SetRSAKeySize(keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048)
+                    .SetRSAKeySize((ushort) (keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048))
                     .CreateForRSA();
                 revokedCerts.Add(cert);
                 Assert.False(X509Utils.VerifySelfSigned(cert));
@@ -221,7 +221,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var extension = crl.CrlExtensions.FindExtension<X509CrlNumberExtension>();
             var crlCounter = new BigInteger(1);
             Assert.AreEqual(crlCounter, extension.CrlNumber);
-            var revokedList = new List<X509CRL> {
+            var revokedList = new X509CRLCollection {
                 crl
             };
             foreach (var cert in revokedCerts)

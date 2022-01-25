@@ -29,13 +29,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
     /// Defines numerous re-useable utility functions for clients.
     /// </summary>
-    public static class CoreClientUtils
+    public static partial class CoreClientUtils
     {
         /// <summary>
         /// The default discover operation timeout.
@@ -296,7 +297,7 @@ namespace Opc.Ua.Client
             // pick the first available endpoint by default.
             if (selectedEndpoint == null && endpoints.Count > 0)
             {
-                selectedEndpoint = endpoints[0];
+                selectedEndpoint = endpoints.FirstOrDefault(e => e.EndpointUrl?.StartsWith(url.Scheme) == true);
             }
 
             // return the selected endpoint.
