@@ -3363,6 +3363,39 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Removes a transferred subscription from the session.
+        /// Called by the session to which the subscription
+        /// is transferred to obtain ownership. Internal.
+        /// </summary>
+        /// <param name="subscription">The subscription to remove.</param>
+        internal bool RemoveTransferredSubscription(Subscription subscription)
+        {
+            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
+
+            if (subscription.Session != this)
+            {
+                return false;
+            }
+
+            lock (SyncRoot)
+            {
+                if (!m_subscriptions.Remove(subscription))
+                {
+                    return false;
+                }
+
+                subscription.Session = null;
+            }
+
+            if (m_SubscriptionsChanged != null)
+            {
+                m_SubscriptionsChanged(this, null);
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Transfers a list of Subscriptions from another session.
         /// </summary>
         public bool TransferSubscriptions(
@@ -3397,7 +3430,7 @@ namespace Opc.Ua.Client
             {
                 if (StatusCode.IsGood(results[ii].StatusCode))
                 {
-                    subscriptions[ii].Transfer(subscriptionIds[ii], results[ii].AvailableSequenceNumbers);
+                    subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers);
                 }
             }
 
@@ -4121,7 +4154,7 @@ namespace Opc.Ua.Client
 
                 AsyncRequestStarted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
 
-                Utils.LogTrace("PUBLISH #{0} SENT", requestHeader.RequestHandle);
+                Utils.LogInfo("PUBLISH #{0} SENT", requestHeader.RequestHandle);
 
                 return result;
             }
@@ -4148,7 +4181,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                Utils.LogTrace("PUBLISH #{0} RECEIVED", requestHeader.RequestHandle);
+                Utils.LogInfo("PUBLISH #{0} RECEIVED", requestHeader.RequestHandle);
 
                 // complete publish.
                 uint subscriptionId;

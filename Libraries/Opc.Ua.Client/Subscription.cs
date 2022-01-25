@@ -793,7 +793,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="id">Id of the transferred subscription.</param>
         /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
-        public bool Transfer(uint id, UInt32Collection availableSequenceNumbers)
+        public bool Transfer(Session session, uint id, UInt32Collection availableSequenceNumbers)
         {
             if (Created)
             {
@@ -802,8 +802,15 @@ namespace Opc.Ua.Client
                     return false;
                 }
 
-                // TODO
+                if (!m_session.RemoveTransferredSubscription(this))
+                {
+                    return false;
+                }
 
+                if (!session.AddSubscription(this))
+                {
+                    return false;
+                }
             }
             else
             {
