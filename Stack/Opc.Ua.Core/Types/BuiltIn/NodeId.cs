@@ -925,7 +925,7 @@ namespace Opc.Ua
                         id2 = uid.Value;
                     }
 
-                    uint id1 = (uint)m_identifier;
+                    uint id1 = (uint)((m_identifier as uint?) ?? 0U);
 
                     if (id1 == id2)
                     {

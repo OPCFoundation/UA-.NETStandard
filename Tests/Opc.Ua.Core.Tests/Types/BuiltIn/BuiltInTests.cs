@@ -215,10 +215,21 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         #endregion
 
         #region NodeId utilities
-        [Test]
-        public void NodeIdComparison()
+        [Theory]
+        [TestCase(-1)]
+        public void NullIdNodeIdComparison(Opc.Ua.IdType idType)
         {
-            NodeId nodeId = new NodeId(0, 0);
+            NodeId nodeId = NodeId.Null;
+            switch (idType)
+            {
+                case Opc.Ua.IdType.Numeric: nodeId = new NodeId(0, 0); break;
+                case Opc.Ua.IdType.String: nodeId = new NodeId(""); break;
+                case Opc.Ua.IdType.Guid: nodeId = new NodeId(Guid.Empty); break;
+                case Opc.Ua.IdType.Opaque: nodeId = new NodeId((byte)0); break;
+            }
+
+            Assert.IsTrue(nodeId.IsNullNodeId);
+
             DataValue nodeIdBasedDataValue = new DataValue(nodeId);
 
             DataValue dataValue = new DataValue(Attributes.NodeClass);
