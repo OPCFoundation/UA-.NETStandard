@@ -578,7 +578,7 @@ namespace Opc.Ua
                         throw new ArgumentException("Invalid store type");
                     }
 
-                    store.Open(storePath);
+                    store.Open(storePath, false);
                     store.Add(certificate, password).Wait();
                     store.Close();
                 }

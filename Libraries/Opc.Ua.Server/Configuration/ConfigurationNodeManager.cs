@@ -486,7 +486,7 @@ namespace Opc.Ua.Server
                 try
                 {
                     // TODO
-                    using (ICertificateStore appStore = CertificateStoreIdentifier.OpenStore(certificateGroup.ApplicationCertificate.StorePath))
+                    using (ICertificateStore appStore = certificateGroup.ApplicationCertificate.OpenStore())
                     {
                         Utils.LogCertificate(Utils.TraceMasks.Security, "Delete application certificate: ", certificateGroup.ApplicationCertificate.Certificate);
                         appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).Wait();

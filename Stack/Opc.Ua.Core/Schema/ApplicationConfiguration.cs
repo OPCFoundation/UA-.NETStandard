@@ -2834,7 +2834,11 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize() => m_trustedCertificates = new CertificateIdentifierCollection();
+        private void Initialize()
+        {
+            m_lock = new object();
+            m_trustedCertificates = new CertificateIdentifierCollection();
+        }
 
         /// <summary>
         /// Initializes the object during deserialization.

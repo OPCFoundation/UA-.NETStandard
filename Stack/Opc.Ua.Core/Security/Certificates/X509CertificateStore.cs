@@ -15,7 +15,6 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -49,22 +48,27 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            // nothing to do
+            if (disposing)
+            {
+                Close();
+            }
         }
 
-        /// <summary cref="ICertificateStore.Open(string)" />
+        /// <summary cref="ICertificateStore.Open(string, bool)" />
         /// <remarks>
         /// Syntax: StoreLocation\StoreName
         /// Example:
         ///   CurrentUser\My
         /// </remarks>
-        public void Open(string path)
+        public void Open(string location, bool noPrivateKeys = true)
         {
-            if (path == null) throw new ArgumentNullException(nameof(path));
+            if (location == null) throw new ArgumentNullException(nameof(location));
 
-            path = path.Trim();
+            m_storePath = location;
+            m_noPrivateKeys = noPrivateKeys;
+            location = location.Trim();
 
-            if (string.IsNullOrEmpty(path))
+            if (string.IsNullOrEmpty(location))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
@@ -72,17 +76,17 @@ namespace Opc.Ua
             }
 
             // extract store name.
-            int index = path.IndexOf('\\');
+            int index = location.IndexOf('\\');
             if (index == -1)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
                     "Path does not specify a store name. Path={0}",
-                    path);
+                    location);
             }
 
             // extract store location.
-            string storeLocation = path.Substring(0, index);
+            string storeLocation = location.Substring(0, index);
             bool found = false;
             foreach (StoreLocation availableLocation in (StoreLocation[])Enum.GetValues(typeof(StoreLocation)))
             {
@@ -101,7 +105,7 @@ namespace Opc.Ua
                     message.ToString(), storeLocation);
             }
 
-            m_storeName = path.Substring(index + 1);
+            m_storeName = location.Substring(index + 1);
         }
 
         /// <inheritdoc/>
@@ -109,6 +113,12 @@ namespace Opc.Ua
         {
             // nothing to do
         }
+
+        /// <inheritdoc/>
+        public string StoreType => CertificateStoreType.X509Store;
+
+        /// <inheritdoc/>
+        public string StorePath => m_storePath;
 
         /// <inheritdoc/>
         public Task<X509Certificate2Collection> Enumerate()
@@ -120,7 +130,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.Add(X509Certificate2, string)" />
+        /// <inheritdoc/>
         public Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
@@ -131,7 +141,7 @@ namespace Opc.Ua
                 if (!store.Certificates.Contains(certificate))
                 {
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER || NET472_OR_GREATER
-                    if (certificate.HasPrivateKey &&
+                    if (certificate.HasPrivateKey && !m_noPrivateKeys &&
                         (Environment.OSVersion.Platform == PlatformID.Win32NT))
                     {
                         // see https://github.com/dotnet/runtime/issues/29144
@@ -144,6 +154,12 @@ namespace Opc.Ua
                     }
                     else
 #endif
+                    if (certificate.HasPrivateKey && m_noPrivateKeys)
+                    {
+                        // ensure no private key is added to store
+                        store.Add(new X509Certificate2(certificate.RawData));
+                    }
+                    else
                     {
                         store.Add(certificate);
                     }
@@ -196,45 +212,64 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public bool SupportsLoadPrivateKey => false;
+
+        /// <inheritdoc/>
+        /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        {
+            return Task.FromResult<X509Certificate2>(null);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, NodeId certificateType, string password)
+        {
+            return Task.FromResult<X509Certificate2>(null);
+        }
+
+        /// <inheritdoc/>
         /// <remarks>CRLs are not supported here.</remarks>
         public bool SupportsCRLs => false;
 
         /// <inheritdoc/>
         /// <remarks>CRLs are not supported here.</remarks>
-        public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
+        public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
-            return StatusCodes.BadNotSupported;
+            return Task.FromResult((StatusCode)StatusCodes.BadNotSupported);
         }
 
         /// <inheritdoc/>
         /// <remarks>CRLs are not supported here.</remarks>
-        public X509CRLCollection EnumerateCRLs()
+        public Task<X509CRLCollection> EnumerateCRLs()
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
         /// <inheritdoc/>
         /// <remarks>CRLs are not supported here.</remarks>
-        public X509CRLCollection EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
         /// <inheritdoc/>
         /// <remarks>CRLs are not supported here.</remarks>
-        public void AddCRL(X509CRL crl)
+        public Task AddCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
         /// <inheritdoc/>
         /// <remarks>CRLs are not supported here.</remarks>
-        public bool DeleteCRL(X509CRL crl)
+        public Task<bool> DeleteCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
+        private bool m_noPrivateKeys;
         private string m_storeName;
+        private string m_storePath;
         private StoreLocation m_storeLocation;
     }
 }
