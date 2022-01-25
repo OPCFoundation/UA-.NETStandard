@@ -35,7 +35,7 @@ namespace Opc.Ua.Core.Tests
     public static class TestUtils
     {
         /// <summary>
-        /// 
+        /// A common method to clean up the test trust list.
         /// </summary>
         /// <param name="store"></param>
         /// <param name="dispose"></param>
@@ -43,12 +43,12 @@ namespace Opc.Ua.Core.Tests
         {
             if (store != null)
             {
-                var certs = store.Enumerate().Result;
+                var certs = store.Enumerate().GetAwaiter().GetResult();
                 foreach (var cert in certs)
                 {
                     store.Delete(cert.Thumbprint);
                 }
-                var crls = store.EnumerateCRLs();
+                var crls = store.EnumerateCRLs().GetAwaiter().GetResult();
                 foreach (var crl in crls)
                 {
                     store.DeleteCRL(crl);

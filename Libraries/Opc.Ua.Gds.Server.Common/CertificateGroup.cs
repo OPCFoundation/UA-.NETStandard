@@ -371,11 +371,6 @@ namespace Opc.Ua.Gds.Server
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot find issuer certificate in store.");
                 }
 
-                if (!certCA.HasPrivateKey)
-                {
-                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
-                }
-
                 CertificateIdentifier certCAIdentifier = new CertificateIdentifier(certCA) {
                     StorePath = storePath,
                     StoreType = CertificateStoreIdentifier.DetermineStoreType(storePath)
@@ -387,21 +382,26 @@ namespace Opc.Ua.Gds.Server
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Failed to load issuer private key. Is the password correct?");
                 }
 
-                List<X509CRL> certCACrl = store.EnumerateCRLs(certCA, false);
+                if (!certCAWithPrivateKey.HasPrivateKey)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
+                }
 
-                var certificateCollection = new X509Certificate2Collection() { };
+                var certCACrl = await store.EnumerateCRLs(certCA, false).ConfigureAwait(false);
+
+                var certificateCollection = new X509Certificate2Collection();
                 if (!isCACert)
                 {
                     certificateCollection.Add(certificate);
                 }
                 updatedCRL = CertificateFactory.RevokeCertificate(certCAWithPrivateKey, certCACrl, certificateCollection);
 
-                store.AddCRL(updatedCRL);
+                await store.AddCRL(updatedCRL).ConfigureAwait(false);
 
                 // delete outdated CRLs from store
                 foreach (X509CRL caCrl in certCACrl)
                 {
-                    store.DeleteCRL(caCrl);
+                    await store.DeleteCRL(caCrl).ConfigureAwait(false);
                 }
                 store.Close();
             }
@@ -433,18 +433,18 @@ namespace Opc.Ua.Gds.Server
                             }
 
                             // delete existing CRL in trusted list
-                            foreach (var crl in trustedStore.EnumerateCRLs(certificate, false))
+                            foreach (var crl in await trustedStore.EnumerateCRLs(certificate, false).ConfigureAwait(false))
                             {
                                 if (crl.VerifySignature(certificate, false))
                                 {
-                                    trustedStore.DeleteCRL(crl);
+                                    await trustedStore.DeleteCRL(crl).ConfigureAwait(false);
                                 }
                             }
 
                             // copy latest CRL to trusted list
-                            foreach (var crl in authorityStore.EnumerateCRLs(certificate, true))
+                            foreach (var crl in await authorityStore.EnumerateCRLs(certificate, true).ConfigureAwait(false))
                             {
-                                trustedStore.AddCRL(crl);
+                                await trustedStore.AddCRL(crl).ConfigureAwait(false);
                             }
                         }
                     }

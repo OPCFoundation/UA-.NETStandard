@@ -221,7 +221,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var extension = crl.CrlExtensions.FindExtension<X509CrlNumberExtension>();
             var crlCounter = new BigInteger(1);
             Assert.AreEqual(crlCounter, extension.CrlNumber);
-            var revokedList = new List<X509CRL> {
+            var revokedList = new X509CRLCollection {
                 crl
             };
             foreach (var cert in revokedCerts)

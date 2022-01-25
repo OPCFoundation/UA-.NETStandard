@@ -78,7 +78,7 @@ namespace Opc.Ua
 #if NETFRAMEWORK
         public static readonly string DefaultPKIRoot = Path.Combine("%CommonApplicationData%", "OPC Foundation", "pki");
 #else
-        public static readonly string DefaultPKIRoot = Path.Combine("%LocalApplicationData%","OPC Foundation","pki");
+        public static readonly string DefaultPKIRoot = Path.Combine("%LocalApplicationData%", "OPC Foundation", "pki");
 #endif
 
         /// <summary>
@@ -173,9 +173,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns an object that can be used to access the store.
+        /// Returns an object to access the store containing the certificates.
         /// </summary>
-        public ICertificateStore OpenStore()
+        /// <remarks>
+        /// Opens an instance of the store which contains public keys.
+        /// </remarks>
+        /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
+        public virtual ICertificateStore OpenStore()
         {
             ICertificateStore store = CreateStore(this.StoreType);
             store.Open(this.StorePath);
@@ -183,10 +187,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Opens the store.
+        /// Returns an object to access the store containing the certificates.
         /// </summary>
-        /// <param name="path">The path.</param>
-        /// <returns>The store.</returns>
+        /// <remarks>
+        /// Opens an instance of the store which contains public keys.
+        /// </remarks>
+        /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
         public static ICertificateStore OpenStore(string path)
         {
             ICertificateStore store = CertificateStoreIdentifier.CreateStore(CertificateStoreIdentifier.DetermineStoreType(path));
@@ -207,7 +213,7 @@ namespace Opc.Ua
             s_registeredStoreTypes = new Dictionary<string, ICertificateStoreType>();
         }
 
-        #region public methods
+        #region Public Methods
         /// <summary>
         /// Registers a new certificate store type that con be specified in config files.
         /// </summary>
@@ -217,9 +223,9 @@ namespace Opc.Ua
         {
             s_registeredStoreTypes.Add(storeTypeName, storeType);
         }
-        #endregion public methods
+        #endregion
 
-        #region internal methods
+        #region Internal Methods
         internal static ICertificateStoreType GetCertificateStoreTypeByName(string storeTypeName)
         {
             ICertificateStoreType result;
@@ -228,9 +234,9 @@ namespace Opc.Ua
         }
 
         internal static IReadOnlyCollection<string> RegisteredStoreTypeNames => s_registeredStoreTypes.Keys;
-        #endregion internal methods
+        #endregion 
 
-        #region data members
+        #region Data Members
         /// <summary>
         /// A windows certificate store.
         /// </summary>
@@ -240,9 +246,11 @@ namespace Opc.Ua
         /// A directory certificate store.
         /// </summary>
         public const string Directory = "Directory";
+        #endregion
 
+        #region Static Members
         private static readonly Dictionary<string, ICertificateStoreType> s_registeredStoreTypes;
-        #endregion data members
+        #endregion
     }
     #endregion
 }
