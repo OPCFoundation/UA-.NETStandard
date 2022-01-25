@@ -100,9 +100,18 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new void SetUp()
+        public new Task SetUp()
         {
-            base.SetUp();
+            return base.SetUp();
+        }
+
+        /// <summary>
+        /// Test teardown.
+        /// </summary>
+        [TearDown]
+        public new Task TearDown()
+        {
+            return base.TearDown();
         }
         #endregion
 

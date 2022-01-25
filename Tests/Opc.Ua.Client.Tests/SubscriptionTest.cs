@@ -56,6 +56,7 @@ namespace Opc.Ua.Client.Tests
         [OneTimeSetUp]
         public new Task OneTimeSetUp()
         {
+            SingleSession = false;
             return base.OneTimeSetUpAsync(null);
         }
 
@@ -72,9 +73,18 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new void SetUp()
+        public new Task SetUp()
         {
-            base.SetUp();
+            return base.SetUp();
+        }
+
+        /// <summary>
+        /// Test teardown.
+        /// </summary>
+        [TearDown]
+        public new Task TearDown()
+        {
+            return base.TearDown();
         }
         #endregion
 

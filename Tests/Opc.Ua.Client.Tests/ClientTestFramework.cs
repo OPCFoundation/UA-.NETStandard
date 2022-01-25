@@ -54,6 +54,8 @@ namespace Opc.Ua.Client.Tests
         public const int TransportQuota_MaxMessageSize = 4 * 1024 * 1024;
         public const int TransportQuota_MaxStringLength = 1 * 1024 * 1024;
 
+        public bool SingleSession { get; set; } = true;
+
         protected ServerFixture<ReferenceServer> m_serverFixture;
         protected ClientFixture m_clientFixture;
         protected ReferenceServer m_server;
@@ -121,13 +123,16 @@ namespace Opc.Ua.Client.Tests
             m_clientFixture.Config.TransportQuotas.MaxByteStringLength =
             m_clientFixture.Config.TransportQuotas.MaxStringLength = 1 * 1024 * 1024;
             m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
-            try
+            if (SingleSession)
             {
-                m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                Assert.Ignore("OneTimeSetup failed to create session, tests skipped. Error: {0}", e.Message);
+                try
+                {
+                    m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    Assert.Ignore("OneTimeSetup failed to create session, tests skipped. Error: {0}", e.Message);
+                }
             }
         }
 
@@ -149,9 +154,34 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Test setup.
         /// </summary>
-        public void SetUp()
+        public async Task SetUp()
         {
+            if (!SingleSession)
+            {
+                try
+                {
+                    m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    Assert.Ignore("OneTimeSetup failed to create session, tests skipped. Error: {0}", e.Message);
+                }
+            }
             m_serverFixture.SetTraceOutput(TestContext.Out);
+        }
+
+        /// <summary>
+        /// Test Teardown.
+        /// </summary>
+        public Task TearDown()
+        {
+            if (!SingleSession && m_session != null)
+            {
+                m_session.Close();
+                m_session.Dispose();
+                m_session = null;
+            }
+            return Task.CompletedTask;
         }
         #endregion
 
