@@ -374,12 +374,7 @@ namespace Opc.Ua.Security.Certificates
             }
             set
             {
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(value));
-                }
-
-                base[index] = value;
+                base[index] = value ?? throw new ArgumentNullException(nameof(value));
             }
         }
 
