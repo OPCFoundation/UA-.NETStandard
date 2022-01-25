@@ -49,6 +49,7 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         #region Test Methods
         /// <summary>
         /// Load well known resource type dictionaries.
+        /// Ensure the manifests are available.
         /// </summary>
         [Theory]
         public void LoadResources(string[] schemaData)
@@ -75,7 +76,7 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
                 Assert.IsNotNull(schema);
                 schema.Validate(stream);
                 Assert.IsNull(schema.FilePath);
-                Assert.AreEqual(schemaData[0], schema.TargetSchema.TargetNamespace);
+                Assert.That(schema.TargetSchema.TargetNamespace, Does.StartWith(schemaData[0]));
             }
         }
         #endregion

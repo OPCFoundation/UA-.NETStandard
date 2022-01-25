@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -607,11 +608,12 @@ namespace Opc.Ua.Client.Tests
         public async Task LoadAllServerDataTypeSystems(NodeId dataTypeSystem)
         {
             // find the dictionary for the description.
-            Browser browser = new Browser(m_session);
-            browser.BrowseDirection = BrowseDirection.Forward;
-            browser.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            browser.IncludeSubtypes = false;
-            browser.NodeClassMask = 0;
+            Browser browser = new Browser(m_session) {
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                IncludeSubtypes = false,
+                NodeClassMask = 0
+            };
 
             ReferenceDescriptionCollection references = browser.Browse(dataTypeSystem);
             Assert.NotNull(references);
@@ -622,18 +624,22 @@ namespace Opc.Ua.Client.Tests
             foreach (var r in references)
             {
                 NodeId dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
-                TestContext.Out.WriteLine("  ReadDictionary {0} {1}", r.BrowseName.Name, dictionaryId);
+                TestContext.Out.WriteLine("--------  ReadDictionary {0} {1} ------------", r.BrowseName.Name, dictionaryId);
                 var dictionaryToLoad = new DataDictionary(m_session);
                 await dictionaryToLoad.Load(dictionaryId, r.BrowseName.Name).ConfigureAwait(false);
 
                 // internal API for testing only
                 var dictionary = dictionaryToLoad.ReadDictionary(dictionaryId);
+                var dictionaryAsText = Encoding.UTF8.GetString(dictionary);
+                TestContext.Out.WriteLine(dictionaryAsText);
+
                 // TODO: workaround known issues in the Xml type system.
                 // https://mantis.opcfoundation.org/view.php?id=7393
                 if (dataTypeSystem.Equals(ObjectIds.XmlSchema_TypeSystem))
                 {
                     try
                     {
+                        TestContext.Out.WriteLine("--------- validation ----------");
                         await dictionaryToLoad.Validate(dictionary, true).ConfigureAwait(false);
                     }
                     catch (Exception ex)
@@ -645,6 +651,8 @@ namespace Opc.Ua.Client.Tests
                 {
                     await dictionaryToLoad.Validate(dictionary, true).ConfigureAwait(false);
                 }
+
+                TestContext.Out.WriteLine("--------- passed ----------");
             }
         }
         #endregion
