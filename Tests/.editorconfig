@@ -1,0 +1,10 @@
+# Editorconfig for Tests
+
+root = false
+
+# Diagnostic settings specific to Tests
+[*.cs]
+
+# RCS1090: Add call to 'ConfigureAwait' (or vice versa)
+dotnet_diagnostic.RCS1090.severity = warning
+

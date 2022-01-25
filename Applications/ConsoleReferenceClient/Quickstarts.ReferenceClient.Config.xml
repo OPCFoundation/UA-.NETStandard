@@ -5,8 +5,8 @@
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
   <ApplicationName>Quickstart Console Reference Client</ApplicationName>
-  <ApplicationUri>urn:localhost:Quickstarts:Console ReferenceClient</ApplicationUri>
-  <ProductUri>uri:opcfoundation.org:Quickstarts:Console ReferenceClient</ProductUri>
+  <ApplicationUri>urn:localhost:UA:Quickstarts:ReferenceClient</ApplicationUri>
+  <ProductUri>uri:opcfoundation.org:Quickstarts:ReferenceClient</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
   
   <SecurityConfiguration>
@@ -14,26 +14,26 @@
     <!-- Where the application instance certificate is stored (MachineDefault) -->
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\pki\own</StorePath>
-      <SubjectName>CN=Quickstart Console Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+      <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+      <SubjectName>CN=Console Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
    <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\pki\issuer</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/pki/issuer</StorePath>
     </TrustedIssuerCertificates>
 
     <!-- Where the trust list is stored -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\pki\trusted</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/pki/trusted</StorePath>
     </TrustedPeerCertificates>
 
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\pki\rejected</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/pki/rejected</StorePath>
     </RejectedCertificateStore>
 
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
@@ -70,7 +70,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>%CommonApplicationData%\OPC Foundation\Logs\Quickstarts.ConsoleReferenceClient.log.txt</OutputFilePath>
+    <OutputFilePath>%LocalApplicationData%/OPC Foundation/Logs/Quickstarts.ReferenceClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

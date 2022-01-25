@@ -111,7 +111,11 @@ namespace Opc.Ua
         {
             using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
             {
-                return rsaPublicKey.KeySize;
+                if (rsaPublicKey != null)
+                {
+                    return rsaPublicKey.KeySize;
+                }
+                return -1;
             }
         }
 
@@ -530,7 +534,7 @@ namespace Opc.Ua
                         throw new ArgumentException("Invalid store type");
                     }
 
-                    store.Open(storePath);
+                    store.Open(storePath, false);
                     store.Add(certificate, password).Wait();
                     store.Close();
                 }

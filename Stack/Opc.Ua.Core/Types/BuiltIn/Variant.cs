@@ -2808,5 +2808,4 @@ namespace Opc.Ua
         private TypeInfo m_typeInfo;
         #endregion
     }
-
 }//namespace

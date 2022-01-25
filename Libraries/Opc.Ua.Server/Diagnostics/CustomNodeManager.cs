@@ -28,12 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Text;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Threading;
-using Opc.Ua;
-using Opc.Ua.Server;
+
 
 namespace Opc.Ua.Server
 {
@@ -722,13 +719,6 @@ namespace Opc.Ua.Server
 
             foreach (NodeState source in m_predefinedNodes.Values)
             {
-                // assign a default value to any variable value.
-                BaseVariableState variable = source as BaseVariableState;
-
-                if (variable != null && variable.Value == null)
-                {
-                    variable.Value = TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank, Server.TypeTree);
-                }
 
                 IList<IReference> references = new List<IReference>();
                 source.GetReferences(SystemContext, references);
@@ -1908,7 +1898,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    Utils.TraceDebug("WRITE: Value={0} Range={1}", nodeToWrite.Value.WrappedValue, nodeToWrite.IndexRange);
+                    ServerUtils.EventLog.WriteValueRange(nodeToWrite.Value.WrappedValue, nodeToWrite.IndexRange);
 
                     PropertyState propertyState = handle.Node as PropertyState;
                     object previousPropertyValue = null;

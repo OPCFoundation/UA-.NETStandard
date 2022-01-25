@@ -157,6 +157,7 @@
       <xs:element name="RequiredModel" type="ModelTableEntry" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
     <xs:attribute name="ModelUri" type="xs:string" use="required" />
+    <xs:attribute name="XmlSchemaUri" type="xs:string" use="optional" />
     <xs:attribute name="Version" type="xs:string" />
     <xs:attribute name="PublicationDate" type="xs:dateTime" />
     <xs:attribute name="AccessRestrictions" type="AccessRestriction" default="0" />
@@ -215,7 +216,7 @@
   </xs:simpleType>
 
   <xs:simpleType name="AccessRestriction">
-    <xs:restriction base="xs:unsignedByte" />
+    <xs:restriction base="xs:unsignedShort" />
   </xs:simpleType>
 
   <xs:simpleType name="ArrayDimensions">

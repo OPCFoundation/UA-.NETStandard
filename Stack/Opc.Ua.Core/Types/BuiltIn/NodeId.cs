@@ -354,11 +354,11 @@ namespace Opc.Ua
         /// node1 = new NodeId(id1);
         /// 
         /// //now to compare the node to the ids using a simple comparisson and Equals:
-        /// Utils.Trace("Comparing NodeId to uint");
-        /// Utils.Trace("\tComparing 100 to 100 = [equals] {0}", node1.Equals(id1));
-        /// Utils.Trace("\tComparing 100 to 100 = [ ==   ] {0}", node1 == id1);
-        /// Utils.Trace("\tComparing 100 to 101 = [equals] {0}", node1.Equals(id2));
-        /// Utils.Trace("\tComparing 100 to 101 = [ ==   ] {0}", node1 == id2);
+        /// Utils.LogInfo("Comparing NodeId to uint");
+        /// Utils.LogInfo("\tComparing 100 to 100 = [equals] {0}", node1.Equals(id1));
+        /// Utils.LogInfo("\tComparing 100 to 100 = [ ==   ] {0}", node1 == id1);
+        /// Utils.LogInfo("\tComparing 100 to 101 = [equals] {0}", node1.Equals(id2));
+        /// Utils.LogInfo("\tComparing 100 to 101 = [ ==   ] {0}", node1 == id2);
         /// 
         /// </code>
         /// <code lang="Visual Basic">
@@ -372,11 +372,11 @@ namespace Opc.Ua
         /// node1 = new NodeId(id1)
         /// 
         /// 'now to compare the node to the ids using a simple comparisson and Equals:
-        /// Utils.Trace("Comparing NodeId to uint")
-        /// Utils.Trace( String.Format("   Comparing 100 to 100 = [equals] {0}", node1.Equals(id1)) )
-        /// Utils.Trace( String.Format("   Comparing 100 to 100 = [  =   ] {0}", node1 = id1) )
-        /// Utils.Trace( String.Format("   Comparing 100 to 101 = [equals] {0}", node1.Equals(id2)) )
-        /// Utils.Trace( String.Format("   Comparing 100 to 101 = [  =   ] {0}", node1 = id2) )
+        /// Utils.LogInfo("Comparing NodeId to uint")
+        /// Utils.LogInfo( String.Format("   Comparing 100 to 100 = [equals] {0}", node1.Equals(id1)) )
+        /// Utils.LogInfo( String.Format("   Comparing 100 to 100 = [  =   ] {0}", node1 = id1) )
+        /// Utils.LogInfo( String.Format("   Comparing 100 to 101 = [equals] {0}", node1.Equals(id2)) )
+        /// Utils.LogInfo( String.Format("   Comparing 100 to 101 = [  =   ] {0}", node1 = id2) )
         /// 
         /// </code>
         /// <para>
@@ -397,6 +397,7 @@ namespace Opc.Ua
         }
 
         #endregion
+
         #region public static implicit operator NodeId(Guid value)
         /// <summary>
         /// Converts a guid to a guid node identifier.
@@ -412,11 +413,11 @@ namespace Opc.Ua
         /// NodeId node1 = new NodeId(id1);
         /// 
         /// //now to compare the node to the guids
-        /// Utils.Trace("\n\nComparing NodeId to GUID");
-        /// Utils.Trace("\tComparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1));
-        /// Utils.Trace("\tComparing {0} to {0} = [ ==   ] {2}", id1, id1, node1 == id1);
-        /// Utils.Trace("\tComparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
-        /// Utils.Trace("\tComparing {0} to {1} = [ ==   ] {2}", id1, id2, node1 == id2);
+        /// Utils.LogInfo("\n\nComparing NodeId to GUID");
+        /// Utils.LogInfo("\tComparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1));
+        /// Utils.LogInfo("\tComparing {0} to {0} = [ ==   ] {2}", id1, id1, node1 == id1);
+        /// Utils.LogInfo("\tComparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
+        /// Utils.LogInfo("\tComparing {0} to {1} = [ ==   ] {2}", id1, id2, node1 == id2);
         /// 
         /// </code>
         /// <code lang="Visual Basic">
@@ -427,11 +428,11 @@ namespace Opc.Ua
         /// Dim node1 As NodeId = new NodeId(id1)
         /// 
         /// 'now to compare the node to the guids
-        /// Utils.Trace("Comparing NodeId to GUID")
-        /// Utils.Trace( String.Format( "  Comparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1)) );
-        /// Utils.Trace( String.Format( "  Comparing {0} to {0} = [  =   ] {2}", id1, id1, node1 = id1) );
-        /// Utils.Trace( String.Format( "  Comparing {0} to {0} = [equals] {2}", id1, id2, node1.Equals(id2)) );
-        /// Utils.Trace( String.Format( "  Comparing {0} to {0} = [  =   ] {2}", id1, id2, node1 = id2) );
+        /// Utils.LogInfo("Comparing NodeId to GUID")
+        /// Utils.LogInfo( String.Format( "  Comparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1)) );
+        /// Utils.LogInfo( String.Format( "  Comparing {0} to {0} = [  =   ] {2}", id1, id1, node1 = id1) );
+        /// Utils.LogInfo( String.Format( "  Comparing {0} to {0} = [equals] {2}", id1, id2, node1.Equals(id2)) );
+        /// Utils.LogInfo( String.Format( "  Comparing {0} to {0} = [  =   ] {2}", id1, id2, node1 = id2) );
         /// 
         /// </code>
         /// <para>
@@ -452,6 +453,7 @@ namespace Opc.Ua
         }
 
         #endregion
+
         #region public static implicit operator NodeId(byte[] value)
         /// <summary>
         /// Converts a byte array to an opaque node identifier.
@@ -472,11 +474,11 @@ namespace Opc.Ua
         /// string id2String = System.Text.ASCIIEncoding.ASCII.GetString(id2);
         /// 
         /// //now to compare the node to the guids
-        /// Utils.Trace("\n\nComparing NodeId to Byte[]");
-        /// Utils.Trace("\tComparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1));
-        /// Utils.Trace("\tComparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 == id1);
-        /// Utils.Trace("\tComparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2));
-        /// Utils.Trace("\tComparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 == id2);
+        /// Utils.LogInfo("\n\nComparing NodeId to Byte[]");
+        /// Utils.LogInfo("\tComparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1));
+        /// Utils.LogInfo("\tComparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 == id1);
+        /// Utils.LogInfo("\tComparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2));
+        /// Utils.LogInfo("\tComparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 == id2);
         /// 
         /// </code>
         /// <code lang="Visual Basic">
@@ -491,11 +493,11 @@ namespace Opc.Ua
         /// Dim id2String As String = System.Text.ASCIIEncoding.ASCII.GetString(id2)
         /// 
         /// 'now to compare the node to the guids
-        /// Utils.Trace("Comparing NodeId to Byte()")
-        /// Utils.Trace( String.Format("Comparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1)) )
-        /// Utils.Trace( String.Format("Comparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 = id1) )
-        /// Utils.Trace( String.Format("Comparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2)) )
-        /// Utils.Trace( String.Format("Comparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 = id2) )
+        /// Utils.LogInfo("Comparing NodeId to Byte()")
+        /// Utils.LogInfo( String.Format("Comparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1)) )
+        /// Utils.LogInfo( String.Format("Comparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 = id1) )
+        /// Utils.LogInfo( String.Format("Comparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2)) )
+        /// Utils.LogInfo( String.Format("Comparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 = id2) )
         /// 
         /// </code>
         /// <para>
@@ -516,6 +518,7 @@ namespace Opc.Ua
         }
 
         #endregion
+
         #region public static implicit operator NodeId(string text)
         /// <summary>
         /// Parses a node id string and initializes a node id.
@@ -531,11 +534,11 @@ namespace Opc.Ua
         /// NodeId node1 = new NodeId(id1);
         /// 
         /// //now to compare the node to the guids
-        /// Utils.Trace("\n\nComparing NodeId to String");
-        /// Utils.Trace("\tComparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1));
-        /// Utils.Trace("\tComparing {0} to {0} = [ ==   ] {2}", id1, id1, node1 == id1);
-        /// Utils.Trace("\tComparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
-        /// Utils.Trace("\tComparing {0} to {1} = [ ==   ] {2}", id1, id2, node1 == id2);
+        /// Utils.LogInfo("\n\nComparing NodeId to String");
+        /// Utils.LogInfo("\tComparing {0} to {1} = [equals] {2}", id1, id1, node1.Equals(id1));
+        /// Utils.LogInfo("\tComparing {0} to {1} = [ ==   ] {2}", id1, id1, node1 == id1);
+        /// Utils.LogInfo("\tComparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
+        /// Utils.LogInfo("\tComparing {0} to {1} = [ ==   ] {2}", id1, id2, node1 == id2);
         /// 
         /// 
         /// </code>
@@ -547,11 +550,11 @@ namespace Opc.Ua
         /// Dim node1 As NodeId = New NodeId(id1)
         /// 
         /// 'now to compare the node to the guids
-        /// Utils.Trace("Comparing NodeId to String");
-        /// Utils.Trace(String.Format("Comparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1)));
-        /// Utils.Trace(String.Format("Comparing {0} to {0} = [  =   ] {2}", id1, id1, node1 = id1));
-        /// Utils.Trace(String.Format("Comparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2)));
-        /// Utils.Trace(String.Format("Comparing {0} to {1} = [  =   ] {2}", id1, id2, node1 = id2));
+        /// Utils.LogInfo("Comparing NodeId to String");
+        /// Utils.LogInfo(String.Format("Comparing {0} to {1} = [equals] {2}", id1, id1, node1.Equals(id1)));
+        /// Utils.LogInfo(String.Format("Comparing {0} to {1} = [  =   ] {2}", id1, id1, node1 = id1));
+        /// Utils.LogInfo(String.Format("Comparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2)));
+        /// Utils.LogInfo(String.Format("Comparing {0} to {1} = [  =   ] {2}", id1, id2, node1 = id2));
         /// 
         /// </code>
         /// </example>
@@ -562,6 +565,7 @@ namespace Opc.Ua
         }
 
         #endregion
+
         #region public static bool IsNull(NodeId nodeId)
         /// <summary>
         /// Checks if the node id represents a 'Null' node id.
@@ -579,8 +583,8 @@ namespace Opc.Ua
 
             return nodeId.IsNullNodeId;
         }
-
         #endregion
+
         #region public static bool IsNull(ExpandedNodeId nodeId)
         /// <summary>
         /// Checks if the node id represents a 'Null' node id.
@@ -599,6 +603,7 @@ namespace Opc.Ua
             return nodeId.IsNull;
         }
         #endregion
+
         #region public static NodeId Parse(string text)
         /// <summary>
         /// Parses a node id string and returns a node id object.
@@ -778,6 +783,7 @@ namespace Opc.Ua
         }
 
         #endregion
+
         #region public static ExpandedNodeId ToExpandedNodeId(NodeId nodeId, NamespaceTable namespaceTable)
         /// <summary>
         /// Converts an node id to an expanded node id using a namespace table.
@@ -1098,6 +1104,7 @@ namespace Opc.Ua
         }
 
         #endregion
+
         #region public static bool operator>(NodeId value1, NodeId value2)
         /// <summary>
         /// Returns true if a is greater than b.
@@ -1114,8 +1121,8 @@ namespace Opc.Ua
 
             return false;
         }
+        #endregion
 
-        #endregion        
         #region public static bool operator<(NodeId value1, NodeId value2)
         /// <summary>
         /// Returns true if a is less than b.
@@ -1174,7 +1181,6 @@ namespace Opc.Ua
         }
 
         #region Comparison Functions
-
         #region public override bool Equals(object obj)
         /// <summary>
         /// Determines if the specified object is equal to the NodeId.
@@ -1189,6 +1195,7 @@ namespace Opc.Ua
         }
 
         #endregion
+
         #region public override int GetHashCode()
         /// <summary>
         /// Returns a unique hashcode for the NodeId
@@ -1225,8 +1232,8 @@ namespace Opc.Ua
 
             return m_identifier.GetHashCode();
         }
-
         #endregion
+
         #region public static bool operator==(NodeId a, object b) 
         /// <summary>
         /// Returns true if the objects are equal.
@@ -1243,8 +1250,8 @@ namespace Opc.Ua
 
             return (value1.CompareTo(value2) == 0);
         }
-
         #endregion
+
         #region public static bool operator!=(NodeId value1, object value2) 
         /// <summary>
         /// Returns true if the objects are not equal.
@@ -1261,8 +1268,6 @@ namespace Opc.Ua
 
             return (value1.CompareTo(value2) != 0);
         }
-
-
         #endregion
 
         #endregion
@@ -1603,7 +1608,6 @@ namespace Opc.Ua
     [CollectionDataContract(Name = "ListOfNodeId", Namespace = Namespaces.OpcUaXsd, ItemName = "NodeId")]
     public partial class NodeIdCollection : List<NodeId>
     {
-
         #region CTORs
 
         /// <summary>

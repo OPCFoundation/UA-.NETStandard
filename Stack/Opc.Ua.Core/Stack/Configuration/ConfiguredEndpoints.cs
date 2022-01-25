@@ -160,7 +160,6 @@ namespace Opc.Ua
 
                 endpoint.Description.Server = (ApplicationDescription)server.MemberwiseClone();
 
-
             }
 
             // remove invalid endpoints.
@@ -198,7 +197,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error loading ConfiguredEnpoints.");
+                Utils.LogError(e, "Unexpected error loading ConfiguredEnpoints.");
                 throw;
             }
         }

@@ -17,7 +17,6 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
-
     /// <summary>
     /// Manages the server side of a UA TCP channel.
     /// </summary>
@@ -243,7 +242,8 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            Utils.Trace((int)Utils.TraceMasks.Error, "{0}: Channel {1} - Duplicate sequence number: {2} <= {3}", context, this.ChannelId, sequenceNumber, m_remoteSequenceNumber);
+            Utils.LogError("ChannelId {0}: {1} - Duplicate sequence number: {2} <= {3}",
+                ChannelId, context, sequenceNumber, m_remoteSequenceNumber);
             return false;
         }
 
@@ -261,7 +261,7 @@ namespace Opc.Ua.Bindings
             {
                 if (m_partialMessageChunks.Count > 0)
                 {
-                    Utils.Trace("WARNING - Discarding unprocessed message chunks for Request #{0}", m_partialRequestId);
+                    Utils.LogWarning("WARNING - Discarding unprocessed message chunks for Request #{0}", m_partialRequestId);
                 }
 
                 m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
@@ -297,8 +297,6 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     uint messageType = BitConverter.ToUInt32(message.Array, message.Offset);
-
-                    Utils.TraceDebug("{1} Message Received: {0} bytes", message.Count, messageType);
 
                     if (!HandleIncomingMessage(messageType, message))
                     {
@@ -377,8 +375,6 @@ namespace Opc.Ua.Bindings
                 ServiceResult error = ServiceResult.Good;
                 try
                 {
-                    Utils.TraceDebug("Bytes written: {0}", e.BytesTransferred);
-
                     if (e.BytesTransferred == 0)
                     {
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
@@ -697,7 +693,7 @@ namespace Opc.Ua.Bindings
             {
                 if (m_state != value)
                 {
-                    Utils.Trace("Channel {0} in {1} state.", ChannelId, value);
+                    Utils.LogInfo("ChannelId {0}: in {1} state.", ChannelId, value);
                 }
 
                 m_state = value;

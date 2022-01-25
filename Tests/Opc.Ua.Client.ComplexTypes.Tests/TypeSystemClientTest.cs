@@ -96,7 +96,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             };
             if (writer != null)
             {
-                m_serverFixture.TraceMasks = Utils.TraceMasks.All;
+                m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
             }
             m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
 
@@ -153,7 +153,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             typeSystem.DisableDataTypeDefinition = disableDataTypeDefinition;
             typeSystem.DisableDataTypeDictionary = disableDataTypeDictionary;
 
-            bool success = await typeSystem.Load(onlyEnumTypes, true);
+            bool success = await typeSystem.Load(onlyEnumTypes, true).ConfigureAwait(false);
             Assert.IsTrue(success);
 
             var types = typeSystem.GetDefinedTypes();

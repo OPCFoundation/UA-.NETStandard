@@ -624,7 +624,7 @@ namespace Opc.Ua.Gds.Tests
             )
         {
             m_pushClient.PushClient.AdminCredentials = sysAdmin ? m_pushClient.SysAdminUser : m_pushClient.AppUser;
-            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).Wait();
+            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connected -- {memberName}");
         }
 
@@ -661,7 +661,7 @@ namespace Opc.Ua.Gds.Tests
         {
             if (_applicationRecord == null && discoveryUrl != null)
             {
-                EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(discoveryUrl, true);
+                EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_gdsClient.Configuration, discoveryUrl, true);
                 ApplicationDescription description = endpointDescription.Server;
                 _applicationRecord = new ApplicationRecordDataType {
                     ApplicationNames = new LocalizedTextCollection { description.ApplicationName },
@@ -681,8 +681,10 @@ namespace Opc.Ua.Gds.Tests
             // add issuer and trusted certs to client stores
             NodeId trustListId = m_gdsClient.GDSClient.GetTrustList(id, null);
             var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
-            AddTrustListToStore(m_gdsClient.Config.SecurityConfiguration, trustList);
-            AddTrustListToStore(m_pushClient.Config.SecurityConfiguration, trustList);
+            var result = AddTrustListToStore(m_gdsClient.Configuration.SecurityConfiguration, trustList).Result;
+            Assert.IsTrue(result);
+            result = AddTrustListToStore(m_pushClient.Config.SecurityConfiguration, trustList).Result;
+            Assert.IsTrue(result);
         }
 
         private void UnRegisterPushServerApplication()
@@ -695,22 +697,22 @@ namespace Opc.Ua.Gds.Tests
         {
             DisconnectPushClient();
             Thread.Sleep(2000);
-            m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).Wait();
-            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).Wait();
+            m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).GetAwaiter().GetResult();
+            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             Assert.AreEqual(
                 certificate,
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate
                 );
         }
 
-        private bool AddTrustListToStore(SecurityConfiguration config, TrustListDataType trustList)
+        private async Task<bool> AddTrustListToStore(SecurityConfiguration config, TrustListDataType trustList)
         {
             TrustListMasks masks = (TrustListMasks)trustList.SpecifiedLists;
 
             X509Certificate2Collection issuerCertificates = null;
-            List<X509CRL> issuerCrls = null;
+            X509CRLCollection issuerCrls = null;
             X509Certificate2Collection trustedCertificates = null;
-            List<X509CRL> trustedCrls = null;
+            X509CRLCollection trustedCrls = null;
 
             // test integrity of all CRLs
             if ((masks & TrustListMasks.IssuerCertificates) != 0)
@@ -723,7 +725,7 @@ namespace Opc.Ua.Gds.Tests
             }
             if ((masks & TrustListMasks.IssuerCrls) != 0)
             {
-                issuerCrls = new List<X509CRL>();
+                issuerCrls = new X509CRLCollection();
                 foreach (var crl in trustList.IssuerCrls)
                 {
                     issuerCrls.Add(new X509CRL(crl));
@@ -739,7 +741,7 @@ namespace Opc.Ua.Gds.Tests
             }
             if ((masks & TrustListMasks.TrustedCrls) != 0)
             {
-                trustedCrls = new List<X509CRL>();
+                trustedCrls = new X509CRLCollection();
                 foreach (var crl in trustList.TrustedCrls)
                 {
                     trustedCrls.Add(new X509CRL(crl));
@@ -751,28 +753,28 @@ namespace Opc.Ua.Gds.Tests
             TrustListMasks updateMasks = TrustListMasks.None;
             if ((masks & TrustListMasks.IssuerCertificates) != 0)
             {
-                if (UpdateStoreCertificates(config.TrustedIssuerCertificates.StorePath, issuerCertificates))
+                if (await UpdateStoreCertificates(config.TrustedIssuerCertificates, issuerCertificates).ConfigureAwait(false))
                 {
                     updateMasks |= TrustListMasks.IssuerCertificates;
                 }
             }
             if ((masks & TrustListMasks.IssuerCrls) != 0)
             {
-                if (UpdateStoreCrls(config.TrustedIssuerCertificates.StorePath, issuerCrls))
+                if (await UpdateStoreCrls(config.TrustedIssuerCertificates, issuerCrls).ConfigureAwait(false))
                 {
                     updateMasks |= TrustListMasks.IssuerCrls;
                 }
             }
             if ((masks & TrustListMasks.TrustedCertificates) != 0)
             {
-                if (UpdateStoreCertificates(config.TrustedPeerCertificates.StorePath, trustedCertificates))
+                if (await UpdateStoreCertificates(config.TrustedPeerCertificates, trustedCertificates).ConfigureAwait(false))
                 {
                     updateMasks |= TrustListMasks.TrustedCertificates;
                 }
             }
             if ((masks & TrustListMasks.TrustedCrls) != 0)
             {
-                if (UpdateStoreCrls(config.TrustedPeerCertificates.StorePath, trustedCrls))
+                if (await UpdateStoreCrls(config.TrustedPeerCertificates, trustedCrls).ConfigureAwait(false))
                 {
                     updateMasks |= TrustListMasks.TrustedCrls;
                 }
@@ -781,76 +783,82 @@ namespace Opc.Ua.Gds.Tests
             return masks == updateMasks;
         }
 
-        private bool UpdateStoreCrls(
-            string storePath,
-            IList<X509CRL> updatedCrls)
+        private async Task<bool> UpdateStoreCrls(
+            CertificateTrustList trustList,
+            X509CRLCollection updatedCrls)
         {
             bool result = true;
+            ICertificateStore store = null;
             try
             {
-                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(storePath))
+                store = trustList.OpenStore();
+                var storeCrls = await store.EnumerateCRLs().ConfigureAwait(false);
+                foreach (var crl in storeCrls)
                 {
-                    var storeCrls = store.EnumerateCRLs();
-                    foreach (var crl in storeCrls)
+                    if (!updatedCrls.Contains(crl))
                     {
-                        if (!updatedCrls.Contains(crl))
+                        if (!await store.DeleteCRL(crl).ConfigureAwait(false))
                         {
-                            if (!store.DeleteCRL(crl))
-                            {
-                                result = false;
-                            }
-                        }
-                        else
-                        {
-                            updatedCrls.Remove(crl);
+                            result = false;
                         }
                     }
-                    foreach (var crl in updatedCrls)
+                    else
                     {
-                        store.AddCRL(crl);
+                        updatedCrls.Remove(crl);
                     }
+                }
+                foreach (var crl in updatedCrls)
+                {
+                    await store.AddCRL(crl).ConfigureAwait(false);
                 }
             }
             catch
             {
                 result = false;
+            }
+            finally
+            {
+                store?.Close();
             }
             return result;
         }
 
-        private bool UpdateStoreCertificates(
-            string storePath,
+        private async Task<bool> UpdateStoreCertificates(
+            CertificateTrustList trustList,
             X509Certificate2Collection updatedCerts)
         {
             bool result = true;
+            ICertificateStore store = null;
             try
             {
-                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(storePath))
+                store = trustList.OpenStore();
+                var storeCerts = await store.Enumerate().ConfigureAwait(false);
+                foreach (var cert in storeCerts)
                 {
-                    var storeCerts = store.Enumerate().Result;
-                    foreach (var cert in storeCerts)
+                    if (!updatedCerts.Contains(cert))
                     {
-                        if (!updatedCerts.Contains(cert))
+                        if (!store.Delete(cert.Thumbprint).Result)
                         {
-                            if (!store.Delete(cert.Thumbprint).Result)
-                            {
-                                result = false;
-                            }
-                        }
-                        else
-                        {
-                            updatedCerts.Remove(cert);
+                            result = false;
                         }
                     }
-                    foreach (var cert in updatedCerts)
+                    else
                     {
-                        store.Add(cert).Wait();
+                        updatedCerts.Remove(cert);
                     }
+                }
+                foreach (var cert in updatedCerts)
+                {
+                    await store.Add(cert).ConfigureAwait(false);
                 }
             }
             catch
             {
                 result = false;
+            }
+            finally
+            {
+                store?.Close();
             }
             return result;
         }
@@ -892,10 +900,10 @@ namespace Opc.Ua.Gds.Tests
                             result = false;
                         }
                     }
-                    var storeCrls = store.EnumerateCRLs();
+                    var storeCrls = store.EnumerateCRLs().Result;
                     foreach (var crl in storeCrls)
                     {
-                        if (!store.DeleteCRL(crl))
+                        if (!store.DeleteCRL(crl).Result)
                         {
                             result = false;
                         }

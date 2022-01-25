@@ -95,13 +95,13 @@ namespace Opc.Ua.Gds.Tests
                 .AsClient()
                 .AddSecurityConfiguration(
                     "CN=Server Configuration Push Test Client, O=OPC Foundation",
-                    pkiRoot)
+                    pkiRoot, pkiRoot, pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension<ServerConfigurationPushTestClientConfiguration>(null, clientConfig)
-                .SetOutputFilePath(pkiRoot + "/Logs/Opc.Ua.Gds.Tests.log.txt")
+                .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(Utils.TraceMasks.Error)
                 .Create().ConfigureAwait(false);
 #endif
@@ -115,7 +115,7 @@ namespace Opc.Ua.Gds.Tests
             Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration = application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
-            _client = new ServerPushConfigurationClient(application) {
+            _client = new ServerPushConfigurationClient(application.ApplicationConfiguration) {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(clientConfiguration.ServerUrl, port)
             };
             if (String.IsNullOrEmpty(clientConfiguration.AppUserName))

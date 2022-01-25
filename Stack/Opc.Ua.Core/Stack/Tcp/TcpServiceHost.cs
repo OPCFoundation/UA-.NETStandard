@@ -13,7 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -129,7 +128,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    Utils.Trace(Utils.TraceMasks.Error, "Failed to create endpoint {0} because the transport profile is unsupported.", uri);
+                    Utils.LogError("Failed to create endpoint {0} because the transport profile is unsupported.", uri);
                 }
             }
 
