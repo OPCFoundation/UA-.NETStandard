@@ -901,17 +901,31 @@ namespace Opc.Ua
             else
             {
                 UInt32? uid = obj as UInt32?;
+                Int32? iid = obj as Int32?;
 
-                // check for numeric contants.
-                if (uid != null)
+                // check for numeric constants.
+                if (uid != null || iid != null)
                 {
                     if (namespaceIndex != 0 || idType != IdType.Numeric)
                     {
                         return -1;
                     }
 
+                    uint id2;
+                    if (iid != null && uid == null)
+                    {
+                        if (iid.Value < 0)
+                        {
+                            return +1;
+                        }
+                        id2 = (uint)iid.Value;
+                    }
+                    else
+                    {
+                        id2 = uid.Value;
+                    }
+
                     uint id1 = (uint)m_identifier;
-                    uint id2 = uid.Value;
 
                     if (id1 == id2)
                     {
@@ -933,6 +947,11 @@ namespace Opc.Ua
                     namespaceIndex = expandedId.NamespaceIndex;
                     idType = expandedId.IdType;
                     id = expandedId.Identifier;
+                }
+                else if (obj != null)
+                {
+                    // can not compare to unknown object type
+                    return -1;
                 }
             }
 
