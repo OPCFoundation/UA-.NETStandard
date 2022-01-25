@@ -4154,7 +4154,7 @@ namespace Opc.Ua.Client
 
                 AsyncRequestStarted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
 
-                Utils.LogInfo("PUBLISH #{0} SENT", requestHeader.RequestHandle);
+                Utils.LogTrace("PUBLISH #{0} SENT", requestHeader.RequestHandle);
 
                 return result;
             }
@@ -4181,7 +4181,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                Utils.LogInfo("PUBLISH #{0} RECEIVED", requestHeader.RequestHandle);
+                Utils.LogTrace("PUBLISH #{0} RECEIVED", requestHeader.RequestHandle);
 
                 // complete publish.
                 uint subscriptionId;
@@ -4296,17 +4296,15 @@ namespace Opc.Ua.Client
                 // don't send another publish for these errors.
                 switch (error.Code)
                 {
+                    case StatusCodes.BadTooManyPublishRequests:
                     case StatusCodes.BadNoSubscription:
                     case StatusCodes.BadSessionClosed:
                     case StatusCodes.BadSessionIdInvalid:
-                    case StatusCodes.BadTooManyPublishRequests:
                     case StatusCodes.BadServerHalted:
-                    {
                         return;
-                    }
                 }
 
-                Utils.LogError(e, "PUBLISH #{0} - Unhandled error during Publish.", requestHeader.RequestHandle);
+                Utils.LogError(e, "PUBLISH #{0} - Unhandled error {1} during Publish.", requestHeader.RequestHandle, error.StatusCode);
             }
 
             int requestCount = GoodPublishRequestCount;

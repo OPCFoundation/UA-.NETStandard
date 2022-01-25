@@ -1587,12 +1587,11 @@ namespace Opc.Ua.Client
 
             lock (m_cache)
             {
-                m_lastNotificationTime = DateTime.MinValue;
+                m_lastNotificationTime = DateTime.UtcNow;
             }
 
             int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue));
 
-            m_lastNotificationTime = DateTime.UtcNow;
             m_publishTimer = new Timer(OnKeepAlive, keepAliveInterval, keepAliveInterval, keepAliveInterval);
 
             // send initial publish.
@@ -1760,6 +1759,7 @@ namespace Opc.Ua.Client
         {
             const uint kDefaultKeepAlive = 10;
             const uint kDefaultLifeTime = 1000;
+
             // keep alive count must be at least 1, 10 is a good default.
             if (keepAliveCount == 0)
             {
