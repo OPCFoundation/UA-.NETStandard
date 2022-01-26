@@ -254,17 +254,18 @@ namespace Opc.Ua.Client
             m_identityHistory = new List<IUserIdentity>();
             m_outstandingRequests = new LinkedList<AsyncRequestState>();
             m_keepAliveInterval = 50000;
+            m_tooManyPublishRequests = 0;
             m_sessionName = "";
             m_deleteSubscriptionsOnClose = true;
 
-            m_defaultSubscription = new Subscription();
-
-            m_defaultSubscription.DisplayName = "Subscription";
-            m_defaultSubscription.PublishingInterval = 1000;
-            m_defaultSubscription.KeepAliveCount = 10;
-            m_defaultSubscription.LifetimeCount = 1000;
-            m_defaultSubscription.Priority = 255;
-            m_defaultSubscription.PublishingEnabled = true;
+            m_defaultSubscription = new Subscription {
+                DisplayName = "Subscription",
+                PublishingInterval = 1000,
+                KeepAliveCount = 10,
+                LifetimeCount = 1000,
+                Priority = 255,
+                PublishingEnabled = true
+            };
         }
 
         /// <summary>
@@ -997,10 +998,14 @@ namespace Opc.Ua.Client
                     template.m_preferredLocales,
                     template.m_checkDomain);
 
-                // create the subscriptions.
-                foreach (Subscription subscription in session.Subscriptions)
+                // try transfer
+                if (!session.TransferSubscriptions(new SubscriptionCollection(session.Subscriptions), false))
                 {
-                    subscription.Create();
+                    // if transfer failed, create the subscriptions.
+                    foreach (Subscription subscription in session.Subscriptions)
+                    {
+                        subscription.Create();
+                    }
                 }
             }
             catch (Exception e)
@@ -1047,10 +1052,14 @@ namespace Opc.Ua.Client
                     template.m_preferredLocales,
                     template.m_checkDomain);
 
-                // create the subscriptions.
-                foreach (Subscription subscription in session.Subscriptions)
+                // try transfer
+                if (!session.TransferSubscriptions(new SubscriptionCollection(session.Subscriptions), false))
                 {
-                    subscription.Create();
+                    // if transfer failed, create the subscriptions.
+                    foreach (Subscription subscription in session.Subscriptions)
+                    {
+                        subscription.Create();
+                    }
                 }
             }
             catch (Exception e)
@@ -4297,6 +4306,13 @@ namespace Opc.Ua.Client
                 switch (error.Code)
                 {
                     case StatusCodes.BadTooManyPublishRequests:
+                        int tooManyPublishRequests = GoodPublishRequestCount;
+                        if (BelowPublishRequestLimit(tooManyPublishRequests))
+                        {
+                            m_tooManyPublishRequests = tooManyPublishRequests;
+                            Utils.LogInfo("PUBLISH - Too many requests, set limit to GoodPublishRequestCount={0}.", m_tooManyPublishRequests);
+                        }
+                        return;
                     case StatusCodes.BadNoSubscription:
                     case StatusCodes.BadSessionClosed:
                     case StatusCodes.BadSessionIdInvalid:
@@ -4308,14 +4324,14 @@ namespace Opc.Ua.Client
             }
 
             int requestCount = GoodPublishRequestCount;
-
-            if (requestCount < m_subscriptions.Count)
+            var subscriptionsCount = m_subscriptions.Count;
+            if (requestCount < subscriptionsCount)
             {
                 BeginPublish(OperationTimeout);
             }
             else
             {
-                Utils.LogInfo("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, Subscriptions={1}", requestCount, m_subscriptions.Count);
+                Utils.LogInfo("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, Subscriptions={1}", requestCount, subscriptionsCount);
             }
         }
 
@@ -4667,6 +4683,18 @@ namespace Opc.Ua.Client
             }
             return clientCertificateChain;
         }
+
+        /// <summary>
+        /// Returns true if the Bad_TooManyPublishRequests limit
+        /// has not been reached.
+        /// </summary>
+        /// <param name="requestCount">The actual number of publish requests.</param>
+        /// <returns>If the publish request limit was reached.</returns>
+        private bool BelowPublishRequestLimit(int requestCount)
+        {
+            return (m_tooManyPublishRequests == 0) ||
+                (requestCount < m_tooManyPublishRequests);
+        }
         #endregion
 
         #region Private Fields
@@ -4698,6 +4726,7 @@ namespace Opc.Ua.Client
         private byte[] m_previousServerNonce;
         private X509Certificate2 m_serverCertificate;
         private long m_publishCounter;
+        private int m_tooManyPublishRequests;
         private DateTime m_lastKeepAliveTime;
         private ServerState m_serverState;
         private int m_keepAliveInterval;
@@ -4705,7 +4734,6 @@ namespace Opc.Ua.Client
         private long m_keepAliveCounter;
         private bool m_reconnecting;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
-
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
 
