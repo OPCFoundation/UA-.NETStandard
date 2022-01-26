@@ -3454,7 +3454,12 @@ namespace Opc.Ua
                         value = description;
                     }
 
-                    return result;
+                    if (value != null)
+                    {
+                        return result;
+                    }
+
+                    break;
                 }
 
                 case Attributes.WriteMask:
@@ -3505,7 +3510,12 @@ namespace Opc.Ua
                         value = rolePermissions;
                     }
 
-                    return result;
+                    if (value != null)
+                    {
+                        return result;
+                    }
+
+                    break;
                 }
 
                 case Attributes.UserRolePermissions:
@@ -3522,7 +3532,12 @@ namespace Opc.Ua
                         value = userRolePermissions;
                     }
 
-                    return result;
+                    if (value != null)
+                    {
+                        return result;
+                    }
+
+                    break;
                 }
 
                 case Attributes.AccessRestrictions:
