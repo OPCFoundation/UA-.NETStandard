@@ -791,6 +791,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Called after the subscription was transferred.
         /// </summary>
+        /// <param name="session">The session to which the subscription is transferred.</param>
         /// <param name="id">Id of the transferred subscription.</param>
         /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
         public bool Transfer(Session session, uint id, UInt32Collection availableSequenceNumbers)
