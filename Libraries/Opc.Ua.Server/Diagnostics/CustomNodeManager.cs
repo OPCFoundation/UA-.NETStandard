@@ -583,6 +583,17 @@ namespace Opc.Ua.Server
                 m_predefinedNodes = new NodeIdDictionary<NodeState>();
             }
 
+            // assign a default value to any variable in namespace 0
+            if (node is BaseVariableState nodeStateVar)
+            {
+                if (nodeStateVar.NodeId.NamespaceIndex == 0 && nodeStateVar.Value == null)
+                {
+                    nodeStateVar.Value = TypeInfo.GetDefaultValue(nodeStateVar.DataType,
+                        nodeStateVar.ValueRank,
+                        Server.TypeTree);
+                }
+            }
+
             NodeState activeNode = AddBehaviourToPredefinedNode(context, node);
             m_predefinedNodes[activeNode.NodeId] = activeNode;
 
