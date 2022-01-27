@@ -141,9 +141,9 @@ namespace Opc.Ua.Server
                 Server.CoreNodeManager.ImportNodes(SystemContext, PredefinedNodes.Values, true);
 
                 // hook up the server GetMonitoredItems method.
-                MethodState getMonitoredItems = (MethodState)FindPredefinedNode(
+                GetMonitoredItemsMethodState getMonitoredItems = (GetMonitoredItemsMethodState)FindPredefinedNode(
                     MethodIds.Server_GetMonitoredItems,
-                    typeof(MethodState));
+                    typeof(GetMonitoredItemsMethodState));
 
                 if (getMonitoredItems != null)
                 {
@@ -169,11 +169,29 @@ namespace Opc.Ua.Server
                         getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
                     }
                 }
+
+                // Subscription Durable mode not supported by the server.
+                ServerObjectState serverObject = (ServerObjectState)FindPredefinedNode(
+                    ObjectIds.Server,
+                    typeof(ServerObjectState));
+
+                if (serverObject != null)
+                {
+                    NodeState setSubscriptionDurableNode = serverObject.FindChild(
+                        SystemContext,
+                        BrowseNames.SetSubscriptionDurable);
+
+                    if (setSubscriptionDurableNode != null)
+                    {
+                        DeleteNode(SystemContext, MethodIds.Server_SetSubscriptionDurable);
+                        serverObject.SetSubscriptionDurable = null;
+                    }
+                }
             }
         }
 
         /// <summary>
-        /// Called when a client locks the server.
+        /// Called when a client gets the monitored items of a subscription.
         /// </summary>
         public ServiceResult OnGetMonitoredItems(
             ISystemContext context,
