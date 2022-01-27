@@ -2206,7 +2206,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        value = new Variant(array);
+                        value = new Variant(array, new TypeInfo(builtInType, 1));
                     }
                 }
             }
