@@ -1827,6 +1827,15 @@ namespace Opc.Ua
             // update any children.
             child.UpdateChildren(context, decoder);
 
+            // Set the status code to Good for BaseVariableState nodes with namespace 0
+            if (child is BaseVariableState childVar)
+            {
+                if (childVar.NodeId.NamespaceIndex == 0)
+                {
+                    childVar.StatusCode = StatusCodes.Good;
+                }
+            }
+
             return child;
         }
 
