@@ -435,10 +435,10 @@ namespace Opc.Ua.Server
 
                     if (!NodeId.IsNull(sessionId))
                     {
-                        // check that the subscrition is the owner.
+                        // check that the subscription is the owner.
                         if (context != null && !Object.ReferenceEquals(context.Session, subscription.Session))
                         {
-                            throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                            throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
                         }
 
                         SessionPublishQueue queue = null;
