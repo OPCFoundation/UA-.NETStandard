@@ -1078,11 +1078,17 @@ namespace Opc.Ua
                         continue;
                     }
 
+                    if (endpointUrl.Port != baseAddress.Url.Port)
+                    {
+                        continue;
+                    }
+
                     EndpointDescription translation = new EndpointDescription();
 
                     translation.EndpointUrl = baseAddress.Url.ToString();
 
-                    if (endpointUrl.Path.StartsWith(baseAddress.Url.PathAndQuery) && endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length)
+                    if (endpointUrl.Path.StartsWith(baseAddress.Url.PathAndQuery, StringComparison.Ordinal) &&
+                        endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length)
                     {
                         string suffix = endpointUrl.Path.Substring(baseAddress.Url.PathAndQuery.Length);
                         translation.EndpointUrl += suffix;
