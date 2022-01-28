@@ -69,12 +69,6 @@ namespace Opc.Ua.Client.Tests
             return base.OneTimeTearDownAsync();
         }
 
-            // start client
-            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
-            m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
-            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-        }
-
         /// <summary>
         /// Test setup.
         /// </summary>
