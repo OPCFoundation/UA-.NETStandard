@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -141,7 +140,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void Initialize()
         {
-            m_id = 0;
+            m_transferId = m_id = 0;
             m_displayName = "Subscription";
             m_publishingInterval = 0;
             m_keepAliveCount = 0;
@@ -157,13 +156,13 @@ namespace Opc.Ua.Client
             m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
             m_deletedItems = new List<MonitoredItem>();
 
-            m_defaultItem = new MonitoredItem();
-
-            m_defaultItem.DisplayName = "MonitoredItem";
-            m_defaultItem.SamplingInterval = -1;
-            m_defaultItem.MonitoringMode = MonitoringMode.Reporting;
-            m_defaultItem.QueueSize = 0;
-            m_defaultItem.DiscardOldest = true;
+            m_defaultItem = new MonitoredItem {
+                DisplayName = "MonitoredItem",
+                SamplingInterval = -1,
+                MonitoringMode = MonitoringMode.Reporting,
+                QueueSize = 0,
+                DiscardOldest = true
+            };
         }
         #endregion
 
@@ -235,7 +234,6 @@ namespace Opc.Ua.Client
         public string DisplayName
         {
             get => m_displayName;
-
             set => m_displayName = value;
         }
 
@@ -376,7 +374,8 @@ namespace Opc.Ua.Client
         /// <c>true</c> if incoming messages are handled sequentially; <c>false</c> otherwise.
         /// </value>
         /// <remarks>
-        /// Setting <see cref="SequentialPublishing"/> to <c>true</c> means incoming messages are processed in a "single-threaded" manner and callbacks will not be invoked in parallel. 
+        /// Setting <see cref="SequentialPublishing"/> to <c>true</c> means incoming messages are processed in
+        /// a "single-threaded" manner and callbacks will not be invoked in parallel.
         /// </remarks>
         [DataMember(Order = 13)]
         public bool SequentialPublishing
@@ -396,6 +395,16 @@ namespace Opc.Ua.Client
                     ManageMessageWorkerSemaphore();
                 }
             }
+        }
+
+        /// <summary>
+        /// The unique identifier assigned by the server which can be used to transfer a session.
+        /// </summary>
+        [DataMember(Name = "TransferId", Order = 14)]
+        public uint TransferId
+        {
+            get => m_transferId;
+            set => m_transferId = value;
         }
 
         /// <summary>
@@ -548,17 +557,32 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The current publishing interval.
         /// </summary>
-        public double CurrentPublishingInterval => m_currentPublishingInterval;
+        [DataMember(Name = "CurrentPublishInterval", Order = 15)]
+        public double CurrentPublishingInterval
+        {
+            get => m_currentPublishingInterval;
+            set => m_currentPublishingInterval = value;
+        }
 
         /// <summary>
         /// The current keep alive count.
         /// </summary>
-        public uint CurrentKeepAliveCount => m_currentKeepAliveCount;
+        [DataMember(Name = "CurrentKeepAliveCount", Order = 16)]
+        public uint CurrentKeepAliveCount
+        {
+            get => m_currentKeepAliveCount;
+            set => m_currentKeepAliveCount = value;
+        }
 
         /// <summary>
         /// The current lifetime count.
         /// </summary>
-        public uint CurrentLifetimeCount => m_currentLifetimeCount;
+        [DataMember(Name = "CurrentLifetimeCount", Order = 17)]
+        public uint CurrentLifetimeCount
+        {
+            get => m_currentLifetimeCount;
+            set => m_currentLifetimeCount = value;
+        }
 
         /// <summary>
         /// Whether publishing is currently enabled.
@@ -765,6 +789,63 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Called after the subscription was transferred.
+        /// </summary>
+        /// <param name="session">The session to which the subscription is transferred.</param>
+        /// <param name="id">Id of the transferred subscription.</param>
+        /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
+        public bool Transfer(Session session, uint id, UInt32Collection availableSequenceNumbers)
+        {
+            if (Created)
+            {
+                if (id != m_id)
+                {
+                    return false;
+                }
+
+                if (!m_session.RemoveTransferredSubscription(this))
+                {
+                    return false;
+                }
+
+                if (!session.AddSubscription(this))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                if (!GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles))
+                {
+                    return false;
+                }
+
+                if (serverHandles.Count != m_monitoredItems.Count ||
+                    clientHandles.Count != m_monitoredItems.Count)
+                {
+                    // invalid state
+                    return false;
+                }
+
+                m_id = id;
+                m_availableSequenceNumbers = availableSequenceNumbers;
+
+                TransferItems(serverHandles, clientHandles, out IList<MonitoredItem> itemsToModify);
+
+                ModifyItems();
+            }
+
+            m_changeMask |= SubscriptionChangeMask.Transferred;
+            ChangesCompleted();
+
+            StartKeepAliveTimer();
+
+            TraceState("TRANSFERRED");
+
+            return true;
+        }
+
+        /// <summary>
         /// Deletes a subscription on the server.
         /// </summary>
         public void Delete(bool silent)
@@ -813,7 +894,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            // supress exception if silent flag is set. 
+            // supress exception if silent flag is set.
             catch (Exception e)
             {
                 if (!silent)
@@ -1470,6 +1551,30 @@ namespace Opc.Ua.Client
 
         #region Private Methods
         /// <summary>
+        /// Call the GetMonitoredItems method on the server.
+        /// </summary>
+        private bool GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles)
+        {
+            serverHandles = new UInt32Collection();
+            clientHandles = new UInt32Collection();
+            try
+            {
+                var outputArguments = m_session.Call(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, m_transferId);
+                if (outputArguments != null && outputArguments.Count == 2)
+                {
+                    serverHandles.AddRange((uint[])outputArguments[0]);
+                    clientHandles.AddRange((uint[])outputArguments[1]);
+                    return true;
+                }
+            }
+            catch (ServiceResultException sre)
+            {
+                Utils.LogError(sre, "Failed to call GetMonitoredItems on server");
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Starts a timer to ensure publish requests are sent frequently enough to detect network interruptions.
         /// </summary>
         private void StartKeepAliveTimer()
@@ -1483,12 +1588,11 @@ namespace Opc.Ua.Client
 
             lock (m_cache)
             {
-                m_lastNotificationTime = DateTime.MinValue;
+                m_lastNotificationTime = DateTime.UtcNow;
             }
 
             int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue));
 
-            m_lastNotificationTime = DateTime.UtcNow;
             m_publishTimer = new Timer(OnKeepAlive, keepAliveInterval, keepAliveInterval, keepAliveInterval);
 
             // send initial publish.
@@ -1589,7 +1693,7 @@ namespace Opc.Ua.Client
             else
             {
                 m_currentPublishingEnabled = m_publishingEnabled;
-                m_id = subscriptionId;
+                m_transferId = m_id = subscriptionId;
                 StartKeepAliveTimer();
                 m_changeMask |= SubscriptionChangeMask.Created;
             }
@@ -1629,7 +1733,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void DeleteSubscription()
         {
-            m_id = 0;
+            m_transferId = m_id = 0;
             m_currentPublishingInterval = 0;
             m_currentKeepAliveCount = 0;
             m_currentPublishingEnabled = false;
@@ -1656,6 +1760,7 @@ namespace Opc.Ua.Client
         {
             const uint kDefaultKeepAlive = 10;
             const uint kDefaultLifeTime = 1000;
+
             // keep alive count must be at least 1, 10 is a good default.
             if (keepAliveCount == 0)
             {
@@ -2064,6 +2169,40 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Transfer all monitored items and prepares the modify
+        /// requests if transfer of client handles is not possible.
+        /// </summary>
+        private void TransferItems(
+            UInt32Collection serverHandles,
+            UInt32Collection clientHandles,
+            out IList<MonitoredItem> itemsToModify)
+        {
+            lock (m_cache)
+            {
+                itemsToModify = new List<MonitoredItem>();
+                var updatedMonitoredItems = new SortedDictionary<uint, MonitoredItem>();
+                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                {
+                    var index = serverHandles.FindIndex(handle => handle == monitoredItem.Status.Id);
+                    if (index >= 0 && index < clientHandles.Count)
+                    {
+                        var clientHandle = clientHandles[index];
+                        updatedMonitoredItems[clientHandle] = monitoredItem;
+                        monitoredItem.SetTransferResult(clientHandle);
+                    }
+                    else
+                    {
+                        // modify client handle on server
+                        updatedMonitoredItems[monitoredItem.ClientHandle] = monitoredItem;
+                        itemsToModify.Add(monitoredItem);
+                    }
+                }
+                m_monitoredItems = updatedMonitoredItems;
+            }
+        }
+
+
+        /// <summary>
         /// Prepare the ResolveItem to NodeId service call.
         /// </summary>
         private void PrepareResolveItemNodeIds(
@@ -2169,7 +2308,7 @@ namespace Opc.Ua.Client
                 // save the message.
                 eventFields.Message = message;
 
-                // save in cache.                                             
+                // save in cache.
                 monitoredItem.SaveValueInCache(eventFields);
             }
         }
@@ -2218,6 +2357,7 @@ namespace Opc.Ua.Client
         private Session m_session;
         private object m_handle;
         private uint m_id;
+        private uint m_transferId;
         private double m_currentPublishingInterval;
         private uint m_currentKeepAliveCount;
         private uint m_currentLifetimeCount;
@@ -2287,12 +2427,12 @@ namespace Opc.Ua.Client
         Modified = 0x04,
 
         /// <summary>
-        /// Monitored items were added to the subscription (but not created on the server) 
+        /// Monitored items were added to the subscription (but not created on the server)
         /// </summary>
         ItemsAdded = 0x08,
 
         /// <summary>
-        /// Monitored items were removed to the subscription (but not deleted on the server) 
+        /// Monitored items were removed to the subscription (but not deleted on the server)
         /// </summary>
         ItemsRemoved = 0x10,
 
@@ -2309,7 +2449,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Monitored items were modified on the server.
         /// </summary>
-        ItemsModified = 0x80
+        ItemsModified = 0x80,
+
+        /// <summary>
+        /// Subscriptions was transferred on the server.
+        /// </summary>
+        Transferred = 0x100
+
     }
     #endregion
 
@@ -2347,7 +2493,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private SubscriptionChangeMask m_changeMask;
+        private readonly SubscriptionChangeMask m_changeMask;
         #endregion
     }
 

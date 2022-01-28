@@ -35,10 +35,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Configuration;
-using Opc.Ua.Server;
 using Opc.Ua.Server.Tests;
-using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -48,70 +45,52 @@ namespace Opc.Ua.Client.Tests
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [NonParallelizable]
-    public class SubscriptionTest
+    public class SubscriptionTest : ClientTestFramework
     {
         const string SubscriptionTestXml = "SubscriptionTest.xml";
-        const int MaxReferences = 100;
-        ServerFixture<ReferenceServer> m_serverFixture;
-        ClientFixture m_clientFixture;
-        ReferenceServer m_server;
-        Session m_session;
-        Uri m_url;
-        string m_pkiRoot;
 
         #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public Task OneTimeSetUp()
+        public new Task OneTimeSetUp()
         {
-            return OneTimeSetUpAsync(null);
-        }
-
-        /// <summary>
-        /// Setup a server and client fixture.
-        /// </summary>
-        /// <param name="writer">The test output writer.</param>
-        public async Task OneTimeSetUpAsync(TextWriter writer = null)
-        {
-            // pki directory root for test runs. 
-            m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
-
-            // start Ref server
-            m_serverFixture = new ServerFixture<ReferenceServer>();
-            m_clientFixture = new ClientFixture();
-            m_serverFixture.AutoAccept = true;
-            m_serverFixture.OperationLimits = true;
-            if (writer != null)
-            {
-                m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
-            }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
-
-            // start client
-            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
-            m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
+            SingleSession = false;
+            return base.OneTimeSetUpAsync(null);
         }
 
         /// <summary>
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public async Task OneTimeTearDownAsync()
+        public new Task OneTimeTearDownAsync()
         {
-            await m_serverFixture.StopAsync().ConfigureAwait(false);
-            await Task.Delay(1000).ConfigureAwait(false);
+            return base.OneTimeTearDownAsync();
+        }
+
+            // start client
+            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
+            m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
+            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Test setup.
         /// </summary>
         [SetUp]
-        public async Task SetUp()
+        public new Task SetUp()
         {
-            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-            m_serverFixture.SetTraceOutput(TestContext.Out);
+            return base.SetUp();
+        }
+
+        /// <summary>
+        /// Test teardown.
+        /// </summary>
+        [TearDown]
+        public new Task TearDown()
+        {
+            return base.TearDown();
         }
 
         /// <summary>
@@ -190,16 +169,7 @@ namespace Opc.Ua.Client.Tests
             m_session.Save(SubscriptionTestXml);
 
             Thread.Sleep(5000);
-            TestContext.Out.WriteLine("CurrentKeepAliveCount   : {0}", subscription.CurrentKeepAliveCount);
-            TestContext.Out.WriteLine("CurrentPublishingEnabled: {0}", subscription.CurrentPublishingEnabled);
-            TestContext.Out.WriteLine("CurrentPriority         : {0}", subscription.CurrentPriority);
-            TestContext.Out.WriteLine("PublishTime             : {0}", subscription.PublishTime);
-            TestContext.Out.WriteLine("LastNotificationTime    : {0}", subscription.LastNotificationTime);
-            TestContext.Out.WriteLine("SequenceNumber          : {0}", subscription.SequenceNumber);
-            TestContext.Out.WriteLine("NotificationCount       : {0}", subscription.NotificationCount);
-            TestContext.Out.WriteLine("LastNotification        : {0}", subscription.LastNotification);
-            TestContext.Out.WriteLine("Notifications           : {0}", subscription.Notifications.Count());
-            TestContext.Out.WriteLine("OutstandingMessageWorker: {0}", subscription.OutstandingMessageWorkers);
+            OutputSubscriptionInfo(TestContext.Out, subscription);
 
             subscription.ConditionRefresh();
             var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber));
@@ -289,16 +259,7 @@ namespace Opc.Ua.Client.Tests
             m_session.Save(SubscriptionTestXml);
 
             await Task.Delay(5000).ConfigureAwait(false);
-            TestContext.Out.WriteLine("CurrentKeepAliveCount   : {0}", subscription.CurrentKeepAliveCount);
-            TestContext.Out.WriteLine("CurrentPublishingEnabled: {0}", subscription.CurrentPublishingEnabled);
-            TestContext.Out.WriteLine("CurrentPriority         : {0}", subscription.CurrentPriority);
-            TestContext.Out.WriteLine("PublishTime             : {0}", subscription.PublishTime);
-            TestContext.Out.WriteLine("LastNotificationTime    : {0}", subscription.LastNotificationTime);
-            TestContext.Out.WriteLine("SequenceNumber          : {0}", subscription.SequenceNumber);
-            TestContext.Out.WriteLine("NotificationCount       : {0}", subscription.NotificationCount);
-            TestContext.Out.WriteLine("LastNotification        : {0}", subscription.LastNotification);
-            TestContext.Out.WriteLine("Notifications           : {0}", subscription.Notifications.Count());
-            TestContext.Out.WriteLine("OutstandingMessageWorker: {0}", subscription.OutstandingMessageWorkers);
+            OutputSubscriptionInfo(TestContext.Out, subscription);
 
             await subscription.ConditionRefreshAsync().ConfigureAwait(false);
             var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber));
@@ -319,7 +280,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (!File.Exists(SubscriptionTestXml)) Assert.Ignore("Save file {0} does not exist yet", SubscriptionTestXml);
 
-            // save
+            // load
             var subscriptions = m_session.Load(SubscriptionTestXml);
             Assert.NotNull(subscriptions);
             Assert.IsNotEmpty(subscriptions);
@@ -334,17 +295,7 @@ namespace Opc.Ua.Client.Tests
 
             foreach (var subscription in subscriptions)
             {
-                TestContext.Out.WriteLine("Subscription            : {0}", subscription.DisplayName);
-                TestContext.Out.WriteLine("CurrentKeepAliveCount   : {0}", subscription.CurrentKeepAliveCount);
-                TestContext.Out.WriteLine("CurrentPublishingEnabled: {0}", subscription.CurrentPublishingEnabled);
-                TestContext.Out.WriteLine("CurrentPriority         : {0}", subscription.CurrentPriority);
-                TestContext.Out.WriteLine("PublishTime             : {0}", subscription.PublishTime);
-                TestContext.Out.WriteLine("LastNotificationTime    : {0}", subscription.LastNotificationTime);
-                TestContext.Out.WriteLine("SequenceNumber          : {0}", subscription.SequenceNumber);
-                TestContext.Out.WriteLine("NotificationCount       : {0}", subscription.NotificationCount);
-                TestContext.Out.WriteLine("LastNotification        : {0}", subscription.LastNotification);
-                TestContext.Out.WriteLine("Notifications           : {0}", subscription.Notifications.Count());
-                TestContext.Out.WriteLine("OutstandingMessageWorker: {0}", subscription.OutstandingMessageWorkers);
+                OutputSubscriptionInfo(TestContext.Out, subscription);
             }
 
             var result = m_session.RemoveSubscriptions(subscriptions);
@@ -519,9 +470,175 @@ namespace Opc.Ua.Client.Tests
                 Assert.True(result);
             }
         }
+
+        [Theory, Order(810)]
+        public async Task TransferSubscription(bool closeOriginSession, bool sendInitialValues)
+        {
+            const int kTestSubscriptions = 2;
+
+            // create test session and subscription
+            var originSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+
+            // create subscriptions
+            var originSubscriptions = new SubscriptionCollection();
+            var originSubscriptionCounters = new int[kTestSubscriptions];
+            var targetSubscriptionCounters = new int[kTestSubscriptions];
+
+            for (int ii = 0; ii < kTestSubscriptions; ii++)
+            {
+                // create subscription with static monitored items
+                var subscription = new Subscription(originSession.DefaultSubscription) {
+                    PublishingInterval = 1_000,
+                    PublishingEnabled = true,
+                };
+
+                originSubscriptions.Add(subscription);
+                originSession.AddSubscription(subscription);
+                subscription.Create();
+
+                // set defaults
+                subscription.DefaultItem.DiscardOldest = true;
+                subscription.DefaultItem.QueueSize = (ii == 0) ? 0U : 5;
+                subscription.DefaultItem.MonitoringMode = MonitoringMode.Reporting;
+
+                // create test set
+                var namespaceUris = m_session.NamespaceUris;
+                var testSet = new List<NodeId>();
+                if (ii == 0)
+                {
+                    testSet.AddRange(CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)));
+                }
+                else
+                {
+                    testSet.AddRange(CommonTestWorkers.NodeIdTestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)));
+                }
+
+                subscription.Handle = ii;
+                var list = CreateMonitoredItemTestSet(subscription, testSet).ToList();
+                list.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
+                    originSubscriptionCounters[(int)subscription.Handle]++;
+                    foreach (var value in item.DequeueValues())
+                    {
+                        TestContext.Out.WriteLine("Org:{0}: {1:20}, {2}, {3}, {4}", subscription.Id, item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+                    }
+                });
+                subscription.AddItems(list);
+                subscription.ApplyChanges();
+            }
+
+            // settle
+            await Task.Delay(2_000).ConfigureAwait(false);
+
+            // persist the subscription state
+            var filePath = Path.GetTempFileName();
+
+            // close session, do not delete subscription
+            if (closeOriginSession)
+            {
+                originSession.Save(filePath);
+                originSession.DeleteSubscriptionsOnClose = false;
+                originSession.Close();
+            }
+
+            // wait 
+            await Task.Delay(2_000).ConfigureAwait(false);
+
+            // create target session
+            var targetSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+
+            // restore client state
+            var transferSubscriptions = new SubscriptionCollection();
+            if (closeOriginSession)
+            {
+                // load
+                transferSubscriptions.AddRange(targetSession.Load(filePath));
+
+                // hook notifications for log output
+                int ii = 0;
+                foreach (var subscription in transferSubscriptions)
+                {
+                    subscription.Handle = ii;
+                    subscription.MonitoredItems.ToList().ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
+                        targetSubscriptionCounters[(int)subscription.Handle]++;
+                        foreach (var value in item.DequeueValues())
+                        {
+                            TestContext.Out.WriteLine("Tra:{0}: {1:20}, {2}, {3}, {4}", subscription.Id, item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+                        }
+                    });
+                    ii++;
+                }
+            }
+            else
+            {
+                transferSubscriptions.AddRange(originSubscriptions);
+            }
+
+            // transfer restored subscriptions
+            var result = targetSession.TransferSubscriptions(transferSubscriptions, sendInitialValues);
+            Assert.IsTrue(result);
+
+            // validate results
+            for (int ii = 0; ii < transferSubscriptions.Count; ii++)
+            {
+                Assert.IsTrue(transferSubscriptions[ii].Created);
+            }
+
+            // wait for some events
+            await Task.Delay(5_000).ConfigureAwait(false);
+
+            // stop publishing
+            foreach (var subscription in transferSubscriptions)
+            {
+                subscription.SetPublishingMode(false);
+            }
+
+            // validate expected counts
+            for (int jj = 0; jj < kTestSubscriptions; jj++)
+            {
+                TestContext.Out.WriteLine("Subscription {0}: OriginCounts {1}, TargetCounts {2} ",
+                    jj, originSubscriptionCounters[jj], targetSubscriptionCounters[jj]);
+                var monitoredItemCount = transferSubscriptions[jj].MonitoredItemCount;
+                var originExpectedCount = sendInitialValues && !closeOriginSession ? monitoredItemCount * 2 : monitoredItemCount;
+                var targetExpectedCount = sendInitialValues && closeOriginSession ? monitoredItemCount : 0;
+                if (jj == 0)
+                {
+                    // static nodes, expect only one set of changes, another one if send initial values was set
+                    Assert.AreEqual(originExpectedCount, originSubscriptionCounters[jj]);
+                    Assert.AreEqual(targetExpectedCount, targetSubscriptionCounters[jj]);
+                }
+                else
+                {
+                    // dynamic nodes, expect only one set of changes, another one if send initial values was set
+                    Assert.LessOrEqual(originExpectedCount, originSubscriptionCounters[jj]);
+                    Assert.LessOrEqual(targetExpectedCount, targetSubscriptionCounters[jj]);
+                }
+            }
+
+            // close sessions
+            targetSession.Close();
+            if (!closeOriginSession)
+            {
+                originSession.Close();
+            }
+
+            // cleanup
+            File.Delete(filePath);
+        }
         #endregion
 
         #region Private Methods
+        private IList<MonitoredItem> CreateMonitoredItemTestSet(Subscription subscription, IList<NodeId> nodeIds)
+        {
+            var list = new List<MonitoredItem>();
+            foreach (NodeId nodeId in nodeIds)
+            {
+                var item = new MonitoredItem(subscription.DefaultItem) {
+                    StartNodeId = nodeId
+                };
+                list.Add(item);
+            };
+            return list;
+        }
         #endregion
     }
 }

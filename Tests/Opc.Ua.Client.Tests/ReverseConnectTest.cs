@@ -46,20 +46,11 @@ namespace Opc.Ua.Client.Tests
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [NonParallelizable]
-    public class ReverseConnectTest
+    public class ReverseConnectTest : ClientTestFramework
     {
-        const int MaxTimeout = 10000;
-        ServerFixture<ReferenceServer> m_serverFixture;
-        ClientFixture m_clientFixture;
-        ReferenceServer m_server;
-        EndpointDescriptionCollection m_endpoints;
         Uri m_endpointUrl;
-        string m_pkiRoot;
 
         #region DataPointSources
-        [DatapointSource]
-        public static string[] Policies = SecurityPolicies.GetDisplayNames()
-            .Select(displayName => SecurityPolicies.GetUri(displayName)).ToArray();
         #endregion
 
         #region Test Setup
@@ -72,7 +63,7 @@ namespace Opc.Ua.Client.Tests
             // pki directory root for test runs. 
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
-            // start ref server
+            // start ref server with reverse connect
             m_serverFixture = new ServerFixture<ReferenceServer> {
                 AutoAccept = true,
                 SecurityNone = true,
@@ -94,19 +85,27 @@ namespace Opc.Ua.Client.Tests
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public async Task OneTimeTearDownAsync()
+        public new Task OneTimeTearDownAsync()
         {
-            await m_serverFixture.StopAsync().ConfigureAwait(false);
-            await Task.Delay(1000).ConfigureAwait(false);
+            return base.OneTimeTearDownAsync();
         }
 
         /// <summary>
         /// Test setup.
         /// </summary>
         [SetUp]
-        public void SetUp()
+        public new Task SetUp()
         {
-            m_serverFixture.SetTraceOutput(TestContext.Out);
+            return base.SetUp();
+        }
+
+        /// <summary>
+        /// Test teardown.
+        /// </summary>
+        [TearDown]
+        public new Task TearDown()
+        {
+            return base.TearDown();
         }
         #endregion
 
