@@ -106,7 +106,7 @@ namespace Opc.Ua.Bindings
 
             if (ar == null)
             {
-                throw new ArgumentException(nameof(result));
+                throw new ArgumentException("EndReverseConnect is called with invalid IAsyncResult.", nameof(result));
             }
 
             if (!ar.WaitForComplete())
@@ -485,7 +485,8 @@ namespace Opc.Ua.Bindings
             {
                 ServiceResultException innerException = e.InnerException as ServiceResultException;
 
-                // If the certificate structre, signature and trust list checks pass, we return the other specific validation errors instead of BadSecurityChecksFailed
+                // If the certificate structre, signature and trust list checks pass,
+                // return the other specific validation errors instead of BadSecurityChecksFailed
                 if (innerException != null)
                 {
                     if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||

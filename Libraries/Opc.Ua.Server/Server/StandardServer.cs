@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -1311,6 +1311,59 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Invokes the TransferSubscriptions service.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="subscriptionIds">The list of Subscriptions to transfer.</param>
+        /// <param name="sendInitialValues">If the initial values should be sent.</param>
+        /// <param name="results">The list of result StatusCodes for the Subscriptions to transfer.</param>
+        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
+        public override ResponseHeader TransferSubscriptions(
+            RequestHeader                requestHeader,
+            UInt32Collection             subscriptionIds,
+            bool                         sendInitialValues,
+            out TransferResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            results = null;
+            diagnosticInfos = null;
+
+            OperationContext context = ValidateRequest(requestHeader, RequestType.TransferSubscriptions);
+
+            try
+            {
+                ValidateOperationLimits(subscriptionIds);
+
+                ServerInternal.SubscriptionManager.TransferSubscriptions(
+                    context,
+                    subscriptionIds,
+                    sendInitialValues,
+                    out results,
+                    out diagnosticInfos);
+
+                return CreateResponse(requestHeader, context.StringTable);
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -1372,7 +1425,7 @@ namespace Opc.Ua.Server
         /// <param name="results">The list of results for the acknowledgements.</param>
         /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object 
+        /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader Publish(
             RequestHeader requestHeader,
@@ -1668,7 +1721,7 @@ namespace Opc.Ua.Server
         /// <param name="results">The list of StatusCodes for the Subscriptions to enable/disable.</param>
         /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object 
+        /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader SetPublishingMode(
             RequestHeader requestHeader,
@@ -1725,7 +1778,7 @@ namespace Opc.Ua.Server
         /// <param name="removeResults">The list of StatusCodes for the items to delete.</param>
         /// <param name="removeDiagnosticInfos">The list of diagnostic information for the links to delete.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object 
+        /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader SetTriggering(
             RequestHeader requestHeader,
@@ -2265,7 +2318,7 @@ namespace Opc.Ua.Server
 
                 if (await RegisterWithDiscoveryServer().ConfigureAwait(false))
                 {
-                    // schedule next registration.                        
+                    // schedule next registration.
                     lock (m_registrationLock)
                     {
                         if (m_maxRegistrationInterval > 0)
@@ -2297,7 +2350,7 @@ namespace Opc.Ua.Server
 
                             Utils.LogInfo("Register server failed. Trying again in {0} ms", m_lastRegistrationInterval);
 
-                            // create timer.        
+                            // create timer.
                             m_registrationTimer = new Timer(OnRegisterServer, this, m_lastRegistrationInterval, Timeout.Infinite);
                         }
                     }
@@ -2772,7 +2825,7 @@ namespace Opc.Ua.Server
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
                     MasterNodeManager masterNodeManager = CreateMasterNodeManager(m_serverInternal, configuration);
 
-                    // add the node manager to the datastore. 
+                    // add the node manager to the datastore.
                     m_serverInternal.SetNodeManager(masterNodeManager);
 
                     // put the node manager into a state that allows it to be used by other objects.
@@ -2782,7 +2835,7 @@ namespace Opc.Ua.Server
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateEventManager.");
                     EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
-                    // creates the server object. 
+                    // creates the server object.
                     m_serverInternal.CreateServerObject(
                         eventManager,
                         resourceManager,
@@ -2805,7 +2858,7 @@ namespace Opc.Ua.Server
                     SubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
                     subscriptionManager.Startup();
 
-                    // add the session manager to the datastore. 
+                    // add the session manager to the datastore.
                     m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
 
                     ServerError = null;

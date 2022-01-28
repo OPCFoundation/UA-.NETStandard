@@ -612,9 +612,19 @@ namespace Opc.Ua
                 expectedCount = InputArguments.Value.Length;
             }
 
-            if (expectedCount != inputArguments.Count)
+            if (expectedCount > inputArguments.Count)
             {
                 return StatusCodes.BadArgumentsMissing;
+            }
+
+            if (expectedCount < inputArguments.Count)
+            {
+                return StatusCodes.BadTooManyArguments;
+            }
+            
+            if (expectedCount < inputArguments.Count)
+            {
+                return StatusCodes.BadTooManyArguments;
             }
             
             // validate individual arguements.
