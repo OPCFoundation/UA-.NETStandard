@@ -301,6 +301,19 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors);
 
         /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <remarks>
+        /// Queue initial values from monitored items in the node managers.
+        /// </remarks>
+        void TransferMonitoredItems(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors);
+
+        /// <summary>
         /// Changes the monitoring mode for a set of monitored items.
         /// </summary>
         void SetMonitoringMode(

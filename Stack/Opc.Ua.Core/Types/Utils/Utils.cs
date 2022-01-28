@@ -2091,6 +2091,49 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Checks if two identities are equal.
+        /// </summary>
+        public static bool IsEqualUserIdentity(UserIdentityToken identity1, UserIdentityToken identity2)
+        {
+            // check for reference equality.
+            if (Object.ReferenceEquals(identity1, identity2))
+            {
+                return true;
+            }
+
+            if (identity1 == null || identity2 == null)
+            {
+                return false;
+            }
+
+            if (identity1 is AnonymousIdentityToken &&
+                identity2 is AnonymousIdentityToken)
+            {
+                return true;
+            }
+
+            if (identity1 is UserNameIdentityToken userName1 &&
+                identity2 is UserNameIdentityToken userName2)
+            {
+                return string.Equals(userName1.UserName, userName2.UserName, StringComparison.Ordinal);
+            }
+
+            if (identity1 is X509IdentityToken x509Token1 &&
+                identity2 is X509IdentityToken x509Token2)
+            {
+                return Utils.IsEqual(x509Token1.CertificateData, x509Token2.CertificateData);
+            }
+
+            if (identity1 is IssuedIdentityToken issuedToken1 &&
+                identity2 is IssuedIdentityToken issuedToken2)
+            {
+                return Utils.IsEqual(issuedToken1.DecryptedTokenData, issuedToken2.DecryptedTokenData);
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Checks if two values are equal.
         /// </summary>
         public static bool IsEqual(object value1, object value2)

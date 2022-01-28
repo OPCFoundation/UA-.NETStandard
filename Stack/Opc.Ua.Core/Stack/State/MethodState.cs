@@ -616,6 +616,11 @@ namespace Opc.Ua
             {
                 return StatusCodes.BadArgumentsMissing;
             }
+
+            if (expectedCount < inputArguments.Count)
+            {
+                return StatusCodes.BadTooManyArguments;
+            }
             
             if (expectedCount < inputArguments.Count)
             {

@@ -58,7 +58,6 @@ namespace Opc.Ua.Client
         public NamespaceTable NamespaceUris => m_session.NamespaceUris;
 
         /// <inheritdoc/>
-
         public StringTable ServerUris => m_session.ServerUris;
 
         /// <inheritdoc/>

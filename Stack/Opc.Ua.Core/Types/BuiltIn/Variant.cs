@@ -942,7 +942,6 @@ namespace Opc.Ua
                         AppendFormat(buffer, array.GetValue(ii), formatProvider);
                     }
                 }
-
                 buffer.Append('}');
                 return;
             }

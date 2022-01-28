@@ -251,6 +251,7 @@ namespace Opc.Ua
 
             return clone;
         }
+        #endregion
 
         #region IList<ConfiguredEndpoint> Members
         /// <summary>
@@ -1432,4 +1433,3 @@ namespace Opc.Ua
     }
     #endregion
 }
-#endregion

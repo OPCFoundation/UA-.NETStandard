@@ -65,7 +65,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The identifier assigned by the server.
         /// </summary>
-        public uint Id => m_id;
+        public uint Id { get => m_id; set => m_id = value; }
 
         /// <summary>
         /// Whether the item has been created on the server.
@@ -180,6 +180,30 @@ namespace Opc.Ua.Client
                 m_id = result.MonitoredItemId;
                 m_samplingInterval = result.RevisedSamplingInterval;
                 m_queueSize = result.RevisedQueueSize;
+            }
+        }
+
+        /// <summary>
+        /// Updates the object with the results of a transfer monitored item request.
+        /// </summary>
+        internal void SetTransferResult(MonitoredItem monitoredItem)
+        {
+            if (monitoredItem == null) throw new ArgumentNullException(nameof(monitoredItem));
+
+            m_nodeId = monitoredItem.ResolvedNodeId;
+            m_attributeId = monitoredItem.AttributeId;
+            m_indexRange = monitoredItem.IndexRange;
+            m_encoding = monitoredItem.Encoding;
+            m_monitoringMode = monitoredItem.MonitoringMode;
+            m_clientHandle = monitoredItem.ClientHandle;
+            m_samplingInterval = monitoredItem.SamplingInterval;
+            m_queueSize = monitoredItem.QueueSize;
+            m_discardOldest = monitoredItem.DiscardOldest;
+            m_filter = null;
+
+            if (monitoredItem.Filter != null)
+            {
+                m_filter = Utils.Clone(monitoredItem.Filter) as MonitoringFilter;
             }
         }
 
