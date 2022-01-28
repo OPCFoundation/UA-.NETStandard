@@ -457,7 +457,7 @@ namespace Opc.Ua.Configuration
                     message.AppendLine(" Please update or delete the certificate from this location:");
                     message.AppendLine(" {1}");
                     throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
-                        message.ToString(), id.SubjectName, id.StorePath
+                        message.ToString(), id.SubjectName, Utils.ReplaceSpecialFolderNames(id.StorePath)
                         );
                 }
             }

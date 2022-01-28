@@ -3437,7 +3437,12 @@ namespace Opc.Ua
                         value = displayName;
                     }
 
-                    return result;
+                    if (value != null || result != null)
+                    {
+                        return result;
+                    }
+
+                    break;
                 }
 
                 case Attributes.Description:
@@ -3454,7 +3459,7 @@ namespace Opc.Ua
                         value = description;
                     }
 
-                    if (value != null)
+                    if (value != null || result != null)
                     {
                         return result;
                     }
@@ -3510,7 +3515,7 @@ namespace Opc.Ua
                         value = rolePermissions;
                     }
 
-                    if (value != null)
+                    if (value != null || result != null)
                     {
                         return result;
                     }
@@ -3532,7 +3537,7 @@ namespace Opc.Ua
                         value = userRolePermissions;
                     }
 
-                    if (value != null)
+                    if (value != null || result != null)
                     {
                         return result;
                     }
@@ -3554,7 +3559,12 @@ namespace Opc.Ua
                         value = (ushort)m_accessRestrictions;
                     }
 
-                    return result;
+                    if (value != null || result != null)
+                    {
+                        return result;
+                    }
+
+                    break;
                 }
             }
 
