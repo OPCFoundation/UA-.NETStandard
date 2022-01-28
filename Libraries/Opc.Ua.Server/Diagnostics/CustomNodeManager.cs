@@ -3618,7 +3618,17 @@ namespace Opc.Ua.Server
                 0);
 
             // report the initial value.
-            ReadInitialValue(context, handle, datachangeItem);
+            error = ReadInitialValue(context, handle, datachangeItem);
+            if (ServiceResult.IsBad(error))
+            {
+                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
+                {
+                    return error;
+                }
+                error = StatusCodes.Good;
+            }
 
             // update monitored item list.
             monitoredItem = datachangeItem;

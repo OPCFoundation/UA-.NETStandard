@@ -1258,14 +1258,25 @@ namespace Opc.Ua.Server
                         itemToCreate,
                         range,
                         minimumSamplingInterval);
-                    
+
+                    // final check for initial value
+                    ServiceResult error = ReadInitialValue(context, node, monitoredItem);
+                    if (ServiceResult.IsBad(error))
+                    {
+                        if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                            error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                            error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
+                        {
+                            errors[ii] = error;
+                            continue;
+                        }
+                    }
+
                     // save monitored item.
                     m_monitoredItems.Add(monitoredItem.Id, monitoredItem);
 
                     // update monitored item list.
                     monitoredItems[ii] = monitoredItem;
-
-                    ReadInitialValue(context, node, monitoredItem);
 
                     // errors updating the monitoring groups will be reported in notifications.
                     errors[ii] = StatusCodes.Good;

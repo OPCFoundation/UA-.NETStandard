@@ -2465,12 +2465,12 @@ namespace Opc.Ua.Sample
             ServiceResult error = null;
 
             // read initial value.
-            DataValue initialValue = new DataValue();
-
-            initialValue.Value = null;
-            initialValue.ServerTimestamp = DateTime.UtcNow;
-            initialValue.SourceTimestamp = DateTime.MinValue;
-            initialValue.StatusCode = StatusCodes.Good;
+            DataValue initialValue = new DataValue {
+                Value = null,
+                ServerTimestamp = DateTime.UtcNow,
+                SourceTimestamp = DateTime.MinValue,
+                StatusCode = StatusCodes.BadWaitingForInitialData
+            };
 
             error = source.ReadAttribute(
                 context,
@@ -2481,7 +2481,9 @@ namespace Opc.Ua.Sample
 
             if (ServiceResult.IsBad(error))
             {
-                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid)
+                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
                 {
                     return error;
                 }
