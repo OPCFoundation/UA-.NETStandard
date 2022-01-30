@@ -60,6 +60,8 @@ namespace Opc.Ua.Server.Tests
         public static RequestHeader CreateAndActivateSession(
             this SessionServerBase server,
             string sessionName,
+            bool useSecurity = false,
+            UserIdentityToken identityToken = null,
             double sessionTimeout = DefaultSessionTimeout,
             uint maxResponseMessageSize = DefaultMaxResponseMessageSize)
         {
@@ -74,9 +76,18 @@ namespace Opc.Ua.Server.Tests
                 throw new System.Exception("Unsupported transport profile.");
             }
 
-            // no security
-            endpoint.SecurityMode = MessageSecurityMode.None;
-            endpoint.SecurityPolicyUri = SecurityPolicies.None;
+            // fake profiles
+            if (useSecurity)
+            {
+                endpoint.SecurityMode = MessageSecurityMode.Sign;
+                endpoint.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            }
+            else
+            {
+                endpoint.SecurityMode = MessageSecurityMode.None;
+                endpoint.SecurityPolicyUri = SecurityPolicies.None;
+            }
+
             var context = new SecureChannelContext(
                 sessionName,
                 endpoint,
@@ -99,7 +110,9 @@ namespace Opc.Ua.Server.Tests
 
             // Activate session
             requestHeader.AuthenticationToken = authenticationToken;
-            response = server.ActivateSession(requestHeader, signatureData, null, new StringCollection(), null, null,
+            response = server.ActivateSession(requestHeader, signatureData,
+                new SignedSoftwareCertificateCollection(), new StringCollection(),
+                (identityToken != null) ? new ExtensionObject(identityToken) : null, null,
                 out serverNonce, out var results, out var diagnosticInfos);
             ValidateResponse(response);
 

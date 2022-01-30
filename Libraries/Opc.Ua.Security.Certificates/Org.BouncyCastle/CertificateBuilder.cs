@@ -272,16 +272,19 @@ namespace Opc.Ua.Security.Certificates
         private void CreateMandatoryFields(X509V3CertificateGenerator cg)
         {
             m_subjectDN = new CertificateFactoryX509Name(SubjectName.Name);
-            // subject and issuer DN
+            // subject and issuer DN, issuer of issuer for AKI
             m_issuerDN = null;
+            m_issuerIssuerAKI = null;
             if (IssuerCAKeyCert != null)
             {
                 m_issuerDN = new CertificateFactoryX509Name(IssuerCAKeyCert.Subject);
+                m_issuerIssuerAKI = new CertificateFactoryX509Name(IssuerCAKeyCert.Issuer);
             }
             else
             {
                 // self signed 
                 m_issuerDN = m_subjectDN;
+                m_issuerIssuerAKI = m_subjectDN;
             }
             cg.SetIssuerDN(m_issuerDN);
             cg.SetSubjectDN(m_subjectDN);
@@ -333,7 +336,7 @@ namespace Opc.Ua.Security.Certificates
 
             cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.AuthorityKeyIdentifier.Id, false,
                 new AuthorityKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(issuerPublicKey),
-                    new GeneralNames(new GeneralName(m_issuerDN)), issuerSerialNumber));
+                    new GeneralNames(new GeneralName(m_issuerIssuerAKI)), issuerSerialNumber));
 
             if (!m_isCA)
             {
@@ -492,6 +495,7 @@ namespace Opc.Ua.Security.Certificates
 
         #region Private Fields
         private X509Name m_issuerDN;
+        private X509Name m_issuerIssuerAKI;
         private X509Name m_subjectDN;
         #endregion
     }

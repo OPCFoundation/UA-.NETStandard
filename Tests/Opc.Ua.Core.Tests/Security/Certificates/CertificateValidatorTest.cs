@@ -140,7 +140,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 m_crlRevokedChain[i] = CertificateFactory.RevokeCertificate(
                     m_caChain[i],
-                    new List<X509CRL>() { m_crlChain[i] },
+                    new X509CRLCollection() { m_crlChain[i] },
                     new X509Certificate2Collection { m_caChain[i + 1] });
             }
 
@@ -175,7 +175,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // create a CRL with all apps revoked
             m_crlRevokedChain[kCaChainCount - 1] = CertificateFactory.RevokeCertificate(
                 m_caChain[kCaChainCount - 1],
-                new List<X509CRL>() { m_crlChain[kCaChainCount - 1] },
+                new X509CRLCollection() { m_crlChain[kCaChainCount - 1] },
                 m_appCerts);
 
             // create signed expired app certs
@@ -257,12 +257,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     if (i == kCaChainCount / 2)
                     {
                         await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
-                        validator.TrustedStore.AddCRL(m_crlChain[i]);
+                        await validator.TrustedStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                     }
                     else
                     {
                         await validator.IssuerStore.Add(m_caChain[i]).ConfigureAwait(false);
-                        validator.IssuerStore.AddCRL(m_crlChain[i]);
+                        await validator.IssuerStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                     }
                 }
 
@@ -366,7 +366,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         ICertificateStore store = i == v ? validator.TrustedStore : validator.IssuerStore;
                         await store.Add(m_caChain[i]).ConfigureAwait(false);
-                        store.AddCRL(m_crlChain[i]);
+                        await store.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                     }
                     TestContext.Out.WriteLine($"AddChains: {stopWatch.ElapsedMilliseconds - start}");
                     var certValidator = validator.Update();
@@ -396,7 +396,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         ICertificateStore store = (i != v || kCaChainCount == 1) ? validator.TrustedStore : validator.IssuerStore;
                         await store.Add(m_caChain[i]).ConfigureAwait(false);
-                        store.AddCRL(m_crlChain[i]);
+                        await store.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                     }
                     var certValidator = validator.Update();
                     foreach (var app in m_goodApplicationTestSet)
@@ -423,7 +423,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         if (i != v)
                         {
                             await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            validator.TrustedStore.AddCRL(m_crlChain[i]);
+                            await validator.TrustedStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         }
                     }
                     var certValidator = validator.Update();
@@ -452,12 +452,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         if (i != v)
                         {
                             await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            validator.TrustedStore.AddCRL(m_crlChain[i]);
+                            await validator.TrustedStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         }
                         else
                         {
                             await validator.TrustedStore.Add(m_caDupeChain[i]).ConfigureAwait(false);
-                            validator.TrustedStore.AddCRL(m_crlDupeChain[i]);
+                            await validator.TrustedStore.AddCRL(m_crlDupeChain[i]).ConfigureAwait(false);
                         }
                     }
                     var certValidator = validator.Update();
@@ -485,9 +485,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         ICertificateStore store = i == v ? validator.TrustedStore : validator.IssuerStore;
                         await store.Add(m_caChain[i]).ConfigureAwait(false);
-                        store.AddCRL(m_crlChain[i]);
+                        await store.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         await store.Add(m_caDupeChain[i]).ConfigureAwait(false);
-                        store.AddCRL(m_crlDupeChain[i]);
+                        await store.AddCRL(m_crlDupeChain[i]).ConfigureAwait(false);
                     }
                     var certValidator = validator.Update();
                     foreach (var app in m_goodApplicationTestSet)
@@ -514,12 +514,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         if (i == v)
                         {
                             await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            validator.TrustedStore.AddCRL(m_crlRevokedChain[i]);
+                            await validator.TrustedStore.AddCRL(m_crlRevokedChain[i]).ConfigureAwait(false);
                         }
                         else
                         {
                             await validator.IssuerStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            validator.IssuerStore.AddCRL(m_crlChain[i]);
+                            await validator.IssuerStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         }
                     }
                     var certValidator = validator.Update();
@@ -548,12 +548,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         if (i == v)
                         {
                             await validator.IssuerStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            validator.IssuerStore.AddCRL(m_crlRevokedChain[i]);
+                            await validator.IssuerStore.AddCRL(m_crlRevokedChain[i]).ConfigureAwait(false);
                         }
                         else
                         {
                             await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            validator.TrustedStore.AddCRL(m_crlChain[i]);
+                            await validator.TrustedStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         }
                     }
                     var certValidator = validator.Update();
@@ -582,12 +582,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         if (i == v)
                         {
                             await validator.IssuerStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            validator.IssuerStore.AddCRL(m_crlRevokedChain[i]);
+                            await validator.IssuerStore.AddCRL(m_crlRevokedChain[i]).ConfigureAwait(false);
                         }
                         else
                         {
                             await validator.IssuerStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            validator.IssuerStore.AddCRL(m_crlChain[i]);
+                            await validator.IssuerStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         }
                     }
                     foreach (var app in m_goodApplicationTestSet)
@@ -620,11 +620,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
                         if (i == v)
                         {
-                            validator.TrustedStore.AddCRL(m_crlRevokedChain[i]);
+                            await validator.TrustedStore.AddCRL(m_crlRevokedChain[i]).ConfigureAwait(false);
                         }
                         else
                         {
-                            validator.TrustedStore.AddCRL(m_crlChain[i]);
+                            await validator.TrustedStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         }
                     }
                     var certValidator = validator.Update();
@@ -653,11 +653,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
                         if (i == v)
                         {
-                            validator.TrustedStore.AddCRL(m_crlRevokedChain[i]);
+                            await validator.TrustedStore.AddCRL(m_crlRevokedChain[i]).ConfigureAwait(false);
                         }
                         else
                         {
-                            validator.TrustedStore.AddCRL(m_crlChain[i]);
+                            await validator.TrustedStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         }
                     }
                     foreach (var app in m_goodApplicationTestSet)
@@ -687,7 +687,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     await validator.IssuerStore.Add(m_caChain[i]).ConfigureAwait(false);
-                    validator.IssuerStore.AddCRL(m_crlChain[i]);
+                    await validator.IssuerStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                 }
 
                 // all app certs are trusted
@@ -721,7 +721,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         if (i != v)
                         {
                             await validator.IssuerStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            validator.IssuerStore.AddCRL(m_crlChain[i]);
+                            await validator.IssuerStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         }
                     }
 
@@ -973,7 +973,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task TestSHA1Rejected(bool trusted, bool rejectSHA1)
         {
 #if NET472_OR_GREATER || NETCOREAPP3_1_OR_GREATER
-            Assert.Ignore("SHA1 is unsupported on .NET Core 3.1");
+            Assert.Ignore("Create SHA1 certificates is unsupported on this .NET version");
 #endif
             var cert = CertificateFactory.CreateCertificate(null, null, "CN=SHA1 signed", null)
                 .SetHashAlgorithm(HashAlgorithmName.SHA1)
@@ -1256,7 +1256,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         if (i == v)
                         {
                             await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            validator.TrustedStore.AddCRL(m_crlRevokedChain[i]);
+                            await validator.TrustedStore.AddCRL(m_crlRevokedChain[i]).ConfigureAwait(false);
                         }
                         else
                         {
@@ -1363,7 +1363,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         else
                         {
                             await validator.IssuerStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            validator.IssuerStore.AddCRL(m_crlChain[i]);
+                            await validator.IssuerStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         }
                     }
                     var certValidator = validator.Update();
@@ -1440,12 +1440,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         if (i != v || kCaChainCount == 1)
                         {
                             await validator.TrustedStore.Add(new X509Certificate2(m_caChain[i].RawData)).ConfigureAwait(false);
-                            validator.TrustedStore.AddCRL(m_crlChain[i]);
+                            await validator.TrustedStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         }
                         else
                         {
                             await validator.IssuerStore.Add(new X509Certificate2(m_caChain[i].RawData)).ConfigureAwait(false);
-                            validator.IssuerStore.AddCRL(m_crlChain[i]);
+                            await validator.IssuerStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         }
                     }
                     var certValidator = validator.Update();
@@ -1545,7 +1545,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         await validator.IssuerStore.Add(m_caChain[i]).ConfigureAwait(false);
                         if (i != v)
                         {
-                            validator.IssuerStore.AddCRL(m_crlChain[i]);
+                            await validator.IssuerStore.AddCRL(m_crlChain[i]).ConfigureAwait(false);
                         }
                     }
                     var certValidator = validator.Update();
