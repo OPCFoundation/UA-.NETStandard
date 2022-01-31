@@ -244,7 +244,7 @@ namespace MemoryBuffer
 
             if (!QualifiedName.IsNull(dataEncoding))
             {
-                return StatusCodes.BadDataEncodingInvalid;
+                return StatusCodes.BadDataEncodingUnsupported;
             }
 
             int offset = (int)tag.Offset;
@@ -296,7 +296,7 @@ namespace MemoryBuffer
 
             if (!QualifiedName.IsNull(dataEncoding))
             {
-                return StatusCodes.BadDataEncodingInvalid;
+                return StatusCodes.BadDataEncodingUnsupported;
             }
 
             if (statusCode != StatusCodes.Good)

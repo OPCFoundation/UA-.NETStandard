@@ -114,13 +114,16 @@ namespace Opc.Ua
         /// <summary>
         /// The path to the default certificate store.
         /// </summary>
-        [Obsolete("Use CertificateStoreIdentifier.DefaultPKIRoot instead.")]
-        public const string DefaultStorePath = "%CommonApplicationData%/OPC Foundation/pki/own";
+#if NETFRAMEWORK
+        public static readonly string DefaultStorePath = Path.Combine("%CommonApplicationData%", "OPC Foundation", "pki", "own");
+#else
+        public static readonly string DefaultStorePath = Path.Combine("%LocalApplicationData%", "OPC Foundation", "pki", "own");
+#endif
 
         /// <summary>
         /// The default LocalFolder.
         /// </summary>
-        public static string DefaultLocalFolder = Directory.GetCurrentDirectory();
+        public static readonly string DefaultLocalFolder = Directory.GetCurrentDirectory();
 
         /// <summary>
         /// The full name of the Opc.Ua.Core assembly.
