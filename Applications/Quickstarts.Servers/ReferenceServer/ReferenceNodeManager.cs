@@ -2659,6 +2659,14 @@ namespace Quickstarts.ReferenceServer
             while (value == null && retryCount < 10)
             {
                 value = m_generator.GetRandom(variable.DataType, variable.ValueRank, new uint[] { 10 }, Server.TypeTree);
+                // skip Variant Null
+                if (value is Variant variant)
+                {
+                    if (variant.Value == null)
+                    {
+                        value = null;
+                    }
+                }
                 retryCount++;
             }
 
