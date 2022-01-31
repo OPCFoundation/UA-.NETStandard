@@ -2335,10 +2335,12 @@ namespace Opc.Ua.Sample
         /// <param name="context">The context.</param>
         /// <param name="node">The monitored node.</param>
         /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="ignoreFilters">If the filters should be ignored.</param>
         protected virtual ServiceResult ReadInitialValue(
             ISystemContext context,
             MonitoredNode node,
-            DataChangeMonitoredItem monitoredItem)
+            IDataChangeMonitoredItem2 monitoredItem,
+            bool ignoreFilters)
         {
             DataValue initialValue = new DataValue {
                 Value = null,
@@ -2354,7 +2356,7 @@ namespace Opc.Ua.Sample
                 monitoredItem.DataEncoding,
                 initialValue);
 
-            monitoredItem.QueueValue(initialValue, error);
+            monitoredItem.QueueValue(initialValue, error, ignoreFilters);
 
             return error;
         }
@@ -2572,7 +2574,7 @@ namespace Opc.Ua.Sample
             }
 
             // report the initial value.
-            datachangeItem.QueueValue(initialValue, null);
+            datachangeItem.QueueValue(initialValue, null, true);
 
             // do any post processing.
             OnCreateMonitoredItem(context, itemToCreate, monitoredNode, datachangeItem);
@@ -2967,7 +2969,7 @@ namespace Opc.Ua.Sample
                     {
                         if (monitoredItem is DataChangeMonitoredItem dataChangeMonitoredItem)
                         {
-                            errors[ii] = ReadInitialValue(systemContext, monitoredNode, dataChangeMonitoredItem);
+                            errors[ii] = ReadInitialValue(systemContext, monitoredNode, dataChangeMonitoredItem, true);
                         }
                     }
                     else
@@ -3051,7 +3053,7 @@ namespace Opc.Ua.Sample
             // need to provide an immediate update after enabling.
             if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
             {
-                ReadInitialValue(context, monitoredNode, datachangeItem);
+                ReadInitialValue(context, monitoredNode, datachangeItem, false);
             }
 
             // do any post processing.

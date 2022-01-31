@@ -1103,22 +1103,7 @@ namespace Opc.Ua
                     translation.UserIdentityTokens = endpoint.UserIdentityTokens;
                     translation.Server = application;
 
-                    // skip duplicates.
-                    bool duplicateFound = false;
-
-                    foreach (EndpointDescription existingTranslation in translations)
-                    {
-                        if (existingTranslation.IsEqual(translation))
-                        {
-                            duplicateFound = true;
-                            break;
-                        }
-                    }
-
-                    if (!duplicateFound)
-                    {
-                        translations.Add(translation);
-                    }
+                    translations.Add(translation);
                 }
             }
 

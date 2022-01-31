@@ -359,20 +359,6 @@ namespace MemoryBuffer
                 itemToCreate.RequestedParameters.ClientHandle,
                 samplingInterval);
 
-            /*
-            // create the item.
-            MemoryBufferMonitoredItem datachangeItem = buffer.CreateDataChangeItem(
-                context,
-                tag,
-                monitoredItemId,
-                itemToCreate.ItemToMonitor.AttributeId,
-                diagnosticsMasks,
-                timestampsToReturn,
-                itemToCreate.MonitoringMode,
-                itemToCreate.RequestedParameters.ClientHandle,
-                samplingInterval);
-            */
-
             // report the initial value.
             datachangeItem.QueueValue(initialValue, null);
 

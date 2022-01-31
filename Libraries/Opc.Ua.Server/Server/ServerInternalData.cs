@@ -545,102 +545,6 @@ namespace Opc.Ua.Server
 
         #region Private Methods
         /// <summary>
-        /// Initialize a collection of well none nodeIds to a certain value 
-        /// </summary>
-        /// <param name="nodeIds">The collection of nodeIds</param>
-        /// <param name="value">The value to initialize to</param>
-        private void InitializeNodes(NodeIdCollection nodeIds, object value)
-        {
-            foreach (NodeId nodeId in nodeIds)
-            {
-                var baseVariableState = (BaseVariableState)m_diagnosticsNodeManager.FindPredefinedNode(
-                    nodeId,
-                    typeof(BaseVariableState));
-                if (baseVariableState != null)
-                {
-                    baseVariableState.Value = value;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Initialize the well known nodes to their default values
-        /// </summary>
-        private void InitializeWellKnownNodes()
-        {
-            // set the WellNone RoleSet propertie node values
-            IdentityMappingRuleType identityMapping = new IdentityMappingRuleType();
-            EndpointType endpointType = new EndpointType();
-
-            InitializeNodes(new NodeIdCollection(){
-                    VariableIds.WellKnownRole_Anonymous_Identities,
-                    VariableIds.WellKnownRole_AuthenticatedUser_Identities,
-                    VariableIds.WellKnownRole_Observer_Identities,
-                    VariableIds.WellKnownRole_Operator_Identities,
-                    VariableIds.WellKnownRole_Supervisor_Identities,
-                    VariableIds.WellKnownRole_SecurityAdmin_Identities,
-                    VariableIds.WellKnownRole_ConfigureAdmin_Identities,
-                    VariableIds.WellKnownRole_Engineer_Identities,
-                }, identityMapping);
-
-            InitializeNodes(new NodeIdCollection(){
-                    VariableIds.WellKnownRole_Anonymous_Applications,
-                    VariableIds.WellKnownRole_AuthenticatedUser_Applications,
-                    VariableIds.WellKnownRole_Observer_Applications,
-                    VariableIds.WellKnownRole_Operator_Applications,
-                    VariableIds.WellKnownRole_Supervisor_Applications,
-                    VariableIds.WellKnownRole_SecurityAdmin_Applications,
-                    VariableIds.WellKnownRole_ConfigureAdmin_Applications,
-                    VariableIds.WellKnownRole_Engineer_Applications,
-                }, "initialApp");
-
-            InitializeNodes(new NodeIdCollection(){
-                    VariableIds.WellKnownRole_Anonymous_ApplicationsExclude,
-                    VariableIds.WellKnownRole_AuthenticatedUser_ApplicationsExclude,
-                    VariableIds.WellKnownRole_Observer_ApplicationsExclude,
-                    VariableIds.WellKnownRole_Operator_ApplicationsExclude,
-                    VariableIds.WellKnownRole_Supervisor_ApplicationsExclude,
-                    VariableIds.WellKnownRole_SecurityAdmin_ApplicationsExclude,
-                    VariableIds.WellKnownRole_ConfigureAdmin_ApplicationsExclude,
-                    VariableIds.WellKnownRole_Engineer_ApplicationsExclude,
-                    VariableIds.WellKnownRole_Anonymous_EndpointsExclude,
-                    VariableIds.WellKnownRole_AuthenticatedUser_EndpointsExclude,
-                    VariableIds.WellKnownRole_Observer_EndpointsExclude,
-                    VariableIds.WellKnownRole_Operator_EndpointsExclude,
-                    VariableIds.WellKnownRole_Supervisor_EndpointsExclude,
-                    VariableIds.WellKnownRole_SecurityAdmin_EndpointsExclude,
-                    VariableIds.WellKnownRole_ConfigureAdmin_EndpointsExclude,
-                    VariableIds.WellKnownRole_Engineer_EndpointsExclude,
-                }, false);
-
-            InitializeNodes(new NodeIdCollection(){
-                    VariableIds.WellKnownRole_Anonymous_Endpoints,
-                    VariableIds.WellKnownRole_AuthenticatedUser_Endpoints,
-                    VariableIds.WellKnownRole_Observer_Endpoints,
-                    VariableIds.WellKnownRole_Operator_Endpoints,
-                    VariableIds.WellKnownRole_Supervisor_Endpoints,
-                    VariableIds.WellKnownRole_SecurityAdmin_Endpoints,
-                    VariableIds.WellKnownRole_ConfigureAdmin_Endpoints,
-                    VariableIds.WellKnownRole_Engineer_Endpoints,
-                }, endpointType);
-
-
-            // setup default values for default role permissions and access restrictions
-            RolePermissionType rolePermissionType = new RolePermissionType();
-            AccessRestrictionType accessRestrictionType = new AccessRestrictionType();
-
-            InitializeNodes(new NodeIdCollection(){
-                    VariableIds.OPCUANamespaceMetadata_DefaultRolePermissions,
-                    VariableIds.OPCUANamespaceMetadata_DefaultUserRolePermissions
-                }, rolePermissionType);
-
-            InitializeNodes(new NodeIdCollection(){
-                    VariableIds.OPCUANamespaceMetadata_DefaultAccessRestrictions
-                }, accessRestrictionType);
-
-        }
-
-        /// <summary>
         /// Creates the ServerObject and attaches it to the NodeManager.
         /// </summary>
         private void CreateServerObject()
@@ -697,8 +601,6 @@ namespace Opc.Ua.Server
                     operationLimits.MaxNodesPerNodeManagement =
                     operationLimits.MaxMonitoredItemsPerCall = null;
                 }
-
-                InitializeWellKnownNodes();
 
                 // setup PublishSubscribe Status State value
                 PubSubState pubSubState = PubSubState.Disabled;

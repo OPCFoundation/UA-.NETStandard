@@ -1502,7 +1502,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
         /// <param name="monitoredItems">The set of monitoring items to update.</param>
-        /// <param name="processedItems"></param>
+        /// <param name="processedItems">The set of processed items.</param>
         /// <param name="errors">Any errors.</param>
         public virtual void TransferMonitoredItems(
             OperationContext context,

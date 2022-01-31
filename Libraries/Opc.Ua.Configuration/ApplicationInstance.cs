@@ -642,7 +642,7 @@ namespace Opc.Ua.Configuration
                     return false;
                 }
             }
-            else if (!configuration.ApplicationUri.Equals(applicationUri, StringComparison.InvariantCulture))
+            else if (!configuration.ApplicationUri.Equals(applicationUri, StringComparison.Ordinal))
             {
                 Utils.LogInfo("Updated the ApplicationUri: {0} --> {1}", configuration.ApplicationUri, applicationUri);
                 configuration.ApplicationUri = applicationUri;
