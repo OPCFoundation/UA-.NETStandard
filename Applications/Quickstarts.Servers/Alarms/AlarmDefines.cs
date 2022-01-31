@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 #pragma warning disable CS1591
 
-namespace Quickstarts.ReferenceServer
+namespace Alarms
 {
     public class AlarmDefines
     {

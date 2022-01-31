@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 using Opc.Ua;
 
-namespace Quickstarts.ReferenceServer
+namespace Alarms
 {
     class LimitAlarmTypeHolder : AlarmConditionTypeHolder
     {

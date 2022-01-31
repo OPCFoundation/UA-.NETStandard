@@ -3,12 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
 using Opc.Ua;
-namespace Quickstarts.ReferenceServer
+
+#pragma warning disable CS1591
+
+namespace Alarms
 {
-    class ExclusiveLevelHolder : ExclusiveLimitHolder
+    public class OffNormalAlarmTypeHolder : DiscreteHolder
     {
-        public ExclusiveLevelHolder(
+        public OffNormalAlarmTypeHolder(
             Alarms alarms,
             FolderState parent,
             SourceController trigger,
@@ -23,7 +27,7 @@ namespace Quickstarts.ReferenceServer
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.ExclusiveLevelAlarmType, name, maxShelveTime);
+                Initialize(Opc.Ua.ObjectTypes.OffNormalAlarmType, name, maxShelveTime);
             }
         }
 
@@ -32,18 +36,26 @@ namespace Quickstarts.ReferenceServer
             string name,
             double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED)
         {
-            // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
-
             if (m_alarm == null)
             {
-                m_alarm = new ExclusiveLevelAlarmState(m_parent);
+                m_alarm = new OffNormalAlarmState(m_parent);
             }
 
-            ExclusiveLevelAlarmState alarm = (ExclusiveLevelAlarmState)m_alarm;
+            OffNormalAlarmState alarm = GetAlarm();
 
-            // Call the base class to set parameters
-            base.Initialize(alarmTypeIdentifier, name, maxTimeShelved, isLimit: false);
+            base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
+
+            alarm.NormalState.Value = new NodeId();
         }
+
+        #region Helpers
+
+        private OffNormalAlarmState GetAlarm()
+        {
+            return (OffNormalAlarmState)m_alarm;
+        }
+
+        #endregion
 
     }
 }

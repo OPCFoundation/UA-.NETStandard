@@ -10,7 +10,7 @@ using Opc.Ua;
 
 #pragma warning disable CS1591
 
-namespace Quickstarts.ReferenceServer
+namespace Alarms
 {
     public class AlarmHolder
     {
@@ -343,7 +343,7 @@ namespace Quickstarts.ReferenceServer
             return m_alarm.EventType;
         }
 
-        protected ReferenceNodeManager GetNodeManager()
+        protected AlarmNodeManager GetNodeManager()
         {
             return m_alarms.GetNodeManager();
         }

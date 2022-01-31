@@ -7,7 +7,7 @@ using Opc.Ua;
 
 #pragma warning disable CS1591
 
-namespace Quickstarts.ReferenceServer
+namespace Alarms
 {
     public class SupportedAlarmConditionType
     {

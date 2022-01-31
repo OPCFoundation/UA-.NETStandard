@@ -10,7 +10,7 @@ using Opc.Ua.Server;
 
 #pragma warning disable CS1591
 
-namespace Quickstarts.ReferenceServer
+namespace Alarms
 {
     /// <summary>
     /// Alarm Implementation
@@ -18,7 +18,7 @@ namespace Quickstarts.ReferenceServer
 
     public class Alarms
     {
-        private ReferenceNodeManager m_nodeManager;
+        private AlarmNodeManager m_nodeManager;
         private ushort NameSpaceIndex = 0;
         Dictionary<string, AlarmHolder> m_alarms = new Dictionary<string, AlarmHolder>();
 
@@ -32,13 +32,13 @@ namespace Quickstarts.ReferenceServer
                     new SupportedAlarmConditionType( "Maintenance", "MaintenanceConditionClassType",  ObjectTypeIds.MaintenanceConditionClassType ),
                     new SupportedAlarmConditionType( "System", "SystemConditionClassType",  ObjectTypeIds.SystemConditionClassType ) };
 
-        public Alarms(ReferenceNodeManager nodeManager)
+        public Alarms(AlarmNodeManager nodeManager)
         {
             m_nodeManager = nodeManager;
             NameSpaceIndex = m_nodeManager.NamespaceIndex;
         }
 
-        public ReferenceNodeManager GetNodeManager()
+        public AlarmNodeManager GetNodeManager()
         {
             return m_nodeManager;
         }

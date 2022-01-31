@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua;
-namespace Quickstarts.ReferenceServer
+namespace Alarms
 {
     /// <summary>
     /// 

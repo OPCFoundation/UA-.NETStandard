@@ -1,20 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 using Opc.Ua;
 
-#pragma warning disable CS0219
-
-#pragma warning disable CS1591
-
-namespace Quickstarts.ReferenceServer
+namespace Alarms
 {
-    public class DiscreteHolder : AlarmConditionTypeHolder
+    class NonExclusiveLevelHolder : NonExclusiveLimitHolder
     {
-        public DiscreteHolder(
+        public NonExclusiveLevelHolder(
             Alarms alarms,
             FolderState parent,
             SourceController trigger,
@@ -27,10 +24,9 @@ namespace Quickstarts.ReferenceServer
             bool create = true) :
             base(alarms, parent, trigger, name, alarmConditionType, controllerType, interval, optional, maxShelveTime, false)
         {
-            Utils.LogInfo(name + " Discrete Constructor Optional = " + optional.ToString());
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.DiscreteAlarmType, name, maxShelveTime);
+                Initialize(Opc.Ua.ObjectTypes.NonExclusiveLevelAlarmType, name, maxShelveTime);
             }
         }
 
@@ -39,48 +35,31 @@ namespace Quickstarts.ReferenceServer
             string name,
             double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED)
         {
-            m_analog = false;
+            // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
             if (m_alarm == null)
             {
-                m_alarm = new DiscreteAlarmState(m_parent);
+                m_alarm = new NonExclusiveLevelAlarmState(m_parent);
             }
 
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
+            Debug.WriteLine("NonExclusiveLevelHolder alarm typedefinition " + m_alarm.TypeDefinitionId.ToString());
+
+
+
         }
-
-        #region Overrides
-
-        public override void SetValue(string message = "")
+        public override void SetBranching(bool value)
         {
-
-            DiscreteAlarmState alarm = GetAlarm();
-            bool active = m_alarmController.IsBooleanActive();
-            int value = m_alarmController.GetValue();
-
-            if ( message.Length == 0 )
-            {
-                message = "Discrete Alarm analog value = " + value.ToString() + ", active = " + active.ToString();
-            }
-
-            base.SetValue(message);
+            m_supportsBranching = value;
         }
 
-        #endregion
 
-
-        #region Helpers
-        private DiscreteAlarmState GetAlarm()
+        private NonExclusiveLevelAlarmState GetAlarm()
         {
-            return (DiscreteAlarmState)m_alarm;
+            return (NonExclusiveLevelAlarmState)m_alarm;
         }
-
-        #endregion
-
 
 
     }
-
-
 }

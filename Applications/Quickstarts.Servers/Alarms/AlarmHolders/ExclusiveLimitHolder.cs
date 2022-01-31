@@ -5,12 +5,13 @@ using System.Text;
 using System.Threading.Tasks;
 
 using Opc.Ua;
+#pragma warning disable CS0219
 
-namespace Quickstarts.ReferenceServer
+namespace Alarms
 {
-    class NonExclusiveLimitHolder : LimitAlarmTypeHolder
+    class ExclusiveLimitHolder : LimitAlarmTypeHolder
     {
-        public NonExclusiveLimitHolder(
+        public ExclusiveLimitHolder(
             Alarms alarms,
             FolderState parent,
             SourceController trigger,
@@ -25,7 +26,7 @@ namespace Quickstarts.ReferenceServer
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.NonExclusiveLimitAlarmType, name, maxShelveTime);
+                Initialize(Opc.Ua.ObjectTypes.ExclusiveLimitAlarmType, name, maxShelveTime);
             }
         }
 
@@ -38,29 +39,21 @@ namespace Quickstarts.ReferenceServer
 
             if (m_alarm == null)
             {
-                m_alarm = new NonExclusiveLimitAlarmState(m_parent);
+                m_alarm = new ExclusiveLimitAlarmState(m_parent);
             }
 
-            NonExclusiveLimitAlarmState alarm = GetAlarm();
-
-            alarm.HighState = new TwoStateVariableState(alarm);
-
-            alarm.HighHighState = new TwoStateVariableState(alarm);
-            alarm.LowState = new TwoStateVariableState(alarm);
-            alarm.LowLowState = new TwoStateVariableState(alarm);
+            ExclusiveLimitAlarmState alarm = GetAlarm();
 
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
 
             alarm.SetLimitState(SystemContext, LimitAlarmStates.Inactive);
-
         }
-
 
 
         public override void SetValue(string message = "")
         {
-            NonExclusiveLimitAlarmState alarm = GetAlarm();
+            ExclusiveLimitAlarmState alarm = GetAlarm();
             int newSeverity = GetSeverity();
             int currentSeverity = alarm.Severity.Value;
 
@@ -91,9 +84,9 @@ namespace Quickstarts.ReferenceServer
             base.SetValue(message);
         }
 
-        private NonExclusiveLimitAlarmState GetAlarm()
+        private ExclusiveLimitAlarmState GetAlarm()
         {
-            return (NonExclusiveLimitAlarmState)m_alarm;
+            return (ExclusiveLimitAlarmState)m_alarm;
         }
 
     }

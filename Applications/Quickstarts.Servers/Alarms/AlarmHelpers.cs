@@ -8,7 +8,7 @@ using Opc.Ua;
 using Opc.Ua.Server;
 
 
-namespace Quickstarts.ReferenceServer
+namespace Alarms
 {
     /// <summary>
     /// Helper class to allow for creation of various entities

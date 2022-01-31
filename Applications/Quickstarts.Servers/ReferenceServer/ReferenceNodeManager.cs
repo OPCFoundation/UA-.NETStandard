@@ -192,17 +192,6 @@ namespace Quickstarts.ReferenceServer
 
                 try
                 {
-                    #region Archie
-
-                    if (m_alarms == null)
-                    {
-                        m_alarms = new Quickstarts.ReferenceServer.Alarms(this);
-                    }
-
-                    m_alarms.CreateAlarms(root);
-
-                    #endregion
-
                     #region Scalar_Static
                     FolderState scalarFolder = CreateFolder(root, "Scalar", "Scalar");
                     BaseDataVariableState scalarInstructions = CreateVariable(scalarFolder, "Scalar_Instructions", "Scalar_Instructions", DataTypeIds.String, ValueRanks.Scalar);
@@ -2648,7 +2637,6 @@ namespace Quickstarts.ReferenceServer
         {
             try
             {
-                m_alarms.Loop();
                 lock (Lock)
                 {
                     foreach (BaseDataVariableState variable in m_dynamicNodes)
@@ -2743,8 +2731,5 @@ namespace Quickstarts.ReferenceServer
         private bool m_simulationEnabled = true;
         private List<BaseDataVariableState> m_dynamicNodes;
         #endregion
-
-        private Quickstarts.ReferenceServer.Alarms m_alarms = null;
-
     }
 }
