@@ -35,6 +35,7 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Configuration
 {
@@ -758,10 +759,10 @@ namespace Opc.Ua.Configuration
             ushort lifeTimeInMonths
             )
         {
-            Utils.LogInfo("Creating application instance certificate.");
-
             // delete any existing certificate.
             await DeleteApplicationInstanceCertificate(configuration).ConfigureAwait(false);
+
+            Utils.LogInfo("Creating application instance certificate.");
 
             CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
 
@@ -829,13 +830,15 @@ namespace Opc.Ua.Configuration
                 return;
             }
 
-            // delete private key.
+            // delete certificate and private key.
             X509Certificate2 certificate = await id.Find().ConfigureAwait(false);
-
-            Utils.LogCertificate("Deleting application instance certificate and private key.", certificate);
+            if (certificate != null)
+            {
+                Utils.LogCertificate(TraceMasks.Security, "Deleting application instance certificate and private key.", certificate);
+            }
 
             // delete trusted peer certificate.
-            if (configuration.SecurityConfiguration != null && 
+            if (configuration.SecurityConfiguration != null &&
                 configuration.SecurityConfiguration.TrustedPeerCertificates != null)
             {
                 string thumbprint = id.Thumbprint;
@@ -849,26 +852,30 @@ namespace Opc.Ua.Configuration
                 {
                     using (ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
                     {
-                        await store.Delete(thumbprint).ConfigureAwait(false);
+                        bool deleted = await store.Delete(thumbprint).ConfigureAwait(false);
+                        if (deleted)
+                        {
+                            Utils.LogInfo(TraceMasks.Security, "Application Instance Certificate [{0}] deleted from trusted store.", thumbprint);
+                        }
                     }
                 }
             }
 
-            Utils.LogInfo("Application Instance Certificate deleted.");
-
-            // delete private key.
+            // delete certificate and private key from owner store.
             if (certificate != null)
             {
                 using (ICertificateStore store = id.OpenStore())
                 {
-                    await store.Delete(certificate.Thumbprint).ConfigureAwait(false);
+                    bool deleted = await store.Delete(certificate.Thumbprint).ConfigureAwait(false);
+                    if (deleted)
+                    {
+                        Utils.LogCertificate(TraceMasks.Security, "Application certificate and private key deleted.", certificate);
+                    }
                 }
             }
 
             // erase the memory copy of the deleted certificate
             id.Certificate = null;
-
-            Utils.LogInfo("Application private key deleted.");
         }
 
         /// <summary>
