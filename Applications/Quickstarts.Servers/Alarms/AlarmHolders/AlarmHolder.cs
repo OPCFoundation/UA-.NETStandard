@@ -14,9 +14,9 @@ namespace Alarms
 {
     public class AlarmHolder
     {
-        public AlarmHolder(Alarms alarms, FolderState parent, SourceController trigger, Type controllerType, int interval)
+        public AlarmHolder(AlarmNodeManager alarmNodeManager, FolderState parent, SourceController trigger, Type controllerType, int interval)
         {
-            m_alarms = alarms;
+            m_alarmNodeManager = alarmNodeManager;
             m_parent = parent;
             m_trigger = trigger.Source;
             m_alarmController = trigger.Controller;
@@ -345,7 +345,7 @@ namespace Alarms
 
         protected AlarmNodeManager GetNodeManager()
         {
-            return m_alarms.GetNodeManager();
+            return m_alarmNodeManager;
         }
 
         protected string GetAlarmTypeName(UInt32 alarmTypeIdentifier)
@@ -459,13 +459,13 @@ namespace Alarms
 
         protected ushort GetNameSpaceIndex(UInt32 alarmTypeIdentifier)
         {
-            return m_alarms.GetNodeManager().NamespaceIndex;
+            return m_alarmNodeManager.NamespaceIndex;
         }
 
         #endregion
 
         #region Private Fields
-        protected Alarms m_alarms = null;
+        protected AlarmNodeManager m_alarmNodeManager = null;
         protected BaseEventState m_alarm = null;
         protected Type m_alarmControllerType = null;
         protected AlarmController m_alarmController = null;

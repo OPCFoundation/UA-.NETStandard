@@ -12,7 +12,7 @@ namespace Alarms
     public class BaseEventTypeHolder : AlarmHolder
     {
         protected BaseEventTypeHolder(
-            Alarms alarms,
+            AlarmNodeManager alarmNodeManager,
             FolderState parent,
             SourceController trigger,
             string name,
@@ -20,7 +20,7 @@ namespace Alarms
             Type controllerType,
             int interval,
             bool optional) :
-            base(alarms, parent, trigger, controllerType, interval)
+            base(alarmNodeManager, parent, trigger, controllerType, interval)
         {
             m_optional = optional;
         }

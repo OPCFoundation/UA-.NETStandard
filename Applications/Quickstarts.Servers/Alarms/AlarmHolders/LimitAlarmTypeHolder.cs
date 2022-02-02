@@ -13,7 +13,7 @@ namespace Alarms
         private bool m_isLimit = true;
 
         public LimitAlarmTypeHolder(
-            Alarms alarms,
+            AlarmNodeManager alarmNodeManager,
             FolderState parent,
             SourceController trigger,
             string name,
@@ -23,7 +23,7 @@ namespace Alarms
             bool optional = true,
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
             bool create = true) :
-            base(alarms, parent, trigger, name, alarmConditionType, controllerType, interval, optional, maxShelveTime, false)
+            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional, maxShelveTime, false)
         {
             if (create)
             {

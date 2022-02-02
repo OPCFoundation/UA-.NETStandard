@@ -13,7 +13,7 @@ namespace Alarms
     public class AcknowledgeableConditionTypeHolder : ConditionTypeHolder
     {
         public AcknowledgeableConditionTypeHolder(
-            Alarms alarms,
+            AlarmNodeManager alarmNodeManager,
             FolderState parent,
             SourceController trigger,
             string name,
@@ -22,7 +22,7 @@ namespace Alarms
             int interval,
             bool optional = true,
             bool create = true) :
-            base(alarms, parent, trigger, name, alarmConditionType, controllerType, interval, optional)
+            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional)
         {
             if (create)
             {
@@ -225,7 +225,7 @@ namespace Alarms
             if (Optional)
             {
                 // No Confirming on Acknowledge tests
-                if (m_alarms.GetUnitFromNodeState(alarm) == "Acknowledge")
+                if (m_alarmNodeManager.GetUnitFromNodeState(alarm) == "Acknowledge")
                 {
                     alarm.SetConfirmedState(SystemContext, confirmed: true);
                     Log("OnAcknowledge", "Ignore Confirmed State, setting confirmed to true");

@@ -16,7 +16,7 @@ namespace Alarms
     {
 
         protected ConditionTypeHolder(
-            Alarms alarms,
+            AlarmNodeManager alarmNodeManager,
             FolderState parent,
             SourceController trigger,
             string name,
@@ -24,7 +24,7 @@ namespace Alarms
             Type controllerType,
             int interval,
             bool optional) :
-            base( alarms, parent, trigger, name, alarmConditionType, controllerType, interval, optional )
+            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional )
         {
             m_alarmConditionType = alarmConditionType;
         }

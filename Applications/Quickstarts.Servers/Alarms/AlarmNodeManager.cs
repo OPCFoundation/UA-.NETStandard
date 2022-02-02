@@ -140,11 +140,11 @@ namespace Alarms
                     string alarmsName = "Alarms";
                     string alarmsNodeName = alarmsName;
 
-                    Type alarmControllerType = Type.GetType("Quickstarts.ReferenceServer.AlarmController");
+                    Type alarmControllerType = Type.GetType("Alarms.AlarmController");
                     int interval = 1000;
                     string intervalString = interval.ToString();
 
-                    //int conditionTypeIndex = 0;
+                    int conditionTypeIndex = 0;
 
                     #endregion
 
@@ -202,8 +202,48 @@ namespace Alarms
 
                     #endregion
 
+                    #region Create Alarms
+
+                    AlarmHolder mandatoryExclusiveLevel = new ExclusiveLevelHolder(
+                        this,
+                        alarmsFolder,
+                        analogSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        optional: false);
+
+                    m_alarms.Add(mandatoryExclusiveLevel.AlarmNodeName, mandatoryExclusiveLevel);
+
+                    AlarmHolder mandatoryNonExclusiveLevel = new NonExclusiveLevelHolder(
+                        this,
+                        alarmsFolder,
+                        analogSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        optional: false);
+                    m_alarms.Add(mandatoryNonExclusiveLevel.AlarmNodeName, mandatoryNonExclusiveLevel);
+
+                    AlarmHolder offNormal = new OffNormalAlarmTypeHolder(
+                        this,
+                        alarmsFolder,
+                        booleanSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        optional: false);
+                    m_alarms.Add(offNormal.AlarmNodeName, offNormal);
+
+
+                    #endregion
+
                     AddPredefinedNode(SystemContext, alarmsFolder);
                     m_simulationTimer = new Timer(DoSimulation, null, m_simulationInterval, m_simulationInterval);
+                    m_allowEntry = true;
 
                 }
                 catch (Exception e)
@@ -561,9 +601,19 @@ namespace Alarms
             }
 
             return sourceName;
-
-
         }
+
+        public SupportedAlarmConditionType GetSupportedAlarmConditionType(ref int index)
+        {
+            SupportedAlarmConditionType conditionType = m_ConditionTypes[index];
+            index++;
+            if (index >= m_ConditionTypes.Length)
+            {
+                index = 0;
+            }
+            return conditionType;
+        }
+
 
 
         #endregion
