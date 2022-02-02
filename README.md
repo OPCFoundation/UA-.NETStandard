@@ -14,8 +14,9 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 
 ## For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandard).
 
-## Features included
-##### Core and Libraries
+### Features included
+
+#### Core and Libraries
 
 1. Fully ported Core OPC UA Stack and Libraries (Client, Server, Configuration, Complex Types & GDS assemblies).
 2. Reference sample Server and Client. 
@@ -29,7 +30,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 10. A [PubSub](Docs/PubSub.md) library with samples.
 11. Improved support for [Logging](Docs/Logging.md) with `ILogger` and `EventSource`. 
 
-##### Samples and Nuget packages
+#### Samples and Nuget packages
 
 11. OPC UA [Reference Server](Applications/ReferenceServer) and [Reference Client](Applications/ReferenceClient) for .NET Framework.
 12. OPC UA [Console Reference Server](Applications/ConsoleReferenceServer) for .NET Core.
