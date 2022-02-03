@@ -463,6 +463,49 @@ namespace Opc.Ua.Server
             }
             return null;
         }
+
+        /// <summary>
+        /// Find a method in the type or any of the supertypes of a provided objectId on which the method is called
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="objectId"></param>
+        /// <param name="methodId"></param>
+        /// <returns></returns>
+        public MethodState FindMethodInType(
+            ServerSystemContext context,
+            NodeState objectId,
+            NodeId methodId)
+        {
+            MethodState methodState = null;
+            NodeState typeNode = FindNodeInAddressSpace(((BaseInstanceState)objectId).TypeDefinitionId);
+            if (typeNode != null)
+            {
+                methodState = typeNode.FindMethod(context, methodId);
+
+                // Search super types
+                if (methodState == null)
+                {
+                    NodeId superTypeNid = ((BaseTypeState)typeNode).SuperTypeId;
+
+                    while ((superTypeNid != null) && (superTypeNid != ObjectTypeIds.BaseObjectType))
+                    {
+                        typeNode = FindNodeInAddressSpace(superTypeNid);
+                        if (typeNode != null)
+                        {
+                            methodState = typeNode.FindMethod(context, methodId);
+                            if (methodState != null)
+                            {
+                                break;
+                            }
+                        }
+                        superTypeNid = ((BaseTypeState)typeNode).SuperTypeId;
+                    }
+
+                }
+            }
+
+            return methodState;
+        }
         #endregion
 
         #region INodeManager Members
@@ -2953,6 +2996,12 @@ namespace Opc.Ua.Server
                         if (source.ReferenceExists(ReferenceTypeIds.HasComponent, false, methodToCall.MethodId))
                         {
                             method = (MethodState)FindPredefinedNode(methodToCall.MethodId, typeof(MethodState));
+                        }
+
+                        // check the type for method to call
+                        if (method == null)
+                        {
+                            method = FindMethodInType(systemContext, source, methodToCall.MethodId);
                         }
 
                         if (method == null)
