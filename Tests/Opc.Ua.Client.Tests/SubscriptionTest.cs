@@ -451,13 +451,23 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+        public enum TransferType
+        {
+            KeepOpen,
+            CloseSession,
+            DisconnectedAck,
+            DisconnectedRepublish
+        }
+
         [Theory, Order(810)]
-        public async Task TransferSubscription(bool closeOriginSession, bool sendInitialValues)
+        public async Task TransferSubscription(TransferType transferType, bool sendInitialValues)
         {
             const int kTestSubscriptions = 2;
+            const int kDelay = 2_000;
 
             // create test session and subscription
             var originSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+            bool originSessionOpen = transferType == TransferType.KeepOpen;
 
             // create subscriptions
             var originSubscriptions = new SubscriptionCollection();
@@ -474,6 +484,7 @@ namespace Opc.Ua.Client.Tests
 
                 originSubscriptions.Add(subscription);
                 originSession.AddSubscription(subscription);
+                subscription.RepublishAfterTransfer = transferType == TransferType.DisconnectedRepublish;
                 subscription.Create();
 
                 // set defaults
@@ -507,28 +518,44 @@ namespace Opc.Ua.Client.Tests
             }
 
             // settle
-            await Task.Delay(2_000).ConfigureAwait(false);
+            await Task.Delay(kDelay).ConfigureAwait(false);
 
             // persist the subscription state
             var filePath = Path.GetTempFileName();
 
             // close session, do not delete subscription
-            if (closeOriginSession)
+            if (transferType != TransferType.KeepOpen)
             {
-                originSession.Save(filePath);
                 originSession.DeleteSubscriptionsOnClose = false;
-                originSession.Close();
+                originSession.Save(filePath);
+                if (transferType == TransferType.CloseSession)
+                {
+                    // graceful close
+                    originSession.Close();
+                }
+                else
+                {
+                    // force a socket dispose, to emulate network disconnect
+                    // without closing session on server
+                    originSession.TransportChannel.Dispose();
+                }
             }
 
             // wait 
-            await Task.Delay(2_000).ConfigureAwait(false);
+            await Task.Delay(kDelay).ConfigureAwait(false);
+
+            // close session, do not delete subscription
+            if (transferType > TransferType.CloseSession)
+            {
+                originSession.Close();
+            }
 
             // create target session
             var targetSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
 
             // restore client state
             var transferSubscriptions = new SubscriptionCollection();
-            if (closeOriginSession)
+            if (transferType != TransferType.KeepOpen)
             {
                 // load
                 transferSubscriptions.AddRange(targetSession.Load(filePath));
@@ -553,6 +580,9 @@ namespace Opc.Ua.Client.Tests
                 transferSubscriptions.AddRange(originSubscriptions);
             }
 
+            // wait 
+            await Task.Delay(kDelay).ConfigureAwait(false);
+
             // transfer restored subscriptions
             var result = targetSession.TransferSubscriptions(transferSubscriptions, sendInitialValues);
             Assert.IsTrue(result);
@@ -563,12 +593,16 @@ namespace Opc.Ua.Client.Tests
                 Assert.IsTrue(transferSubscriptions[ii].Created);
             }
 
+            TestContext.Out.WriteLine("TargetSession is now SessionId={0}", targetSession.SessionId);
+
             // wait for some events
-            await Task.Delay(5_000).ConfigureAwait(false);
+            await Task.Delay(kDelay).ConfigureAwait(false);
 
             // stop publishing
             foreach (var subscription in transferSubscriptions)
             {
+                TestContext.Out.WriteLine("SetPublishingMode(false) for SessionId={0}, SubscriptionId={1}",
+                    subscription.Session.SessionId, subscription.Id);
                 subscription.SetPublishingMode(false);
             }
 
@@ -578,8 +612,8 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine("Subscription {0}: OriginCounts {1}, TargetCounts {2} ",
                     jj, originSubscriptionCounters[jj], targetSubscriptionCounters[jj]);
                 var monitoredItemCount = transferSubscriptions[jj].MonitoredItemCount;
-                var originExpectedCount = sendInitialValues && !closeOriginSession ? monitoredItemCount * 2 : monitoredItemCount;
-                var targetExpectedCount = sendInitialValues && closeOriginSession ? monitoredItemCount : 0;
+                var originExpectedCount = sendInitialValues && originSessionOpen ? monitoredItemCount * 2 : monitoredItemCount;
+                var targetExpectedCount = sendInitialValues && !originSessionOpen ? monitoredItemCount : 0;
                 if (jj == 0)
                 {
                     // static nodes, expect only one set of changes, another one if send initial values was set
@@ -596,7 +630,7 @@ namespace Opc.Ua.Client.Tests
 
             // close sessions
             targetSession.Close();
-            if (!closeOriginSession)
+            if (originSessionOpen)
             {
                 originSession.Close();
             }

@@ -267,7 +267,7 @@ namespace Opc.Ua.Client
                 PublishingEnabled = true
             };
         }
-
+        
         /// <summary>
         /// Check if all required configuration fields are populated.
         /// </summary>
@@ -620,6 +620,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// If the subscriptions are deleted when a session is closed. 
         /// </summary>
+        /// <remarks>
+        /// Default <c>true</c>, set to <c>false</c> if subscriptions need to
+        /// be transferred or for durable subscriptions.
+        /// </remarks>   
         public bool DeleteSubscriptionsOnClose
         {
             get { return m_deleteSubscriptionsOnClose; }
@@ -1315,12 +1319,13 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Load the list of subscriptions saved in a file.
+        /// Load the list of subscriptions saved in a stream.
         /// </summary>
         /// <param name="stream">The stream.</param>
         /// <returns>The list of loaded subscriptions</returns>
         public IEnumerable<Subscription> Load(Stream stream)
         {
+            // secure settings
             XmlReaderSettings settings = new XmlReaderSettings {
                 DtdProcessing = DtdProcessing.Prohibit,
                 XmlResolver = null,
@@ -3420,34 +3425,51 @@ namespace Opc.Ua.Client
                 }
                 if (subscription.TransferId == 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing Id."));
+                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing transfer Id."));
                 }
                 subscriptionIds.Add(subscription.TransferId);
             }
 
-            ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
-            if (!StatusCode.IsGood(responseHeader.ServiceResult))
+            lock (SyncRoot)
             {
-                Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
-                return false;
-            }
-
-            ClientBase.ValidateResponse(results, subscriptionIds);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
-
-            for (int ii = 0; ii < subscriptions.Count; ii++)
-            {
-                if (StatusCode.IsGood(results[ii].StatusCode))
+                ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
+                if (!StatusCode.IsGood(responseHeader.ServiceResult))
                 {
-                    subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers);
+                    Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
+                    return false;
+                }
+
+                ClientBase.ValidateResponse(results, subscriptionIds);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+
+                for (int ii = 0; ii < subscriptions.Count; ii++)
+                {
+                    if (StatusCode.IsGood(results[ii].StatusCode))
+                    {
+                        if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
+                        {   // create ack for available sequence numbers
+                            foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
+                            {
+                                var ack = new SubscriptionAcknowledgement() {
+                                    SubscriptionId = subscriptionIds[ii],
+                                    SequenceNumber = sequenceNumber
+                                };
+                                m_acknowledgementsToSend.Add(ack);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
+                    }
                 }
             }
 
             return true;
         }
-        #endregion
+#endregion
 
-        #region Browse Methods
+#region Browse Methods
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
@@ -3590,9 +3612,9 @@ namespace Opc.Ua.Client
 
             return responseHeader;
         }
-        #endregion
+#endregion
 
-        #region BrowseNext Methods
+#region BrowseNext Methods
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
@@ -3682,9 +3704,9 @@ namespace Opc.Ua.Client
 
             return responseHeader;
         }
-        #endregion
+#endregion
 
-        #region Call Methods
+#region Call Methods
         /// <summary>
         /// Calls the specified method and returns the output arguments.
         /// </summary>
@@ -3739,9 +3761,9 @@ namespace Opc.Ua.Client
 
             return outputArguments;
         }
-        #endregion
+#endregion
 
-        #region Protected Methods
+#region Protected Methods
         /// <summary>
         /// Returns the software certificates assigned to the application.
         /// </summary>
@@ -4111,9 +4133,9 @@ namespace Opc.Ua.Client
             }
             return removed;
         }
-        #endregion
+#endregion
 
-        #region Publish Methods
+#region Publish Methods
         /// <summary>
         /// Sends an additional publish request.
         /// </summary>
@@ -4153,8 +4175,11 @@ namespace Opc.Ua.Client
             state.RequestId = requestHeader.RequestHandle;
             state.Timestamp = DateTime.UtcNow;
 
+            CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
+
             try
             {
+
                 IAsyncResult result = BeginPublish(
                     requestHeader,
                     acknowledgementsToSend,
@@ -4162,8 +4187,6 @@ namespace Opc.Ua.Client
                     new object[] { SessionId, acknowledgementsToSend, requestHeader });
 
                 AsyncRequestStarted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
-
-                Utils.LogTrace("PUBLISH #{0} SENT", requestHeader.RequestHandle);
 
                 return result;
             }
@@ -4188,10 +4211,10 @@ namespace Opc.Ua.Client
 
             AsyncRequestCompleted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
 
+            CoreClientUtils.EventLog.PublishStop((int)requestHeader.RequestHandle);
+
             try
             {
-                Utils.LogTrace("PUBLISH #{0} RECEIVED", requestHeader.RequestHandle);
-
                 // complete publish.
                 uint subscriptionId;
                 UInt32Collection availableSequenceNumbers;
@@ -4223,7 +4246,7 @@ namespace Opc.Ua.Client
                     return;
                 }
 
-                Utils.LogTrace("NOTIFICATION RECEIVED: SubId={0}, SeqNo={1}", subscriptionId, notificationMessage.SequenceNumber);
+                CoreClientUtils.EventLog.NotificationReceived((int)subscriptionId, (int)notificationMessage.SequenceNumber);
 
                 // process response.
                 ProcessPublishResponse(
@@ -4316,6 +4339,8 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadNoSubscription:
                     case StatusCodes.BadSessionClosed:
                     case StatusCodes.BadSessionIdInvalid:
+                    case StatusCodes.BadSecureChannelIdInvalid:
+                    case StatusCodes.BadSecureChannelClosed:
                     case StatusCodes.BadServerHalted:
                         return;
                 }
@@ -4341,11 +4366,11 @@ namespace Opc.Ua.Client
         public bool Republish(uint subscriptionId, uint sequenceNumber)
         {
             // send publish request.
-            RequestHeader requestHeader = new RequestHeader();
-
-            requestHeader.TimeoutHint = (uint)OperationTimeout;
-            requestHeader.ReturnDiagnostics = (uint)(int)ReturnDiagnostics;
-            requestHeader.RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter);
+            RequestHeader requestHeader = new RequestHeader {
+                TimeoutHint = (uint)OperationTimeout,
+                ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
+                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
+            };
 
             try
             {
@@ -4360,7 +4385,7 @@ namespace Opc.Ua.Client
                     sequenceNumber,
                     out notificationMessage);
 
-                Utils.LogInfo("Received Republish for {0}-{1}", subscriptionId, sequenceNumber);
+                Utils.LogInfo("Received Republish for {0}-{1}-{2}", subscriptionId, sequenceNumber, responseHeader.ServiceResult);
 
                 // process response.
                 ProcessPublishResponse(
@@ -4577,12 +4602,20 @@ namespace Opc.Ua.Client
             }
             else
             {
-                // Delete abandoned subscription from server.
-                Utils.LogWarning("Received Publish Response for Unknown SubscriptionId={0}. Deleting abandoned subscription from server.", subscriptionId);
+                if (m_deleteSubscriptionsOnClose)
+                {
+                    // Delete abandoned subscription from server.
+                    Utils.LogWarning("Received Publish Response for Unknown SubscriptionId={0}. Deleting abandoned subscription from server.", subscriptionId);
 
-                Task.Run(() => {
-                    DeleteSubscription(subscriptionId);
-                });
+                    Task.Run(() => {
+                        DeleteSubscription(subscriptionId);
+                    });
+                }
+                else
+                {
+                    // Do not delete publish requests of stale subscriptions
+                    Utils.LogWarning("Received Publish Response for Unknown SubscriptionId={0}. Ignored.", subscriptionId);
+                }
             }
         }
 
@@ -4695,9 +4728,9 @@ namespace Opc.Ua.Client
             return (m_tooManyPublishRequests == 0) ||
                 (requestCount < m_tooManyPublishRequests);
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
         private Dictionary<uint, uint> m_latestAcknowledgementsSent;
         private List<Subscription> m_subscriptions;
@@ -4752,16 +4785,16 @@ namespace Opc.Ua.Client
         private event PublishErrorEventHandler m_PublishError;
         private event EventHandler m_SubscriptionsChanged;
         private event EventHandler m_SessionClosing;
-        #endregion
+#endregion
     }
 
-    #region KeepAliveEventArgs Class
+#region KeepAliveEventArgs Class
     /// <summary>
     /// The event arguments provided when a keep alive response arrives.
     /// </summary>
     public class KeepAliveEventArgs : EventArgs
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -4774,9 +4807,9 @@ namespace Opc.Ua.Client
             m_currentState = currentState;
             m_currentTime = currentTime;
         }
-        #endregion
+#endregion
 
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
@@ -4800,29 +4833,29 @@ namespace Opc.Ua.Client
             get { return m_cancelKeepAlive; }
             set { m_cancelKeepAlive = value; }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private readonly ServiceResult m_status;
         private readonly ServerState m_currentState;
         private readonly DateTime m_currentTime;
         private bool m_cancelKeepAlive;
-        #endregion
+#endregion
     }
 
     /// <summary>
     /// The delegate used to receive keep alive notifications.
     /// </summary>
     public delegate void KeepAliveEventHandler(Session session, KeepAliveEventArgs e);
-    #endregion
+#endregion
 
-    #region NotificationEventArgs Class
+#region NotificationEventArgs Class
     /// <summary>
     /// Represents the event arguments provided when a new notification message arrives.
     /// </summary>
     public class NotificationEventArgs : EventArgs
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -4835,9 +4868,9 @@ namespace Opc.Ua.Client
             m_notificationMessage = notificationMessage;
             m_stringTable = stringTable;
         }
-        #endregion
+#endregion
 
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// Gets the subscription that the notification applies to.
         /// </summary>
@@ -4852,28 +4885,28 @@ namespace Opc.Ua.Client
         /// Gets the string table returned with the notification message.
         /// </summary>
         public IList<string> StringTable => m_stringTable;
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private readonly Subscription m_subscription;
         private readonly NotificationMessage m_notificationMessage;
         private readonly IList<string> m_stringTable;
-        #endregion
+#endregion
     }
 
     /// <summary>
     /// The delegate used to receive publish notifications.
     /// </summary>
     public delegate void NotificationEventHandler(Session session, NotificationEventArgs e);
-    #endregion
+#endregion
 
-    #region PublishErrorEventArgs Class
+#region PublishErrorEventArgs Class
     /// <summary>
     /// Represents the event arguments provided when a publish error occurs.
     /// </summary>
     public class PublishErrorEventArgs : EventArgs
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -4891,9 +4924,9 @@ namespace Opc.Ua.Client
             m_subscriptionId = subscriptionId;
             m_sequenceNumber = sequenceNumber;
         }
-        #endregion
+#endregion
 
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
@@ -4908,18 +4941,18 @@ namespace Opc.Ua.Client
         /// Gets the sequence number for the message that could not be republished.
         /// </summary>
         public uint SequenceNumber => m_sequenceNumber;
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private readonly uint m_subscriptionId;
         private readonly uint m_sequenceNumber;
         private readonly ServiceResult m_status;
-        #endregion
+#endregion
     }
 
     /// <summary>
     /// The delegate used to receive pubish error notifications.
     /// </summary>
     public delegate void PublishErrorEventHandler(Session session, PublishErrorEventArgs e);
-    #endregion
+#endregion
 }
