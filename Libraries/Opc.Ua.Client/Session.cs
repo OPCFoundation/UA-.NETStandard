@@ -267,7 +267,7 @@ namespace Opc.Ua.Client
                 PublishingEnabled = true
             };
         }
-        
+
         /// <summary>
         /// Check if all required configuration fields are populated.
         /// </summary>
@@ -3467,9 +3467,9 @@ namespace Opc.Ua.Client
 
             return true;
         }
-#endregion
+        #endregion
 
-#region Browse Methods
+        #region Browse Methods
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
@@ -3612,9 +3612,9 @@ namespace Opc.Ua.Client
 
             return responseHeader;
         }
-#endregion
+        #endregion
 
-#region BrowseNext Methods
+        #region BrowseNext Methods
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
@@ -3704,9 +3704,9 @@ namespace Opc.Ua.Client
 
             return responseHeader;
         }
-#endregion
+        #endregion
 
-#region Call Methods
+        #region Call Methods
         /// <summary>
         /// Calls the specified method and returns the output arguments.
         /// </summary>
@@ -3761,9 +3761,9 @@ namespace Opc.Ua.Client
 
             return outputArguments;
         }
-#endregion
+        #endregion
 
-#region Protected Methods
+        #region Protected Methods
         /// <summary>
         /// Returns the software certificates assigned to the application.
         /// </summary>
@@ -4133,9 +4133,9 @@ namespace Opc.Ua.Client
             }
             return removed;
         }
-#endregion
+        #endregion
 
-#region Publish Methods
+        #region Publish Methods
         /// <summary>
         /// Sends an additional publish request.
         /// </summary>
@@ -4728,9 +4728,9 @@ namespace Opc.Ua.Client
             return (m_tooManyPublishRequests == 0) ||
                 (requestCount < m_tooManyPublishRequests);
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
         private Dictionary<uint, uint> m_latestAcknowledgementsSent;
         private List<Subscription> m_subscriptions;
@@ -4785,16 +4785,16 @@ namespace Opc.Ua.Client
         private event PublishErrorEventHandler m_PublishError;
         private event EventHandler m_SubscriptionsChanged;
         private event EventHandler m_SessionClosing;
-#endregion
+        #endregion
     }
 
-#region KeepAliveEventArgs Class
+    #region KeepAliveEventArgs Class
     /// <summary>
     /// The event arguments provided when a keep alive response arrives.
     /// </summary>
     public class KeepAliveEventArgs : EventArgs
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -4807,9 +4807,9 @@ namespace Opc.Ua.Client
             m_currentState = currentState;
             m_currentTime = currentTime;
         }
-#endregion
+        #endregion
 
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
@@ -4833,29 +4833,29 @@ namespace Opc.Ua.Client
             get { return m_cancelKeepAlive; }
             set { m_cancelKeepAlive = value; }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private readonly ServiceResult m_status;
         private readonly ServerState m_currentState;
         private readonly DateTime m_currentTime;
         private bool m_cancelKeepAlive;
-#endregion
+        #endregion
     }
 
     /// <summary>
     /// The delegate used to receive keep alive notifications.
     /// </summary>
     public delegate void KeepAliveEventHandler(Session session, KeepAliveEventArgs e);
-#endregion
+    #endregion
 
-#region NotificationEventArgs Class
+    #region NotificationEventArgs Class
     /// <summary>
     /// Represents the event arguments provided when a new notification message arrives.
     /// </summary>
     public class NotificationEventArgs : EventArgs
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -4868,9 +4868,9 @@ namespace Opc.Ua.Client
             m_notificationMessage = notificationMessage;
             m_stringTable = stringTable;
         }
-#endregion
+        #endregion
 
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// Gets the subscription that the notification applies to.
         /// </summary>
@@ -4885,28 +4885,28 @@ namespace Opc.Ua.Client
         /// Gets the string table returned with the notification message.
         /// </summary>
         public IList<string> StringTable => m_stringTable;
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private readonly Subscription m_subscription;
         private readonly NotificationMessage m_notificationMessage;
         private readonly IList<string> m_stringTable;
-#endregion
+        #endregion
     }
 
     /// <summary>
     /// The delegate used to receive publish notifications.
     /// </summary>
     public delegate void NotificationEventHandler(Session session, NotificationEventArgs e);
-#endregion
+    #endregion
 
-#region PublishErrorEventArgs Class
+    #region PublishErrorEventArgs Class
     /// <summary>
     /// Represents the event arguments provided when a publish error occurs.
     /// </summary>
     public class PublishErrorEventArgs : EventArgs
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -4924,9 +4924,9 @@ namespace Opc.Ua.Client
             m_subscriptionId = subscriptionId;
             m_sequenceNumber = sequenceNumber;
         }
-#endregion
+        #endregion
 
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
@@ -4941,18 +4941,18 @@ namespace Opc.Ua.Client
         /// Gets the sequence number for the message that could not be republished.
         /// </summary>
         public uint SequenceNumber => m_sequenceNumber;
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private readonly uint m_subscriptionId;
         private readonly uint m_sequenceNumber;
         private readonly ServiceResult m_status;
-#endregion
+        #endregion
     }
 
     /// <summary>
     /// The delegate used to receive pubish error notifications.
     /// </summary>
     public delegate void PublishErrorEventHandler(Session session, PublishErrorEventArgs e);
-#endregion
+    #endregion
 }
