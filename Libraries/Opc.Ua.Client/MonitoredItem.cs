@@ -746,13 +746,15 @@ namespace Opc.Ua.Client
         /// </summary>
         public void SetTransferResult(uint clientHandle)
         {
+            // ensure the global counter is not duplicating future handle ids
+            Utils.LowerLimitIdentifier(ref s_GlobalClientHandle, clientHandle);
             m_clientHandle = clientHandle;  
             m_status.SetTransferResult(this);
             m_attributesModified = false;
         }
 
         /// <summary>
-        /// Updates the object with the results of a modify monitored item request.
+        /// Updates the object with the results of a delete monitored item request.
         /// </summary>
         public void SetDeleteResult(
             StatusCode result,

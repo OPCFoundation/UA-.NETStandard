@@ -53,18 +53,27 @@ namespace Opc.Ua.Client
     {
         private const int SubscriptionStateId = 1;
         private const int NotificationId = SubscriptionStateId + 1;
+        private const int NotificationReceivedId = NotificationId + 1;
+        private const int PublishStartId = NotificationId + 1;
+        private const int PublishStopId = PublishStartId + 1;
 
         /// <summary>
         /// The client messages.
         /// </summary>
         private const string SubscriptionStateMessage = "Subscription {0}, Id={1}, LastNotificationTime={2:HH:mm:ss}, GoodPublishRequestCount={3}, PublishingInterval={4}, KeepAliveCount={5}, PublishingEnabled={6}, MonitoredItemCount={7}";
         private const string NotificationMessage = "Notification: ClientHandle={0}, Value={1}";
+        private const string NotificationReceivedMessage = "NOTIFICATION RECEIVED: SubId={0}, SeqNo={1}";
+        private const string PublishStartMessage = "PUBLISH #{0} SENT";
+        private const string PublishStopMessage = "PUBLISH #{0} RECEIVED";
 
         /// <summary>
         /// The Client Event Ids used for event messages, when calling ILogger.
         /// </summary>
         private readonly EventId SubscriptionStateMessageEventId = new EventId(TraceMasks.Operation, nameof(SubscriptionState));
         private readonly EventId NotificationEventId = new EventId(TraceMasks.Operation, nameof(Notification));
+        private readonly EventId NotificationReceivedEventId = new EventId(TraceMasks.Operation, nameof(NotificationReceived));
+        private readonly EventId PublishStartEventId = new EventId(TraceMasks.ServiceDetail, nameof(PublishStart));
+        private readonly EventId PublishStopEventId = new EventId(TraceMasks.ServiceDetail, nameof(PublishStop));
 
         /// <summary>
         /// The state of the client subscription.
@@ -87,12 +96,61 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The state of the client subscription.
+        /// The notification message. Called internally to convert wrapped value.
         /// </summary>
         [Event(NotificationId, Message = NotificationMessage, Level = EventLevel.Verbose)]
         public void Notification(int clientHandle, string value)
         {
             WriteEvent(NotificationId, value, clientHandle);
+        }
+
+        /// <summary>
+        /// A notification received in Publish complete.
+        /// </summary>
+        [Event(NotificationReceivedId, Message = NotificationReceivedMessage, Level = EventLevel.Verbose)]
+        public void NotificationReceived(int subscriptionId, int sequenceNumber)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(NotificationReceivedId, subscriptionId, sequenceNumber);
+            }
+            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            {
+                Utils.LogTrace(NotificationReceivedEventId, NotificationReceivedMessage,
+                    subscriptionId, sequenceNumber);
+            }
+        }
+
+        /// <summary>
+        /// A Publish begin received.
+        /// </summary>
+        [Event(PublishStartId, Message = PublishStartMessage, Level = EventLevel.Verbose)]
+        public void PublishStart(int requestHandle)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(PublishStartId, requestHandle);
+            }
+            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            {
+                Utils.LogTrace(PublishStartEventId, PublishStartMessage, requestHandle);
+            }
+        }
+
+        /// <summary>
+        /// A Publish complete received.
+        /// </summary>
+        [Event(PublishStopId, Message = PublishStopMessage, Level = EventLevel.Verbose)]
+        public void PublishStop(int requestHandle)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(PublishStopId, requestHandle);
+            }
+            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            {
+                Utils.LogTrace(PublishStopEventId, PublishStopMessage, requestHandle);
+            }
         }
 
         /// <summary>
