@@ -1371,6 +1371,26 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Sets the identifier to a lower limit if smaller. Thread safe.
+        /// </summary>
+        /// <returns>Returns the new value.</returns>
+        public static uint LowerLimitIdentifier(ref long identifier, uint lowerLimit)
+        {
+            long value;
+            long exchangedValue;
+            do
+            {
+                value = System.Threading.Interlocked.Read(ref identifier);
+                exchangedValue = value;
+                if (value < lowerLimit)
+                {
+                    exchangedValue = System.Threading.Interlocked.CompareExchange(ref identifier, lowerLimit, value);
+                }
+            } while (exchangedValue != value);
+            return (uint)System.Threading.Interlocked.Read(ref identifier);
+        }
+
+        /// <summary>
         /// Increments a identifier (wraps around if max exceeded).
         /// </summary>
         public static uint IncrementIdentifier(ref long identifier)
