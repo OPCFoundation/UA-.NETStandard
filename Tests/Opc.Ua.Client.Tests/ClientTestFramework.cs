@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -55,21 +56,25 @@ namespace Opc.Ua.Client.Tests
         public const int TransportQuota_MaxStringLength = 1 * 1024 * 1024;
 
         public bool SingleSession { get; set; } = true;
-
-        protected ServerFixture<ReferenceServer> m_serverFixture;
-        protected ClientFixture m_clientFixture;
-        protected ReferenceServer m_server;
-        protected EndpointDescriptionCollection m_endpoints;
-        protected ReferenceDescriptionCollection m_referenceDescriptions;
-        protected Session m_session;
-        protected OperationLimits m_operationLimits;
-        protected string m_uriScheme;
-        protected string m_pkiRoot;
-        protected Uri m_url;
+        public bool SupportsExternalServerUrl { get; set; } = false;
+        public ServerFixture<ReferenceServer> ServerFixture { get; set; }
+        public ClientFixture ClientFixture { get; set; }
+        public ReferenceServer ReferenceServer { get; set; }
+        public EndpointDescriptionCollection Endpoints { get; set; }
+        public ReferenceDescriptionCollection ReferenceDescriptions { get; set; }
+        public Session Session { get; private set; }
+        public OperationLimits OperationLimits { get; private set; }
+        public string UriScheme { get; private set; }
+        public string PkiRoot { get; set; }
+        public Uri ServerUrl { get; private set; }
+        public ExpandedNodeId[] TestSetStatic { get; private set; }
+        public ExpandedNodeId[] TestSetSimulation { get; private set; }
 
         public ClientTestFramework(string uriScheme = Utils.UriSchemeOpcTcp)
         {
-            m_uriScheme = uriScheme;
+            UriScheme = uriScheme;
+            TestSetStatic = CommonTestWorkers.NodeIdTestSetStatic;
+            TestSetSimulation = CommonTestWorkers.NodeIdTestSetSimulation;
         }
 
         #region DataPointSources
@@ -94,40 +99,72 @@ namespace Opc.Ua.Client.Tests
         public async Task OneTimeSetUpAsync(TextWriter writer = null)
         {
             // pki directory root for test runs.
-            m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
+            PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
+            TestContext.Out.WriteLine("Using the Pki Root {0}", PkiRoot);
 
-            // start Ref server
-            m_serverFixture = new ServerFixture<ReferenceServer> {
-                UriScheme = m_uriScheme,
-                SecurityNone = true,
-                AutoAccept = true,
-                OperationLimits = true
-            };
-
-            if (writer != null)
+            // The parameters are read from the .runsettings file
+            string customUrl = null;
+            if (SupportsExternalServerUrl)
             {
-                m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
+                customUrl = TestContext.Parameters["ServerUrl"];
+                if (customUrl?.StartsWith(UriScheme, StringComparison.Ordinal) == true)
+                {
+                    TestContext.Out.WriteLine("Using the external Server Url {0}", customUrl);
+
+                    // load custom test sets
+                    TestSetStatic = ReadCustomTestSet("TestSetStatic");
+                    TestSetSimulation = ReadCustomTestSet("TestSetSimulation");
+                }
+                else
+                {
+                    customUrl = null;
+                }
             }
 
-            await m_serverFixture.LoadConfiguration(m_pkiRoot).ConfigureAwait(false);
-            m_serverFixture.Config.TransportQuotas.MaxMessageSize =
-            m_serverFixture.Config.TransportQuotas.MaxBufferSize = TransportQuota_MaxMessageSize;
-            m_serverFixture.Config.TransportQuotas.MaxByteStringLength =
-            m_serverFixture.Config.TransportQuotas.MaxStringLength = TransportQuota_MaxStringLength;
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            if (customUrl == null)
+            {
+                // start Ref server
+                ServerFixture = new ServerFixture<ReferenceServer> {
+                    UriScheme = UriScheme,
+                    SecurityNone = true,
+                    AutoAccept = true,
+                    OperationLimits = true
+                };
 
-            m_clientFixture = new ClientFixture();
-            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
-            m_clientFixture.Config.TransportQuotas.MaxMessageSize =
-            m_clientFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
-            m_clientFixture.Config.TransportQuotas.MaxByteStringLength =
-            m_clientFixture.Config.TransportQuotas.MaxStringLength = 1 * 1024 * 1024;
-            m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
+                if (writer != null)
+                {
+                    ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
+                }
+
+                await ServerFixture.LoadConfiguration(PkiRoot).ConfigureAwait(false);
+                ServerFixture.Config.TransportQuotas.MaxMessageSize =
+                ServerFixture.Config.TransportQuotas.MaxBufferSize = TransportQuota_MaxMessageSize;
+                ServerFixture.Config.TransportQuotas.MaxByteStringLength =
+                ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuota_MaxStringLength;
+                ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            }
+
+            ClientFixture = new ClientFixture();
+            await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
+            ClientFixture.Config.TransportQuotas.MaxMessageSize =
+            ClientFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
+            ClientFixture.Config.TransportQuotas.MaxByteStringLength =
+            ClientFixture.Config.TransportQuotas.MaxStringLength = 1 * 1024 * 1024;
+
+            if (!string.IsNullOrEmpty(customUrl))
+            {
+                ServerUrl = new Uri(customUrl);
+            }
+            else
+            {
+                ServerUrl = new Uri(UriScheme + "://localhost:" + ServerFixture.Port.ToString(CultureInfo.InvariantCulture));
+            }
+
             if (SingleSession)
             {
                 try
                 {
-                    m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                    Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -141,14 +178,17 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task OneTimeTearDownAsync()
         {
-            if (m_session != null)
+            if (Session != null)
             {
-                m_session.Close();
-                m_session.Dispose();
-                m_session = null;
+                Session.Close();
+                Session.Dispose();
+                Session = null;
             }
-            await m_serverFixture.StopAsync().ConfigureAwait(false);
-            await Task.Delay(100).ConfigureAwait(false);
+            if (ServerFixture != null)
+            {
+                await ServerFixture.StopAsync().ConfigureAwait(false);
+                await Task.Delay(100).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -160,14 +200,21 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                    Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
                     Assert.Ignore("OneTimeSetup failed to create session, tests skipped. Error: {0}", e.Message);
                 }
             }
-            m_serverFixture.SetTraceOutput(TestContext.Out);
+            if (ServerFixture == null)
+            {
+                ClientFixture.SetTraceOutput(TestContext.Out);
+            }
+            else
+            {
+                ServerFixture.SetTraceOutput(TestContext.Out);
+            }
         }
 
         /// <summary>
@@ -175,13 +222,35 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public Task TearDown()
         {
-            if (!SingleSession && m_session != null)
+            if (!SingleSession && Session != null)
             {
-                m_session.Close();
-                m_session.Dispose();
-                m_session = null;
+                Session.Close();
+                Session.Dispose();
+                Session = null;
             }
             return Task.CompletedTask;
+        }
+        #endregion
+
+        #region Nodes Test Set
+        /// <summary>
+        /// Return a test set of nodes with static character.
+        /// </summary>
+        /// <param name="namespaceUris">The namesapce table used in the session.</param>
+        /// <returns>The list of static test nodes.</returns>
+        public IList<NodeId> GetTestSetStatic(NamespaceTable namespaceUris)
+        {
+            return TestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+        }
+
+        /// <summary>
+        /// Return a test set of nodes with simulated values.
+        /// </summary>
+        /// <param name="namespaceUris">The namesapce table used in the session.</param>
+        /// <returns>The list of simulated test nodes.</returns>
+        public IList<NodeId> GetTestSetSimulation(NamespaceTable namespaceUris)
+        {
+            return TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
         }
         #endregion
 
@@ -205,7 +274,7 @@ namespace Opc.Ua.Client.Tests
             Console.WriteLine("GlobalSetup: Start Server");
             OneTimeSetUpAsync(Console.Out).GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
-            m_session = m_clientFixture.ConnectAsync(m_url, SecurityPolicy).GetAwaiter().GetResult();
+            Session = ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Ready");
         }
 
@@ -237,14 +306,14 @@ namespace Opc.Ua.Client.Tests
                 MaxNodesPerTranslateBrowsePathsToNodeIds = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds),
                 MaxNodesPerMethodCall = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall)
             };
-            m_operationLimits = operationLimits;
+            OperationLimits = operationLimits;
         }
 
         public uint GetOperationLimitValue(NodeId nodeId)
         {
             try
             {
-                return (uint)m_session.ReadValue(nodeId).Value;
+                return (uint)Session.ReadValue(nodeId).Value;
             }
             catch (ServiceResultException sre)
             {
@@ -269,6 +338,26 @@ namespace Opc.Ua.Client.Tests
             writer.WriteLine("LastNotification        : {0}", subscription.LastNotification);
             writer.WriteLine("Notifications           : {0}", subscription.Notifications.Count());
             writer.WriteLine("OutstandingMessageWorker: {0}", subscription.OutstandingMessageWorkers);
+        }
+        #endregion
+
+        #region Private Methods
+        private ExpandedNodeId[] ReadCustomTestSet(string param)
+        {
+            // load custom test sets
+            var testSetParameter = TestContext.Parameters[param];
+            var testSetParameters = testSetParameter.Split('#');
+            if (testSetParameters != null)
+            {
+                // parse the custom content
+                var testSet = new List<ExpandedNodeId>();
+                foreach (var parameter in testSetParameters)
+                {
+                    testSet.Add(ExpandedNodeId.Parse(parameter));
+                }
+                return testSet.ToArray();
+            }
+            return Array.Empty<ExpandedNodeId>();
         }
         #endregion
     }
