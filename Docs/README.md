@@ -1,4 +1,4 @@
-# .NET Standard UA stack documentation #
+# OPC UA .NET Standard stack documentation #
 
 ## Overview  ##
 
@@ -12,10 +12,12 @@ UA Core stack related:
 
 Reference application related:
 * [Reference Server](../Applications/ReferenceServer/README.md) documentation for running against CTT.
-* Using the [Docker container of the Reference Server](DockerReferenceServer.md) for local testing.
+* Using the [Container support](ContainerReferenceServer.md) of the Reference Server in VS2022 and for local testing.
 
 For the PubSub support library:
 * The [PubSub](PubSub.md) library with samples.
-* The [ConsoleReferencePublisher](../Applications/ConsoleReferencePublisher/Readme.md) documentation.
-* The [ConsoleReferenceSubscriber](../Applications/ConsoleReferenceSubscriber/Readme.md) documentation.
+* The [ConsoleReferencePublisher](../Applications/ConsoleReferencePublisher/README.md) documentation.
+* The [ConsoleReferenceSubscriber](../Applications/ConsoleReferenceSubscriber/README.md) documentation.
+
+
   
