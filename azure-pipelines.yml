@@ -23,6 +23,9 @@ pr:
     include:
     - '*' 
 
+variables:
+  FullBuild: $[or(ne(variables['Build.Reason'], 'PullRequest'), eq( variables['LOCALPR'], ''))]
+
 stages:
 - stage: build
   displayName: 'Build .Net Core Samples'
@@ -31,6 +34,7 @@ stages:
 - stage: buildnohttps
   dependsOn: []
   displayName: 'Build NoHttps .Net Core Samples'
+  condition: and(succeeded(), eq(variables.FullBuild, 'true'))
   jobs:
   - template: .azurepipelines/ci.yml
     parameters:
@@ -51,6 +55,7 @@ stages:
 - stage: testrelease
   dependsOn: [build]
   displayName: 'Test Core and SDK Release'
+  condition: and(succeeded(), eq(variables.FullBuild, 'true'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -69,9 +74,21 @@ stages:
       framework: net6.0
       agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"; mac = "macOS-11"}'
       jobnamesuffix: net60
+- stage: testreleasepr
+  dependsOn: []
+  displayName: 'Fast PR Test Core and SDK Release'
+  condition: and(succeeded(), ne(variables.FullBuild, 'true'))
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      framework: net6.0
+      agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"}'
+      jobnamesuffix: net60pr
 - stage: testdebug
   dependsOn: [build]
   displayName: 'Test Core and SDK Debug'
+  condition: and(succeeded(), eq(variables.FullBuild, 'true'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -80,7 +97,7 @@ stages:
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
-  condition: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
+  condition: and(succeeded(), eq(variables.FullBuild, 'true'))
   jobs:
   - template: .azurepipelines/testcc.yml
     parameters:
