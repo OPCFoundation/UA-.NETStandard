@@ -239,6 +239,7 @@
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
+    
     <!--  Reverse connection parameters for aggregation server sample -->
     <!--
     <ReverseConnect>
@@ -264,10 +265,10 @@
       <MaxNodesPerHistoryUpdateEvents>1000</MaxNodesPerHistoryUpdateEvents>
       <MaxNodesPerMethodCall>2500</MaxNodesPerMethodCall>
       <MaxNodesPerBrowse>2500</MaxNodesPerBrowse>
-      <MaxNodesPerRegisterNodes>1000</MaxNodesPerRegisterNodes>
-      <MaxNodesPerTranslateBrowsePathsToNodeIds>1000</MaxNodesPerTranslateBrowsePathsToNodeIds>
-      <MaxNodesPerNodeManagement>1000</MaxNodesPerNodeManagement>
-      <MaxMonitoredItemsPerCall>1000</MaxMonitoredItemsPerCall>
+      <MaxNodesPerRegisterNodes>2500</MaxNodesPerRegisterNodes>
+      <MaxNodesPerTranslateBrowsePathsToNodeIds>2500</MaxNodesPerTranslateBrowsePathsToNodeIds>
+      <MaxNodesPerNodeManagement>2500</MaxNodesPerNodeManagement>
+      <MaxMonitoredItemsPerCall>2500</MaxMonitoredItemsPerCall>
     </OperationLimits>
 
   </ServerConfiguration>
