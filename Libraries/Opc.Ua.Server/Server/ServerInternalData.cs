@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -602,6 +602,20 @@ namespace Opc.Ua.Server
                     operationLimits.MaxNodesPerNodeManagement =
                     operationLimits.MaxMonitoredItemsPerCall = null;
                 }
+
+                // setup PublishSubscribe Status State value
+                PubSubState pubSubState = PubSubState.Disabled;
+                
+                var default_PubSubState = (BaseVariableState)m_diagnosticsNodeManager.FindPredefinedNode(
+                    VariableIds.PublishSubscribe_Status_State,
+                    typeof(BaseVariableState));
+                default_PubSubState.Value = pubSubState;
+
+                // setup value for SupportedTransportProfiles
+                var default_SupportedTransportProfiles = (BaseVariableState)m_diagnosticsNodeManager.FindPredefinedNode(
+                   VariableIds.PublishSubscribe_SupportedTransportProfiles,
+                   typeof(BaseVariableState));
+                default_SupportedTransportProfiles.Value = "uadp";
 
                 // setup callbacks for dynamic values.
                 serverObject.NamespaceArray.OnSimpleReadValue = OnReadNamespaceArray;

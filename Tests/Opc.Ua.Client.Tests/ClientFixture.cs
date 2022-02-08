@@ -28,7 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -42,6 +45,7 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ClientFixture
     {
+        private NUnitTraceLogger m_traceLogger;
         public ApplicationConfiguration Config { get; private set; }
         public ConfiguredEndpoint Endpoint { get; private set; }
         public string EndpointUrl { get; private set; }
@@ -49,7 +53,7 @@ namespace Opc.Ua.Client.Tests
         public ReverseConnectManager ReverseConnectManager { get; private set; }
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
-        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
+        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
 
         #region Public Methods
         /// <summary>
@@ -292,6 +296,21 @@ namespace Opc.Ua.Client.Tests
             using (var client = DiscoveryClient.Create(url, endpointConfiguration))
             {
                 return await client.GetEndpointsAsync(null).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Connect the nunit writer with the logger.
+        /// </summary>
+        public void SetTraceOutput(TextWriter writer)
+        {
+            if (m_traceLogger == null)
+            {
+                m_traceLogger = NUnitTraceLogger.Create(writer, Config, TraceMasks);
+            }
+            else
+            {
+                m_traceLogger.SetWriter(writer);
             }
         }
         #endregion

@@ -583,6 +583,17 @@ namespace Opc.Ua.Server
                 m_predefinedNodes = new NodeIdDictionary<NodeState>();
             }
 
+            // assign a default value to any variable in namespace 0
+            if (node is BaseVariableState nodeStateVar)
+            {
+                if (nodeStateVar.NodeId.NamespaceIndex == 0 && nodeStateVar.Value == null)
+                {
+                    nodeStateVar.Value = TypeInfo.GetDefaultValue(nodeStateVar.DataType,
+                        nodeStateVar.ValueRank,
+                        Server.TypeTree);
+                }
+            }
+
             NodeState activeNode = AddBehaviourToPredefinedNode(context, node);
             m_predefinedNodes[activeNode.NodeId] = activeNode;
 
@@ -3618,7 +3629,17 @@ namespace Opc.Ua.Server
                 0);
 
             // report the initial value.
-            ReadInitialValue(context, handle, datachangeItem);
+            error = ReadInitialValue(context, handle, datachangeItem);
+            if (ServiceResult.IsBad(error))
+            {
+                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
+                {
+                    return error;
+                }
+                error = StatusCodes.Good;
+            }
 
             // update monitored item list.
             monitoredItem = datachangeItem;
