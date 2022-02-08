@@ -23,6 +23,9 @@ pr:
     include:
     - '*' 
 
+variables:
+  FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), eq( variables['LOCALPR'], '')) }}
+
 stages:
 - stage: build
   displayName: 'Build .Net Core Samples'
@@ -31,6 +34,7 @@ stages:
 - stage: buildnohttps
   dependsOn: []
   displayName: 'Build NoHttps .Net Core Samples'
+  condition: variables['FullBuild']
   jobs:
   - template: .azurepipelines/ci.yml
     parameters:
@@ -45,6 +49,7 @@ stages:
       poolImage: 'windows-2022'
       jobnamesuffix: win2022
   - template: .azurepipelines/sln.yml
+    condition: variables['FullBuild']
     parameters:
       poolImage: 'windows-2019'
       jobnamesuffix: win2019
@@ -53,12 +58,14 @@ stages:
   displayName: 'Test Core and SDK Release'
   jobs:
   - template: .azurepipelines/test.yml
+    condition: variables['FullBuild']
     parameters:
       configuration: Release
       framework: net462
       agents: '@{ windows = "windows-2019" }'
       jobnamesuffix: net462
   - template: .azurepipelines/test.yml
+    condition: variables['FullBuild']    
     parameters:
       configuration: Release
       framework: netcoreapp3.1
@@ -72,6 +79,7 @@ stages:
 - stage: testdebug
   dependsOn: [build]
   displayName: 'Test Core and SDK Debug'
+  condition: variables['FullBuild']    
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -80,7 +88,7 @@ stages:
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
-  condition: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
+  condition: variables['FullBuild']    
   jobs:
   - template: .azurepipelines/testcc.yml
     parameters:
