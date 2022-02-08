@@ -2,7 +2,7 @@
 # Official OPC UA .NET Standard Stack from the OPC Foundation
 
 ## Overview
-This OPC UA reference implementation is targeting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) specification.
+This OPC UA reference implementation is targeting the [.NET Standard](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) specification.
 
 .NET Standard allows to develop apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10/11 (including embedded/IoT editions) without requiring platform-specific modifications. 
 
@@ -10,7 +10,7 @@ One of the reference implementations inside this project has been certified for 
 
 Furthermore, cloud applications and services (such as ASP.NET, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported.
 
-More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) packages can be found in the [OPC UA .NET Standard Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository. For development there is also a [preview Nuget feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local) available. For local testing a [Docker container of the Reference Server](Docs/DockerReferenceServer.md) is available from preview and release builds.
+More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) packages can be found in the [OPC UA .NET Standard Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository. For development there is also a [preview Nuget feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local) available. For local testing a [Docker container of the Reference Server](Docs/ContainerReferenceServer.md) is available for preview and release builds.
 
 ## For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandard).
 
@@ -18,26 +18,32 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 
 #### Core and Libraries
 
-1. Fully ported Core OPC UA Stack and Libraries (Client, Server, Configuration, Complex Types & GDS assemblies).
-2. Reference sample Server and Client. 
-3. X.509 [Certificate](Docs/Certificates.md) support for client and server authentication.
-4. SHA-2 support (up to SHA512) including security profile Basic256Sha256, Aes128Sha256RsaOaep and  Aes256Sha256RsaPss for configurations with high security needs.
-5. Anonymous, username and X.509 certificate user authentication.
-6. UA-TCP & HTTPS transports (client and server).
-7. [Reverse Connect](Docs/ReverseConnect.md) for the UA-TCP transport (client and server).
-8. Folder & OS-level (X509Store) [Certificate Stores](Docs/Certificates.md) with *Global Discovery Server* and *Server Push* support.
-9. Sessions and Subscriptions, including recently added [TransferSubscriptions](Docs/TransferSubscription.md) support.
-10. A [PubSub](Docs/PubSub.md) library with samples.
-11. Improved support for [Logging](Docs/Logging.md) with `ILogger` and `EventSource`. 
+* Fully ported Core OPC UA Stack and Libraries (Client, Server, Configuration, Complex Types & GDS assemblies).
+* Reference sample Server and Client. 
+* X.509 [Certificate](Docs/Certificates.md) support for client and server authentication.
+* SHA-2 support (up to SHA512) including security profile Basic256Sha256, Aes128Sha256RsaOaep and  Aes256Sha256RsaPss for configurations with high security needs.
+* Anonymous, username and X.509 certificate user authentication.
+* UA-TCP & HTTPS transports (client and server).
+* [Reverse Connect](Docs/ReverseConnect.md) for the UA-TCP transport (client and server).
+* Folder & OS-level (X509Store) [Certificate Stores](Docs/Certificates.md) with *Global Discovery Server* and *Server Push* support.
+* Sessions and Subscriptions.
+* A [PubSub](Docs/PubSub.md) library with samples.
+
+#### **New in 1.4.368**
+* Improved support for [Logging](Docs/Logging.md) with `ILogger` and `EventSource`. 
+* Support for custom certificate stores with refactored `ICertificateStore` and `CertificateStoreType` interface.
+* Client and Server support for [TransferSubscriptions](Docs/TransferSubscription.md).
+* How to use [Container support](Docs/ContainerReferenceServer.md) with reference server.
 
 #### Samples and Nuget packages
 
-11. OPC UA [Reference Server](Applications/ReferenceServer) and [Reference Client](Applications/ReferenceClient) for .NET Framework.
-12. OPC UA [Console Reference Server](Applications/ConsoleReferenceServer) for .NET Core.
-13. The OPC UA [Reference Server](Applications/ReferenceServer/README.md) has been certified for compliance through an OPC Foundation Certification Test Lab. Fixes and enhancements since the certification process have been tested and verified for compliance using the [Compliance Test Tool (CTT)] (https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/). 
+* OPC UA [Reference Server](Applications/ReferenceServer) and [Reference Client](Applications/ReferenceClient) for .NET Framework.
+* OPC UA [Console Reference Server](Applications/ConsoleReferenceServer) for .NET Core. A Linux Container of the latest builds is available [here](https://github.com/OPCFoundation/UA-.NETStandard/pkgs/container/uanetstandard%2Frefserver). See also [Container support](Docs/ContainerReferenceServer.md).
+* The OPC UA [Reference Server](Applications/ReferenceServer/README.md) has been certified for compliance through an OPC Foundation Certification Test Lab. Fixes and enhancements since the certification process have been tested and verified for compliance using the [Compliance Test Tool (CTT)](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/). 
     All releases are verified for compliance with the latest official Compliance Test Tool by the maintainers.
-14. OPC UA [Console Reference Publisher](Applications/ConsoleReferencePublisher/README.md) and [Console Reference Subscriber](Applications/ConsoleReferenceSubscriber/README.md) for .NET Core and .NET Framework.
-15. An official OPC UA [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) package of the core, client, server and configuration libraries is available for integration in .NET projects. Note: The package has been split into [Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/), [Client](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/) and [Server](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Server/) packages to reduce the dependencies in projects where only client or server is needed. The [https binding](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Https/) is now a seperate optional package.
+* OPC UA [Console Reference Publisher](Applications/ConsoleReferencePublisher/README.md) and [Console Reference Subscriber](Applications/ConsoleReferenceSubscriber/README.md) for .NET Core and .NET Framework.
+* An official OPC UA [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) package of the core, client, server and configuration libraries is available for integration in .NET projects. Note: The package has been split into [Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/), [Client](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/) and [Server](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Server/) packages to reduce the dependencies in projects where only client or server is needed. The [https binding](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Https/) is now a seperate optional package.
+* A [preview Nuget feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local) is available from Azure Devops.
 
 ## Project Information
 
