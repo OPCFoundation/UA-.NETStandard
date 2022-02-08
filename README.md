@@ -2,7 +2,7 @@
 # Official OPC UA .NET Standard Stack from the OPC Foundation
 
 ## Overview
-This OPC UA reference implementation is targeting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) specification.
+This OPC UA reference implementation is targeting the [.NET Standard](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) specification.
 
 .NET Standard allows to develop apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10/11 (including embedded/IoT editions) without requiring platform-specific modifications. 
 
@@ -10,7 +10,7 @@ One of the reference implementations inside this project has been certified for 
 
 Furthermore, cloud applications and services (such as ASP.NET, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported.
 
-More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) packages can be found in the [OPC UA .NET Standard Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository. For development there is also a [preview Nuget feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local) available. For local testing a [Docker container of the Reference Server](Docs/DockerReferenceServer.md) is available from preview and release builds.
+More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) packages can be found in the [OPC UA .NET Standard Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository. For development there is also a [preview Nuget feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local) available. For local testing a [Docker container of the Reference Server](Docs/ContainerReferenceServer.md) is available for preview and release builds.
 
 ## For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandard).
 
@@ -26,9 +26,14 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 6. UA-TCP & HTTPS transports (client and server).
 7. [Reverse Connect](Docs/ReverseConnect.md) for the UA-TCP transport (client and server).
 8. Folder & OS-level (X509Store) [Certificate Stores](Docs/Certificates.md) with *Global Discovery Server* and *Server Push* support.
-9. Sessions and Subscriptions, including recently added [TransferSubscriptions](Docs/TransferSubscription.md) support.
+9. Sessions and Subscriptions.
 10. A [PubSub](Docs/PubSub.md) library with samples.
+
+#### **New in 1.4.368**
 11. Improved support for [Logging](Docs/Logging.md) with `ILogger` and `EventSource`. 
+14. Support for custom certificate stores with refactored `ICertificateStore` and `CertificateStoreType` interface.
+15. Client and Server support for [TransferSubscriptions](Docs/TransferSubscription.md).
+16. Container samples for reference server (Docs/ContainerReferenceServer.md).
 
 #### Samples and Nuget packages
 
