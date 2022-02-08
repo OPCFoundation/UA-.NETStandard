@@ -49,23 +49,21 @@ stages:
       poolImage: 'windows-2022'
       jobnamesuffix: win2022
   - template: .azurepipelines/sln.yml
-    condition: variables['FullBuild']
     parameters:
       poolImage: 'windows-2019'
       jobnamesuffix: win2019
 - stage: testrelease
   dependsOn: [build]
   displayName: 'Test Core and SDK Release'
+  condition: variables['FullBuild']    
   jobs:
   - template: .azurepipelines/test.yml
-    condition: variables['FullBuild']
     parameters:
       configuration: Release
       framework: net462
       agents: '@{ windows = "windows-2019" }'
       jobnamesuffix: net462
   - template: .azurepipelines/test.yml
-    condition: variables['FullBuild']    
     parameters:
       configuration: Release
       framework: netcoreapp3.1
@@ -76,6 +74,17 @@ stages:
       framework: net6.0
       agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"; mac = "macOS-11"}'
       jobnamesuffix: net60
+- stage: testreleasepr
+  dependsOn: []
+  displayName: 'Fast PR Test Core and SDK Release'
+  condition: ne(variables['FullBuild'],'true')    
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      framework: net6.0
+      agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"}'
+      jobnamesuffix: net60pr
 - stage: testdebug
   dependsOn: [build]
   displayName: 'Test Core and SDK Debug'
