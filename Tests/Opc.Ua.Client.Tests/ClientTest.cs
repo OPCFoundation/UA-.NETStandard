@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(session);
 
             ManualResetEvent quitEvent = new ManualResetEvent(false);
-            var reconnectHandler = new SessionReconnectHandler();
+            var reconnectHandler = new SessionReconnectHandler(new DefaultSessionFactory());
             reconnectHandler.BeginReconnect(session, Timeout / 5,
                 (object sender, EventArgs e) => {
                     // ignore callbacks from discarded objects.
@@ -325,7 +325,7 @@ namespace Opc.Ua.Client.Tests
             requestHeader.TimeoutHint = MaxTimeout;
 
             // Session
-            Session session;
+            ISession session;
             if (securityPolicy != null)
             {
                 session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints).ConfigureAwait(false);
@@ -636,7 +636,7 @@ namespace Opc.Ua.Client.Tests
         [NonParallelizable]
         public async Task TransferSubscriptionNative(bool sendInitialData)
         {
-            Session transferSession = null;
+            ISession transferSession = null;
             try
             {
                 var requestHeader = new RequestHeader {

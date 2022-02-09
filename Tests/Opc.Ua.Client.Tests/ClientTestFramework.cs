@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Tests
         protected ReferenceServer m_server;
         protected EndpointDescriptionCollection m_endpoints;
         protected ReferenceDescriptionCollection m_referenceDescriptions;
-        protected Session m_session;
+        protected ISession m_session;
         protected OperationLimits m_operationLimits;
         protected string m_uriScheme;
         protected string m_pkiRoot;

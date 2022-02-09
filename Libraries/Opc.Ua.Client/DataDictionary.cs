@@ -47,7 +47,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public DataDictionary(Session session)
+        public DataDictionary(ISession session)
         {
             Initialize();
             m_session = session;
@@ -327,7 +327,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Members
-        private Session m_session;
+        private ISession m_session;
         private SchemaValidator m_validator;
         #endregion
     }

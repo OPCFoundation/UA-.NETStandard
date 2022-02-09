@@ -43,11 +43,11 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public partial class Session : SessionClient, IDisposable
+    public partial class Session : SessionClient, ISession, IDisposable
     {
         #region Constructors
         /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
+        /// Constructs a new instance of the <see cref="ISession"/> class.
         /// </summary>
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
@@ -62,7 +62,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
+        /// Constructs a new instance of the <see cref="ISession"/> class.
         /// </summary>
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
@@ -94,7 +94,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Session"/> class.
+        /// Initializes a new instance of the <see cref="ISession"/> class.
         /// </summary>
         /// <param name="channel">The channel.</param>
         /// <param name="template">The template session.</param>
@@ -103,17 +103,17 @@ namespace Opc.Ua.Client
         :
             base(channel)
         {
-            Initialize(channel, template.m_configuration, template.m_endpoint, template.m_instanceCertificate);
+            Initialize(channel, template.Configuration, template.ConfiguredEndpoint, template.InstanceCertificate);
 
-            m_defaultSubscription = template.m_defaultSubscription;
-            m_deleteSubscriptionsOnClose = template.m_deleteSubscriptionsOnClose;
-            m_sessionTimeout = template.m_sessionTimeout;
-            m_maxRequestMessageSize = template.m_maxRequestMessageSize;
-            m_preferredLocales = template.m_preferredLocales;
-            m_sessionName = template.m_sessionName;
-            m_handle = template.m_handle;
-            m_identity = template.m_identity;
-            m_keepAliveInterval = template.m_keepAliveInterval;
+            m_defaultSubscription = template.DefaultSubscription;
+            m_deleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
+            m_sessionTimeout = template.SessionTimeout;
+            m_maxRequestMessageSize = template.MaxRequestMessageSize;
+            m_preferredLocales = template.PreferredLocales;
+            m_sessionName = template.SessionName;
+            m_handle = template.Handle;
+            m_identity = template.Identity;
+            m_keepAliveInterval = template.KeepAliveInterval;
             m_checkDomain = template.m_checkDomain;
 
             if (copyEventHandlers)
@@ -510,6 +510,32 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Public Properties
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public bool CheckDomain { get => m_checkDomain; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public uint MaxRequestMessageSize { get => m_maxRequestMessageSize; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public X509Certificate2 InstanceCertificate { get => m_instanceCertificate; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public X509Certificate2Collection InstanceCertificateChain { get => m_instanceCertificateChain; }
+
+        /// <summary>
+        /// The configuration for the client application.
+        /// </summary>
+        public ApplicationConfiguration Configuration { get => m_configuration; }
+
         /// <summary>
         /// Gets the endpoint used to connect to the server.
         /// </summary>
@@ -745,338 +771,338 @@ namespace Opc.Ua.Client
         }
         #endregion
 
-        #region Public Static Methods
-        /// <summary>
-        /// Creates a new communication session with a server by invoking the CreateSession service
-        /// </summary>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The timeout period for the session.</param>
-        /// <param name="identity">The identity.</param>
-        /// <param name="preferredLocales">The user identity to associate with the session.</param>
-        /// <returns>The new session object</returns>
-        public static Task<Session> Create(
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales)
-        {
-            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales);
-        }
+        //#region Public Static Methods
+        ///// <summary>
+        ///// Creates a new communication session with a server by invoking the CreateSession service
+        ///// </summary>
+        ///// <param name="configuration">The configuration for the client application.</param>
+        ///// <param name="endpoint">The endpoint for the server.</param>
+        ///// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        ///// <param name="sessionName">The name to assign to the session.</param>
+        ///// <param name="sessionTimeout">The timeout period for the session.</param>
+        ///// <param name="identity">The identity.</param>
+        ///// <param name="preferredLocales">The user identity to associate with the session.</param>
+        ///// <returns>The new session object</returns>
+        //public static Task<ISession> Create(
+        //    ApplicationConfiguration configuration,
+        //    ConfiguredEndpoint endpoint,
+        //    bool updateBeforeConnect,
+        //    string sessionName,
+        //    uint sessionTimeout,
+        //    IUserIdentity identity,
+        //    IList<string> preferredLocales)
+        //{
+        //    return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales);
+        //}
 
-        /// <summary>
-        /// Creates a new communication session with a server by invoking the CreateSession service
-        /// </summary>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The timeout period for the session.</param>
-        /// <param name="identity">The user identity to associate with the session.</param>
-        /// <param name="preferredLocales">The preferred locales.</param>
-        /// <returns>The new session object.</returns>
-        public static Task<Session> Create(
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            bool checkDomain,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales)
-        {
-            return Create(configuration, null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales);
-        }
+        ///// <summary>
+        ///// Creates a new communication session with a server by invoking the CreateSession service
+        ///// </summary>
+        ///// <param name="configuration">The configuration for the client application.</param>
+        ///// <param name="endpoint">The endpoint for the server.</param>
+        ///// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        ///// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        ///// <param name="sessionName">The name to assign to the session.</param>
+        ///// <param name="sessionTimeout">The timeout period for the session.</param>
+        ///// <param name="identity">The user identity to associate with the session.</param>
+        ///// <param name="preferredLocales">The preferred locales.</param>
+        ///// <returns>The new session object.</returns>
+        //public static Task<ISession> Create(
+        //    ApplicationConfiguration configuration,
+        //    ConfiguredEndpoint endpoint,
+        //    bool updateBeforeConnect,
+        //    bool checkDomain,
+        //    string sessionName,
+        //    uint sessionTimeout,
+        //    IUserIdentity identity,
+        //    IList<string> preferredLocales)
+        //{
+        //    return Create(configuration, null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales);
+        //}
 
-        /// <summary>
-        /// Creates a new communication session with a server using a reverse connection.
-        /// </summary>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="connection">The client endpoint for the reverse connect.</param>
-        /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The timeout period for the session.</param>
-        /// <param name="identity">The user identity to associate with the session.</param>
-        /// <param name="preferredLocales">The preferred locales.</param>
-        /// <returns>The new session object.</returns>
-        public static async Task<Session> Create(
-            ApplicationConfiguration configuration,
-            ITransportWaitingConnection connection,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            bool checkDomain,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales)
-        {
-            endpoint.UpdateBeforeConnect = updateBeforeConnect;
+        ///// <summary>
+        ///// Creates a new communication session with a server using a reverse connection.
+        ///// </summary>
+        ///// <param name="configuration">The configuration for the client application.</param>
+        ///// <param name="connection">The client endpoint for the reverse connect.</param>
+        ///// <param name="endpoint">The endpoint for the server.</param>
+        ///// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        ///// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        ///// <param name="sessionName">The name to assign to the session.</param>
+        ///// <param name="sessionTimeout">The timeout period for the session.</param>
+        ///// <param name="identity">The user identity to associate with the session.</param>
+        ///// <param name="preferredLocales">The preferred locales.</param>
+        ///// <returns>The new session object.</returns>
+        //public static async Task<ISession> Create(
+        //    ApplicationConfiguration configuration,
+        //    ITransportWaitingConnection connection,
+        //    ConfiguredEndpoint endpoint,
+        //    bool updateBeforeConnect,
+        //    bool checkDomain,
+        //    string sessionName,
+        //    uint sessionTimeout,
+        //    IUserIdentity identity,
+        //    IList<string> preferredLocales)
+        //{
+        //    endpoint.UpdateBeforeConnect = updateBeforeConnect;
 
-            EndpointDescription endpointDescription = endpoint.Description;
+        //    EndpointDescription endpointDescription = endpoint.Description;
 
-            // create the endpoint configuration (use the application configuration to provide default values).
-            EndpointConfiguration endpointConfiguration = endpoint.Configuration;
+        //    // create the endpoint configuration (use the application configuration to provide default values).
+        //    EndpointConfiguration endpointConfiguration = endpoint.Configuration;
 
-            if (endpointConfiguration == null)
-            {
-                endpoint.Configuration = endpointConfiguration = EndpointConfiguration.Create(configuration);
-            }
+        //    if (endpointConfiguration == null)
+        //    {
+        //        endpoint.Configuration = endpointConfiguration = EndpointConfiguration.Create(configuration);
+        //    }
 
-            // create message context.
-            IServiceMessageContext messageContext = configuration.CreateMessageContext(true);
+        //    // create message context.
+        //    IServiceMessageContext messageContext = configuration.CreateMessageContext(true);
 
-            // update endpoint description using the discovery endpoint.
-            if (endpoint.UpdateBeforeConnect && connection == null)
-            {
-                endpoint.UpdateFromServer();
-                endpointDescription = endpoint.Description;
-                endpointConfiguration = endpoint.Configuration;
-            }
+        //    // update endpoint description using the discovery endpoint.
+        //    if (endpoint.UpdateBeforeConnect && connection == null)
+        //    {
+        //        endpoint.UpdateFromServer();
+        //        endpointDescription = endpoint.Description;
+        //        endpointConfiguration = endpoint.Configuration;
+        //    }
 
-            // checks the domains in the certificate.
-            if (checkDomain &&
-                endpoint.Description.ServerCertificate != null &&
-                endpoint.Description.ServerCertificate.Length > 0)
-            {
-                configuration.CertificateValidator?.ValidateDomains(
-                    new X509Certificate2(endpoint.Description.ServerCertificate),
-                    endpoint);
-                checkDomain = false;
-            }
+        //    // checks the domains in the certificate.
+        //    if (checkDomain &&
+        //        endpoint.Description.ServerCertificate != null &&
+        //        endpoint.Description.ServerCertificate.Length > 0)
+        //    {
+        //        configuration.CertificateValidator?.ValidateDomains(
+        //            new X509Certificate2(endpoint.Description.ServerCertificate),
+        //            endpoint);
+        //        checkDomain = false;
+        //    }
 
-            X509Certificate2 clientCertificate = null;
-            X509Certificate2Collection clientCertificateChain = null;
-            if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
-            {
-                clientCertificate = await LoadCertificate(configuration).ConfigureAwait(false);
-                clientCertificateChain = await LoadCertificateChain(configuration, clientCertificate).ConfigureAwait(false);
-            }
+        //    X509Certificate2 clientCertificate = null;
+        //    X509Certificate2Collection clientCertificateChain = null;
+        //    if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
+        //    {
+        //        clientCertificate = await LoadCertificate(configuration).ConfigureAwait(false);
+        //        clientCertificateChain = await LoadCertificateChain(configuration, clientCertificate).ConfigureAwait(false);
+        //    }
 
-            // initialize the channel which will be created with the server.
-            ITransportChannel channel;
-            if (connection != null)
-            {
-                channel = SessionChannel.CreateUaBinaryChannel(
-                    configuration,
-                    connection,
-                    endpointDescription,
-                    endpointConfiguration,
-                    clientCertificate,
-                    clientCertificateChain,
-                    messageContext);
-            }
-            else
-            {
-                channel = SessionChannel.Create(
-                     configuration,
-                     endpointDescription,
-                     endpointConfiguration,
-                     clientCertificate,
-                     clientCertificateChain,
-                     messageContext);
-            }
+        //    // initialize the channel which will be created with the server.
+        //    ITransportChannel channel;
+        //    if (connection != null)
+        //    {
+        //        channel = SessionChannel.CreateUaBinaryChannel(
+        //            configuration,
+        //            connection,
+        //            endpointDescription,
+        //            endpointConfiguration,
+        //            clientCertificate,
+        //            clientCertificateChain,
+        //            messageContext);
+        //    }
+        //    else
+        //    {
+        //        channel = SessionChannel.Create(
+        //             configuration,
+        //             endpointDescription,
+        //             endpointConfiguration,
+        //             clientCertificate,
+        //             clientCertificateChain,
+        //             messageContext);
+        //    }
 
-            // create the session object.
-            Session session = new Session(channel, configuration, endpoint, null);
+        //    // create the session object.
+        //    ISession session = new Session(channel, configuration, endpoint, null);
 
-            // create the session.
-            try
-            {
-                session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain);
-            }
-            catch (Exception)
-            {
-                session.Dispose();
-                throw;
-            }
+        //    // create the session.
+        //    try
+        //    {
+        //        session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain);
+        //    }
+        //    catch (Exception)
+        //    {
+        //        session.Dispose();
+        //        throw;
+        //    }
 
-            return session;
-        }
+        //    return session;
+        //}
 
-        /// <summary>
-        /// Creates a new communication session with a server using a reverse connect manager.
-        /// </summary>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="reverseConnectManager">The reverse connect manager for the client connection.</param>
-        /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The timeout period for the session.</param>
-        /// <param name="userIdentity">The user identity to associate with the session.</param>
-        /// <param name="preferredLocales">The preferred locales.</param>
-        /// <param name="ct">The cancellation token.</param>
-        /// <returns>The new session object.</returns>
-        public static async Task<Session> Create(
-            ApplicationConfiguration configuration,
-            ReverseConnectManager reverseConnectManager,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            bool checkDomain,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity userIdentity,
-            IList<string> preferredLocales,
-            CancellationToken ct = default(CancellationToken)
-            )
-        {
-            if (reverseConnectManager == null)
-            {
-                return await Create(configuration, endpoint, updateBeforeConnect,
-                    checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales).ConfigureAwait(false);
-            }
+        ///// <summary>
+        ///// Creates a new communication session with a server using a reverse connect manager.
+        ///// </summary>
+        ///// <param name="configuration">The configuration for the client application.</param>
+        ///// <param name="reverseConnectManager">The reverse connect manager for the client connection.</param>
+        ///// <param name="endpoint">The endpoint for the server.</param>
+        ///// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        ///// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        ///// <param name="sessionName">The name to assign to the session.</param>
+        ///// <param name="sessionTimeout">The timeout period for the session.</param>
+        ///// <param name="userIdentity">The user identity to associate with the session.</param>
+        ///// <param name="preferredLocales">The preferred locales.</param>
+        ///// <param name="ct">The cancellation token.</param>
+        ///// <returns>The new session object.</returns>
+        //public static async Task<ISession> Create(
+        //    ApplicationConfiguration configuration,
+        //    ReverseConnectManager reverseConnectManager,
+        //    ConfiguredEndpoint endpoint,
+        //    bool updateBeforeConnect,
+        //    bool checkDomain,
+        //    string sessionName,
+        //    uint sessionTimeout,
+        //    IUserIdentity userIdentity,
+        //    IList<string> preferredLocales,
+        //    CancellationToken ct = default(CancellationToken)
+        //    )
+        //{
+        //    if (reverseConnectManager == null)
+        //    {
+        //        return await Create(configuration, endpoint, updateBeforeConnect,
+        //            checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales).ConfigureAwait(false);
+        //    }
 
-            ITransportWaitingConnection connection = null;
-            do
-            {
-                connection = await reverseConnectManager.WaitForConnection(
-                    endpoint.EndpointUrl,
-                    endpoint.ReverseConnect?.ServerUri,
-                    ct).ConfigureAwait(false);
+        //    ITransportWaitingConnection connection = null;
+        //    do
+        //    {
+        //        connection = await reverseConnectManager.WaitForConnection(
+        //            endpoint.EndpointUrl,
+        //            endpoint.ReverseConnect?.ServerUri,
+        //            ct).ConfigureAwait(false);
 
-                if (updateBeforeConnect)
-                {
-                    await endpoint.UpdateFromServerAsync(
-                        endpoint.EndpointUrl, connection,
-                        endpoint.Description.SecurityMode,
-                        endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
-                    updateBeforeConnect = false;
-                    connection = null;
-                }
-            } while (connection == null);
+        //        if (updateBeforeConnect)
+        //        {
+        //            await endpoint.UpdateFromServerAsync(
+        //                endpoint.EndpointUrl, connection,
+        //                endpoint.Description.SecurityMode,
+        //                endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
+        //            updateBeforeConnect = false;
+        //            connection = null;
+        //        }
+        //    } while (connection == null);
 
-            return await Create(
-                configuration,
-                connection,
-                endpoint,
-                false,
-                checkDomain,
-                sessionName,
-                sessionTimeout,
-                userIdentity,
-                preferredLocales).ConfigureAwait(false);
-        }
+        //    return await Create(
+        //        configuration,
+        //        connection,
+        //        endpoint,
+        //        false,
+        //        checkDomain,
+        //        sessionName,
+        //        sessionTimeout,
+        //        userIdentity,
+        //        preferredLocales).ConfigureAwait(false);
+        //}
 
-        /// <summary>
-        /// Recreates a session based on a specified template.
-        /// </summary>
-        /// <param name="template">The Session object to use as template</param>
-        /// <returns>The new session object.</returns>
-        public static Session Recreate(Session template)
-        {
-            var messageContext = template.m_configuration.CreateMessageContext();
-            messageContext.Factory = template.Factory;
+        ///// <summary>
+        ///// Recreates a session based on a specified template.
+        ///// </summary>
+        ///// <param name="template">The Session object to use as template</param>
+        ///// <returns>The new session object.</returns>
+        //public static ISession Recreate(ISession template)
+        //{
+        //    var messageContext = template.Configuration.CreateMessageContext();
+        //    messageContext.Factory = template.Factory;
 
-            // create the channel object used to connect to the server.
-            ITransportChannel channel = SessionChannel.Create(
-                template.m_configuration,
-                template.m_endpoint.Description,
-                template.m_endpoint.Configuration,
-                template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
-                    template.m_instanceCertificateChain : null,
-                messageContext);
+        //    // create the channel object used to connect to the server.
+        //    ITransportChannel channel = SessionChannel.Create(
+        //        template.Configuration,
+        //        template.ConfiguredEndpoint.Description,
+        //        template.ConfiguredEndpoint.Configuration,
+        //        template.InstanceCertificate,
+        //        template.Configuration.SecurityConfiguration.SendCertificateChain ?
+        //            template.InstanceCertificateChain : null,
+        //        messageContext);
 
-            // create the session object.
-            Session session = new Session(channel, template, true);
+        //    // create the session object.
+        //    ISession session = new ISession(channel, template, true);
 
-            try
-            {
-                // open the session.
-                session.Open(
-                    template.m_sessionName,
-                    (uint)template.m_sessionTimeout,
-                    template.m_identity,
-                    template.m_preferredLocales,
-                    template.m_checkDomain);
+        //    try
+        //    {
+        //        // open the session.
+        //        session.Open(
+        //            template.SessionName,
+        //            (uint)template.SessionTimeout,
+        //            template.Identity,
+        //            template.PreferredLocales,
+        //            template.m_checkDomain);
 
-                // try transfer
-                if (!session.TransferSubscriptions(new SubscriptionCollection(session.Subscriptions), false))
-                {
-                    // if transfer failed, create the subscriptions.
-                    foreach (Subscription subscription in session.Subscriptions)
-                    {
-                        subscription.Create();
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
-            }
+        //        // try transfer
+        //        if (!session.TransferSubscriptions(new SubscriptionCollection(session.Subscriptions), false))
+        //        {
+        //            // if transfer failed, create the subscriptions.
+        //            foreach (Subscription subscription in session.Subscriptions)
+        //            {
+        //                subscription.Create();
+        //            }
+        //        }
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        session.Dispose();
+        //        throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.SessionName);
+        //    }
 
-            return session;
-        }
+        //    return session;
+        //}
 
-        /// <summary>
-        /// Recreates a session based on a specified template.
-        /// </summary>
-        /// <param name="template">The Session object to use as template</param>
-        /// <param name="connection">The waiting reverse connection.</param>
-        /// <returns>The new session object.</returns>
-        public static Session Recreate(Session template, ITransportWaitingConnection connection)
-        {
-            var messageContext = template.m_configuration.CreateMessageContext();
-            messageContext.Factory = template.Factory;
+        ///// <summary>
+        ///// Recreates a session based on a specified template.
+        ///// </summary>
+        ///// <param name="template">The Session object to use as template</param>
+        ///// <param name="connection">The waiting reverse connection.</param>
+        ///// <returns>The new session object.</returns>
+        //public static ISession Recreate(ISession template, ITransportWaitingConnection connection)
+        //{
+        //    var messageContext = template.m_configuration.CreateMessageContext();
+        //    messageContext.Factory = template.Factory;
 
-            // create the channel object used to connect to the server.
-            ITransportChannel channel = SessionChannel.Create(
-                template.m_configuration,
-                connection,
-                template.m_endpoint.Description,
-                template.m_endpoint.Configuration,
-                template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
-                    template.m_instanceCertificateChain : null,
-                messageContext);
+        //    // create the channel object used to connect to the server.
+        //    ITransportChannel channel = SessionChannel.Create(
+        //        template.m_configuration,
+        //        connection,
+        //        template.m_endpoint.Description,
+        //        template.m_endpoint.Configuration,
+        //        template.m_instanceCertificate,
+        //        template.m_configuration.SecurityConfiguration.SendCertificateChain ?
+        //            template.m_instanceCertificateChain : null,
+        //        messageContext);
 
-            // create the session object.
-            Session session = new Session(channel, template, true);
+        //    // create the session object.
+        //    ISession session = new ISession(channel, template, true);
 
-            try
-            {
-                // open the session.
-                session.Open(
-                    template.m_sessionName,
-                    (uint)template.m_sessionTimeout,
-                    template.m_identity,
-                    template.m_preferredLocales,
-                    template.m_checkDomain);
+        //    try
+        //    {
+        //        // open the session.
+        //        session.Open(
+        //            template.m_sessionName,
+        //            (uint)template.m_sessionTimeout,
+        //            template.m_identity,
+        //            template.m_preferredLocales,
+        //            template.m_checkDomain);
 
-                // try transfer
-                if (!session.TransferSubscriptions(new SubscriptionCollection(session.Subscriptions), false))
-                {
-                    // if transfer failed, create the subscriptions.
-                    foreach (Subscription subscription in session.Subscriptions)
-                    {
-                        subscription.Create();
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
-            }
+        //        // try transfer
+        //        if (!session.TransferSubscriptions(new SubscriptionCollection(session.Subscriptions), false))
+        //        {
+        //            // if transfer failed, create the subscriptions.
+        //            foreach (Subscription subscription in session.Subscriptions)
+        //            {
+        //                subscription.Create();
+        //            }
+        //        }
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        session.Dispose();
+        //        throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
+        //    }
 
-            return session;
-        }
-        #endregion
+        //    return session;
+        //}
+        //#endregion
 
         #region Delegates and Events
-        /// <summary>
-        /// Used to handle renews of user identity tokens before reconnect.
-        /// </summary>
-        public delegate IUserIdentity RenewUserIdentityEventHandler(Session session, IUserIdentity identity);
+        ///// <summary>
+        ///// Used to handle renews of user identity tokens before reconnect.
+        ///// </summary>
+        //public delegate IUserIdentity RenewUserIdentityEventHandler(ISession session, IUserIdentity identity);
 
         /// <summary>
         /// Raised before a reconnect operation completes.
@@ -3377,7 +3403,7 @@ namespace Opc.Ua.Client
         /// is transferred to obtain ownership. Internal.
         /// </summary>
         /// <param name="subscription">The subscription to remove.</param>
-        internal bool RemoveTransferredSubscription(Subscription subscription)
+        public bool RemoveTransferredSubscription(Subscription subscription)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
@@ -4643,46 +4669,46 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Load certificate for connection.
-        /// </summary>
-        private static async Task<X509Certificate2> LoadCertificate(ApplicationConfiguration configuration)
-        {
-            X509Certificate2 clientCertificate;
-            if (configuration.SecurityConfiguration.ApplicationCertificate == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
-            }
+        ///// <summary>
+        ///// Load certificate for connection.
+        ///// </summary>
+        //private static async Task<X509Certificate2> LoadCertificate(ApplicationConfiguration configuration)
+        //{
+        //    X509Certificate2 clientCertificate;
+        //    if (configuration.SecurityConfiguration.ApplicationCertificate == null)
+        //    {
+        //        throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
+        //    }
 
-            clientCertificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true).ConfigureAwait(false);
+        //    clientCertificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true).ConfigureAwait(false);
 
-            if (clientCertificate == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate cannot be found.");
-            }
-            return clientCertificate;
-        }
+        //    if (clientCertificate == null)
+        //    {
+        //        throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate cannot be found.");
+        //    }
+        //    return clientCertificate;
+        //}
 
-        /// <summary>
-        /// Load certificate chain for connection.
-        /// </summary>
-        private static async Task<X509Certificate2Collection> LoadCertificateChain(ApplicationConfiguration configuration, X509Certificate2 clientCertificate)
-        {
-            X509Certificate2Collection clientCertificateChain = null;
-            // load certificate chain.
-            if (configuration.SecurityConfiguration.SendCertificateChain)
-            {
-                clientCertificateChain = new X509Certificate2Collection(clientCertificate);
-                List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-                await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers).ConfigureAwait(false);
+        ///// <summary>
+        ///// Load certificate chain for connection.
+        ///// </summary>
+        //private static async Task<X509Certificate2Collection> LoadCertificateChain(ApplicationConfiguration configuration, X509Certificate2 clientCertificate)
+        //{
+        //    X509Certificate2Collection clientCertificateChain = null;
+        //    // load certificate chain.
+        //    if (configuration.SecurityConfiguration.SendCertificateChain)
+        //    {
+        //        clientCertificateChain = new X509Certificate2Collection(clientCertificate);
+        //        List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
+        //        await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers).ConfigureAwait(false);
 
-                for (int i = 0; i < issuers.Count; i++)
-                {
-                    clientCertificateChain.Add(issuers[i].Certificate);
-                }
-            }
-            return clientCertificateChain;
-        }
+        //        for (int i = 0; i < issuers.Count; i++)
+        //        {
+        //            clientCertificateChain.Add(issuers[i].Certificate);
+        //        }
+        //    }
+        //    return clientCertificateChain;
+        //}
 
         /// <summary>
         /// Returns true if the Bad_TooManyPublishRequests limit
@@ -4813,7 +4839,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The delegate used to receive keep alive notifications.
     /// </summary>
-    public delegate void KeepAliveEventHandler(Session session, KeepAliveEventArgs e);
+    public delegate void KeepAliveEventHandler(ISession session, KeepAliveEventArgs e);
     #endregion
 
     #region NotificationEventArgs Class
@@ -4864,7 +4890,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The delegate used to receive publish notifications.
     /// </summary>
-    public delegate void NotificationEventHandler(Session session, NotificationEventArgs e);
+    public delegate void NotificationEventHandler(ISession session, NotificationEventArgs e);
     #endregion
 
     #region PublishErrorEventArgs Class
@@ -4920,6 +4946,6 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The delegate used to receive pubish error notifications.
     /// </summary>
-    public delegate void PublishErrorEventHandler(Session session, PublishErrorEventArgs e);
+    public delegate void PublishErrorEventHandler(ISession session, PublishErrorEventArgs e);
     #endregion
 }

@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 
@@ -103,7 +104,7 @@ namespace Opc.Ua.Gds.Tests
             Configuration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration = Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
-            m_client = new GlobalDiscoveryServerClient(Configuration, gdsClientConfiguration.GlobalDiscoveryServerUrl) {
+            m_client = new GlobalDiscoveryServerClient(Configuration, gdsClientConfiguration.GlobalDiscoveryServerUrl, new DefaultSessionFactory()) {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port)
             };
             if (String.IsNullOrEmpty(gdsClientConfiguration.AppUserName))

@@ -48,14 +48,17 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="endpointUrl">The endpoint Url.</param>
+        /// <param name="sessionFactory">The that assists with the creation of a session to the server</param>
         /// <param name="adminUserIdentity">The user identity for the administrator.</param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             string endpointUrl,
+            ISessionFactory sessionFactory,
             IUserIdentity adminUserIdentity = null)
         {
             Configuration = configuration;
             EndpointUrl = endpointUrl;
+            m_sessionFactory = sessionFactory;
             // preset admin 
             AdminCredentials = adminUserIdentity;
         }
@@ -89,7 +92,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The session.
         /// </value>
-        public Session Session { get; private set; }
+        public ISession Session { get; private set; }
 
         /// <summary>
         /// Gets or sets the endpoint URL.
@@ -279,7 +282,7 @@ namespace Opc.Ua.Gds.Client
                 Session = null;
             }
 
-            Session = await Session.Create(
+            Session = await m_sessionFactory.Create(
                 Configuration,
                 endpoint,
                 false,
@@ -320,7 +323,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (ServiceResult.IsBad(e.Status))
             {
@@ -966,6 +969,7 @@ namespace Opc.Ua.Gds.Client
 
         #region Private Fields
         private ConfiguredEndpoint m_endpoint;
+        private readonly ISessionFactory m_sessionFactory;
         #endregion
     }
 }

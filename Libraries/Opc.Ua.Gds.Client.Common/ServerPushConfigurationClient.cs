@@ -49,9 +49,11 @@ namespace Opc.Ua.Gds.Client
         /// Initializes a new instance of the <see cref="ServerPushConfigurationClient"/> class.
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
-        public ServerPushConfigurationClient(ApplicationConfiguration configuration)
+        /// <param name="sessionFactory">The that assists with the creation of a session to the server</param>
+        public ServerPushConfigurationClient(ApplicationConfiguration configuration, ISessionFactory sessionFactory)
         {
             m_configuration = configuration;
+            m_sessionFactory = sessionFactory;
         }
         #endregion
 
@@ -130,7 +132,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The session.
         /// </value>
-        public Session Session => m_session;
+        public ISession Session => m_session;
 
         /// <summary>
         /// Gets the endpoint.
@@ -238,7 +240,7 @@ namespace Opc.Ua.Gds.Client
                 m_session = null;
             }
 
-            m_session = await Session.Create(
+            m_session = await m_sessionFactory.Create(
                 m_configuration,
                 endpoint,
                 false,
@@ -763,7 +765,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (!Object.ReferenceEquals(session, m_session))
             {
@@ -810,10 +812,11 @@ namespace Opc.Ua.Gds.Client
 
         #region Private Fields
         private ApplicationConfiguration m_configuration;
+        private readonly ISessionFactory m_sessionFactory;
         private ConfiguredEndpoint m_endpoint;
         private string m_endpointUrl;
         private string[] m_preferredLocales;
-        private Session m_session;
+        private ISession m_session;
         private IUserIdentity m_adminCredentials;
         #endregion
     }

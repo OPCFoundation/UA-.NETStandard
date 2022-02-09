@@ -96,7 +96,7 @@ namespace Opc.Ua.Client.Tests
 
             // check keepAlive
             int keepAlive = 0;
-            m_session.KeepAlive += (Session sender, KeepAliveEventArgs e) => { keepAlive++; };
+            m_session.KeepAlive += (ISession sender, KeepAliveEventArgs e) => { keepAlive++; };
 
             // add current time
             var list = new List<MonitoredItem> {
@@ -174,7 +174,7 @@ namespace Opc.Ua.Client.Tests
 
             // check keepAlive
             int keepAlive = 0;
-            m_session.KeepAlive += (Session sender, KeepAliveEventArgs e) => { keepAlive++; };
+            m_session.KeepAlive += (ISession sender, KeepAliveEventArgs e) => { keepAlive++; };
 
             // add current time
             var list = new List<MonitoredItem> {
