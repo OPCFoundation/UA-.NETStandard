@@ -24,7 +24,7 @@ pr:
     - '*' 
 
 variables:
-  FullBuild: $[or(ne(variables['Build.Reason'], 'PullRequest'), eq( variables['LOCALPR'], ''))]
+  FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne( $(LOCALPR), 'secret')) }}
 
 stages:
 - stage: build
