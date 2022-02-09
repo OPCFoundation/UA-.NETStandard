@@ -56,14 +56,13 @@ namespace Opc.Ua.Client.Tests
         public const int TransportQuota_MaxStringLength = 1 * 1024 * 1024;
 
         public bool SingleSession { get; set; } = true;
-        public bool SingleSession { get; set; } = true;
         public bool SupportsExternalServerUrl { get; set; } = false;
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
         public ReferenceServer ReferenceServer { get; set; }
         public EndpointDescriptionCollection Endpoints { get; set; }
         public ReferenceDescriptionCollection ReferenceDescriptions { get; set; }
-        public Session Session { get; private set; }
+        public ISession Session { get; private set; }
         public OperationLimits OperationLimits { get; private set; }
         public string UriScheme { get; private set; }
         public string PkiRoot { get; set; }
