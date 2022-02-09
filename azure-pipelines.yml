@@ -28,12 +28,12 @@ variables:
 
 stages:
 - stage: build
-  displayName: 'Build .Net Core Samples ${{ variables.FullBuild }}'
+  displayName: 'Build .NET Core Samples'
   jobs:
   - template: .azurepipelines/ci.yml
 - stage: buildnohttps
   dependsOn: []
-  displayName: 'Build NoHttps .Net Core Samples'
+  displayName: 'Build NoHttps .NET Core Samples'
   condition: ne(variables.FullBuild, 'False')
   jobs:
   - template: .azurepipelines/ci.yml
