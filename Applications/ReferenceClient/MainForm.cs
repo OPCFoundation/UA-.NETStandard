@@ -68,7 +68,7 @@ namespace Quickstarts.ReferenceClient
 
         #region Private Fields
         private ApplicationConfiguration m_configuration;
-        private Session m_session;
+        private ISession m_session;
         private bool m_connectedOnce;
         #endregion
 

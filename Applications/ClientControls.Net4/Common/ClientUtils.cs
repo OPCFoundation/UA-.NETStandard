@@ -149,7 +149,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Returns an image index for the specified attribute.
         /// </summary>
-        public static int GetImageIndex(Session session, NodeClass nodeClass, ExpandedNodeId typeDefinitionId, bool selected)
+        public static int GetImageIndex(ISession session, NodeClass nodeClass, ExpandedNodeId typeDefinitionId, bool selected)
         {
             if (nodeClass == NodeClass.Variable)
             {

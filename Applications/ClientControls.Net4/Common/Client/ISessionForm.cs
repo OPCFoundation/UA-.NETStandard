@@ -43,6 +43,6 @@ namespace Opc.Ua.Client.Controls
         /// Changes the session being used by the form.
         /// </summary>
         /// <param name="session">The new session to use. A null value means the session has been disconnected.</param>
-        void ChangeSession(Session session);
+        void ChangeSession(ISession session);
     }
 }

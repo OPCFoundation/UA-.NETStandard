@@ -59,7 +59,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Private Fields
-        private Session m_session;
+        private ISession m_session;
         private NodeId m_rootId;
         private NodeId[] m_referenceTypeIds;
         private NodeId m_selectedNodeId;
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.Controls
         /// <param name="rootId">The root of the hierarchy to browse.</param>
         /// <param name="referenceTypeIds">The reference types to follow.</param>
         public void Initialize(
-            Session session,
+            ISession session,
             NodeId rootId,
             params NodeId[] referenceTypeIds)
         {
@@ -116,7 +116,7 @@ namespace Opc.Ua.Client.Controls
         /// Changes the session used by the control.
         /// </summary>
         /// <param name="session">The session.</param>
-        public void ChangeSession(Session session)
+        public void ChangeSession(ISession session)
         {
             if (Object.ReferenceEquals(session, m_session))
             {
@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Changes the session used by the control.
         /// </summary>
-        private void ChangeSession(Session session, bool refresh)
+        private void ChangeSession(ISession session, bool refresh)
         {
             m_session = session;
 

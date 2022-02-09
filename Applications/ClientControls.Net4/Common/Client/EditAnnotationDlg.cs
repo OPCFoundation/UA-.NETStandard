@@ -56,14 +56,14 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Private Fields
-        private Session m_session;
+        private ISession m_session;
         #endregion
 
         #region Public Interface
         /// <summary>
         /// Prompts the user to edit an annotation.
         /// </summary>
-        public Annotation ShowDialog(Session session, Annotation annotation, string caption)
+        public Annotation ShowDialog(ISession session, Annotation annotation, string caption)
         {
             if (caption != null)
             {

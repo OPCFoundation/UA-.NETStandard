@@ -70,7 +70,7 @@ namespace Opc.Ua.Client.Controls
 
         #region Private Fields
         private DataSet m_dataset;
-        private Session m_session;
+        private ISession m_session;
         private List<InstanceDeclaration> m_declarations;
         #endregion
 
@@ -78,7 +78,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Changes the session used by the control.
         /// </summary>
-        public void ChangeSession(Session session)
+        public void ChangeSession(ISession session)
         {
             m_session = session;
         }

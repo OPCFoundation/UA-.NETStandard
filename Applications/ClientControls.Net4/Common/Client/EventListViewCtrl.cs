@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.Controls
 
         #region Private Fields
         private DataSet m_dataset;
-        private Session m_session;
+        private ISession m_session;
         private FilterDeclaration m_filter;
         #endregion
 
@@ -66,7 +66,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Changes the session used for the read request.
         /// </summary>
-        public void ChangeSession(Session session)
+        public void ChangeSession(ISession session)
         {
             m_session = session;
         }
