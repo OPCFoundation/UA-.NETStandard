@@ -24,7 +24,7 @@ pr:
     - '*' 
 
 variables:
-  FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne('System.PullRequest.IsFork', 'False')) }}
+  FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsFork'], 'False')) }}
 
 stages:
 - stage: build
