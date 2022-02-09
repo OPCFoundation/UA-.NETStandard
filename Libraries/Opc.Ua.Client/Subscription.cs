@@ -101,10 +101,9 @@ namespace Opc.Ua.Client
                 m_timestampsToReturn = template.m_timestampsToReturn;
                 m_maxMessageCount = template.m_maxMessageCount;
                 m_sequentialPublishing = template.m_sequentialPublishing;
+                m_republishAfterTransfer = template.m_republishAfterTransfer;
                 m_defaultItem = (MonitoredItem)template.m_defaultItem.MemberwiseClone();
-                m_defaultItem = template.m_defaultItem;
                 m_handle = template.m_handle;
-                m_maxMessageCount = template.m_maxMessageCount;
                 m_disableMonitoredItemCache = template.m_disableMonitoredItemCache;
 
                 if (copyEventHandlers)
@@ -149,6 +148,7 @@ namespace Opc.Ua.Client
             m_publishingEnabled = false;
             m_timestampsToReturn = TimestampsToReturn.Both;
             m_maxMessageCount = 10;
+            m_republishAfterTransfer = false;
             m_outstandingMessageWorkers = 0;
             m_sequentialPublishing = false;
             m_lastSequenceNumberProcessed = 0;
@@ -343,7 +343,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The minimum lifetime for subscriptions in milliseconds.
         /// </summary>
-        [DataMember(Order = 11)]
+        [DataMember(Order = 12)]
         public uint MinLifetimeInterval
         {
             get => m_minLifetimeInterval;
@@ -360,7 +360,7 @@ namespace Opc.Ua.Client
         /// Applications must process the Session.Notication event if this is set to true.
         /// This flag improves performance by eliminating the processing involved in updating the cache.
         /// </remarks>
-        [DataMember(Order = 12)]
+        [DataMember(Order = 13)]
         public bool DisableMonitoredItemCache
         {
             get => m_disableMonitoredItemCache;
@@ -377,7 +377,7 @@ namespace Opc.Ua.Client
         /// Setting <see cref="SequentialPublishing"/> to <c>true</c> means incoming messages are processed in
         /// a "single-threaded" manner and callbacks will not be invoked in parallel.
         /// </remarks>
-        [DataMember(Order = 13)]
+        [DataMember(Order = 14)]
         public bool SequentialPublishing
         {
             get
@@ -398,9 +398,25 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// If the available sequence numbers of a subscription
+        /// are republished or acknoledged after a transfer. 
+        /// </summary>
+        /// <remarks>
+        /// Default <c>false</c>, set to <c>true</c> if no data loss is important
+        /// and available publish requests (sequence numbers) that were never acknoledged should be
+        /// recovered with a republish. The setting is used after a subscription transfer.
+        /// </remarks>   
+        [DataMember(Name = "RepublishAfterTransfer", Order = 15)]
+        public bool RepublishAfterTransfer
+        {
+            get { return m_republishAfterTransfer; }
+            set { lock (m_cache) { m_republishAfterTransfer = value; } }
+        }
+
+        /// <summary>
         /// The unique identifier assigned by the server which can be used to transfer a session.
         /// </summary>
-        [DataMember(Name = "TransferId", Order = 14)]
+        [DataMember(Name = "TransferId", Order = 16)]
         public uint TransferId
         {
             get => m_transferId;
@@ -557,7 +573,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The current publishing interval.
         /// </summary>
-        [DataMember(Name = "CurrentPublishInterval", Order = 15)]
+        [DataMember(Name = "CurrentPublishInterval", Order = 20)]
         public double CurrentPublishingInterval
         {
             get => m_currentPublishingInterval;
@@ -567,7 +583,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The current keep alive count.
         /// </summary>
-        [DataMember(Name = "CurrentKeepAliveCount", Order = 16)]
+        [DataMember(Name = "CurrentKeepAliveCount", Order = 21)]
         public uint CurrentKeepAliveCount
         {
             get => m_currentKeepAliveCount;
@@ -577,7 +593,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The current lifetime count.
         /// </summary>
-        [DataMember(Name = "CurrentLifetimeCount", Order = 17)]
+        [DataMember(Name = "CurrentLifetimeCount", Order = 22)]
         public uint CurrentLifetimeCount
         {
             get => m_currentLifetimeCount;
@@ -803,13 +819,15 @@ namespace Opc.Ua.Client
                     return false;
                 }
 
-                if (!m_session.RemoveTransferredSubscription(this))
+                if (m_session?.RemoveTransferredSubscription(this) != true)
                 {
+                    Utils.LogError("SubscriptionId {0}: Failed to remove transferred subscription from owner SessionId={1}.", Id, m_session?.SessionId);
                     return false;
                 }
 
                 if (!session.AddSubscription(this))
                 {
+                    Utils.LogError("SubscriptionId {0}: Failed to add transferred subscription to SessionId={1}.", Id, session.SessionId);
                     return false;
                 }
             }
@@ -817,6 +835,7 @@ namespace Opc.Ua.Client
             {
                 if (!GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles))
                 {
+                    Utils.LogError("SubscriptionId {0}: The server failed to respond to GetMonitoredItems after transfer.", Id);
                     return false;
                 }
 
@@ -824,16 +843,20 @@ namespace Opc.Ua.Client
                     clientHandles.Count != m_monitoredItems.Count)
                 {
                     // invalid state
+                    Utils.LogError("SubscriptionId {0}: Number of Monitored Items on client and server do not match after transfer {1}!={2}",
+                        Id, serverHandles.Count, m_monitoredItems.Count);
                     return false;
                 }
 
+                // sets state to 'Created'
                 m_id = id;
-                m_availableSequenceNumbers = availableSequenceNumbers;
-
                 TransferItems(serverHandles, clientHandles, out IList<MonitoredItem> itemsToModify);
 
                 ModifyItems();
             }
+
+            // add available sequence numbers to incoming 
+            ProcessTransferredSequenceNumbers(availableSequenceNumbers);
 
             m_changeMask |= SubscriptionChangeMask.Transferred;
             ChangesCompleted();
@@ -1276,7 +1299,7 @@ namespace Opc.Ua.Client
                     TraceState("PUBLISHING RECOVERED");
                 }
 
-                m_lastNotificationTime = DateTime.UtcNow;
+                DateTime now = m_lastNotificationTime = DateTime.UtcNow;
 
                 // save the string table that came with notification.
                 message.StringTable = new List<string>(stringTable);
@@ -1288,40 +1311,7 @@ namespace Opc.Ua.Client
                 }
 
                 // find or create an entry for the incoming sequence number.
-                IncomingMessage entry = null;
-                LinkedListNode<IncomingMessage> node = m_incomingMessages.Last;
-
-                while (node != null)
-                {
-                    entry = node.Value;
-                    LinkedListNode<IncomingMessage> previous = node.Previous;
-
-                    if (entry.SequenceNumber == message.SequenceNumber)
-                    {
-                        entry.Timestamp = DateTime.UtcNow;
-                        break;
-                    }
-
-                    if (entry.SequenceNumber < message.SequenceNumber)
-                    {
-                        entry = new IncomingMessage();
-                        entry.SequenceNumber = message.SequenceNumber;
-                        entry.Timestamp = DateTime.UtcNow;
-                        m_incomingMessages.AddAfter(node, entry);
-                        break;
-                    }
-
-                    node = previous;
-                    entry = null;
-                }
-
-                if (entry == null)
-                {
-                    entry = new IncomingMessage();
-                    entry.SequenceNumber = message.SequenceNumber;
-                    entry.Timestamp = DateTime.UtcNow;
-                    m_incomingMessages.AddLast(entry);
-                }
+                IncomingMessage entry = FindOrCreateEntry(now, message.SequenceNumber);
 
                 // check for keep alive.
                 if (message.NotificationData.Count > 0)
@@ -1331,7 +1321,7 @@ namespace Opc.Ua.Client
                 }
 
                 // fill in any gaps in the queue
-                node = m_incomingMessages.First;
+                LinkedListNode<IncomingMessage> node = m_incomingMessages.First;
 
                 while (node != null)
                 {
@@ -1342,7 +1332,7 @@ namespace Opc.Ua.Client
                     {
                         IncomingMessage placeholder = new IncomingMessage();
                         placeholder.SequenceNumber = entry.SequenceNumber + 1;
-                        placeholder.Timestamp = DateTime.UtcNow;
+                        placeholder.Timestamp = now;
                         node = m_incomingMessages.AddAfter(node, placeholder);
                         continue;
                     }
@@ -1359,7 +1349,7 @@ namespace Opc.Ua.Client
                     LinkedListNode<IncomingMessage> next = node.Next;
 
                     // can only pull off processed or expired messages.
-                    if (!entry.Processed && !(entry.Republished && entry.Timestamp.AddSeconds(10) < DateTime.UtcNow))
+                    if (!entry.Processed && !(entry.Republished && entry.Timestamp.AddSeconds(10) < now))
                     {
                         break;
                     }
@@ -1550,6 +1540,43 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Updates the available sequence numbers and queues after transfer.
+        /// </summary>
+        /// <remarks>
+        /// If <see cref="RepublishAfterTransfer"/> is set to <c>true</c>, sequence numbers
+        /// are queued for republish, otherwise ack may be sent.
+        /// </remarks>
+        /// <param name="availableSequenceNumbers">The list of available sequence numbers on the server.</param>
+        private void ProcessTransferredSequenceNumbers(UInt32Collection availableSequenceNumbers)
+        {
+            lock (m_cache)
+            {
+                // save available sequence numbers
+                m_availableSequenceNumbers = (UInt32Collection)availableSequenceNumbers.MemberwiseClone();
+
+                if (availableSequenceNumbers.Count != 0 && m_republishAfterTransfer)
+                {
+                    // create queue for the first time.
+                    if (m_incomingMessages == null)
+                    {
+                        m_incomingMessages = new LinkedList<IncomingMessage>();
+                    }
+
+                    // triggers the republish mechanism immediately,
+                    // if event is in the past
+                    var now = DateTime.UtcNow.AddSeconds(-5);
+                    foreach (var sequenceNumber in availableSequenceNumbers)
+                    {
+                        FindOrCreateEntry(now, sequenceNumber);
+                    }
+
+                    // sequence numbers handled for republish, clear for caller so no ack
+                    availableSequenceNumbers.Clear();
+                }
+            }
+        }
+
         /// <summary>
         /// Call the GetMonitoredItems method on the server.
         /// </summary>
@@ -1811,7 +1838,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task OnMessageReceived()
         {
-            //Avoid semaphore being replaced for this instance while running, retain reference locally.
+            // Avoid semaphore being replaced for this instance while running, retain reference locally.
             SemaphoreSlim semaphore;
             lock (m_cache)
             {
@@ -1820,7 +1847,7 @@ namespace Opc.Ua.Client
                 semaphore = m_messageWorkersSemaphore;
             }
 
-            //Later used to know if releasing the semaphore is needed. Assumed entered if needed.
+            // Later used to know if releasing the semaphore is needed. Assumed entered if needed.
             var needSemaphore = semaphore != null;
             if (needSemaphore)
             {
@@ -1839,6 +1866,7 @@ namespace Opc.Ua.Client
                     needSemaphore = false;
                 }
             }
+
             try
             {
                 Interlocked.Increment(ref m_outstandingMessageWorkers);
@@ -1858,7 +1886,7 @@ namespace Opc.Ua.Client
                     {
                         // update monitored items with unprocessed messages.
                         if (ii.Value.Message != null && !ii.Value.Processed &&
-                            //If sequential publishing is enabled, only release messages in perfect sequence. 
+                            // If sequential publishing is enabled, only release messages in perfect sequence. 
                             (!m_sequentialPublishing || ii.Value.SequenceNumber <= m_lastSequenceNumberProcessed + 1))
                         {
                             if (messagesToProcess == null)
@@ -2337,6 +2365,51 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+        /// <summary>
+        /// Find or create an entry for the incoming sequence number.
+        /// </summary>
+        /// <param name="utcNow">The current Utc time.</param>
+        /// <param name="sequenceNumber">The sequence number for the new entry.</param>
+        private IncomingMessage FindOrCreateEntry(DateTime utcNow, uint sequenceNumber)
+        {
+            IncomingMessage entry = null;
+            LinkedListNode<IncomingMessage> node = m_incomingMessages.Last;
+
+            while (node != null)
+            {
+                entry = node.Value;
+                LinkedListNode<IncomingMessage> previous = node.Previous;
+
+                if (entry.SequenceNumber == sequenceNumber)
+                {
+                    entry.Timestamp = utcNow;
+                    break;
+                }
+
+                if (entry.SequenceNumber < sequenceNumber)
+                {
+                    entry = new IncomingMessage();
+                    entry.SequenceNumber = sequenceNumber;
+                    entry.Timestamp = utcNow;
+                    m_incomingMessages.AddAfter(node, entry);
+                    break;
+                }
+
+                node = previous;
+                entry = null;
+            }
+
+            if (entry == null)
+            {
+                entry = new IncomingMessage();
+                entry.SequenceNumber = sequenceNumber;
+                entry.Timestamp = utcNow;
+                m_incomingMessages.AddLast(entry);
+            }
+
+            return entry;
+        }
         #endregion
 
         #region Private Fields
@@ -2372,6 +2445,7 @@ namespace Opc.Ua.Client
         private LinkedList<NotificationMessage> m_messageCache;
         private IList<uint> m_availableSequenceNumbers;
         private int m_maxMessageCount;
+        private bool m_republishAfterTransfer;
         private SortedDictionary<uint, MonitoredItem> m_monitoredItems;
         private bool m_disableMonitoredItemCache;
         private FastDataChangeNotificationEventHandler m_fastDataChangeCallback;

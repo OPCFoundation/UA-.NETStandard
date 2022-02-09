@@ -60,7 +60,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         #region DataPointSources
-        public static NodeId[] TypeSystems = {
+        public static readonly NodeId[] TypeSystems = {
             ObjectIds.OPCBinarySchema_TypeSystem,
             ObjectIds.XmlSchema_TypeSystem
         };
@@ -73,6 +73,7 @@ namespace Opc.Ua.Client.Tests
         [OneTimeSetUp]
         public new Task OneTimeSetUp()
         {
+            SupportsExternalServerUrl = true;
             return base.OneTimeSetUp();
         }
 
@@ -131,11 +132,11 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using (var client = DiscoveryClient.Create(m_url, endpointConfiguration))
+            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
             {
-                m_endpoints = await client.GetEndpointsAsync(null).ConfigureAwait(false);
+                Endpoints = await client.GetEndpointsAsync(null).ConfigureAwait(false);
                 TestContext.Out.WriteLine("Endpoints:");
-                foreach (var endpoint in m_endpoints)
+                foreach (var endpoint in Endpoints)
                 {
                     using (var cert = new X509Certificate2(endpoint.ServerCertificate))
                     {
@@ -162,7 +163,7 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using (var client = DiscoveryClient.Create(m_url, endpointConfiguration))
+            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
             {
                 var servers = await client.FindServersAsync(null).ConfigureAwait(false);
                 foreach (var server in servers)
@@ -183,19 +184,19 @@ namespace Opc.Ua.Client.Tests
         public async Task InvalidConfiguration()
         {
             var applicationInstance = new ApplicationInstance() {
-                ApplicationName = m_clientFixture.Config.ApplicationName
+                ApplicationName = ClientFixture.Config.ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            ApplicationConfiguration config = await applicationInstance.Build(m_clientFixture.Config.ApplicationUri, m_clientFixture.Config.ProductUri)
+            ApplicationConfiguration config = await applicationInstance.Build(ClientFixture.Config.ApplicationUri, ClientFixture.Config.ProductUri)
                 .AsClient()
-                .AddSecurityConfiguration(m_clientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName)
+                .AddSecurityConfiguration(ClientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName)
                 .Create().ConfigureAwait(false);
         }
 
         [Theory, Order(200)]
         public async Task Connect(string securityPolicy)
         {
-            var session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints).ConfigureAwait(false);
+            var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
             Assert.NotNull(session);
             var result = session.Close();
             Assert.NotNull(result);
@@ -206,7 +207,7 @@ namespace Opc.Ua.Client.Tests
         public async Task ConnectAndReconnectAsync()
         {
             const int Timeout = MaxTimeout;
-            var session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256, m_endpoints).ConfigureAwait(false);
+            var session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
             Assert.NotNull(session);
 
             ManualResetEvent quitEvent = new ManualResetEvent(false);
@@ -241,29 +242,29 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ReadPublicProperties()
         {
-            TestContext.Out.WriteLine("Identity         : {0}", m_session.Identity);
-            TestContext.Out.WriteLine("IdentityHistory  : {0}", m_session.IdentityHistory);
-            TestContext.Out.WriteLine("NamespaceUris    : {0}", m_session.NamespaceUris);
-            TestContext.Out.WriteLine("ServerUris       : {0}", m_session.ServerUris);
-            TestContext.Out.WriteLine("SystemContext    : {0}", m_session.SystemContext);
-            TestContext.Out.WriteLine("Factory          : {0}", m_session.Factory);
-            TestContext.Out.WriteLine("TypeTree         : {0}", m_session.TypeTree);
-            TestContext.Out.WriteLine("FilterContext    : {0}", m_session.FilterContext);
-            TestContext.Out.WriteLine("PreferredLocales : {0}", m_session.PreferredLocales);
-            TestContext.Out.WriteLine("DataTypeSystem   : {0}", m_session.DataTypeSystem);
-            TestContext.Out.WriteLine("Subscriptions    : {0}", m_session.Subscriptions);
-            TestContext.Out.WriteLine("SubscriptionCount: {0}", m_session.SubscriptionCount);
-            TestContext.Out.WriteLine("DefaultSubscription: {0}", m_session.DefaultSubscription);
-            TestContext.Out.WriteLine("LastKeepAliveTime: {0}", m_session.LastKeepAliveTime);
-            TestContext.Out.WriteLine("KeepAliveInterval: {0}", m_session.KeepAliveInterval);
-            m_session.KeepAliveInterval += 1000;
-            TestContext.Out.WriteLine("KeepAliveInterval: {0}", m_session.KeepAliveInterval);
-            m_session.KeepAliveInterval -= 1000;
-            TestContext.Out.WriteLine("KeepAliveInterval: {0}", m_session.KeepAliveInterval);
-            TestContext.Out.WriteLine("KeepAliveStopped : {0}", m_session.KeepAliveStopped);
-            TestContext.Out.WriteLine("OutstandingRequestCount : {0}", m_session.OutstandingRequestCount);
-            TestContext.Out.WriteLine("DefunctRequestCount     : {0}", m_session.DefunctRequestCount);
-            TestContext.Out.WriteLine("GoodPublishRequestCount : {0}", m_session.GoodPublishRequestCount);
+            TestContext.Out.WriteLine("Identity         : {0}", Session.Identity);
+            TestContext.Out.WriteLine("IdentityHistory  : {0}", Session.IdentityHistory);
+            TestContext.Out.WriteLine("NamespaceUris    : {0}", Session.NamespaceUris);
+            TestContext.Out.WriteLine("ServerUris       : {0}", Session.ServerUris);
+            TestContext.Out.WriteLine("SystemContext    : {0}", Session.SystemContext);
+            TestContext.Out.WriteLine("Factory          : {0}", Session.Factory);
+            TestContext.Out.WriteLine("TypeTree         : {0}", Session.TypeTree);
+            TestContext.Out.WriteLine("FilterContext    : {0}", Session.FilterContext);
+            TestContext.Out.WriteLine("PreferredLocales : {0}", Session.PreferredLocales);
+            TestContext.Out.WriteLine("DataTypeSystem   : {0}", Session.DataTypeSystem);
+            TestContext.Out.WriteLine("Subscriptions    : {0}", Session.Subscriptions);
+            TestContext.Out.WriteLine("SubscriptionCount: {0}", Session.SubscriptionCount);
+            TestContext.Out.WriteLine("DefaultSubscription: {0}", Session.DefaultSubscription);
+            TestContext.Out.WriteLine("LastKeepAliveTime: {0}", Session.LastKeepAliveTime);
+            TestContext.Out.WriteLine("KeepAliveInterval: {0}", Session.KeepAliveInterval);
+            Session.KeepAliveInterval += 1000;
+            TestContext.Out.WriteLine("KeepAliveInterval: {0}", Session.KeepAliveInterval);
+            Session.KeepAliveInterval -= 1000;
+            TestContext.Out.WriteLine("KeepAliveInterval: {0}", Session.KeepAliveInterval);
+            TestContext.Out.WriteLine("KeepAliveStopped : {0}", Session.KeepAliveStopped);
+            TestContext.Out.WriteLine("OutstandingRequestCount : {0}", Session.OutstandingRequestCount);
+            TestContext.Out.WriteLine("DefunctRequestCount     : {0}", Session.DefunctRequestCount);
+            TestContext.Out.WriteLine("GoodPublishRequestCount : {0}", Session.GoodPublishRequestCount);
         }
 
         [Test]
@@ -271,28 +272,28 @@ namespace Opc.Ua.Client.Tests
         {
             // change locale
             var localeCollection = new StringCollection() { "de-de", "en-us" };
-            m_session.ChangePreferredLocales(localeCollection);
+            Session.ChangePreferredLocales(localeCollection);
         }
 
         [Test]
         public void ReadValue()
         {
             // Test ReadValue
-            _ = m_session.ReadValue(VariableIds.Server_ServerRedundancy_RedundancySupport, typeof(Int32));
-            _ = m_session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
-            var sre = Assert.Throws<ServiceResultException>(() => m_session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServiceHost)));
+            _ = Session.ReadValue(VariableIds.Server_ServerRedundancy_RedundancySupport, typeof(Int32));
+            _ = Session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            var sre = Assert.Throws<ServiceResultException>(() => Session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServiceHost)));
             Assert.AreEqual(StatusCodes.BadTypeMismatch, sre.StatusCode);
         }
 
         [Test]
         public void ReadValues()
         {
-            var namespaceUris = m_session.NamespaceUris;
-            var testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToList();
-            testSet.AddRange(CommonTestWorkers.NodeIdTestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)));
+            var namespaceUris = Session.NamespaceUris;
+            var testSet = GetTestSetStatic(namespaceUris).ToList();
+            testSet.AddRange(GetTestSetSimulation(namespaceUris));
             foreach (var nodeId in testSet)
             {
-                var dataValue = m_session.ReadValue(nodeId);
+                var dataValue = Session.ReadValue(nodeId);
                 Assert.NotNull(dataValue);
                 Assert.NotNull(dataValue.Value);
             }
@@ -302,7 +303,7 @@ namespace Opc.Ua.Client.Tests
         public void ReadDataTypeDefinition()
         {
             // Test Read a DataType Node
-            var node = m_session.ReadNode(DataTypeIds.ProgramDiagnosticDataType);
+            var node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType);
             Assert.NotNull(node);
             var dataTypeNode = (DataTypeNode)node;
             Assert.NotNull(dataTypeNode);
@@ -318,7 +319,7 @@ namespace Opc.Ua.Client.Tests
         [Theory, Order(400)]
         public async Task BrowseFullAddressSpace(string securityPolicy)
         {
-            if (m_operationLimits == null) { GetOperationLimits(); }
+            if (OperationLimits == null) { GetOperationLimits(); }
 
             var requestHeader = new RequestHeader();
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -328,15 +329,15 @@ namespace Opc.Ua.Client.Tests
             ISession session;
             if (securityPolicy != null)
             {
-                session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints).ConfigureAwait(false);
+                session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
             }
             else
             {
-                session = m_session;
+                session = Session;
             }
 
             var clientTestServices = new ClientTestServices(session);
-            m_referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader, m_operationLimits);
+            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader, OperationLimits);
 
             if (securityPolicy != null)
             {
@@ -348,26 +349,26 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(410)]
         public async Task ReadDisplayNames()
         {
-            if (m_referenceDescriptions == null) { await BrowseFullAddressSpace(null).ConfigureAwait(false); }
-            var nodeIds = m_referenceDescriptions.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, m_session.NamespaceUris)).ToList();
-            if (m_operationLimits.MaxNodesPerRead > 0 &&
-                nodeIds.Count > m_operationLimits.MaxNodesPerRead)
+            if (ReferenceDescriptions == null) { await BrowseFullAddressSpace(null).ConfigureAwait(false); }
+            var nodeIds = ReferenceDescriptions.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, Session.NamespaceUris)).ToList();
+            if (OperationLimits.MaxNodesPerRead > 0 &&
+                nodeIds.Count > OperationLimits.MaxNodesPerRead)
             {
-                var sre = Assert.Throws<ServiceResultException>(() => m_session.ReadDisplayName(nodeIds, out var displayNames, out var errors));
+                var sre = Assert.Throws<ServiceResultException>(() => Session.ReadDisplayName(nodeIds, out var displayNames, out var errors));
                 Assert.AreEqual(StatusCodes.BadTooManyOperations, sre.StatusCode);
                 while (nodeIds.Count > 0)
                 {
-                    m_session.ReadDisplayName(nodeIds.Take((int)m_operationLimits.MaxNodesPerRead).ToArray(), out var displayNames, out var errors);
+                    Session.ReadDisplayName(nodeIds.Take((int)OperationLimits.MaxNodesPerRead).ToArray(), out var displayNames, out var errors);
                     foreach (var name in displayNames)
                     {
                         TestContext.Out.WriteLine("{0}", name);
                     }
-                    nodeIds = nodeIds.Skip((int)m_operationLimits.MaxNodesPerRead).ToList();
+                    nodeIds = nodeIds.Skip((int)OperationLimits.MaxNodesPerRead).ToList();
                 }
             }
             else
             {
-                m_session.ReadDisplayName(nodeIds, out var displayNames, out var errors);
+                Session.ReadDisplayName(nodeIds, out var displayNames, out var errors);
                 foreach (var name in displayNames)
                 {
                     TestContext.Out.WriteLine("{0}", name);
@@ -382,7 +383,7 @@ namespace Opc.Ua.Client.Tests
             requestHeader.Timestamp = DateTime.UtcNow;
             requestHeader.TimeoutHint = MaxTimeout;
 
-            var clientTestServices = new ClientTestServices(m_session);
+            var clientTestServices = new ClientTestServices(Session);
             CommonTestWorkers.SubscriptionTest(clientTestServices, requestHeader);
         }
 
@@ -392,17 +393,17 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(500)]
         public void NodeCache_LoadUaDefinedTypes()
         {
-            INodeCache nodeCache = m_session.NodeCache;
+            INodeCache nodeCache = Session.NodeCache;
             Assert.IsNotNull(nodeCache);
 
             // clear node cache
             nodeCache.Clear();
 
             // load the predefined types
-            nodeCache.LoadUaDefinedTypes(m_session.SystemContext);
+            nodeCache.LoadUaDefinedTypes(Session.SystemContext);
 
             // reload the predefined types
-            nodeCache.LoadUaDefinedTypes(m_session.SystemContext);
+            nodeCache.LoadUaDefinedTypes(Session.SystemContext);
         }
 
         /// <summary>
@@ -415,8 +416,8 @@ namespace Opc.Ua.Client.Tests
             var nodesToBrowse = new ExpandedNodeIdCollection {
                 ObjectIds.ObjectsFolder
             };
-            m_session.NodeCache.Clear();
-            m_session.NodeCache.LoadUaDefinedTypes(m_session.SystemContext);
+            Session.NodeCache.Clear();
+            Session.NodeCache.LoadUaDefinedTypes(Session.SystemContext);
             while (nodesToBrowse.Count > 0)
             {
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
@@ -424,7 +425,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     try
                     {
-                        var organizers = m_session.NodeCache.FindReferences(
+                        var organizers = Session.NodeCache.FindReferences(
                             node,
                             ReferenceTypeIds.HierarchicalReferences,
                             false,
@@ -460,11 +461,11 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(520)]
         public void NodeCache_References()
         {
-            INodeCache nodeCache = m_session.NodeCache;
+            INodeCache nodeCache = Session.NodeCache;
             Assert.IsNotNull(nodeCache);
 
             // ensure the predefined types are loaded
-            nodeCache.LoadUaDefinedTypes(m_session.SystemContext);
+            nodeCache.LoadUaDefinedTypes(Session.SystemContext);
 
             // check on all reference type ids
             var refTypeDictionary = typeof(ReferenceTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static)
@@ -488,15 +489,15 @@ namespace Opc.Ua.Client.Tests
                 Assert.IsTrue(isKnown);
                 // is it a reference?
                 var isTypeOf = nodeCache.IsTypeOf(
-                    NodeId.ToExpandedNodeId(refId, m_session.NamespaceUris),
-                    NodeId.ToExpandedNodeId(ReferenceTypeIds.References, m_session.NamespaceUris));
+                    NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
+                    NodeId.ToExpandedNodeId(ReferenceTypeIds.References, Session.NamespaceUris));
                 Assert.IsTrue(isTypeOf);
                 // negative test
                 isTypeOf = nodeCache.IsTypeOf(
-                    NodeId.ToExpandedNodeId(refId, m_session.NamespaceUris),
-                    NodeId.ToExpandedNodeId(DataTypeIds.Byte, m_session.NamespaceUris));
+                    NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
+                    NodeId.ToExpandedNodeId(DataTypeIds.Byte, Session.NamespaceUris));
                 Assert.IsFalse(isTypeOf);
-                var subTypes = nodeCache.FindSubTypes(NodeId.ToExpandedNodeId(refId, m_session.NamespaceUris));
+                var subTypes = nodeCache.FindSubTypes(NodeId.ToExpandedNodeId(refId, Session.NamespaceUris));
                 Assert.NotNull(subTypes);
             }
         }
@@ -504,22 +505,22 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(550)]
         public async Task Read()
         {
-            if (m_referenceDescriptions == null)
+            if (ReferenceDescriptions == null)
             {
                 await BrowseFullAddressSpace(null).ConfigureAwait(false);
             }
 
-            foreach (var reference in m_referenceDescriptions.Take(MaxReferences))
+            foreach (var reference in ReferenceDescriptions.Take(MaxReferences))
             {
-                var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris);
-                var node = m_session.ReadNode(nodeId);
+                var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                var node = Session.ReadNode(nodeId);
                 Assert.NotNull(node);
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
                 if (node is VariableNode)
                 {
                     try
                     {
-                        var value = m_session.ReadValue(nodeId);
+                        var value = Session.ReadValue(nodeId);
                         Assert.NotNull(value);
                         TestContext.Out.WriteLine("-- Value {0} ", value);
                     }
@@ -534,15 +535,15 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(600)]
         public async Task NodeCache_Read()
         {
-            if (m_referenceDescriptions == null)
+            if (ReferenceDescriptions == null)
             {
                 await BrowseFullAddressSpace(null).ConfigureAwait(false);
             }
 
-            foreach (var reference in m_referenceDescriptions.Take(MaxReferences))
+            foreach (var reference in ReferenceDescriptions.Take(MaxReferences))
             {
-                var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris);
-                var node = m_session.NodeCache.Find(reference.NodeId);
+                var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                var node = Session.NodeCache.Find(reference.NodeId);
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
             }
         }
@@ -550,15 +551,15 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(610)]
         public void FetchTypeTree()
         {
-            m_session.FetchTypeTree(NodeId.ToExpandedNodeId(DataTypeIds.BaseDataType, m_session.NamespaceUris));
+            Session.FetchTypeTree(NodeId.ToExpandedNodeId(DataTypeIds.BaseDataType, Session.NamespaceUris));
         }
 
         [Test, Order(620)]
         public void ReadAvailableEncodings()
         {
-            var sre = Assert.Throws<ServiceResultException>(() => m_session.ReadAvailableEncodings(DataTypeIds.BaseDataType));
+            var sre = Assert.Throws<ServiceResultException>(() => Session.ReadAvailableEncodings(DataTypeIds.BaseDataType));
             Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
-            var encoding = m_session.ReadAvailableEncodings(VariableIds.Server_ServerStatus_CurrentTime);
+            var encoding = Session.ReadAvailableEncodings(VariableIds.Server_ServerStatus_CurrentTime);
             Assert.NotNull(encoding);
             Assert.AreEqual(0, encoding.Count);
         }
@@ -567,14 +568,14 @@ namespace Opc.Ua.Client.Tests
         public async Task LoadStandardDataTypeSystem()
         {
             var sre = Assert.ThrowsAsync<ServiceResultException>(async () => {
-                var t = await m_session.LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson).ConfigureAwait(false);
+                var t = await Session.LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson).ConfigureAwait(false);
             });
             Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
-            var typeSystem = await m_session.LoadDataTypeSystem().ConfigureAwait(false);
+            var typeSystem = await Session.LoadDataTypeSystem().ConfigureAwait(false);
             Assert.NotNull(typeSystem);
-            typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.OPCBinarySchema_TypeSystem).ConfigureAwait(false);
+            typeSystem = await Session.LoadDataTypeSystem(ObjectIds.OPCBinarySchema_TypeSystem).ConfigureAwait(false);
             Assert.NotNull(typeSystem);
-            typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem).ConfigureAwait(false);
+            typeSystem = await Session.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem).ConfigureAwait(false);
             Assert.NotNull(typeSystem);
         }
 
@@ -583,7 +584,7 @@ namespace Opc.Ua.Client.Tests
         public async Task LoadAllServerDataTypeSystems(NodeId dataTypeSystem)
         {
             // find the dictionary for the description.
-            Browser browser = new Browser(m_session) {
+            Browser browser = new Browser(Session) {
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
                 IncludeSubtypes = false,
@@ -598,9 +599,9 @@ namespace Opc.Ua.Client.Tests
             // read all type dictionaries in the type system
             foreach (var r in references)
             {
-                NodeId dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
+                NodeId dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris);
                 TestContext.Out.WriteLine("  ReadDictionary {0} {1}", r.BrowseName.Name, dictionaryId);
-                var dictionaryToLoad = new DataDictionary(m_session);
+                var dictionaryToLoad = new DataDictionary(Session);
                 await dictionaryToLoad.Load(dictionaryId, r.BrowseName.Name).ConfigureAwait(false);
 
                 // internal API for testing only
@@ -646,15 +647,15 @@ namespace Opc.Ua.Client.Tests
 
                 // to validate the behavior of the sendInitialValue flag,
                 // use a static variable to avoid sampled notifications in publish requests
-                var namespaceUris = m_session.NamespaceUris;
+                var namespaceUris = Session.NamespaceUris;
                 NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
-                var clientTestServices = new ClientTestServices(m_session);
+                var clientTestServices = new ClientTestServices(Session);
                 CommonTestWorkers.CreateSubscriptionForTransfer(clientTestServices, requestHeader, testSet, out var subscriptionIds);
 
                 TestContext.Out.WriteLine("Transfer SubscriptionIds: {0}", subscriptionIds[0]);
 
-                transferSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256, m_endpoints).ConfigureAwait(false);
-                Assert.AreNotEqual(m_session.SessionId, transferSession.SessionId);
+                transferSession = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+                Assert.AreNotEqual(Session.SessionId, transferSession.SessionId);
 
                 requestHeader = new RequestHeader {
                     Timestamp = DateTime.UtcNow,

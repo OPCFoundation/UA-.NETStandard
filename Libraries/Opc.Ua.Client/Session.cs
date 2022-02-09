@@ -646,6 +646,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// If the subscriptions are deleted when a session is closed. 
         /// </summary>
+        /// <remarks>
+        /// Default <c>true</c>, set to <c>false</c> if subscriptions need to
+        /// be transferred or for durable subscriptions.
+        /// </remarks>   
         public bool DeleteSubscriptionsOnClose
         {
             get { return m_deleteSubscriptionsOnClose; }
@@ -1341,12 +1345,13 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Load the list of subscriptions saved in a file.
+        /// Load the list of subscriptions saved in a stream.
         /// </summary>
         /// <param name="stream">The stream.</param>
         /// <returns>The list of loaded subscriptions</returns>
         public IEnumerable<Subscription> Load(Stream stream)
         {
+            // secure settings
             XmlReaderSettings settings = new XmlReaderSettings {
                 DtdProcessing = DtdProcessing.Prohibit,
                 XmlResolver = null,
@@ -3446,26 +3451,43 @@ namespace Opc.Ua.Client
                 }
                 if (subscription.TransferId == 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing Id."));
+                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing transfer Id."));
                 }
                 subscriptionIds.Add(subscription.TransferId);
             }
 
-            ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
-            if (!StatusCode.IsGood(responseHeader.ServiceResult))
+            lock (SyncRoot)
             {
-                Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
-                return false;
-            }
-
-            ClientBase.ValidateResponse(results, subscriptionIds);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
-
-            for (int ii = 0; ii < subscriptions.Count; ii++)
-            {
-                if (StatusCode.IsGood(results[ii].StatusCode))
+                ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
+                if (!StatusCode.IsGood(responseHeader.ServiceResult))
                 {
-                    subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers);
+                    Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
+                    return false;
+                }
+
+                ClientBase.ValidateResponse(results, subscriptionIds);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+
+                for (int ii = 0; ii < subscriptions.Count; ii++)
+                {
+                    if (StatusCode.IsGood(results[ii].StatusCode))
+                    {
+                        if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
+                        {   // create ack for available sequence numbers
+                            foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
+                            {
+                                var ack = new SubscriptionAcknowledgement() {
+                                    SubscriptionId = subscriptionIds[ii],
+                                    SequenceNumber = sequenceNumber
+                                };
+                                m_acknowledgementsToSend.Add(ack);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
+                    }
                 }
             }
 
@@ -4179,8 +4201,11 @@ namespace Opc.Ua.Client
             state.RequestId = requestHeader.RequestHandle;
             state.Timestamp = DateTime.UtcNow;
 
+            CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
+
             try
             {
+
                 IAsyncResult result = BeginPublish(
                     requestHeader,
                     acknowledgementsToSend,
@@ -4188,8 +4213,6 @@ namespace Opc.Ua.Client
                     new object[] { SessionId, acknowledgementsToSend, requestHeader });
 
                 AsyncRequestStarted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
-
-                Utils.LogTrace("PUBLISH #{0} SENT", requestHeader.RequestHandle);
 
                 return result;
             }
@@ -4214,10 +4237,10 @@ namespace Opc.Ua.Client
 
             AsyncRequestCompleted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
 
+            CoreClientUtils.EventLog.PublishStop((int)requestHeader.RequestHandle);
+
             try
             {
-                Utils.LogTrace("PUBLISH #{0} RECEIVED", requestHeader.RequestHandle);
-
                 // complete publish.
                 uint subscriptionId;
                 UInt32Collection availableSequenceNumbers;
@@ -4249,7 +4272,7 @@ namespace Opc.Ua.Client
                     return;
                 }
 
-                Utils.LogTrace("NOTIFICATION RECEIVED: SubId={0}, SeqNo={1}", subscriptionId, notificationMessage.SequenceNumber);
+                CoreClientUtils.EventLog.NotificationReceived((int)subscriptionId, (int)notificationMessage.SequenceNumber);
 
                 // process response.
                 ProcessPublishResponse(
@@ -4342,6 +4365,8 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadNoSubscription:
                     case StatusCodes.BadSessionClosed:
                     case StatusCodes.BadSessionIdInvalid:
+                    case StatusCodes.BadSecureChannelIdInvalid:
+                    case StatusCodes.BadSecureChannelClosed:
                     case StatusCodes.BadServerHalted:
                         return;
                 }
@@ -4367,11 +4392,11 @@ namespace Opc.Ua.Client
         public bool Republish(uint subscriptionId, uint sequenceNumber)
         {
             // send publish request.
-            RequestHeader requestHeader = new RequestHeader();
-
-            requestHeader.TimeoutHint = (uint)OperationTimeout;
-            requestHeader.ReturnDiagnostics = (uint)(int)ReturnDiagnostics;
-            requestHeader.RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter);
+            RequestHeader requestHeader = new RequestHeader {
+                TimeoutHint = (uint)OperationTimeout,
+                ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
+                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
+            };
 
             try
             {
@@ -4386,7 +4411,7 @@ namespace Opc.Ua.Client
                     sequenceNumber,
                     out notificationMessage);
 
-                Utils.LogInfo("Received Republish for {0}-{1}", subscriptionId, sequenceNumber);
+                Utils.LogInfo("Received Republish for {0}-{1}-{2}", subscriptionId, sequenceNumber, responseHeader.ServiceResult);
 
                 // process response.
                 ProcessPublishResponse(
@@ -4505,6 +4530,11 @@ namespace Opc.Ua.Client
                     acknowledgementsToSend.Add(acknowledgement);
                 }
 
+#if DEBUG_SEQUENTIALPUBLISHING
+                // Checks for debug info only. 
+                // Once more than a single publish request is queued, the checks are invalid
+                // because a publish response may not include the latest ack information yet.
+
                 uint lastSentSequenceNumber = 0;
                 if (availableSequenceNumbers != null)
                 {
@@ -4513,7 +4543,6 @@ namespace Opc.Ua.Client
                         if (m_latestAcknowledgementsSent.ContainsKey(subscriptionId))
                         {
                             lastSentSequenceNumber = m_latestAcknowledgementsSent[subscriptionId];
-
                             // If the last sent sequence number is uint.Max do not display the warning; the counter rolled over
                             // If the last sent sequence number is greater or equal to the available sequence number (returned by the publish),
                             // a warning must be logged.
@@ -4531,12 +4560,14 @@ namespace Opc.Ua.Client
                     lastSentSequenceNumber = m_latestAcknowledgementsSent[subscriptionId];
 
                     // If the last sent sequence number is uint.Max do not display the warning; the counter rolled over
-                    // If the last sent sequence number is greater or equal to the notificationMessage's sequence number (returned by the publish), a warning must be logged.
+                    // If the last sent sequence number is greater or equal to the notificationMessage's sequence number (returned by the publish),
+                    // a warning must be logged.
                     if (((lastSentSequenceNumber >= notificationMessage.SequenceNumber) && (lastSentSequenceNumber != uint.MaxValue)) || (lastSentSequenceNumber == notificationMessage.SequenceNumber) && (lastSentSequenceNumber == uint.MaxValue))
                     {
                         Utils.LogWarning("Received sequence number which was already acknowledged={0}", notificationMessage.SequenceNumber);
                     }
                 }
+#endif
 
                 if (availableSequenceNumbers != null)
                 {
@@ -4603,12 +4634,20 @@ namespace Opc.Ua.Client
             }
             else
             {
-                // Delete abandoned subscription from server.
-                Utils.LogWarning("Received Publish Response for Unknown SubscriptionId={0}. Deleting abandoned subscription from server.", subscriptionId);
+                if (m_deleteSubscriptionsOnClose)
+                {
+                    // Delete abandoned subscription from server.
+                    Utils.LogWarning("Received Publish Response for Unknown SubscriptionId={0}. Deleting abandoned subscription from server.", subscriptionId);
 
-                Task.Run(() => {
-                    DeleteSubscription(subscriptionId);
-                });
+                    Task.Run(() => {
+                        DeleteSubscription(subscriptionId);
+                    });
+                }
+                else
+                {
+                    // Do not delete publish requests of stale subscriptions
+                    Utils.LogWarning("Received Publish Response for Unknown SubscriptionId={0}. Ignored.", subscriptionId);
+                }
             }
         }
 
