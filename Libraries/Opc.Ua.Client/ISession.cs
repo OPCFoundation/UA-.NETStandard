@@ -23,7 +23,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * The complete license agreement can be found here:
+ * The complete license agreement can be found here: 
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
