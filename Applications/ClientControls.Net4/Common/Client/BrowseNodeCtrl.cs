@@ -65,7 +65,7 @@ namespace Opc.Ua.Client.Controls
         /// <param name="rootId">The root of the hierarchy to browse.</param>
         /// <param name="referenceTypeIds">The reference types to follow.</param>
         public void Initialize(
-            Session session,
+            ISession session,
             NodeId rootId,
             params NodeId[] referenceTypeIds)
         {
@@ -76,7 +76,7 @@ namespace Opc.Ua.Client.Controls
         /// Changes the session used by the control.
         /// </summary>
         /// <param name="session">The session.</param>
-        public void ChangeSession(Session session)
+        public void ChangeSession(ISession session)
         {
             BrowseCTRL.ChangeSession(session);
         }

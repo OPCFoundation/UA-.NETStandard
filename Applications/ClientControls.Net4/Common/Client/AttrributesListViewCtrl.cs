@@ -56,7 +56,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Private Fields
-        private Session m_session;
+        private ISession m_session;
         #endregion
 
         #region Public Interface
@@ -69,7 +69,7 @@ namespace Opc.Ua.Client.Controls
         /// Changes the session used by the control.
         /// </summary>
         /// <param name="session">The session.</param>
-        public void ChangeSession(Session session)
+        public void ChangeSession(ISession session)
         {
             m_session = session;
         }

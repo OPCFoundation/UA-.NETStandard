@@ -55,14 +55,14 @@ namespace Opc.Ua.Client.Controls
         #endregion
         
         #region Private Fields
-        private Session m_session;
+        private ISession m_session;
         #endregion
         
         #region Public Interface
         /// <summary>
         /// Changes the session used for the subscription.
         /// </summary>
-        public void ChangeSession(Session session)
+        public void ChangeSession(ISession session)
         {
             SubscribeRequestCTRL.ChangeSession(session);
             m_session = session;

@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Controls
         }
 
         #region Private Fields
-        private Session m_session;
+        private ISession m_session;
        
 		// The columns to display in the control.		
 		private readonly object[][] m_ColumnNames = new object[][]
@@ -65,7 +65,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Initializes the control with a set of items.
         /// </summary>
-        public void Initialize(Session session, ExpandedNodeId nodeId)
+        public void Initialize(ISession session, ExpandedNodeId nodeId)
         {
             ItemsLV.Items.Clear();
             m_session = session;

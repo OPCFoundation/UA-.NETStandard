@@ -55,14 +55,14 @@ namespace Opc.Ua.Client.Controls
         #endregion
         
         #region Private Fields
-        private Session m_session;
+        private ISession m_session;
         #endregion
         
         #region Public Interface
         /// <summary>
         /// Changes the session used for the call request.
         /// </summary>
-        public void ChangeSession(Session session)
+        public void ChangeSession(ISession session)
         {
             m_session = session;
             CallRequestCTRL.ChangeSession(session);

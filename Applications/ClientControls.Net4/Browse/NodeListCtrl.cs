@@ -53,7 +53,7 @@ namespace Opc.Ua.Client.Controls
         }
 
         #region Private Fields
-        private Session m_session;
+        private ISession m_session;
         private BrowseListCtrl m_referencesCTRL;
         private AttributeListCtrl m_attributesCTRL;
        
@@ -86,7 +86,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Initializes the control with a set of items.
         /// </summary>
-        public void Initialize(Session session, IList<NodeId> nodeIds)
+        public void Initialize(ISession session, IList<NodeId> nodeIds)
         {
             ItemsLV.Items.Clear();
             m_session = session;

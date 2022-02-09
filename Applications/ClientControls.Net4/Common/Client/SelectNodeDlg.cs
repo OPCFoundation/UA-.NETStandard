@@ -60,7 +60,7 @@ namespace Opc.Ua.Client.Controls
         /// Prompts the user to select a node.
         /// </summary>
         public NodeId ShowDialog(
-            Session session,
+            ISession session,
             NodeId rootId,
             string caption,
             params NodeId[] referenceTypeIds)
@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.Controls
         /// Prompts the user to select a node.
         /// </summary>
         public ReferenceDescription ShowDialog(
-            Session session,
+            ISession session,
             NodeId rootId,
             ViewDescription view, 
             string caption,

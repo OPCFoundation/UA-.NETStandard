@@ -400,7 +400,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Displays a dialog that allows a use to edit a value.
         /// </summary>
-        public static object EditValue(Session session, object value)
+        public static object EditValue(ISession session, object value)
         {
             TypeInfo typeInfo = TypeInfo.Construct(value);
 
@@ -415,7 +415,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Displays a dialog that allows a use to edit a value.
         /// </summary>
-        public static object EditValue(Session session, object value, NodeId datatypeId, int valueRank)
+        public static object EditValue(ISession session, object value, NodeId datatypeId, int valueRank)
         {
             if (value == null)
             {
@@ -524,7 +524,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Returns to display icon for the target of a reference.
         /// </summary>
-        public static string GetTargetIcon(Session session, ReferenceDescription reference)
+        public static string GetTargetIcon(ISession session, ReferenceDescription reference)
         {
             return GetTargetIcon(session, reference.NodeClass, reference.TypeDefinition);
         }
@@ -532,7 +532,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Returns to display icon for the target of a reference.
         /// </summary>
-        public static string GetTargetIcon(Session session, NodeClass nodeClass, ExpandedNodeId typeDefinitionId)
+        public static string GetTargetIcon(ISession session, NodeClass nodeClass, ExpandedNodeId typeDefinitionId)
         {
             // make sure the type definition is in the cache.
             INode typeDefinition = session.NodeCache.Find(typeDefinitionId);

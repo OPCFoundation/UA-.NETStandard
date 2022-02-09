@@ -219,7 +219,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Private Fields
-        private Session m_session;
+        private ISession m_session;
         private Subscription m_subscription;
         private MonitoredItem m_monitoredItem;
         private NodeId m_nodeId;
@@ -446,7 +446,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Changes the session.
         /// </summary>
-        public void ChangeSession(Session session)
+        public void ChangeSession(ISession session)
         {
             if (Object.ReferenceEquals(session, m_session))
             {
@@ -511,7 +511,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Updates the control after the session has reconnected.
         /// </summary>
-        public void SessionReconnected(Session session)
+        public void SessionReconnected(ISession session)
         {
             m_session = session;
 

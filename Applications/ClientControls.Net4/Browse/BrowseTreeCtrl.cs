@@ -59,7 +59,7 @@ namespace Opc.Ua.Client.Controls
 
         private NodeId m_rootId;
         private NodeId m_viewId;
-        private Session m_session;
+        private ISession m_session;
         private NodeId m_referenceTypeId;
         private BrowseDirection m_browseDirection;
         private BrowseListCtrl m_referencesCTRL;
@@ -123,7 +123,7 @@ namespace Opc.Ua.Client.Controls
         /// Displays the a root in the control.
         /// </summary>
         public void Initialize(
-            Session session, 
+            ISession session, 
             NodeId rootId, 
             NodeId viewId,
             NodeId referenceTypeId, 

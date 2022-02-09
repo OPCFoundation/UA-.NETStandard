@@ -60,7 +60,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Displays the dialog.
         /// </summary>
-        public NodeId ShowDialog(Session session, NodeId value)
+        public NodeId ShowDialog(ISession session, NodeId value)
         {
             if (session == null) throw new ArgumentNullException("session");
 
@@ -79,7 +79,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Displays the dialog.
         /// </summary>
-        public ExpandedNodeId ShowDialog(Session session, ExpandedNodeId value)
+        public ExpandedNodeId ShowDialog(ISession session, ExpandedNodeId value)
         {
             if (session == null) throw new ArgumentNullException("session");
 

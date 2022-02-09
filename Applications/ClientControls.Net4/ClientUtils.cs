@@ -194,7 +194,7 @@ namespace Opc.Ua.Client.Controls
         /// <param name="attributeId">The id of the attribute.</param>
         /// <param name="value">The value of the attribute.</param>
         /// <returns>The attribute formatted as a string.</returns>
-        public static string GetAttributeDisplayText(Session session, uint attributeId, Variant value)
+        public static string GetAttributeDisplayText(ISession session, uint attributeId, Variant value)
         {
             if (value == Variant.Null)
             {
@@ -301,7 +301,7 @@ namespace Opc.Ua.Client.Controls
         /// <returns>
         /// The references found. Null if an error occurred.
         /// </returns>
-        public static ReferenceDescriptionCollection Browse(Session session, BrowseDescriptionCollection nodesToBrowse, bool throwOnError)
+        public static ReferenceDescriptionCollection Browse(ISession session, BrowseDescriptionCollection nodesToBrowse, bool throwOnError)
         {
             return Browse(session, null, nodesToBrowse, throwOnError);
         }
@@ -309,7 +309,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Browses the address space and returns the references found.
         /// </summary>
-        public static ReferenceDescriptionCollection Browse(Session session, ViewDescription view, BrowseDescriptionCollection nodesToBrowse, bool throwOnError)
+        public static ReferenceDescriptionCollection Browse(ISession session, ViewDescription view, BrowseDescriptionCollection nodesToBrowse, bool throwOnError)
         {
             try
             {
@@ -438,7 +438,7 @@ namespace Opc.Ua.Client.Controls
         /// <returns>
         /// The references found. Null if an error occurred.
         /// </returns>
-        public static ReferenceDescriptionCollection Browse(Session session, BrowseDescription nodeToBrowse, bool throwOnError)
+        public static ReferenceDescriptionCollection Browse(ISession session, BrowseDescription nodeToBrowse, bool throwOnError)
         {
             return Browse(session, null, nodeToBrowse, throwOnError);
         }
@@ -446,7 +446,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Browses the address space and returns the references found.
         /// </summary>
-        public static ReferenceDescriptionCollection Browse(Session session, ViewDescription view, BrowseDescription nodeToBrowse, bool throwOnError)
+        public static ReferenceDescriptionCollection Browse(ISession session, ViewDescription view, BrowseDescription nodeToBrowse, bool throwOnError)
         {
             try
             {
@@ -530,7 +530,7 @@ namespace Opc.Ua.Client.Controls
         /// <returns>
         /// The references found. Null if an error occurred.
         /// </returns>
-        public static ReferenceDescriptionCollection BrowseSuperTypes(Session session, NodeId typeId, bool throwOnError)
+        public static ReferenceDescriptionCollection BrowseSuperTypes(ISession session, NodeId typeId, bool throwOnError)
         {
             ReferenceDescriptionCollection supertypes = new ReferenceDescriptionCollection();
 
@@ -587,7 +587,7 @@ namespace Opc.Ua.Client.Controls
         /// <param name="relativePaths">The relative paths.</param>
         /// <returns>A collection of local nodes.</returns>
         public static List<NodeId> TranslateBrowsePaths(
-            Session session,
+            ISession session,
             NodeId startNodeId,
             NamespaceTable namespacesUris,
             params string[] relativePaths)
@@ -802,7 +802,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Collects the instance declarations for a type.
         /// </summary>
-        public static List<InstanceDeclaration> CollectInstanceDeclarationsForType(Session session, NodeId typeId)
+        public static List<InstanceDeclaration> CollectInstanceDeclarationsForType(ISession session, NodeId typeId)
         {
             return CollectInstanceDeclarationsForType(session, typeId, true);
         }
@@ -810,7 +810,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Collects the instance declarations for a type.
         /// </summary>
-        public static List<InstanceDeclaration> CollectInstanceDeclarationsForType(Session session, NodeId typeId, bool includeSupertypes)
+        public static List<InstanceDeclaration> CollectInstanceDeclarationsForType(ISession session, NodeId typeId, bool includeSupertypes)
         {
             // process the types starting from the top of the tree.
             List<InstanceDeclaration> instances = new List<InstanceDeclaration>();
@@ -841,7 +841,7 @@ namespace Opc.Ua.Client.Controls
         /// Collects the fields for the instance node.
         /// </summary>
         private static void CollectInstanceDeclarations(
-            Session session,
+            ISession session,
             NodeId typeId,
             InstanceDeclaration parent,
             List<InstanceDeclaration> instances,
@@ -973,7 +973,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Finds the targets for the specified reference.
         /// </summary>
-        private static List<NodeId> FindTargetOfReference(Session session, List<NodeId> nodeIds, NodeId referenceTypeId, bool throwOnError)
+        private static List<NodeId> FindTargetOfReference(ISession session, List<NodeId> nodeIds, NodeId referenceTypeId, bool throwOnError)
         {
             try
             {
@@ -1069,7 +1069,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Finds the targets for the specified reference.
         /// </summary>
-        private static void UpdateInstanceDescriptions(Session session, List<InstanceDeclaration> instances, bool throwOnError)
+        private static void UpdateInstanceDescriptions(ISession session, List<InstanceDeclaration> instances, bool throwOnError)
         {
             try
             {
@@ -1147,7 +1147,7 @@ namespace Opc.Ua.Client.Controls
         /// <param name="typeId">The type id.</param>
         /// <param name="fields">The fields.</param>
         /// <param name="fieldNodeIds">The node id for the declaration of the field.</param>
-        private static void CollectFieldsForType(Session session, NodeId typeId, SimpleAttributeOperandCollection fields, List<NodeId> fieldNodeIds)
+        private static void CollectFieldsForType(ISession session, NodeId typeId, SimpleAttributeOperandCollection fields, List<NodeId> fieldNodeIds)
         {
             // get the supertypes.
             ReferenceDescriptionCollection supertypes = ClientUtils.BrowseSuperTypes(session, typeId, false);
@@ -1177,7 +1177,7 @@ namespace Opc.Ua.Client.Controls
         /// <param name="instanceId">The instance id.</param>
         /// <param name="fields">The fields.</param>
         /// <param name="fieldNodeIds">The node id for the declaration of the field.</param>
-        private static void CollectFieldsForInstance(Session session, NodeId instanceId, SimpleAttributeOperandCollection fields, List<NodeId> fieldNodeIds)
+        private static void CollectFieldsForInstance(ISession session, NodeId instanceId, SimpleAttributeOperandCollection fields, List<NodeId> fieldNodeIds)
         {
             Dictionary<NodeId, QualifiedNameCollection> foundNodes = new Dictionary<NodeId, QualifiedNameCollection>();
             QualifiedNameCollection parentPath = new QualifiedNameCollection();
@@ -1194,7 +1194,7 @@ namespace Opc.Ua.Client.Controls
         /// <param name="fieldNodeIds">The node id for the declaration of the field.</param>
         /// <param name="foundNodes">The table of found nodes.</param>
         private static void CollectFields(
-            Session session,
+            ISession session,
             NodeId nodeId,
             QualifiedNameCollection parentPath,
             SimpleAttributeOperandCollection fields,

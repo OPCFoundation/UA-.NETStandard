@@ -28,11 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Security.Cryptography.X509Certificates;
-using System.Windows.Forms;
 using System.IO;
+using System.Windows.Forms;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Controls;
@@ -68,7 +65,7 @@ namespace Quickstarts.ReferenceClient
 
         #region Private Fields
         private ApplicationConfiguration m_configuration;
-        private Session m_session;
+        private ISession m_session;
         private bool m_connectedOnce;
         #endregion
 

@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Prompts the user to edit the monitored item.
         /// </summary>
-        public bool ShowDialog(Session session, MonitoredItem monitoredItem, bool isEvent)
+        public bool ShowDialog(ISession session, MonitoredItem monitoredItem, bool isEvent)
         {
             if (!monitoredItem.Created)
             {
