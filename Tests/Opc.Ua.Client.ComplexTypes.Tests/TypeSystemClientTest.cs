@@ -54,7 +54,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         ServerFixture<ReferenceServer> m_serverFixture;
         ClientFixture m_clientFixture;
         ReferenceServer m_server;
-        Session m_session;
+        ISession m_session;
         string m_uriScheme;
         string m_pkiRoot;
         Uri m_url;

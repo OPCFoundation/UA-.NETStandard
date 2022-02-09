@@ -38,6 +38,14 @@ namespace Opc.Ua.Client
     /// </summary>
     public class SessionReconnectHandler : IDisposable
     {
+        /// <summary>
+        /// Ctor
+        /// </summary>
+        /// <param name="sessionFactory">The object that will help with creating/recreating a session object</param>
+        public SessionReconnectHandler(ISessionFactory sessionFactory)
+        {
+            m_sessionFactory = sessionFactory;
+        }
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -71,12 +79,12 @@ namespace Opc.Ua.Client
         /// Gets the session managed by the handler.
         /// </summary>
         /// <value>The session.</value>
-        public Session Session => m_session;
+        public ISession Session => m_session;
 
         /// <summary>
         /// Begins the reconnect process.
         /// </summary>
-        public void BeginReconnect(Session session, int reconnectPeriod, EventHandler callback)
+        public void BeginReconnect(ISession session, int reconnectPeriod, EventHandler callback)
         {
             BeginReconnect(session, null, reconnectPeriod, callback);
         }
@@ -84,7 +92,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Begins the reconnect process using a reverse connection.
         /// </summary>
-        public void BeginReconnect(Session session, ReverseConnectManager reverseConnectManager, int reconnectPeriod, EventHandler callback)
+        public void BeginReconnect(ISession session, ReverseConnectManager reverseConnectManager, int reconnectPeriod, EventHandler callback)
         {
             lock (m_lock)
             {
@@ -208,7 +216,7 @@ namespace Opc.Ua.Client
             // re-create the session.
             try
             {
-                Session session;
+                ISession session;
                 if (m_reverseConnectManager != null)
                 {
                     var connection = await m_reverseConnectManager.WaitForConnection(
@@ -216,11 +224,11 @@ namespace Opc.Ua.Client
                             m_session.Endpoint.Server.ApplicationUri
                         ).ConfigureAwait(false);
 
-                    session = Session.Recreate(m_session, connection);
+                    session = m_sessionFactory.Recreate(m_session, connection);
                 }
                 else
                 {
-                    session = Session.Recreate(m_session);
+                    session = m_sessionFactory.Recreate(m_session);
                 }
                 m_session.Close();
                 m_session = session;
@@ -236,12 +244,13 @@ namespace Opc.Ua.Client
 
         #region Private Fields
         private object m_lock = new object();
-        private Session m_session;
+        private ISession m_session;
         private bool m_reconnectFailed;
         private int m_reconnectPeriod;
         private Timer m_reconnectTimer;
         private EventHandler m_callback;
         private ReverseConnectManager m_reverseConnectManager;
+        private readonly ISessionFactory m_sessionFactory;
         #endregion
     }
 }

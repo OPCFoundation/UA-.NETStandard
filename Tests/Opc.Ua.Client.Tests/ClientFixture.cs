@@ -54,6 +54,8 @@ namespace Opc.Ua.Client.Tests
         public int OperationTimeout { get; set; } = 10000;
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
 
+        public ISessionFactory SessionFactory { get; } = new DefaultSessionFactory();
+
         #region Public Methods
         /// <summary>
         /// Load the default client configuration.
@@ -129,7 +131,7 @@ namespace Opc.Ua.Client.Tests
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
-        public async Task<Session> Connect(string endpointUrl)
+        public async Task<ISession> Connect(string endpointUrl)
         {
             if (String.IsNullOrEmpty(endpointUrl))
             {
@@ -173,7 +175,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Connects the url endpoint with specified security profile.
         /// </summary>
-        public async Task<Session> ConnectAsync(Uri url, string securityProfile, EndpointDescriptionCollection endpoints = null)
+        public async Task<ISession> ConnectAsync(Uri url, string securityProfile, EndpointDescriptionCollection endpoints = null)
         {
             return await ConnectAsync(await GetEndpointAsync(url, securityProfile, endpoints).ConfigureAwait(false)).ConfigureAwait(false);
         }
@@ -182,7 +184,7 @@ namespace Opc.Ua.Client.Tests
         /// Connects the specified endpoint.
         /// </summary>
         /// <param name="endpoint">The configured endpoint.</param>
-        public async Task<Session> ConnectAsync(ConfiguredEndpoint endpoint)
+        public async Task<ISession> ConnectAsync(ConfiguredEndpoint endpoint)
         {
             if (endpoint == null)
             {
@@ -193,7 +195,7 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            var session = await Session.Create(
+            var session = await SessionFactory.Create(
                 Config, endpoint, false, false,
                 Config.ApplicationName, SessionTimeout, null, null).ConfigureAwait(false);
 
@@ -306,7 +308,7 @@ namespace Opc.Ua.Client.Tests
         #endregion
 
         #region Private Methods
-        private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (ServiceResult.IsBad(e.Status))
             {

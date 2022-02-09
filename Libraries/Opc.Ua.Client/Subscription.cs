@@ -545,7 +545,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The session that owns the subscription item.
         /// </summary>
-        public Session Session
+        public ISession Session
         {
             get => m_session;
             internal set => m_session = value;
@@ -810,7 +810,7 @@ namespace Opc.Ua.Client
         /// <param name="session">The session to which the subscription is transferred.</param>
         /// <param name="id">Id of the transferred subscription.</param>
         /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
-        public bool Transfer(Session session, uint id, UInt32Collection availableSequenceNumbers)
+        public bool Transfer(ISession session, uint id, UInt32Collection availableSequenceNumbers)
         {
             if (Created)
             {
@@ -1870,7 +1870,7 @@ namespace Opc.Ua.Client
             try
             {
                 Interlocked.Increment(ref m_outstandingMessageWorkers);
-                Session session = null;
+                ISession session = null;
                 uint subscriptionId = 0;
                 EventHandler callback = null;
 
@@ -2427,7 +2427,7 @@ namespace Opc.Ua.Client
         private MonitoredItem m_defaultItem;
         private SubscriptionChangeMask m_changeMask;
 
-        private Session m_session;
+        private ISession m_session;
         private object m_handle;
         private uint m_id;
         private uint m_transferId;

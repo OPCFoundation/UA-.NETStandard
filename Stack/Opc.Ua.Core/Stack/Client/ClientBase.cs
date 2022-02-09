@@ -19,7 +19,7 @@ namespace Opc.Ua
     /// <summary>
 	/// The client side interface with a UA server.
 	/// </summary>
-    public partial class ClientBase : IDisposable
+    public partial class ClientBase : IClientBase, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -586,7 +586,7 @@ namespace Opc.Ua
     /// <summary>
 	/// The client side interface with a UA server.
 	/// </summary>
-    public partial class SessionClient
+    public partial class SessionClient: ISessionClient
     {
         #region IDisposable Implementation
         /// <summary>
