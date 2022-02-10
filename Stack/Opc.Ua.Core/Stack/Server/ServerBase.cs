@@ -524,6 +524,14 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <summary>
+        /// Creates an instance of the service host.
+        /// </summary>
+        public virtual ServiceHost CreateServiceHost(ServerBase server, params Uri[] addresses)
+        {
+            return null;
+        }
         #endregion
 
         #region BaseAddress Class
@@ -688,14 +696,6 @@ namespace Opc.Ua
         #endregion
 
         #region Protected Methods
-        /// <summary>
-        /// Creates an instance of the service host.
-        /// </summary>
-        public virtual ServiceHost CreateServiceHost(ServerBase server, params Uri[] addresses)
-        {
-            return null;
-        }
-
         /// <summary>
         /// Returns the service contract to use.
         /// </summary>

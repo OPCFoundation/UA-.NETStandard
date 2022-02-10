@@ -115,6 +115,9 @@ namespace Quickstarts.ReferenceServer
                 output.WriteLine("Check the certificate.");
                 await server.CheckCertificateAsync(renewCertificate).ConfigureAwait(false);
 
+                // Create and add the node managers
+                server.Create(Servers.Utils.NodeManagerFactories);
+
                 // start the server
                 output.WriteLine("Start the server.");
                 await server.StartAsync().ConfigureAwait(false);

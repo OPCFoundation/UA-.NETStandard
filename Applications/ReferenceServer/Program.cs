@@ -72,8 +72,12 @@ namespace Quickstarts.ReferenceServer
                     throw new Exception("Application instance certificate invalid!");
                 }
 
+                // Create server, add additional node managers
+                var server = new ReferenceServer();
+                Quickstarts.Servers.Utils.AddDefaultNodeManagers(server);
+
                 // start the server.
-                application.Start(new ReferenceServer()).Wait();
+                application.Start(server).Wait();
 
                 // check whether the invalid certificates dialog should be displayed.
                 bool showCertificateValidationDialog = false;

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -40,9 +40,23 @@ namespace Boiler
     /// </summary>
     public class BoilerNodeManagerFactory : INodeManagerFactory
     {
+        /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
             return new BoilerNodeManager(server, configuration);
+        }
+
+        /// <inheritdoc/>
+        public StringCollection NamespacesUris
+        {
+            get
+            {
+                var nameSpaces = new StringCollection {
+                    Namespaces.Boiler,
+                    Namespaces.Boiler + "Instance"
+                };
+                return nameSpaces;
+            }
         }
     }
 

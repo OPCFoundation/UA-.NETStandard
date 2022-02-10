@@ -61,19 +61,14 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            Utils.LogInfo(Utils.TraceMasks.StartStop, "Creating the Reference Server Node Managers.");
+            Utils.LogInfo(Utils.TraceMasks.StartStop, "Creating the Reference Server Node Manager.");
 
-            List<INodeManager> nodeManagers = new List<INodeManager>();
+            IList<INodeManager> nodeManagers = new List<INodeManager>();
 
-            // create the custom node managers.
+            // create the custom node manager.
             nodeManagers.Add(new ReferenceNodeManager(server, configuration));
 
-            if (m_nodeManagerFactory == null || m_nodeManagerFactory.Count == 0)
-            {
-                AddDefaultFactories();
-            }
-
-            foreach (var nodeManagerFactory in m_nodeManagerFactory)
+            foreach (var nodeManagerFactory in NodeManagerFactories)
             {
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
@@ -90,14 +85,14 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override ServerProperties LoadServerProperties()
         {
-            ServerProperties properties = new ServerProperties();
-
-            properties.ManufacturerName = "OPC Foundation";
-            properties.ProductName = "Quickstart Reference Server";
-            properties.ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.04";
-            properties.SoftwareVersion = Utils.GetAssemblySoftwareVersion();
-            properties.BuildNumber = Utils.GetAssemblyBuildNumber();
-            properties.BuildDate = Utils.GetAssemblyTimestamp();
+            ServerProperties properties = new ServerProperties {
+                ManufacturerName = "OPC Foundation",
+                ProductName = "Quickstart Reference Server",
+                ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.04",
+                SoftwareVersion = Utils.GetAssemblySoftwareVersion(),
+                BuildNumber = Utils.GetAssemblyBuildNumber(),
+                BuildDate = Utils.GetAssemblyTimestamp()
+            };
 
             return properties;
         }
@@ -174,16 +169,17 @@ namespace Quickstarts.ReferenceServer
         public override UserTokenPolicyCollection GetUserTokenPolicies(ApplicationConfiguration configuration, EndpointDescription description)
         {
             var policies = base.GetUserTokenPolicies(configuration, description);
+
             // sample how to modify default user token policies
             if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
                 description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
-                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Anonymous));
+                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Certificate));
             }
             else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
                 description.SecurityMode == MessageSecurityMode.Sign)
             {
-                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Certificate));
+                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Anonymous));
             }
             else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
                 description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
@@ -379,33 +375,9 @@ namespace Quickstarts.ReferenceServer
                     new LocalizedText(info)));
             }
         }
-
-        private static INodeManagerFactory IsINodeManagerFactoryType(Type type)
-        {
-            var nodeManagerTypeInfo = type.GetTypeInfo();
-            if (nodeManagerTypeInfo.IsAbstract ||
-                !typeof(INodeManagerFactory).IsAssignableFrom(type))
-            {
-                return null;
-            }
-
-            return Activator.CreateInstance(type) as INodeManagerFactory;
-        }
-
-        private void AddDefaultFactories()
-        {
-            var assembly = GetType().Assembly;
-            var factories = assembly.GetExportedTypes().Select(type => IsINodeManagerFactoryType(type)).Where(type => type != null);
-            m_nodeManagerFactory = new List<INodeManagerFactory>();
-            foreach (var nodeManagerFactory in factories)
-            {
-                m_nodeManagerFactory.Add(nodeManagerFactory);
-            }
-        }
         #endregion
 
         #region Private Fields
-        private IList<INodeManagerFactory> m_nodeManagerFactory;
         private ICertificateValidator m_userCertificateValidator;
         #endregion
     }
