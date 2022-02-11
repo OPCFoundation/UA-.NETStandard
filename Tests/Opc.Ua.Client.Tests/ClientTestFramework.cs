@@ -128,6 +128,7 @@ namespace Opc.Ua.Client.Tests
                     UriScheme = UriScheme,
                     SecurityNone = true,
                     AutoAccept = true,
+                    AllNodeManagers = true,
                     OperationLimits = true
                 };
 

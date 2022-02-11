@@ -147,15 +147,17 @@
       <!-- Allows username/password -->
       <ua:UserTokenPolicy>
         <ua:TokenType>UserName_1</ua:TokenType>
-        <!-- passwords must be encrypted - this specifies what algorithm to use, unspecified uses the session profile -->
+        <!-- passwords must be encrypted - this specifies what algorithm to use -->
+        <!-- if no algorithm is specified, the active security policy is used -->
         <!-- <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri> -->
       </ua:UserTokenPolicy>
 
       <!-- Allows user certificates -->
       <ua:UserTokenPolicy>
         <ua:TokenType>Certificate_2</ua:TokenType>
-        <!-- passwords must be encrypted - this specifies what algorithm to use, unspecified uses the session profile -->
-        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri>
+        <!-- certificate possession must be proven with a digital signature - this specifies what algorithm to use -->
+        <!-- if no algorithm is specified, the active security policy is used -->
+        <!-- <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri> -->
       </ua:UserTokenPolicy>
     </UserTokenPolicies>
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
@@ -237,6 +239,7 @@
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
+    
     <!--  Reverse connection parameters for aggregation server sample -->
     <!--
     <ReverseConnect>
@@ -254,18 +257,18 @@
     -->
 
     <OperationLimits>
-      <MaxNodesPerRead>10000</MaxNodesPerRead>
-      <MaxNodesPerHistoryReadData>10000</MaxNodesPerHistoryReadData>
-      <MaxNodesPerHistoryReadEvents>10000</MaxNodesPerHistoryReadEvents>
-      <MaxNodesPerWrite>10000</MaxNodesPerWrite>
-      <MaxNodesPerHistoryUpdateData>10000</MaxNodesPerHistoryUpdateData>
-      <MaxNodesPerHistoryUpdateEvents>10000</MaxNodesPerHistoryUpdateEvents>
+      <MaxNodesPerRead>2500</MaxNodesPerRead>
+      <MaxNodesPerHistoryReadData>1000</MaxNodesPerHistoryReadData>
+      <MaxNodesPerHistoryReadEvents>1000</MaxNodesPerHistoryReadEvents>
+      <MaxNodesPerWrite>2500</MaxNodesPerWrite>
+      <MaxNodesPerHistoryUpdateData>1000</MaxNodesPerHistoryUpdateData>
+      <MaxNodesPerHistoryUpdateEvents>1000</MaxNodesPerHistoryUpdateEvents>
       <MaxNodesPerMethodCall>2500</MaxNodesPerMethodCall>
       <MaxNodesPerBrowse>2500</MaxNodesPerBrowse>
-      <MaxNodesPerRegisterNodes>10000</MaxNodesPerRegisterNodes>
-      <MaxNodesPerTranslateBrowsePathsToNodeIds>10000</MaxNodesPerTranslateBrowsePathsToNodeIds>
-      <MaxNodesPerNodeManagement>10000</MaxNodesPerNodeManagement>
-      <MaxMonitoredItemsPerCall>10000</MaxMonitoredItemsPerCall>
+      <MaxNodesPerRegisterNodes>2500</MaxNodesPerRegisterNodes>
+      <MaxNodesPerTranslateBrowsePathsToNodeIds>2500</MaxNodesPerTranslateBrowsePathsToNodeIds>
+      <MaxNodesPerNodeManagement>2500</MaxNodesPerNodeManagement>
+      <MaxMonitoredItemsPerCall>2500</MaxMonitoredItemsPerCall>
     </OperationLimits>
 
   </ServerConfiguration>
@@ -303,7 +306,7 @@
     <!-- Show Only Security, Service Calls, Errors and Trace -->
     <!-- <TraceMasks>523</TraceMasks> -->
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
-    <!-- <TraceMasks>519</TraceMasks> -->
+    <TraceMasks>519</TraceMasks>
   </TraceConfiguration>
 
 </ApplicationConfiguration>

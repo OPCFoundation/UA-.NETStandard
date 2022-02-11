@@ -31,6 +31,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,7 +52,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public StandardServer()
         {
-
+            m_nodeManagerFactories = new List<INodeManagerFactory>();
         }
         #endregion
 
@@ -3151,7 +3152,14 @@ namespace Opc.Ua.Server
         /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
         protected virtual MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new MasterNodeManager(server, configuration, null);
+            IList<INodeManager> nodeManagers = new List<INodeManager>();
+
+            foreach (var nodeManagerFactory in m_nodeManagerFactories)
+            {
+                nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
+            }
+
+            return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
         }
 
         /// <summary>
@@ -3204,6 +3212,32 @@ namespace Opc.Ua.Server
         {
             // may be overridden by the subclass.
         }
+
+        /// <summary>
+        /// The node manager factories that are used on startup of the server.
+        /// </summary>
+        public IEnumerable<INodeManagerFactory> NodeManagerFactories => m_nodeManagerFactories;
+
+        /// <summary>
+        /// Add a node manager factory which is used on server start
+        /// to instantiate the node manager in the server.
+        /// </summary>
+        /// <param name="nodeManagerFactory">The node manager factory used to create the NodeManager.</param>
+        public virtual void AddNodeManager(INodeManagerFactory nodeManagerFactory)
+        {
+            m_nodeManagerFactories.Add(nodeManagerFactory);
+        }
+
+        /// <summary>
+        /// Remove a node manager factory from the list of node managers.
+        /// Does not remove a NodeManager from a running server,
+        /// only removes the factory before the server starts.
+        /// </summary>
+        /// <param name="nodeManagerFactory">The node manager factory to remove.</param>
+        public virtual void RemoveNodeManager(INodeManagerFactory nodeManagerFactory)
+        {
+            m_nodeManagerFactories.Remove(nodeManagerFactory);
+        }
         #endregion
 
         #region Private Properties
@@ -3223,6 +3257,7 @@ namespace Opc.Ua.Server
         private int m_lastRegistrationInterval;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
+        private IList<INodeManagerFactory> m_nodeManagerFactories;
         #endregion
     }
 }
