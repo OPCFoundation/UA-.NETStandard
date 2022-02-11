@@ -216,20 +216,20 @@ namespace Opc.Ua
                 {
                     store.Open(StorePath, false);
 
-                    if (needPrivateKey && store.SupportsLoadPrivateKey)
-                    {
-                        var message = new StringBuilder();
-                        message.AppendLine("Load a certificate with private key from store {0}.");
-                        message.AppendLine("Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).");
-                        Utils.LogWarning(message.ToString(), StoreType);
-                    }
-
                     X509Certificate2Collection collection = await store.Enumerate().ConfigureAwait(false);
 
                     certificate = Find(collection, m_thumbprint, m_subjectName, m_certificateType, needPrivateKey);
 
                     if (certificate != null)
                     {
+                        if (needPrivateKey && store.SupportsLoadPrivateKey)
+                        {
+                            var message = new StringBuilder();
+                            message.AppendLine("Loaded a certificate with private key from store {0}.");
+                            message.AppendLine("Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).");
+                            Utils.LogWarning(message.ToString(), StoreType);
+                        }
+
                         m_certificate = certificate;
                     }
                 }
