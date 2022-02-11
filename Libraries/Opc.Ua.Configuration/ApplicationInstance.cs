@@ -806,8 +806,6 @@ namespace Opc.Ua.Configuration
 
             Utils.LogInfo("Creating application instance certificate.");
 
-            CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
-
             // get the domains from the configuration file.
             IList<string> serverDomainNames = configuration.GetServerDomainNames();
 
