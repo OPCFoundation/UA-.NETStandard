@@ -2991,7 +2991,7 @@ namespace Opc.Ua.Sample
             IList<IMonitoredItem> monitoredItems
             )
         {
-            // overridden by the sub-class.
+            // does nothing.
         }
 
         /// <summary>
