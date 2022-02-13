@@ -114,13 +114,16 @@ namespace Opc.Ua
         /// <summary>
         /// The path to the default certificate store.
         /// </summary>
-        [Obsolete("Use CertificateStoreIdentifier.DefaultPKIRoot instead.")]
-        public const string DefaultStorePath = "%CommonApplicationData%/OPC Foundation/pki/own";
+#if NETFRAMEWORK
+        public static readonly string DefaultStorePath = Path.Combine("%CommonApplicationData%", "OPC Foundation", "pki", "own");
+#else
+        public static readonly string DefaultStorePath = Path.Combine("%LocalApplicationData%", "OPC Foundation", "pki", "own");
+#endif
 
         /// <summary>
         /// The default LocalFolder.
         /// </summary>
-        public static string DefaultLocalFolder = Directory.GetCurrentDirectory();
+        public static readonly string DefaultLocalFolder = Directory.GetCurrentDirectory();
 
         /// <summary>
         /// The full name of the Opc.Ua.Core assembly.
@@ -1365,6 +1368,26 @@ namespace Opc.Ua
 
             // return the original instance uri.
             return instanceUri;
+        }
+
+        /// <summary>
+        /// Sets the identifier to a lower limit if smaller. Thread safe.
+        /// </summary>
+        /// <returns>Returns the new value.</returns>
+        public static uint LowerLimitIdentifier(ref long identifier, uint lowerLimit)
+        {
+            long value;
+            long exchangedValue;
+            do
+            {
+                value = System.Threading.Interlocked.Read(ref identifier);
+                exchangedValue = value;
+                if (value < lowerLimit)
+                {
+                    exchangedValue = System.Threading.Interlocked.CompareExchange(ref identifier, lowerLimit, value);
+                }
+            } while (exchangedValue != value);
+            return (uint)System.Threading.Interlocked.Read(ref identifier);
         }
 
         /// <summary>

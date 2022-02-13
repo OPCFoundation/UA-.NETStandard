@@ -622,11 +622,6 @@ namespace Opc.Ua
                 return StatusCodes.BadTooManyArguments;
             }
             
-            if (expectedCount < inputArguments.Count)
-            {
-                return StatusCodes.BadTooManyArguments;
-            }
-            
             // validate individual arguements.
             bool error = false;
 

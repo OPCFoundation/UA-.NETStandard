@@ -72,7 +72,6 @@ namespace Opc.Ua.Server
         private readonly EventId SessionStateMessageEventId = new EventId(TraceMasks.Information, nameof(SessionState));
         private readonly EventId MonitoredItemReadyEventId = new EventId(TraceMasks.OperationDetail, nameof(MonitoredItemReady));
 
-
         /// <summary>
         /// The send response.
         /// </summary>

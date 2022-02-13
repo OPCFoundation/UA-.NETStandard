@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <!-- Parameters used by tests at runtime. -->
+  <!-- Run Parameters for the client test framework, to run tests against an external server-->
+  <!-- copy the runsettings file to the root of the solution as .runsettings to activate in VS. -->
+  <TestRunParameters>
+    <Parameter name="ServerUrl" value="opc.tcp://localhost:48010" />
+    <!-- Test set for static and simulated nodes of a server, ExpandedNodeId separated by #-->
+    <Parameter name="TestSetStatic" value="ns=2;s=Demo.Static.Scalar.Double#ns=2;s=Demo.Static.Scalar.UInt32"/>
+    <Parameter name="TestSetSimulation" value="ns=2;s=Demo.Dynamic.Scalar.Double#ns=2;s=Demo.Dynamic.Scalar.UInt32"/>
+  </TestRunParameters>
+</RunSettings>
