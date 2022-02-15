@@ -83,7 +83,3 @@ namespace Quickstarts.Servers
         private static IList<INodeManagerFactory> m_nodeManagerFactories;
     }
 }
-
-
-#if mist
-#endif
