@@ -44,6 +44,11 @@ namespace Opc.Ua.Server
         /// <param name="server">The server instance.</param>
         /// <param name="configuration">The application configuration.</param>
         INodeManager Create(IServerInternal server, ApplicationConfiguration configuration);
+
+        /// <summary>
+        /// The namespace table of the NodeManager.
+        /// </summary>
+        StringCollection NamespacesUris { get; }
     }
 
     /// <summary>

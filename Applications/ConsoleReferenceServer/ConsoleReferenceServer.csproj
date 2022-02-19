@@ -7,8 +7,9 @@
     <PackageId>ConsoleReferenceServer</PackageId>
     <Company>OPC Foundation</Company>
     <Description>.NET Console Reference Server</Description>
-    <Copyright>Copyright © 2004-2021 OPC Foundation, Inc</Copyright>
+    <Copyright>Copyright © 2004-2022 OPC Foundation, Inc</Copyright>
     <RootNamespace>Quickstarts</RootNamespace>
+    <UserSecretsId>46345736-a30f-4466-b3bb-42548ecfaacc</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

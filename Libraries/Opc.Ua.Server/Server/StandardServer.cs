@@ -31,9 +31,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
-using System.Threading.Tasks;
 using Opc.Ua.Bindings;
 using static Opc.Ua.Utils;
 
@@ -51,7 +51,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public StandardServer()
         {
-
+            m_nodeManagerFactories = new List<INodeManagerFactory>();
         }
         #endregion
 
@@ -1322,9 +1322,9 @@ namespace Opc.Ua.Server
         /// <param name="results">The list of result StatusCodes for the Subscriptions to transfer.</param>
         /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
         public override ResponseHeader TransferSubscriptions(
-            RequestHeader                requestHeader,
-            UInt32Collection             subscriptionIds,
-            bool                         sendInitialValues,
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool sendInitialValues,
             out TransferResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
@@ -2161,12 +2161,15 @@ namespace Opc.Ua.Server
         /// Registers the server with the discovery server.
         /// </summary>
         /// <returns>Boolean value.</returns>
-        public async Task<bool> RegisterWithDiscoveryServer()
+        public bool RegisterWithDiscoveryServer()
         {
-            ApplicationConfiguration configuration = string.IsNullOrEmpty(base.Configuration.SourceFilePath) ?
-                base.Configuration : await ApplicationConfiguration.Load(new FileInfo(base.Configuration.SourceFilePath), ApplicationType.Server, null, false).ConfigureAwait(false);
-            CertificateValidationEventHandler registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
+            ApplicationConfiguration configuration = new ApplicationConfiguration(base.Configuration);
+
+            // use a dedicated certificate validator with the registration, but derive behavior from server config
+            var registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
+            configuration.CertificateValidator = new CertificateValidator();
             configuration.CertificateValidator.CertificateValidation += registrationCertificateValidator;
+            configuration.CertificateValidator.Update(configuration.SecurityConfiguration).GetAwaiter().GetResult();
 
             try
             {
@@ -2218,9 +2221,10 @@ namespace Opc.Ua.Server
                                     ExtensionObjectCollection discoveryConfiguration = new ExtensionObjectCollection();
                                     StatusCodeCollection configurationResults = null;
                                     DiagnosticInfoCollection diagnosticInfos = null;
-                                    MdnsDiscoveryConfiguration mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration();
-                                    mdnsDiscoveryConfig.ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
-                                    mdnsDiscoveryConfig.MdnsServerName = Utils.GetHostName();
+                                    MdnsDiscoveryConfiguration mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration {
+                                        ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities,
+                                        MdnsServerName = Utils.GetHostName()
+                                    };
                                     ExtensionObject extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
                                     discoveryConfiguration.Add(extensionObject);
                                     client.RegisterServer2(
@@ -2304,7 +2308,7 @@ namespace Opc.Ua.Server
         /// Registers the server endpoints with the LDS.
         /// </summary>
         /// <param name="state">The state.</param>
-        private async void OnRegisterServer(object state)
+        private void OnRegisterServer(object state)
         {
             try
             {
@@ -2318,7 +2322,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (await RegisterWithDiscoveryServer().ConfigureAwait(false))
+                if (RegisterWithDiscoveryServer())
                 {
                     // schedule next registration.
                     lock (m_registrationLock)
@@ -2986,7 +2990,7 @@ namespace Opc.Ua.Server
                 {
                     // unregister from Discovery Server
                     m_registrationInfo.IsOnline = false;
-                    RegisterWithDiscoveryServer().GetAwaiter().GetResult();
+                    RegisterWithDiscoveryServer();
                 }
 
                 lock (m_lock)
@@ -3151,7 +3155,14 @@ namespace Opc.Ua.Server
         /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
         protected virtual MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new MasterNodeManager(server, configuration, null);
+            IList<INodeManager> nodeManagers = new List<INodeManager>();
+
+            foreach (var nodeManagerFactory in m_nodeManagerFactories)
+            {
+                nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
+            }
+
+            return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
         }
 
         /// <summary>
@@ -3204,6 +3215,32 @@ namespace Opc.Ua.Server
         {
             // may be overridden by the subclass.
         }
+
+        /// <summary>
+        /// The node manager factories that are used on startup of the server.
+        /// </summary>
+        public IEnumerable<INodeManagerFactory> NodeManagerFactories => m_nodeManagerFactories;
+
+        /// <summary>
+        /// Add a node manager factory which is used on server start
+        /// to instantiate the node manager in the server.
+        /// </summary>
+        /// <param name="nodeManagerFactory">The node manager factory used to create the NodeManager.</param>
+        public virtual void AddNodeManager(INodeManagerFactory nodeManagerFactory)
+        {
+            m_nodeManagerFactories.Add(nodeManagerFactory);
+        }
+
+        /// <summary>
+        /// Remove a node manager factory from the list of node managers.
+        /// Does not remove a NodeManager from a running server,
+        /// only removes the factory before the server starts.
+        /// </summary>
+        /// <param name="nodeManagerFactory">The node manager factory to remove.</param>
+        public virtual void RemoveNodeManager(INodeManagerFactory nodeManagerFactory)
+        {
+            m_nodeManagerFactories.Remove(nodeManagerFactory);
+        }
         #endregion
 
         #region Private Properties
@@ -3223,6 +3260,7 @@ namespace Opc.Ua.Server
         private int m_lastRegistrationInterval;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
+        private IList<INodeManagerFactory> m_nodeManagerFactories;
         #endregion
     }
 }
