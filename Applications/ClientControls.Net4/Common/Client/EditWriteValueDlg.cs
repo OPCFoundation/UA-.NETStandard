@@ -65,7 +65,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Prompts the user to edit the write request parameters for the set of nodes provided.
         /// </summary>
-        public WriteValue ShowDialog(ISession session, WriteValue nodeToWrite)
+        public WriteValue ShowDialog(Session session, WriteValue nodeToWrite)
         {
             NodeBTN.Session = session;
             NodeBTN.SelectedReference = null;

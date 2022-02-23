@@ -33,7 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 
 namespace Quickstarts.ConsoleReferenceClient
@@ -104,8 +103,6 @@ namespace Quickstarts.ConsoleReferenceClient
                     CertificatePasswordProvider = PasswordProvider
                 };
 
-                ISessionFactory sessionFactory = new DefaultSessionFactory();
-
                 // load the application configuration.
                 var config = await application.LoadApplicationConfiguration(silent: false);
 
@@ -144,7 +141,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
 
                     // create the UA Client object and connect to configured server.
-                    UAClient uaClient = new UAClient(application.ApplicationConfiguration, sessionFactory, output, ClientBase.ValidateResponse) {
+                    UAClient uaClient = new UAClient(application.ApplicationConfiguration, output, ClientBase.ValidateResponse) {
                         AutoAccept = autoAccept
                     };
 

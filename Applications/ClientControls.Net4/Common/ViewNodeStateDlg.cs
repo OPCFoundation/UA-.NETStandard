@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
         
         #region Private Fields
-        private ISession m_session;
+        private Session m_session;
         private DataSet m_dataset;
         #endregion
 
@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Prompts the user to edit a value.
         /// </summary>
-        public bool ShowDialog(ISession session, NodeState node, string caption)
+        public bool ShowDialog(Session session, NodeState node, string caption)
         {
             m_session = session;
 

@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
         
         #region Private Fields
-        private ISession m_session;
+        private Session m_session;
         private DataSet m_dataset;
         #endregion
         
@@ -108,7 +108,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Changes the session.
         /// </summary>
-        public void ChangeSession(ISession session)
+        public void ChangeSession(Session session)
         {
             // do nothing if no change or no node id.
             if (Object.ReferenceEquals(m_session, session))

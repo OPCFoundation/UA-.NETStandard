@@ -53,7 +53,7 @@ namespace Opc.Ua.Client.Controls
         }
 
         #region Private Methods
-        private ISession m_session;
+        private Session m_session;
         private Subscription m_subscription;
         private MonitoredItem m_monitoredItem;
         private FilterDeclaration m_filter;
@@ -128,7 +128,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Changes the session.
         /// </summary>
-        public void ChangeSession(ISession session, bool fetchRecent)
+        public void ChangeSession(Session session, bool fetchRecent)
         {
             if (Object.ReferenceEquals(session, m_session))
             {
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Updates the control after the session has reconnected.
         /// </summary>
-        public void SessionReconnected(ISession session)
+        public void SessionReconnected(Session session)
         {
             m_session = session;
             

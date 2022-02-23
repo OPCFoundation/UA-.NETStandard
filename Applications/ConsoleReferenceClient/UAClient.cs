@@ -46,12 +46,11 @@ namespace Quickstarts
         /// <summary>
         /// Initializes a new instance of the UAClient class.
         /// </summary>
-        public UAClient(ApplicationConfiguration configuration, ISessionFactory sessionFactory, TextWriter writer, Action<IList, IList> validateResponse)
+        public UAClient(ApplicationConfiguration configuration, TextWriter writer, Action<IList, IList> validateResponse)
         {
             m_validateResponse = validateResponse;
             m_output = writer;
             m_configuration = configuration;
-            m_sessionFactory = sessionFactory;
             m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
         }
         #endregion
@@ -60,7 +59,7 @@ namespace Quickstarts
         /// <summary>
         /// Gets the client session.
         /// </summary>
-        public ISession Session => m_session;
+        public Session Session => m_session;
 
         /// <summary>
         /// Auto accept untrusted certificates.
@@ -93,7 +92,7 @@ namespace Quickstarts
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
                     // Create the session
-                    ISession session = await m_sessionFactory.Create(
+                    Session session = await Session.Create(
                         m_configuration,
                         endpoint,
                         false,
@@ -494,8 +493,7 @@ namespace Quickstarts
 
         #region Private Fields
         private ApplicationConfiguration m_configuration;
-        private readonly ISessionFactory m_sessionFactory;
-        private ISession m_session;
+        private Session m_session;
         private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;
         #endregion

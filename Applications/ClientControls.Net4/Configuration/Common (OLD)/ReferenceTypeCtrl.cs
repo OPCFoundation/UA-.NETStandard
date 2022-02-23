@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Private Fields
-        private ISession m_session;
+        private Session m_session;
         private NodeId m_baseTypeId;
         private event EventHandler<ReferenceSelectedEventArgs> m_referenceSelectionChanged;
         #endregion
@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Initializes the control with references starting with the specified based type.
         /// </summary>
-        public void Initialize(ISession session, NodeId baseTypeId)
+        public void Initialize(Session session, NodeId baseTypeId)
         {
             m_session = session;
             m_baseTypeId = baseTypeId;

@@ -53,7 +53,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
         
         #region Private Fields
-        private ISession m_session;
+        private Session m_session;
         #endregion
         
         #region Public Interface
@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         /// <param name="session">The session.</param>
         /// <returns></returns>
-        public string ShowDialog(ISession session)
+        public string ShowDialog(Session session)
         {
             m_session = session;
 

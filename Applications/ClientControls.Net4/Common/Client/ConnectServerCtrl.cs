@@ -50,13 +50,12 @@ namespace Opc.Ua.Client.Controls
             InitializeComponent();
             m_CertificateValidation = new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
             m_endpoints = new Dictionary<Uri, EndpointDescription>();
-            m_sessionFactory = new DefaultSessionFactory();
         }
         #endregion
 
         #region Private Fields
         private ApplicationConfiguration m_configuration;
-        private ISession m_session;
+        private Session m_session;
         private SessionReconnectHandler m_reconnectHandler;
         private CertificateValidationEventHandler m_CertificateValidation;
         private EventHandler m_ReconnectComplete;
@@ -67,7 +66,6 @@ namespace Opc.Ua.Client.Controls
         private ToolStripItem m_ServerStatusLB;
         private ToolStripItem m_StatusUpateTimeLB;
         private Dictionary<Uri, EndpointDescription> m_endpoints;
-        private readonly ISessionFactory m_sessionFactory;
         #endregion
 
         #region Public Members
@@ -205,7 +203,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// The currently active session. 
         /// </summary>
-        public ISession Session => m_session;
+        public Session Session => m_session;
 
         /// <summary>
         /// The number of seconds between reconnect attempts (0 means reconnect is disabled).
@@ -291,7 +289,7 @@ namespace Opc.Ua.Client.Controls
         /// Creates a new session.
         /// </summary>
         /// <returns>The new session object.</returns>
-        private async Task<ISession> Connect(
+        private async Task<Session> Connect(
             ITransportWaitingConnection connection,
             EndpointDescription endpointDescription,
             bool useSecurity,
@@ -309,7 +307,7 @@ namespace Opc.Ua.Client.Controls
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-            m_session = await m_sessionFactory.Create(
+            m_session = await Session.Create(
                 m_configuration,
                 connection,
                 endpoint,
@@ -346,7 +344,7 @@ namespace Opc.Ua.Client.Controls
         /// Creates a new session.
         /// </summary>
         /// <returns>The new session object.</returns>
-        public Task<ISession> Connect()
+        public Task<Session> Connect()
         {
             // determine the URL that was selected.
             string serverUrl = UrlCB.Text;
@@ -362,7 +360,7 @@ namespace Opc.Ua.Client.Controls
         /// Creates a new session.
         /// </summary>
         /// <returns>The new session object.</returns>
-        private async Task<ISession> Connect(
+        private async Task<Session> Connect(
             string serverUrl,
             bool useSecurity,
             uint sessionTimeout = 0)
@@ -375,7 +373,7 @@ namespace Opc.Ua.Client.Controls
             var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-            m_session = await m_sessionFactory.Create(
+            m_session = await Session.Create(
                 m_configuration,
                 endpoint,
                 false,
@@ -413,7 +411,7 @@ namespace Opc.Ua.Client.Controls
         /// <param name="serverUrl">The URL of a server endpoint.</param>
         /// <param name="useSecurity">Whether to use security.</param>
         /// <returns>The new session object.</returns>
-        public async Task<ISession> ConnectAsync(
+        public async Task<Session> ConnectAsync(
             string serverUrl = null,
             bool useSecurity = false,
             uint sessionTimeout = 0
@@ -444,7 +442,7 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="useSecurity"></param>
-        public async Task<ISession> ConnectAsync(
+        public async Task<Session> ConnectAsync(
             ITransportWaitingConnection connection,
             bool useSecurity,
             int discoverTimeout = -1,
@@ -609,7 +607,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Handles a keep alive event from a session.
         /// </summary>
-        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
         {
             if (this.InvokeRequired)
             {
@@ -643,7 +641,7 @@ namespace Opc.Ua.Client.Controls
                             m_ReconnectStarting(this, e);
                         }
 
-                        m_reconnectHandler = new SessionReconnectHandler(m_sessionFactory);
+                        m_reconnectHandler = new SessionReconnectHandler();
                         m_reconnectHandler.BeginReconnect(m_session, ReconnectPeriod * 1000, Server_ReconnectComplete);
                     }
 

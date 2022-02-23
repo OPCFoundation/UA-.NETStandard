@@ -63,7 +63,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Gets or sets the current session.
         /// </summary>
-        public ISession Session { get; set; }
+        public Session Session { get; set; }
 
         /// <summary>
         /// Gets or sets starting node.

@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.Controls
         /// Prompts the user to view or edit the value.
         /// </summary>
         public object ShowDialog(
-            ISession session, 
+            Session session, 
             NodeId nodeId,
             uint attributeId,
             string name, 
@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Controls
         /// Prompts the user to edit the value.
         /// </summary>
         public object ShowDialog(
-            ISession session,
+            Session session,
             string name,
             NodeId dataType,
             int valueRank,
@@ -152,7 +152,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Changes the session used.
         /// </summary>
-        public void ChangeSession(ISession session)
+        public void ChangeSession(Session session)
         {
             ValueCTRL.ChangeSession(session);
         }

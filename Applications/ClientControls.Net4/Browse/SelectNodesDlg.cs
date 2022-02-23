@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Displays the dialog.
         /// </summary>
-        public IList<ILocalNode> ShowDialog(ISession session, NodeId rootId, IList<NodeId> nodeIds)
+        public IList<ILocalNode> ShowDialog(Session session, NodeId rootId, IList<NodeId> nodeIds)
         {
             BrowseCTRL.Initialize(session, rootId, null, null, BrowseDirection.Forward);
             ReferencesCTRL.Initialize(session, rootId);

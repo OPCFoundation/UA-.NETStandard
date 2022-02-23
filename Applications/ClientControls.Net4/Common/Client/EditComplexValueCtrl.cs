@@ -70,7 +70,7 @@ namespace Opc.Ua.Client.Controls.Common
 
         #region Private Fields
         private DataSet m_dataset;
-        private ISession m_session;
+        private Session m_session;
         private AccessInfo m_value;
         private bool m_readOnly;
         private int m_maxDisplayTextLength;
@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.Controls.Common
         /// <summary>
         /// Changes the session used for editing the value.
         /// </summary>
-        public void ChangeSession(ISession session)
+        public void ChangeSession(Session session)
         {
             m_session = session;
         }

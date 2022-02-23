@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Changes the session used.
         /// </summary>
-        public void ChangeSession(ISession session)
+        public void ChangeSession(Session session)
         {
             HistoryDataCTRL.ChangeSession(session);
         }

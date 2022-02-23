@@ -79,7 +79,7 @@ namespace Opc.Ua.Client.Controls
         private DataSet m_dataset;
         private FilterDeclaration m_filter;
         private DisplayState m_state;
-        private ISession m_session;
+        private Session m_session;
         private Subscription m_subscription;
         private EventHandler m_PublishStatusChanged;
         #endregion
@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Changes the session used.
         /// </summary>
-        public void ChangeSession(ISession session)
+        public void ChangeSession(Session session)
         {
             if (!Object.ReferenceEquals(session, m_session))
             {

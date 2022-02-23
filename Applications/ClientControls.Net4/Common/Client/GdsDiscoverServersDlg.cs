@@ -292,7 +292,7 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         private void Search()
         {
-            var session = ServerCTRL.Session;
+            Session session = ServerCTRL.Session;
 
             if (session == null)
             {
@@ -422,7 +422,7 @@ namespace Opc.Ua.Client.Controls
         {
             try
             {
-                var session = ServerCTRL.Session;
+                Session session = ServerCTRL.Session;
 
                 if (session != null)
                 {
@@ -451,7 +451,7 @@ namespace Opc.Ua.Client.Controls
         {
             try
             {
-                var session = ServerCTRL.Session;
+                Session session = ServerCTRL.Session;
                 BrowseCTRL.ChangeSession(session);
                 SystemElementBTN.Session = session;
             }

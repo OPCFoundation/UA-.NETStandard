@@ -84,7 +84,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Private Fields
-        private ISession m_session;
+        private Session m_session;
         private NodeId m_nodeId;
         #endregion
 
@@ -207,7 +207,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Changes the session.
         /// </summary>
-        public void ChangeSession(ISession session)
+        public void ChangeSession(Session session)
         {
             m_session = session;
             LeftPN.Enabled = m_session != null;
@@ -216,7 +216,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Updates the control after the session has reconnected.
         /// </summary>
-        public void SessionReconnected(ISession session)
+        public void SessionReconnected(Session session)
         {
             m_session = session;
         }

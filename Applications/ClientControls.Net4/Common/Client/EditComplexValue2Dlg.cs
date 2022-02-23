@@ -56,7 +56,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Private Fields
-        private ISession m_session;
+        private Session m_session;
         private NodeId m_variableId;
         private Variant m_value;
         private bool m_textChanged;
@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Prompts the user to edit a value.
         /// </summary>
-        public Variant ShowDialog(ISession session, NodeId variableId, Variant value, string caption)
+        public Variant ShowDialog(Session session, NodeId variableId, Variant value, string caption)
         {
             if (caption != null)
             {

@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Changes the session used for the read request.
         /// </summary>
-        public void ChangeSession(ISession session)
+        public void ChangeSession(Session session)
         {
             WriteRequestCTRL.ChangeSession(session);
         }

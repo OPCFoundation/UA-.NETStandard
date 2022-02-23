@@ -70,7 +70,7 @@ namespace Opc.Ua.Client.Controls
 
         #region Private Fields
         private DataSet m_dataset;
-        private ISession m_session;
+        private Session m_session;
         private NodeId m_objectId;
         private NodeId m_methodId;
         private Argument[] m_inputArguments;
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Changes the session used for the call request.
         /// </summary>
-        public void ChangeSession(ISession session)
+        public void ChangeSession(Session session)
         {
             m_session = session;
         }

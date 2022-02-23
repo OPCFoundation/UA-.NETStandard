@@ -85,7 +85,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Prompts the user to edit the read request parameters for the set of nodes provided.
         /// </summary>
-        public ReadValueId[] ShowDialog(ISession session, params ReadValueId[] nodesToRead)
+        public ReadValueId[] ShowDialog(Session session, params ReadValueId[] nodesToRead)
         {
             NodeBTN.Session = session;
             NodeBTN.SelectedReference = null;
