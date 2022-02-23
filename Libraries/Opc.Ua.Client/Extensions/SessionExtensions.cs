@@ -32,7 +32,16 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales)
         {
             var factory = new DefaultSessionFactory();
-            return (Session)await factory.Create(configuration, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales);
+            return (Session) await factory.Create(
+                configuration,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -61,7 +70,17 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales)
         {
             var factory = new DefaultSessionFactory();
-            return (Session)await factory.Create(configuration, connection, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales);
+            return (Session) await factory.Create(
+                configuration,
+                connection,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
