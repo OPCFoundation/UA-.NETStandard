@@ -173,7 +173,7 @@ namespace Opc.Ua.Client.Controls
         {
             try
             {
-                ReferenceDescription reference = new SelectNodeDlg().ShowDialog(m_browser.Session, RootId, null, "", null);
+                ReferenceDescription reference = new SelectNodeDlg().ShowDialog(m_browser.Session(), RootId, null, "", null);
 
                 if (reference != null && reference.NodeId != null)
                 {

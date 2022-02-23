@@ -607,7 +607,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Handles a keep alive event from a session.
         /// </summary>
-        private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (this.InvokeRequired)
             {
@@ -641,7 +641,7 @@ namespace Opc.Ua.Client.Controls
                             m_ReconnectStarting(this, e);
                         }
 
-                        m_reconnectHandler = new SessionReconnectHandler();
+                        m_reconnectHandler = new SessionReconnectHandler(new DefaultSessionFactory());
                         m_reconnectHandler.BeginReconnect(m_session, ReconnectPeriod * 1000, Server_ReconnectComplete);
                     }
 
@@ -707,7 +707,7 @@ namespace Opc.Ua.Client.Controls
                     return;
                 }
 
-                m_session = m_reconnectHandler.Session;
+                m_session = m_reconnectHandler.Session();
                 m_reconnectHandler.Dispose();
                 m_reconnectHandler = null;
 
