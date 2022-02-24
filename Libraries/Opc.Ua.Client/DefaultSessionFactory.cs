@@ -36,7 +36,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// 
+    /// Object that creates instances of an Opc.Ua.Client.Session object
     /// </summary>
     public class DefaultSessionFactory : ISessionFactory
     {
