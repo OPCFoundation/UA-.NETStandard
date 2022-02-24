@@ -2989,6 +2989,14 @@ namespace Opc.Ua.Server
 
                     // find the method.
                     method = source.FindMethod(systemContext, methodToCall.MethodId);
+                    // if the found method is not the actual method tried to be called
+                    // This might happen in case the method.MethodDeclarationId == methodToCall.MethodId
+                    if ((method != null) && 
+                        (method.NodeId != methodToCall.MethodId) &&
+                        (method.MethodDeclarationId == methodToCall.MethodId))
+                    {
+                        method = FindMethodInType(systemContext, source, methodToCall.MethodId);
+                    }
 
                     if (method == null)
                     {
