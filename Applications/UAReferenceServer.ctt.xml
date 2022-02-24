@@ -535,7 +535,7 @@
          </Column>
          <Column column="1">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="100"/>
+           <Value typename="QString" type="10" data="75"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>

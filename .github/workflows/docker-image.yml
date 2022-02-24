@@ -60,3 +60,13 @@ jobs:
         docker image push ghcr.io/${{ env.IMAGE_REPOSITORY }}:latest${{ env.IMAGE_TAG }}
         docker images ghcr.io/${{ env.IMAGE_REPOSITORY }}
 
+    - name: Push Release tags to GitHub Container Registry
+      if: ${{ env.NBGV_PublicRelease == 'True' && env.NBGV_PrereleaseVersion == '' && env.IS_NOT_PR == 'true' }}
+      run: | 
+        docker image tag consolerefserver:latest ghcr.io/${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_MajorMinorVersion }}
+        docker image push ghcr.io/${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_MajorMinorVersion }}
+        docker image tag consolerefserver:latest ghcr.io/${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_SimpleVersion }}
+        docker image push ghcr.io/${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_SimpleVersion }}
+        docker image tag consolerefserver:latest ghcr.io/${{ env.IMAGE_REPOSITORY }}:release
+        docker image push ghcr.io/${{ env.IMAGE_REPOSITORY }}:release
+        docker images ghcr.io/${{ env.IMAGE_REPOSITORY }}

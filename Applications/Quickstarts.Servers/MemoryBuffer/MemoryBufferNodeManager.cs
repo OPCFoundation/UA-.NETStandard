@@ -46,9 +46,23 @@ namespace MemoryBuffer
     /// </summary>
     public class MemoryBufferNodeManagerFactory : INodeManagerFactory
     {
+        /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
             return new MemoryBufferNodeManager(server, configuration);
+        }
+
+        /// <inheritdoc/>
+        public StringCollection NamespacesUris
+        {
+            get
+            {
+                var nameSpaces = new StringCollection {
+                    Namespaces.MemoryBuffer,
+                    Namespaces.MemoryBuffer + "/Instance"
+                };
+                return nameSpaces;
+            }
         }
     }
 

@@ -48,6 +48,7 @@ namespace Opc.Ua.Server.Tests
         public bool AutoAccept { get; set; }
         public bool OperationLimits { get; set; }
         public int ReverseConnectTimeout { get; set; }
+        public bool AllNodeManagers { get; set; }
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
         public bool SecurityNone { get; set; } = false;
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
@@ -194,6 +195,10 @@ namespace Opc.Ua.Server.Tests
 
             // start the server.
             T server = new T();
+            if (AllNodeManagers && server is StandardServer standardServer)
+            {
+                Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);
+            }
             await Application.Start(server).ConfigureAwait(false);
             Server = server;
             Port = port;

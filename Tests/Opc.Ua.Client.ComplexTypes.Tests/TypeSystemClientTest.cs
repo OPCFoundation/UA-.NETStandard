@@ -92,7 +92,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_serverFixture = new ServerFixture<ReferenceServer> {
                 UriScheme = m_uriScheme,
                 SecurityNone = true,
-                AutoAccept = true
+                AutoAccept = true,
+                AllNodeManagers = true,
             };
             if (writer != null)
             {
