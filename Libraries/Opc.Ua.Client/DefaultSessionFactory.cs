@@ -220,7 +220,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity userIdentity,
             IList<string> preferredLocales,
-            CancellationToken ct = default(CancellationToken)
+            CancellationToken ct = default
             )
         {
             if (reverseConnectManager == null)
@@ -229,7 +229,7 @@ namespace Opc.Ua.Client
                     checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales).ConfigureAwait(false);
             }
 
-            ITransportWaitingConnection connection = null;
+            ITransportWaitingConnection connection;
             do
             {
                 connection = await reverseConnectManager.WaitForConnection(
@@ -268,7 +268,7 @@ namespace Opc.Ua.Client
         public ISession Recreate(ISession sesionTemplate)
         {
             if (sesionTemplate is not Session template)
-                throw new ArgumentOutOfRangeException("The ISession provided is not of a supported type");
+                throw new ArgumentOutOfRangeException(nameof(sesionTemplate), "The ISession provided is not of a supported type");
 
             var messageContext = template.Configuration.CreateMessageContext();
             messageContext.Factory = template.Factory;
@@ -324,7 +324,7 @@ namespace Opc.Ua.Client
         public ISession Recreate(ISession sesionTemplate, ITransportWaitingConnection connection)
         {
             if (sesionTemplate is not Session template)
-                throw new ArgumentOutOfRangeException("The ISession provided is not of a supported type");
+                throw new ArgumentOutOfRangeException(nameof(sesionTemplate), "The ISession provided is not of a supported type");
 
             var messageContext = template.Configuration.CreateMessageContext();
             messageContext.Factory = template.Factory;
@@ -386,9 +386,8 @@ namespace Opc.Ua.Client
             clientCertificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true).ConfigureAwait(false);
 
             if (clientCertificate == null)
-            {
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate cannot be found.");
-            }
+            
             return clientCertificate;
         }
 
