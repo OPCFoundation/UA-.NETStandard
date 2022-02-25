@@ -50,17 +50,9 @@ namespace Alarms
             base.Initialize(alarmTypeIdentifier, name);
 
             alarm.SetAcknowledgedState(SystemContext, acknowledged: true);
-            if (Optional)
-            {
-                alarm.SetConfirmedState(SystemContext, confirmed: true);
-                alarm.OnConfirm = OnConfirm;
-            }
-            else
-            {
-                alarm.ConfirmedState = null;
-                alarm.Confirm = null;
-                alarm.OnConfirm = null;
-            }
+
+            alarm.SetConfirmedState(SystemContext, confirmed: true);
+            alarm.OnConfirm = OnConfirm;
 
             alarm.Retain.Value = GetRetainState();
             alarm.AutoReportStateChanges = true;
@@ -80,11 +72,9 @@ namespace Alarms
             AcknowledgeableConditionState alarm = GetAlarm();
 
             branchEvent.SetAcknowledgedState(SystemContext, alarm.AckedState.Id.Value);
-            if (Optional)
-            {
-                branchEvent.SetConfirmedState(SystemContext, alarm.ConfirmedState.Id.Value);
-                branchEvent.OnConfirm = OnConfirm;
-            }
+
+            branchEvent.SetConfirmedState(SystemContext, alarm.ConfirmedState.Id.Value);
+            branchEvent.OnConfirm = OnConfirm;
 
             branchEvent.Retain.Value = GetRetainState();
             branchEvent.AutoReportStateChanges = false;
@@ -97,14 +87,12 @@ namespace Alarms
             alarm.OnAcknowledge = OnAcknowledge;
 
             // Create any optional 
-            if (Optional)
+            if (alarm.ConfirmedState == null)
             {
-                if (alarm.ConfirmedState == null)
-                {
-                    alarm.ConfirmedState = new TwoStateVariableState(alarm);
-                }
-                alarm.Confirm = new AddCommentMethodState(alarm);
+                alarm.ConfirmedState = new TwoStateVariableState(alarm);
             }
+
+            alarm.Confirm = new AddCommentMethodState(alarm);
         }
 
 
@@ -145,14 +133,7 @@ namespace Alarms
             bool retainState = true;
             if (alarm.AckedState.Id.Value)
             {
-                if ((Optional))
-                {
-                    if (alarm.ConfirmedState.Id.Value)
-                    {
-                        retainState = false;
-                    }
-                }
-                else
+                if (alarm.ConfirmedState.Id.Value)
                 {
                     retainState = false;
                 }
@@ -224,24 +205,17 @@ namespace Alarms
                 return StatusCodes.BadConditionBranchAlreadyAcked;
             }
 
-            if (Optional)
+            // No Confirming on Acknowledge tests
+            if (m_alarmNodeManager.GetUnitFromNodeState(alarm) == "Acknowledge")
             {
-                // No Confirming on Acknowledge tests
-                if (m_alarmNodeManager.GetUnitFromNodeState(alarm) == "Acknowledge")
-                {
-                    alarm.SetConfirmedState(SystemContext, confirmed: true);
-                    Log("OnAcknowledge", "Ignore Confirmed State, setting confirmed to true");
-                }
-                else
-                {
-                    alarm.Message.Value = "User Acknowledged Event " + DateTime.Now.ToShortTimeString();
-                    Log("OnAcknowledge", "Setting Confirmed State to False");
-                    alarm.SetConfirmedState(SystemContext, confirmed: false);
-                }
+                alarm.SetConfirmedState(SystemContext, confirmed: true);
+                Log("OnAcknowledge", "Ignore Confirmed State, setting confirmed to true");
             }
             else
             {
-                Log("OnAcknowledge", "Optional Is False, ignoring confirmed State");
+                alarm.Message.Value = "User Acknowledged Event " + DateTime.Now.ToShortTimeString();
+                Log("OnAcknowledge", "Setting Confirmed State to False");
+                alarm.SetConfirmedState(SystemContext, confirmed: false);
             }
 
             m_alarmController.OnAcknowledge();
@@ -259,11 +233,6 @@ namespace Alarms
             byte[] eventId,
             LocalizedText comment)
         {
-
-            if (!Optional)
-            {
-                return StatusCodes.BadMethodInvalid;
-            }
 
             string eventIdString = Utils.ToHexString(eventId);
 
