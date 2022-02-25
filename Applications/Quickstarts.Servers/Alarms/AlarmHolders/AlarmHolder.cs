@@ -457,9 +457,17 @@ namespace Alarms
             return alarmTypeName;
         }
 
+        /// <summary>
+        /// Function is to modify the namespace if this is a derived type.
+        /// If no derived types, it's 0
+        /// </summary>
+        /// <param name="alarmTypeIdentifier"></param>
+        /// <returns>ushort namespaceindex</returns>
         protected ushort GetNameSpaceIndex(UInt32 alarmTypeIdentifier)
         {
-            return m_alarmNodeManager.NamespaceIndex;
+            ushort nameSpaceIndex = 0;
+
+            return nameSpaceIndex;
         }
 
         #endregion

@@ -179,9 +179,6 @@ namespace Alarms
 
                     #region Create Variables
 
-                    Dictionary<string, SourceController> triggerMap = new Dictionary<string, SourceController>();
-                    m_triggerMap.Add(alarmsName, triggerMap);
-
                     string analogTriggerName = "AnalogSource";
                     string analogTriggerNodeName = alarmsNodeName + "." + analogTriggerName;
                     BaseDataVariableState analogTrigger = AlarmHelpers.CreateVariable(alarmsFolder,
@@ -189,7 +186,7 @@ namespace Alarms
                     analogTrigger.OnWriteValue = OnWriteAlarmTrigger;
                     AlarmController analogAlarmController = (AlarmController)Activator.CreateInstance(alarmControllerType, analogTrigger, interval, false);
                     SourceController analogSourceController = new SourceController(analogTrigger, analogAlarmController);
-                    triggerMap.Add("Analog", analogSourceController);
+                    m_triggerMap.Add("Analog", analogSourceController);
 
                     string booleanTriggerName = "BooleanSource";
                     string booleanTriggerNodeName = alarmsNodeName + "." + booleanTriggerName;
@@ -198,7 +195,7 @@ namespace Alarms
                     booleanTrigger.OnWriteValue = OnWriteAlarmTrigger;
                     AlarmController booleanAlarmController = (AlarmController)Activator.CreateInstance(alarmControllerType, booleanTrigger, interval, true);
                     SourceController booleanSourceController = new SourceController(booleanTrigger, booleanAlarmController);
-                    triggerMap.Add("Boolean", booleanSourceController);
+                    m_triggerMap.Add("Boolean", booleanSourceController);
 
                     #endregion
 
@@ -317,22 +314,19 @@ namespace Alarms
                     m_success++;
                     try
                     {
-                        foreach (Dictionary<string, SourceController> map in m_triggerMap.Values)
+                        foreach (SourceController controller in m_triggerMap.Values)
                         {
-                            foreach (SourceController controller in map.Values)
-                            {
-                                bool updated = controller.Controller.Update(SystemContext);
+                            bool updated = controller.Controller.Update(SystemContext);
 
-                                IList<IReference> references = new List<IReference>();
-                                controller.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
-                                foreach (IReference reference in references)
+                            IList<IReference> references = new List<IReference>();
+                            controller.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
+                            foreach (IReference reference in references)
+                            {
+                                string identifier = (string)reference.TargetId.ToString();
+                                if (m_alarms.ContainsKey(identifier))
                                 {
-                                    string identifier = (string)reference.TargetId.ToString();
-                                    if (m_alarms.ContainsKey(identifier))
-                                    {
-                                        AlarmHolder holder = m_alarms[identifier];
-                                        holder.Update(updated);
-                                    }
+                                    AlarmHolder holder = m_alarms[identifier];
+                                    holder.Update(updated);
                                 }
                             }
                         }
@@ -538,9 +532,54 @@ namespace Alarms
         #endregion
 
         #region Helpers
+
+        private AlarmHolder GetAlarmHolder(NodeState node)
+        {
+            return GetAlarmHolder(node.NodeId);
+        }
+
+        private AlarmHolder GetAlarmHolder(NodeId node)
+        {
+
+            AlarmHolder alarmHolder = null;
+
+            Type nodeIdType = node.Identifier.GetType();
+            if (nodeIdType.Name == "String")
+            {
+                string unmodifiedName = node.Identifier.ToString();
+
+                // This is bad, but I'm not sure why the NodeName is being attached with an underscore, it messes with this lookup.
+                string name = unmodifiedName.Replace("Alarms_", "Alarms.");
+
+                string mapName = name;
+                if (name.EndsWith(AlarmDefines.TRIGGER_EXTENSION) || name.EndsWith(AlarmDefines.ALARM_EXTENSION))
+                {
+                    int lastDot = name.LastIndexOf(".");
+                    mapName = name.Substring(0, lastDot);
+                }
+
+                if (m_alarms.ContainsKey(mapName))
+                {
+                    alarmHolder = m_alarms[mapName];
+                }
+            }
+
+            return alarmHolder;
+        }
+
+
+        public ServiceResult OnEnableDisableAlarm(
+            ISystemContext context,
+            ConditionState condition,
+            bool enabling)
+        {
+            return ServiceResult.Good;
+        }
+
+
         public Dictionary<string, SourceController> GetUnitAlarms(NodeState nodeState)
         {
-            return m_triggerMap["Alarms"];
+            return m_triggerMap;
         }
 
 
@@ -634,15 +673,281 @@ namespace Alarms
             }
         }
 
+        /// <summary>
+        /// Calls a method on the specified nodes.
+        /// </summary>
+        public override void Call(
+            OperationContext context,
+            IList<CallMethodRequest> methodsToCall,
+            IList<CallMethodResult> results,
+            IList<ServiceResult> errors)
+        {
+            ServerSystemContext systemContext = SystemContext.Copy(context);
+            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+
+            bool didRefresh = false;
+
+            for (int ii = 0; ii < methodsToCall.Count; ii++)
+            {
+                CallMethodRequest methodToCall = methodsToCall[ii];
+
+                bool refreshMethod = methodToCall.MethodId.Equals(Opc.Ua.MethodIds.ConditionType_ConditionRefresh) ||
+                    methodToCall.MethodId.Equals(Opc.Ua.MethodIds.ConditionType_ConditionRefresh2);
+
+                if (refreshMethod)
+                {
+                    if (didRefresh)
+                    {
+                        errors[ii] = StatusCodes.BadRefreshInProgress;
+                        methodToCall.Processed = true;
+                        continue;
+                    }
+                    else
+                    {
+                        didRefresh = true;
+                    }
+                }
+
+                bool ackMethod = methodToCall.MethodId.Equals(Opc.Ua.MethodIds.AcknowledgeableConditionType_Acknowledge);
+                bool confirmMethod = methodToCall.MethodId.Equals(Opc.Ua.MethodIds.AcknowledgeableConditionType_Confirm);
+                bool commentMethod = methodToCall.MethodId.Equals(Opc.Ua.MethodIds.ConditionType_AddComment);
+                bool ackConfirmMethod = ackMethod || confirmMethod || commentMethod;
+
+                // Need to try to capture any calls to ConditionType::Acknowledge
+                if (methodToCall.ObjectId.Equals(Opc.Ua.ObjectTypeIds.ConditionType) && (ackConfirmMethod))
+                {
+                    // Mantis Issue 6944 which is a duplicate of 5544 - result is Confirm should be Bad_NodeIdInvalid
+                    // Override any other errors that may be there, even if this is 'Processed'
+                    errors[ii] = StatusCodes.BadNodeIdInvalid;
+                    methodToCall.Processed = true;
+                    continue;
+                }
+
+                // skip items that have already been processed.
+                if (methodToCall.Processed)
+                {
+                    continue;
+                }
+
+                MethodState method = null;
+
+                lock (Lock)
+                {
+                    // check for valid handle.
+                    NodeHandle initialHandle = GetManagerHandle(systemContext, methodToCall.ObjectId, operationCache);
+
+                    if (initialHandle == null)
+                    {
+                        if (ackConfirmMethod)
+                        {
+                            // Mantis 6944
+                            errors[ii] = StatusCodes.BadNodeIdUnknown;
+                            methodToCall.Processed = true;
+                        }
+
+                        continue;
+                    }
+
+                    // owned by this node manager.
+                    methodToCall.Processed = true;
+
+                    // Look for an alarm branchId to operate on.
+                    NodeHandle handle = FindBranchNodeHandle(systemContext, initialHandle, methodToCall);
+
+                    // validate the source node.
+                    NodeState source = ValidateNode(systemContext, handle, operationCache);
+
+                    if (source == null)
+                    {
+                        errors[ii] = StatusCodes.BadNodeIdUnknown;
+                        continue;
+                    }
+
+                    // find the method.
+                    method = source.FindMethod(systemContext, methodToCall.MethodId);
+
+                    if (method == null)
+                    {
+                        // check for loose coupling.
+                        if (source.ReferenceExists(ReferenceTypeIds.HasComponent, false, methodToCall.MethodId))
+                        {
+                            method = (MethodState)FindPredefinedNode(methodToCall.MethodId, typeof(MethodState));
+                        }
+
+                        if (method == null)
+                        {
+                            errors[ii] = StatusCodes.BadMethodInvalid;
+                            continue;
+                        }
+                    }
+                }
+
+                // call the method.
+                CallMethodResult result = results[ii] = new CallMethodResult();
+
+                errors[ii] = Call(
+                    systemContext,
+                    methodToCall,
+                    method,
+                    result);
+            }
+        }
+
+        /// <summary>
+        /// Override ConditionRefresh
+        /// </summary>
+
+        public override ServiceResult ConditionRefresh(
+            OperationContext context,
+            IList<IEventMonitoredItem> monitoredItems)
+        {
+            ServerSystemContext systemContext = SystemContext.Copy(context);
+
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
+            {
+                // the IEventMonitoredItem should always be MonitoredItems since they are created by the MasterNodeManager.
+                MonitoredItem monitoredItem = monitoredItems[ii] as MonitoredItem;
+
+                if (monitoredItem == null)
+                {
+                    continue;
+                }
+
+                List<IFilterTarget> events = new List<IFilterTarget>();
+                List<NodeState> nodesToRefresh = new List<NodeState>();
+
+                lock (Lock)
+                {
+                    // check for server subscription.
+                    if (monitoredItem.NodeId == ObjectIds.Server)
+                    {
+                        if (RootNotifiers != null)
+                        {
+                            nodesToRefresh.AddRange(RootNotifiers);
+                        }
+                    }
+                    else
+                    {
+                        // check for existing monitored node.
+                        MonitoredNode2 monitoredNode = null;
+
+                        if (!MonitoredNodes.TryGetValue(monitoredItem.NodeId, out monitoredNode))
+                        {
+                            continue;
+                        }
+
+                        // get the refresh events.
+                        nodesToRefresh.Add(monitoredNode.Node);
+                    }
+                }
+
+                // block and wait for the refresh.
+                for (int jj = 0; jj < nodesToRefresh.Count; jj++)
+                {
+                    nodesToRefresh[jj].ConditionRefresh(systemContext, events, true);
+                }
+
+                lock (Lock)
+                {
+                    // This is where I can add branch events
+                    GetBranchesForConditionRefresh(events);
+                }
+
+                // queue the events.
+                for (int jj = 0; jj < events.Count; jj++)
+                {
+                    monitoredItem.QueueEvent(events[jj]);
+                }
+            }
+
+            // all done.
+            return ServiceResult.Good;
+        }
+
+
+
         #endregion
 
+        public NodeHandle FindBranchNodeHandle(ISystemContext systemContext, NodeHandle initialHandle, CallMethodRequest methodToCall)
+        {
+            NodeHandle nodeHandle = initialHandle;
+
+            if (IsAckConfirm(methodToCall.MethodId))
+            {
+                AlarmHolder holder = GetAlarmHolder(methodToCall.ObjectId);
+
+                if (holder != null)
+                {
+
+                    if (holder.HasBranches())
+                    {
+                        byte[] eventId = GetEventIdFromAckConfirmMethod(methodToCall);
+
+                        if (eventId != null)
+                        {
+                            BaseEventState state = holder.GetBranch(eventId);
+
+                            if (state != null)
+                            {
+                                nodeHandle = new NodeHandle();
+
+                                nodeHandle.NodeId = methodToCall.ObjectId;
+                                nodeHandle.Node = state;
+                                nodeHandle.Validated = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return nodeHandle;
+        }
+
+        public void GetBranchesForConditionRefresh(List<IFilterTarget> events)
+        {
+            // Don't look at Certificates, they won't have branches
+            foreach (AlarmHolder alarmHolder in m_alarms.Values)
+            {
+                alarmHolder.GetBranchesForConditionRefresh(events);
+            }
+        }
+
+        private bool IsAckConfirm(NodeId methodId)
+        {
+            bool isAckConfirm = false;
+            if (methodId.Equals(Opc.Ua.MethodIds.AcknowledgeableConditionType_Acknowledge) ||
+                 methodId.Equals(Opc.Ua.MethodIds.AcknowledgeableConditionType_Confirm))
+            {
+                isAckConfirm = true;
+
+            }
+            return isAckConfirm;
+        }
+
+        private byte[] GetEventIdFromAckConfirmMethod(CallMethodRequest request)
+        {
+            byte[] eventId = null;
+
+            // Bad magic Numbers here
+            if (request.InputArguments != null && request.InputArguments.Count == 2)
+            {
+                if (request.InputArguments[0].TypeInfo.BuiltInType.Equals(BuiltInType.ByteString))
+                {
+                    eventId = (byte[])request.InputArguments[0].Value;
+                }
+            }
+            return eventId;
+        }
 
         #region Private Fields
 
         Dictionary<string, AlarmHolder> m_alarms = new Dictionary<string, AlarmHolder>();
 
-        Dictionary<string, Dictionary<string, SourceController>> m_triggerMap =
-            new Dictionary<string, Dictionary<string, SourceController>>();
+        Dictionary<string, SourceController> m_triggerMap =
+            new Dictionary<string, SourceController>();
+
+        //Dictionary<string, Dictionary<string, SourceController>> m_triggerMap =
+        //    new Dictionary<string, Dictionary<string, SourceController>>();
 
         private bool m_allowEntry = false;
         private uint m_success = 0;

@@ -10,6 +10,8 @@ using Opc.Ua;
 
 namespace Alarms
 {
+    // Ignore all Optionals for Confirm, as it should be supported.  For this object, that means remove all Optional conditions
+
     public class AcknowledgeableConditionTypeHolder : ConditionTypeHolder
     {
         public AcknowledgeableConditionTypeHolder(
