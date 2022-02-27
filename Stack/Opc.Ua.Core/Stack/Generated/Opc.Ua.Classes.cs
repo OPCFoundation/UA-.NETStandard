@@ -147,23 +147,23 @@ namespace Opc.Ua
         private const string GetMonitoredItems_InitializationString =
            "//////////8EYYIKBAAAAAAAEQAAAEdldE1vbml0b3JlZEl0ZW1zAQDhLAAvAQDhLOEsAAABAf////8C" +
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA4iwALgBE4iwAAJYBAAAAAQAqAQEdAAAADgAA" +
-           "AFN1YnNjcmlwdGlvbklkAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAA" +
+           "AFN1YnNjcmlwdGlvbklkAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAA" +
            "AAAPAAAAT3V0cHV0QXJndW1lbnRzAQDjLAAuAETjLAAAlgIAAAABACoBASAAAAANAAAAU2VydmVySGFu" +
            "ZGxlcwAHAQAAAAEAAAAAAAAAAAEAKgEBIAAAAA0AAABDbGllbnRIYW5kbGVzAAcBAAAAAQAAAAAAAAAA" +
-           "AQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
 
         private const string ResendData_InitializationString =
            "//////////8EYYIKBAAAAAAACgAAAFJlc2VuZERhdGEBAEcyAC8BAEcyRzIAAAEB/////wEAAAAXYKkK" +
            "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBIMgAuAERIMgAAlgEAAAABACoBAR0AAAAOAAAAU3Vic2Ny" +
-           "aXB0aW9uSWQAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "aXB0aW9uSWQAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
 
         private const string SetSubscriptionDurable_InitializationString =
            "//////////8EYYIKBAAAAAAAFgAAAFNldFN1YnNjcmlwdGlvbkR1cmFibGUBAMoxAC8BAMoxyjEAAAEB" +
            "/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDLMQAuAETLMQAAlgIAAAABACoBAR0A" +
            "AAAOAAAAU3Vic2NyaXB0aW9uSWQAB/////8AAAAAAAEAKgEBHgAAAA8AAABMaWZldGltZUluSG91cnMA" +
-           "B/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1" +
+           "B/////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1" +
            "bWVudHMBAMwxAC4ARMwxAACWAQAAAAEAKgEBJQAAABYAAABSZXZpc2VkTGlmZXRpbWVJbkhvdXJzAAf/" +
-           "////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
 
         private const string RequestServerStateChange_InitializationString =
            "//////////8EYYIKBAAAAAAAGAAAAFJlcXVlc3RTZXJ2ZXJTdGF0ZUNoYW5nZQEAUzIALwEAUzJTMgAA" +
@@ -171,7 +171,7 @@ namespace Opc.Ua
            "FgAAAAUAAABTdGF0ZQEAVAP/////AAAAAAABACoBASIAAAATAAAARXN0aW1hdGVkUmV0dXJuVGltZQAN" +
            "/////wAAAAAAAQAqAQEiAAAAEwAAAFNlY29uZHNUaWxsU2h1dGRvd24AB/////8AAAAAAAEAKgEBFQAA" +
            "AAYAAABSZWFzb24AFf////8AAAAAAAEAKgEBFgAAAAcAAABSZXN0YXJ0AAH/////AAAAAAABACgBAQAA" +
-           "AAEAAAAAAAAAAQH/////AAAAAA==";
+           "AAEAAAAFAAAAAQH/////AAAAAA==";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAEgAAAFNlcnZlclR5cGVJbnN0YW5jZQEA1AcBANQH1AcAAP////8RAAAA" +
@@ -232,23 +232,23 @@ namespace Opc.Ua
            "KwwALgBEKwwAAAEAUwP/////AQH/////AAAAAARggAoBAAAAAAAKAAAATmFtZXNwYWNlcwEABy0ALwEA" +
            "fS0HLQAA/////wAAAAAEYYIKBAAAAAAAEQAAAEdldE1vbml0b3JlZEl0ZW1zAQDhLAAvAQDhLOEsAAAB" +
            "Af////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA4iwALgBE4iwAAJYBAAAAAQAqAQEd" +
-           "AAAADgAAAFN1YnNjcmlwdGlvbklkAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdg" +
+           "AAAADgAAAFN1YnNjcmlwdGlvbklkAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdg" +
            "qQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQDjLAAuAETjLAAAlgIAAAABACoBASAAAAANAAAAU2Vy" +
            "dmVySGFuZGxlcwAHAQAAAAEAAAAAAAAAAAEAKgEBIAAAAA0AAABDbGllbnRIYW5kbGVzAAcBAAAAAQAA" +
-           "AAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACgAAAFJlc2VuZERhdGEBAEcy" +
+           "AAAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAEYYIKBAAAAAAACgAAAFJlc2VuZERhdGEBAEcy" +
            "AC8BAEcyRzIAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBIMgAuAERIMgAA" +
-           "lgEAAAABACoBAR0AAAAOAAAAU3Vic2NyaXB0aW9uSWQAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAAB" +
+           "lgEAAAABACoBAR0AAAAOAAAAU3Vic2NyaXB0aW9uSWQAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
            "Af////8AAAAABGGCCgQAAAAAABYAAABTZXRTdWJzY3JpcHRpb25EdXJhYmxlAQDKMQAvAQDKMcoxAAAB" +
            "Af////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAyzEALgBEyzEAAJYCAAAAAQAqAQEd" +
            "AAAADgAAAFN1YnNjcmlwdGlvbklkAAf/////AAAAAAABACoBAR4AAAAPAAAATGlmZXRpbWVJbkhvdXJz" +
-           "AAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
+           "AAf/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
            "dW1lbnRzAQDMMQAuAETMMQAAlgEAAAABACoBASUAAAAWAAAAUmV2aXNlZExpZmV0aW1lSW5Ib3VycwAH" +
-           "/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAAGAAAAFJlcXVlc3RTZXJ2" +
+           "/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAAGAAAAFJlcXVlc3RTZXJ2" +
            "ZXJTdGF0ZUNoYW5nZQEAUzIALwEAUzJTMgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1" +
            "bWVudHMBAFQyAC4ARFQyAACWBQAAAAEAKgEBFgAAAAUAAABTdGF0ZQEAVAP/////AAAAAAABACoBASIA" +
            "AAATAAAARXN0aW1hdGVkUmV0dXJuVGltZQAN/////wAAAAAAAQAqAQEiAAAAEwAAAFNlY29uZHNUaWxs" +
            "U2h1dGRvd24AB/////8AAAAAAAEAKgEBFQAAAAYAAABSZWFzb24AFf////8AAAAAAAEAKgEBFgAAAAcA" +
-           "AABSZXN0YXJ0AAH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "AABSZXN0YXJ0AAH/////AAAAAAABACgBAQAAAAEAAAAFAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -1160,6 +1160,46 @@ namespace Opc.Ua
             {
                 RoleSet.Initialize(context, RoleSet_InitializationString);
             }
+
+            if (MaxSessions != null)
+            {
+                MaxSessions.Initialize(context, MaxSessions_InitializationString);
+            }
+
+            if (MaxSubscriptions != null)
+            {
+                MaxSubscriptions.Initialize(context, MaxSubscriptions_InitializationString);
+            }
+
+            if (MaxMonitoredItems != null)
+            {
+                MaxMonitoredItems.Initialize(context, MaxMonitoredItems_InitializationString);
+            }
+
+            if (MaxSubscriptionsPerSession != null)
+            {
+                MaxSubscriptionsPerSession.Initialize(context, MaxSubscriptionsPerSession_InitializationString);
+            }
+
+            if (MaxMonitoredItemsPerSubscription != null)
+            {
+                MaxMonitoredItemsPerSubscription.Initialize(context, MaxMonitoredItemsPerSubscription_InitializationString);
+            }
+
+            if (MaxSelectClauseParameters != null)
+            {
+                MaxSelectClauseParameters.Initialize(context, MaxSelectClauseParameters_InitializationString);
+            }
+
+            if (MaxWhereClauseParameters != null)
+            {
+                MaxWhereClauseParameters.Initialize(context, MaxWhereClauseParameters_InitializationString);
+            }
+
+            if (ConformanceUnits != null)
+            {
+                ConformanceUnits.Initialize(context, ConformanceUnits_InitializationString);
+            }
         }
 
         #region Initialization String
@@ -1182,16 +1222,48 @@ namespace Opc.Ua
            "//////////8EYIAKAQAAAAAABwAAAFJvbGVTZXQBAKc/AC8BAPc8pz8AAP////8CAAAABGGCCgQAAAAA" +
            "AAcAAABBZGRSb2xlAQCoPwAvAQB9Pqg/AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3Vt" +
            "ZW50cwEAqT8ALgBEqT8AAJYCAAAAAQAqAQEXAAAACAAAAFJvbGVOYW1lAAz/////AAAAAAABACoBARsA" +
-           "AAAMAAAATmFtZXNwYWNlVXJpAAz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoC" +
+           "AAAMAAAATmFtZXNwYWNlVXJpAAz/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoC" +
            "AAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCqPwAuAESqPwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5v" +
-           "ZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACgAAAFJlbW92" +
+           "ZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAACgAAAFJlbW92" +
            "ZVJvbGUBAKs/AC8BAIA+qz8AAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCs" +
            "PwAuAESsPwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAA" +
+           "AQAAAAEB/////wAAAAA=";
+
+        private const string MaxSessions_InitializationString =
+           "//////////8VYIkKAgAAAAAACwAAAE1heFNlc3Npb25zAQAYXgAuAEQYXgAAAAf/////AQH/////AAAA" +
+           "AA==";
+
+        private const string MaxSubscriptions_InitializationString =
+           "//////////8VYIkKAgAAAAAAEAAAAE1heFN1YnNjcmlwdGlvbnMBABleAC4ARBleAAAAB/////8BAf//" +
+           "//8AAAAA";
+
+        private const string MaxMonitoredItems_InitializationString =
+           "//////////8VYIkKAgAAAAAAEQAAAE1heE1vbml0b3JlZEl0ZW1zAQAaXgAuAEQaXgAAAAf/////AQH/" +
+           "////AAAAAA==";
+
+        private const string MaxSubscriptionsPerSession_InitializationString =
+           "//////////8VYIkKAgAAAAAAGgAAAE1heFN1YnNjcmlwdGlvbnNQZXJTZXNzaW9uAQAbXgAuAEQbXgAA" +
+           "AAf/////AQH/////AAAAAA==";
+
+        private const string MaxMonitoredItemsPerSubscription_InitializationString =
+           "//////////8VYIkKAgAAAAAAIAAAAE1heE1vbml0b3JlZEl0ZW1zUGVyU3Vic2NyaXB0aW9uAQAnXgAu" +
+           "AEQnXgAAAAf/////AQH/////AAAAAA==";
+
+        private const string MaxSelectClauseParameters_InitializationString =
+           "//////////8VYIkKAgAAAAAAGQAAAE1heFNlbGVjdENsYXVzZVBhcmFtZXRlcnMBABxeAC4ARBxeAAAA" +
+           "B/////8BAf////8AAAAA";
+
+        private const string MaxWhereClauseParameters_InitializationString =
+           "//////////8VYIkKAgAAAAAAGAAAAE1heFdoZXJlQ2xhdXNlUGFyYW1ldGVycwEAHV4ALgBEHV4AAAAH" +
+           "/////wEB/////wAAAAA=";
+
+        private const string ConformanceUnits_InitializationString =
+           "//////////8XYIkKAgAAAAAAEAAAAENvbmZvcm1hbmNlVW5pdHMBAB5eAC4ARB5eAAAAFAEAAAABAAAA" +
            "AAAAAAEB/////wAAAAA=";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHgAAAFNlcnZlckNhcGFiaWxpdGllc1R5cGVJbnN0YW5jZQEA3QcBAN0H" +
-           "3QcAAP////8OAAAAF2CJCgIAAAAAABIAAABTZXJ2ZXJQcm9maWxlQXJyYXkBAN4HAC4ARN4HAAAADAEA" +
+           "3QcAAP////8WAAAAF2CJCgIAAAAAABIAAABTZXJ2ZXJQcm9maWxlQXJyYXkBAN4HAC4ARN4HAAAADAEA" +
            "AAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAAADQAAAExvY2FsZUlkQXJyYXkBAOAHAC4AROAHAAAB" +
            "ACcBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAWAAAATWluU3VwcG9ydGVkU2FtcGxlUmF0" +
            "ZQEA4QcALgBE4QcAAAEAIgH/////AQH/////AAAAABVgiQoCAAAAAAAbAAAATWF4QnJvd3NlQ29udGlu" +
@@ -1208,11 +1280,20 @@ namespace Opc.Ua
            "AC8BAPc8pz8AAP////8CAAAABGGCCgQAAAAAAAcAAABBZGRSb2xlAQCoPwAvAQB9Pqg/AAABAf////8C" +
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAqT8ALgBEqT8AAJYCAAAAAQAqAQEXAAAACAAA" +
            "AFJvbGVOYW1lAAz/////AAAAAAABACoBARsAAAAMAAAATmFtZXNwYWNlVXJpAAz/////AAAAAAABACgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCqPwAuAESq" +
-           "PwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB" +
+           "AQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCqPwAuAESq" +
+           "PwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB" +
            "/////wAAAAAEYYIKBAAAAAAACgAAAFJlbW92ZVJvbGUBAKs/AC8BAIA+qz8AAAEB/////wEAAAAXYKkK" +
            "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCsPwAuAESsPwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5v" +
-           "ZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "ZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAE1heFNl" +
+           "c3Npb25zAQAYXgAuAEQYXgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAQAAAATWF4U3Vic2NyaXB0" +
+           "aW9ucwEAGV4ALgBEGV4AAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAEQAAAE1heE1vbml0b3JlZEl0" +
+           "ZW1zAQAaXgAuAEQaXgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAaAAAATWF4U3Vic2NyaXB0aW9u" +
+           "c1BlclNlc3Npb24BABteAC4ARBteAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAACAAAABNYXhNb25p" +
+           "dG9yZWRJdGVtc1BlclN1YnNjcmlwdGlvbgEAJ14ALgBEJ14AAAAH/////wEB/////wAAAAAVYIkKAgAA" +
+           "AAAAGQAAAE1heFNlbGVjdENsYXVzZVBhcmFtZXRlcnMBABxeAC4ARBxeAAAAB/////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAABgAAABNYXhXaGVyZUNsYXVzZVBhcmFtZXRlcnMBAB1eAC4ARB1eAAAAB/////8BAf//" +
+           "//8AAAAAF2CJCgIAAAAAABAAAABDb25mb3JtYW5jZVVuaXRzAQAeXgAuAEQeXgAAABQBAAAAAQAAAAAA" +
+           "AAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -1483,6 +1564,158 @@ namespace Opc.Ua
                 m_roleSet = value;
             }
         }
+
+        /// <remarks />
+        public PropertyState<uint> MaxSessions
+        {
+            get
+            {
+                return m_maxSessions;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxSessions, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxSessions = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> MaxSubscriptions
+        {
+            get
+            {
+                return m_maxSubscriptions;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxSubscriptions, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxSubscriptions = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> MaxMonitoredItems
+        {
+            get
+            {
+                return m_maxMonitoredItems;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxMonitoredItems, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxMonitoredItems = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> MaxSubscriptionsPerSession
+        {
+            get
+            {
+                return m_maxSubscriptionsPerSession;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxSubscriptionsPerSession, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxSubscriptionsPerSession = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> MaxMonitoredItemsPerSubscription
+        {
+            get
+            {
+                return m_maxMonitoredItemsPerSubscription;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxMonitoredItemsPerSubscription, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxMonitoredItemsPerSubscription = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> MaxSelectClauseParameters
+        {
+            get
+            {
+                return m_maxSelectClauseParameters;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxSelectClauseParameters, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxSelectClauseParameters = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> MaxWhereClauseParameters
+        {
+            get
+            {
+                return m_maxWhereClauseParameters;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxWhereClauseParameters, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxWhereClauseParameters = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<QualifiedName[]> ConformanceUnits
+        {
+            get
+            {
+                return m_conformanceUnits;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_conformanceUnits, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_conformanceUnits = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -1563,6 +1796,46 @@ namespace Opc.Ua
             if (m_roleSet != null)
             {
                 children.Add(m_roleSet);
+            }
+
+            if (m_maxSessions != null)
+            {
+                children.Add(m_maxSessions);
+            }
+
+            if (m_maxSubscriptions != null)
+            {
+                children.Add(m_maxSubscriptions);
+            }
+
+            if (m_maxMonitoredItems != null)
+            {
+                children.Add(m_maxMonitoredItems);
+            }
+
+            if (m_maxSubscriptionsPerSession != null)
+            {
+                children.Add(m_maxSubscriptionsPerSession);
+            }
+
+            if (m_maxMonitoredItemsPerSubscription != null)
+            {
+                children.Add(m_maxMonitoredItemsPerSubscription);
+            }
+
+            if (m_maxSelectClauseParameters != null)
+            {
+                children.Add(m_maxSelectClauseParameters);
+            }
+
+            if (m_maxWhereClauseParameters != null)
+            {
+                children.Add(m_maxWhereClauseParameters);
+            }
+
+            if (m_conformanceUnits != null)
+            {
+                children.Add(m_conformanceUnits);
             }
 
             base.GetChildren(context, children);
@@ -1879,6 +2152,174 @@ namespace Opc.Ua
                     instance = RoleSet;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.MaxSessions:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxSessions == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxSessions = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxSessions = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxSessions;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MaxSubscriptions:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxSubscriptions == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxSubscriptions = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxSubscriptions = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxSubscriptions;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MaxMonitoredItems:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxMonitoredItems == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxMonitoredItems = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxMonitoredItems = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxMonitoredItems;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MaxSubscriptionsPerSession:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxSubscriptionsPerSession == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxSubscriptionsPerSession = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxSubscriptionsPerSession = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxSubscriptionsPerSession;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MaxMonitoredItemsPerSubscription:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxMonitoredItemsPerSubscription == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxMonitoredItemsPerSubscription = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxMonitoredItemsPerSubscription = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxMonitoredItemsPerSubscription;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MaxSelectClauseParameters:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxSelectClauseParameters == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxSelectClauseParameters = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxSelectClauseParameters = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxSelectClauseParameters;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MaxWhereClauseParameters:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxWhereClauseParameters == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxWhereClauseParameters = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxWhereClauseParameters = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxWhereClauseParameters;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.ConformanceUnits:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ConformanceUnits == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ConformanceUnits = new PropertyState<QualifiedName[]>(this);
+                            }
+                            else
+                            {
+                                ConformanceUnits = (PropertyState<QualifiedName[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ConformanceUnits;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -1905,6 +2346,14 @@ namespace Opc.Ua
         private FolderState m_modellingRules;
         private FolderState m_aggregateFunctions;
         private RoleSetState m_roleSet;
+        private PropertyState<uint> m_maxSessions;
+        private PropertyState<uint> m_maxSubscriptions;
+        private PropertyState<uint> m_maxMonitoredItems;
+        private PropertyState<uint> m_maxSubscriptionsPerSession;
+        private PropertyState<uint> m_maxMonitoredItemsPerSubscription;
+        private PropertyState<uint> m_maxSelectClauseParameters;
+        private PropertyState<uint> m_maxWhereClauseParameters;
+        private PropertyState<QualifiedName[]> m_conformanceUnits;
         #endregion
     }
     #endif
@@ -4386,6 +4835,11 @@ namespace Opc.Ua
             {
                 MaxByteStringLength.Initialize(context, MaxByteStringLength_InitializationString);
             }
+
+            if (LastModifiedTime != null)
+            {
+                LastModifiedTime.Initialize(context, LastModifiedTime_InitializationString);
+            }
         }
 
         #region Initialization String
@@ -4396,35 +4850,40 @@ namespace Opc.Ua
            "//////////8VYIkKAgAAAAAAEwAAAE1heEJ5dGVTdHJpbmdMZW5ndGgBALReAC4ARLReAAAAB/////8B" +
            "Af////8AAAAA";
 
+        private const string LastModifiedTime_InitializationString =
+           "//////////8VYIkKAgAAAAAAEAAAAExhc3RNb2RpZmllZFRpbWUBAHBiAC4ARHBiAAAADf////8BAf//" +
+           "//8AAAAA";
+
         private const string InitializationString =
-           "//////////8EYIACAQAAAAAAEAAAAEZpbGVUeXBlSW5zdGFuY2UBADctAQA3LTctAAD/////DAAAABVg" +
+           "//////////8EYIACAQAAAAAAEAAAAEZpbGVUeXBlSW5zdGFuY2UBADctAQA3LTctAAD/////DQAAABVg" +
            "iQoCAAAAAAAEAAAAU2l6ZQEAOC0ALgBEOC0AAAAJ/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFdy" +
            "aXRhYmxlAQCOMQAuAESOMQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAVXNlcldyaXRhYmxl" +
            "AQCPMQAuAESPMQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAJAAAAT3BlbkNvdW50AQA7LQAuAEQ7" +
            "LQAAAAX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAATWltZVR5cGUBAB00AC4ARB00AAAADP////8B" +
            "Af////8AAAAAFWCJCgIAAAAAABMAAABNYXhCeXRlU3RyaW5nTGVuZ3RoAQC0XgAuAES0XgAAAAf/////" +
-           "AQH/////AAAAAARhggoEAAAAAAAEAAAAT3BlbgEAPC0ALwEAPC08LQAAAQH/////AgAAABdgqQoCAAAA" +
-           "AAAOAAAASW5wdXRBcmd1bWVudHMBAD0tAC4ARD0tAACWAQAAAAEAKgEBEwAAAAQAAABNb2RlAAP/////" +
-           "AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
-           "AQA+LQAuAEQ+LQAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAENsb3NlAQA/LQAvAQA/LT8tAAABAf////8BAAAA" +
-           "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAQC0ALgBEQC0AAJYBAAAAAQAqAQEZAAAACgAAAEZp" +
-           "bGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAQAAABS" +
-           "ZWFkAQBBLQAvAQBBLUEtAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAQi0A" +
-           "LgBEQi0AAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBFQAAAAYAAABM" +
-           "ZW5ndGgABv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRw" +
-           "dXRBcmd1bWVudHMBAEMtAC4AREMtAACWAQAAAAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAABACgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAV3JpdGUBAEQtAC8BAEQtRC0AAAEB////" +
-           "/wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBFLQAuAERFLQAAlgIAAAABACoBARkAAAAK" +
-           "AAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQETAAAABAAAAERhdGEAD/////8AAAAAAAEAKAEBAAAA" +
-           "AQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABHZXRQb3NpdGlvbgEARi0ALwEARi1GLQAAAQH/" +
-           "////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAEctAC4AREctAACWAQAAAAEAKgEBGQAA" +
-           "AAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAA" +
-           "AAAPAAAAT3V0cHV0QXJndW1lbnRzAQBILQAuAERILQAAlgEAAAABACoBARcAAAAIAAAAUG9zaXRpb24A" +
-           "Cf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABTZXRQb3NpdGlv" +
-           "bgEASS0ALwEASS1JLQAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAEotAC4A" +
-           "REotAACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARcAAAAIAAAAUG9z" +
-           "aXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AQH/////AAAAABVgiQoCAAAAAAAQAAAATGFzdE1vZGlmaWVkVGltZQEAcGIALgBEcGIAAAAN/////wEB" +
+           "/////wAAAAAEYYIKBAAAAAAABAAAAE9wZW4BADwtAC8BADwtPC0AAAEB/////wIAAAAXYKkKAgAAAAAA" +
+           "DgAAAElucHV0QXJndW1lbnRzAQA9LQAuAEQ9LQAAlgEAAAABACoBARMAAAAEAAAATW9kZQAD/////wAA" +
+           "AAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA" +
+           "Pi0ALgBEPi0AAJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAA" +
+           "AAEAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABDbG9zZQEAPy0ALwEAPy0/LQAAAQH/////AQAAABdg" +
+           "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAEAtAC4AREAtAACWAQAAAAEAKgEBGQAAAAoAAABGaWxl" +
+           "SGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAEAAAAUmVh" +
+           "ZAEAQS0ALwEAQS1BLQAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAEItAC4A" +
+           "REItAACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARUAAAAGAAAATGVu" +
+           "Z3RoAAb/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0" +
+           "QXJndW1lbnRzAQBDLQAuAERDLQAAlgEAAAABACoBARMAAAAEAAAARGF0YQAP/////wAAAAAAAQAoAQEA" +
+           "AAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAFdyaXRlAQBELQAvAQBELUQtAAABAf////8B" +
+           "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEARS0ALgBERS0AAJYCAAAAAQAqAQEZAAAACgAA" +
+           "AEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAABACgBAQAAAAEA" +
+           "AAACAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAR2V0UG9zaXRpb24BAEYtAC8BAEYtRi0AAAEB////" +
+           "/wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBHLQAuAERHLQAAlgEAAAABACoBARkAAAAK" +
+           "AAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAA" +
+           "DwAAAE91dHB1dEFyZ3VtZW50cwEASC0ALgBESC0AAJYBAAAAAQAqAQEXAAAACAAAAFBvc2l0aW9uAAn/" +
+           "////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAU2V0UG9zaXRpb24B" +
+           "AEktAC8BAEktSS0AAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBKLQAuAERK" +
+           "LQAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQEXAAAACAAAAFBvc2l0" +
+           "aW9uAAn/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -4541,6 +5000,25 @@ namespace Opc.Ua
                 }
 
                 m_maxByteStringLength = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<DateTime> LastModifiedTime
+        {
+            get
+            {
+                return m_lastModifiedTime;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_lastModifiedTime, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_lastModifiedTime = value;
             }
         }
 
@@ -4697,6 +5175,11 @@ namespace Opc.Ua
             if (m_maxByteStringLength != null)
             {
                 children.Add(m_maxByteStringLength);
+            }
+
+            if (m_lastModifiedTime != null)
+            {
+                children.Add(m_lastModifiedTime);
             }
 
             if (m_openMethod != null)
@@ -4876,6 +5359,27 @@ namespace Opc.Ua
                     break;
                 }
 
+                case Opc.Ua.BrowseNames.LastModifiedTime:
+                {
+                    if (createOrReplace)
+                    {
+                        if (LastModifiedTime == null)
+                        {
+                            if (replacement == null)
+                            {
+                                LastModifiedTime = new PropertyState<DateTime>(this);
+                            }
+                            else
+                            {
+                                LastModifiedTime = (PropertyState<DateTime>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = LastModifiedTime;
+                    break;
+                }
+
                 case Opc.Ua.BrowseNames.Open:
                 {
                     if (createOrReplace)
@@ -5019,6 +5523,7 @@ namespace Opc.Ua
         private PropertyState<ushort> m_openCount;
         private PropertyState<string> m_mimeType;
         private PropertyState<uint> m_maxByteStringLength;
+        private PropertyState<DateTime> m_lastModifiedTime;
         private OpenMethodState m_openMethod;
         private CloseMethodState m_closeMethod;
         private ReadMethodState m_readMethod;
@@ -5100,26 +5605,26 @@ namespace Opc.Ua
            "VXNlcldyaXRhYmxlAQCRMQAuAESRMQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAJAAAAT3BlbkNv" +
            "dW50AQBPLQAuAERPLQAAAAX/////AQH/////AAAAAARhggoEAAAAAAAEAAAAT3BlbgEAUC0ALwEAPC1Q" +
            "LQAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAFEtAC4ARFEtAACWAQAAAAEA" +
-           "KgEBEwAAAAQAAABNb2RlAAP/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAA" +
+           "KgEBEwAAAAQAAABNb2RlAAP/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAA" +
            "AAAPAAAAT3V0cHV0QXJndW1lbnRzAQBSLQAuAERSLQAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRs" +
-           "ZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAENsb3NlAQBT" +
+           "ZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAENsb3NlAQBT" +
            "LQAvAQA/LVMtAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAVC0ALgBEVC0A" +
-           "AJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
+           "AJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf//" +
            "//8AAAAABGGCCgQAAAAAAAQAAABSZWFkAQBVLQAvAQBBLVUtAAABAf////8CAAAAF2CpCgIAAAAAAA4A" +
            "AABJbnB1dEFyZ3VtZW50cwEAVi0ALgBEVi0AAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB///" +
-           "//8AAAAAAAEAKgEBFQAAAAYAAABMZW5ndGgABv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8A" +
+           "//8AAAAAAAEAKgEBFQAAAAYAAABMZW5ndGgABv////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8A" +
            "AAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAFctAC4ARFctAACWAQAAAAEAKgEBEwAAAAQA" +
-           "AABEYXRhAA//////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAV3Jp" +
+           "AABEYXRhAA//////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAV3Jp" +
            "dGUBAFgtAC8BAEQtWC0AAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBZLQAu" +
            "AERZLQAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQETAAAABAAAAERh" +
-           "dGEAD/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABHZXRQb3Np" +
+           "dGEAD/////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABHZXRQb3Np" +
            "dGlvbgEAWi0ALwEARi1aLQAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAFst" +
-           "AC4ARFstAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAA" +
+           "AC4ARFstAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAB" +
            "AAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBcLQAuAERcLQAAlgEAAAAB" +
-           "ACoBARcAAAAIAAAAUG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGC" +
+           "ACoBARcAAAAIAAAAUG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGC" +
            "CgQAAAAAAAsAAABTZXRQb3NpdGlvbgEAXS0ALwEASS1dLQAAAQH/////AQAAABdgqQoCAAAAAAAOAAAA" +
            "SW5wdXRBcmd1bWVudHMBAF4tAC4ARF4tAACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////" +
-           "AAAAAAABACoBARcAAAAIAAAAUG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8A" +
+           "AAAAAAABACoBARcAAAAIAAAAUG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8A" +
            "AAAABGGCCgQAAAAAAA8AAABFeHBvcnROYW1lc3BhY2UBAF8tAC8BAF8tXy0AAAEB/////wAAAAA=";
         #endregion
         #endif
@@ -5291,6 +5796,11 @@ namespace Opc.Ua
             {
                 DefaultAccessRestrictions.Initialize(context, DefaultAccessRestrictions_InitializationString);
             }
+
+            if (ConfigurationVersion != null)
+            {
+                ConfigurationVersion.Initialize(context, ConfigurationVersion_InitializationString);
+            }
         }
 
         #region Initialization String
@@ -5301,26 +5811,26 @@ namespace Opc.Ua
            "AJMxAC4ARJMxAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABPcGVuQ291bnQBAGwtAC4ARGwt" +
            "AAAABf////8BAf////8AAAAABGGCCgQAAAAAAAQAAABPcGVuAQBtLQAvAQA8LW0tAAABAf////8CAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAbi0ALgBEbi0AAJYBAAAAAQAqAQETAAAABAAAAE1v" +
-           "ZGUAA/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRB" +
+           "ZGUAA/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRB" +
            "cmd1bWVudHMBAG8tAC4ARG8tAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAAB" +
-           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAQ2xvc2UBAHAtAC8BAD8tcC0AAAEB" +
+           "ACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAQ2xvc2UBAHAtAC8BAD8tcC0AAAEB" +
            "/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBxLQAuAERxLQAAlgEAAAABACoBARkA" +
-           "AAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAA" +
+           "AAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAA" +
            "AAAABAAAAFJlYWQBAHItAC8BAEEtci0AAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l" +
            "bnRzAQBzLQAuAERzLQAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQEV" +
-           "AAAABgAAAExlbmd0aAAG/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAA" +
+           "AAAABgAAAExlbmd0aAAG/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAXYKkKAgAAAAAA" +
            "DwAAAE91dHB1dEFyZ3VtZW50cwEAdC0ALgBEdC0AAJYBAAAAAQAqAQETAAAABAAAAERhdGEAD/////8A" +
-           "AAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABXcml0ZQEAdS0ALwEARC11" +
+           "AAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABXcml0ZQEAdS0ALwEARC11" +
            "LQAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAHYtAC4ARHYtAACWAgAAAAEA" +
            "KgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARMAAAAEAAAARGF0YQAP/////wAAAAAA" +
-           "AQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAEdldFBvc2l0aW9uAQB3LQAvAQBG" +
+           "AQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAEdldFBvc2l0aW9uAQB3LQAvAQBG" +
            "LXctAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAeC0ALgBEeC0AAJYBAAAA" +
-           "AQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA" +
+           "AQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA" +
            "F2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAHktAC4ARHktAACWAQAAAAEAKgEBFwAAAAgAAABQ" +
-           "b3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAFNl" +
+           "b3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAFNl" +
            "dFBvc2l0aW9uAQB6LQAvAQBJLXotAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50" +
            "cwEAey0ALgBEey0AAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBFwAA" +
-           "AAgAAABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AAgAAABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
 
         private const string DefaultRolePermissions_InitializationString =
            "//////////8XYIkKAgAAAAAAFgAAAERlZmF1bHRSb2xlUGVybWlzc2lvbnMBAAk/AC4ARAk/AAAAYAEA" +
@@ -5334,9 +5844,13 @@ namespace Opc.Ua
            "//////////8VYIkKAgAAAAAAGQAAAERlZmF1bHRBY2Nlc3NSZXN0cmljdGlvbnMBAAs/AC4ARAs/AAAA" +
            "X/////8BAf////8AAAAA";
 
+        private const string ConfigurationVersion_InitializationString =
+           "//////////8VYIkKAgAAAAAAFAAAAENvbmZpZ3VyYXRpb25WZXJzaW9uAQCzYgAuAESzYgAAAQAGUv//" +
+           "//8BAf////8AAAAA";
+
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHQAAAE5hbWVzcGFjZU1ldGFkYXRhVHlwZUluc3RhbmNlAQBgLQEAYC1g" +
-           "LQAA/////wsAAAAVYIkKAgAAAAAADAAAAE5hbWVzcGFjZVVyaQEAYS0ALgBEYS0AAAAM/////wEB////" +
+           "LQAA/////wwAAAAVYIkKAgAAAAAADAAAAE5hbWVzcGFjZVVyaQEAYS0ALgBEYS0AAAAM/////wEB////" +
            "/wAAAAAVYIkKAgAAAAAAEAAAAE5hbWVzcGFjZVZlcnNpb24BAGItAC4ARGItAAAADP////8BAf////8A" +
            "AAAAFWCJCgIAAAAAABgAAABOYW1lc3BhY2VQdWJsaWNhdGlvbkRhdGUBAGMtAC4ARGMtAAAADf////8B" +
            "Af////8AAAAAFWCJCgIAAAAAABEAAABJc05hbWVzcGFjZVN1YnNldAEAZC0ALgBEZC0AAAAB/////wEB" +
@@ -5349,30 +5863,32 @@ namespace Opc.Ua
            "/wAAAAAVYIkKAgAAAAAADAAAAFVzZXJXcml0YWJsZQEAkzEALgBEkzEAAAAB/////wEB/////wAAAAAV" +
            "YIkKAgAAAAAACQAAAE9wZW5Db3VudAEAbC0ALgBEbC0AAAAF/////wEB/////wAAAAAEYYIKBAAAAAAA" +
            "BAAAAE9wZW4BAG0tAC8BADwtbS0AAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRz" +
-           "AQBuLQAuAERuLQAAlgEAAAABACoBARMAAAAEAAAATW9kZQAD/////wAAAAAAAQAoAQEAAAABAAAAAAAA" +
+           "AQBuLQAuAERuLQAAlgEAAAABACoBARMAAAAEAAAATW9kZQAD/////wAAAAAAAQAoAQEAAAABAAAAAQAA" +
            "AAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAby0ALgBEby0AAJYBAAAAAQAq" +
-           "AQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGC" +
+           "AQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGC" +
            "CgQAAAAAAAUAAABDbG9zZQEAcC0ALwEAPy1wLQAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRB" +
            "cmd1bWVudHMBAHEtAC4ARHEtAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAAB" +
-           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAEAAAAUmVhZAEAci0ALwEAQS1yLQAAAQH/" +
+           "ACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAEAAAAUmVhZAEAci0ALwEAQS1yLQAAAQH/" +
            "////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAHMtAC4ARHMtAACWAgAAAAEAKgEBGQAA" +
            "AAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARUAAAAGAAAATGVuZ3RoAAb/////AAAAAAABACgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQB0LQAuAER0" +
-           "LQAAlgEAAAABACoBARMAAAAEAAAARGF0YQAP/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAA" +
+           "AQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQB0LQAuAER0" +
+           "LQAAlgEAAAABACoBARMAAAAEAAAARGF0YQAP/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAA" +
            "AAAEYYIKBAAAAAAABQAAAFdyaXRlAQB1LQAvAQBELXUtAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJ" +
            "bnB1dEFyZ3VtZW50cwEAdi0ALgBEdi0AAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8A" +
-           "AAAAAAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARh" +
+           "AAAAAAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAARh" +
            "ggoEAAAAAAALAAAAR2V0UG9zaXRpb24BAHctAC8BAEYtdy0AAAEB/////wIAAAAXYKkKAgAAAAAADgAA" +
            "AElucHV0QXJndW1lbnRzAQB4LQAuAER4LQAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH////" +
-           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50" +
+           "/wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50" +
            "cwEAeS0ALgBEeS0AAJYBAAAAAQAqAQEXAAAACAAAAFBvc2l0aW9uAAn/////AAAAAAABACgBAQAAAAEA" +
-           "AAAAAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAU2V0UG9zaXRpb24BAHotAC8BAEktei0AAAEB////" +
+           "AAABAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAU2V0UG9zaXRpb24BAHotAC8BAEktei0AAAEB////" +
            "/wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQB7LQAuAER7LQAAlgIAAAABACoBARkAAAAK" +
            "AAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQEXAAAACAAAAFBvc2l0aW9uAAn/////AAAAAAABACgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAWAAAARGVmYXVsdFJvbGVQZXJtaXNzaW9ucwEA" +
+           "AQAAAAEAAAACAAAAAQH/////AAAAABdgiQoCAAAAAAAWAAAARGVmYXVsdFJvbGVQZXJtaXNzaW9ucwEA" +
            "CT8ALgBECT8AAABgAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAaAAAARGVmYXVsdFVzZXJS" +
            "b2xlUGVybWlzc2lvbnMBAAo/AC4ARAo/AAAAYAEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAA" +
-           "GQAAAERlZmF1bHRBY2Nlc3NSZXN0cmljdGlvbnMBAAs/AC4ARAs/AAAAX/////8BAf////8AAAAA";
+           "GQAAAERlZmF1bHRBY2Nlc3NSZXN0cmljdGlvbnMBAAs/AC4ARAs/AAAAX/////8BAf////8AAAAAFWCJ" +
+           "CgIAAAAAABQAAABDb25maWd1cmF0aW9uVmVyc2lvbgEAs2IALgBEs2IAAAEABlL/////AQH/////AAAA" +
+           "AA==";
         #endregion
         #endif
         #endregion
@@ -5586,6 +6102,25 @@ namespace Opc.Ua
                 m_defaultAccessRestrictions = value;
             }
         }
+
+        /// <remarks />
+        public PropertyState<uint> ConfigurationVersion
+        {
+            get
+            {
+                return m_configurationVersion;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_configurationVersion, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_configurationVersion = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -5651,6 +6186,11 @@ namespace Opc.Ua
             if (m_defaultAccessRestrictions != null)
             {
                 children.Add(m_defaultAccessRestrictions);
+            }
+
+            if (m_configurationVersion != null)
+            {
+                children.Add(m_configurationVersion);
             }
 
             base.GetChildren(context, children);
@@ -5904,6 +6444,27 @@ namespace Opc.Ua
                     instance = DefaultAccessRestrictions;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.ConfigurationVersion:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ConfigurationVersion == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ConfigurationVersion = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                ConfigurationVersion = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ConfigurationVersion;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -5927,6 +6488,7 @@ namespace Opc.Ua
         private PropertyState<RolePermissionType[]> m_defaultRolePermissions;
         private PropertyState<RolePermissionType[]> m_defaultUserRolePermissions;
         private PropertyState<ushort> m_defaultAccessRestrictions;
+        private PropertyState<uint> m_configurationVersion;
         #endregion
     }
     #endif
@@ -7292,12 +7854,21 @@ namespace Opc.Ua
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
+
+            if (CertificateErrorEventId != null)
+            {
+                CertificateErrorEventId.Initialize(context, CertificateErrorEventId_InitializationString);
+            }
         }
 
         #region Initialization String
+        private const string CertificateErrorEventId_InitializationString =
+           "//////////8VYIkKAgAAAAAAFwAAAENlcnRpZmljYXRlRXJyb3JFdmVudElkAQBHXgAuAERHXgAAAAz/" +
+           "////AQH/////AAAAAA==";
+
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAJwAAAEF1ZGl0T3BlblNlY3VyZUNoYW5uZWxFdmVudFR5cGVJbnN0YW5j" +
-           "ZQEADAgBAAwIDAgAAP////8UAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQClDAAuAESlDAAAAA//////" +
+           "ZQEADAgBAAwIDAgAAP////8VAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQClDAAuAESlDAAAAA//////" +
            "AQH/////AAAAABVgiQoCAAAAAAAJAAAARXZlbnRUeXBlAQCmDAAuAESmDAAAABH/////AQH/////AAAA" +
            "ABVgiQoCAAAAAAAKAAAAU291cmNlTm9kZQEApwwALgBEpwwAAAAR/////wEB/////wAAAAAVYIkKAgAA" +
            "AAAACgAAAFNvdXJjZU5hbWUBAKgMAC4ARKgMAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAQAAABU" +
@@ -7315,7 +7886,8 @@ namespace Opc.Ua
            "dWVzdFR5cGUBAA4IAC4ARA4IAAABADsB/////wEB/////wAAAAAVYIkKAgAAAAAAEQAAAFNlY3VyaXR5" +
            "UG9saWN5VXJpAQAPCAAuAEQPCAAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAU2VjdXJpdHlN" +
            "b2RlAQARCAAuAEQRCAAAAQAuAf////8BAf////8AAAAAFWCJCgIAAAAAABEAAABSZXF1ZXN0ZWRMaWZl" +
-           "dGltZQEAEggALgBEEggAAAEAIgH/////AQH/////AAAAAA==";
+           "dGltZQEAEggALgBEEggAAAEAIgH/////AQH/////AAAAABVgiQoCAAAAAAAXAAAAQ2VydGlmaWNhdGVF" +
+           "cnJvckV2ZW50SWQBAEdeAC4AREdeAAAADP////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -7434,6 +8006,25 @@ namespace Opc.Ua
                 m_requestedLifetime = value;
             }
         }
+
+        /// <remarks />
+        public PropertyState<string> CertificateErrorEventId
+        {
+            get
+            {
+                return m_certificateErrorEventId;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_certificateErrorEventId, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_certificateErrorEventId = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -7474,6 +8065,11 @@ namespace Opc.Ua
             if (m_requestedLifetime != null)
             {
                 children.Add(m_requestedLifetime);
+            }
+
+            if (m_certificateErrorEventId != null)
+            {
+                children.Add(m_certificateErrorEventId);
             }
 
             base.GetChildren(context, children);
@@ -7622,6 +8218,27 @@ namespace Opc.Ua
                     instance = RequestedLifetime;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.CertificateErrorEventId:
+                {
+                    if (createOrReplace)
+                    {
+                        if (CertificateErrorEventId == null)
+                        {
+                            if (replacement == null)
+                            {
+                                CertificateErrorEventId = new PropertyState<string>(this);
+                            }
+                            else
+                            {
+                                CertificateErrorEventId = (PropertyState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = CertificateErrorEventId;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -7640,6 +8257,7 @@ namespace Opc.Ua
         private PropertyState<string> m_securityPolicyUri;
         private PropertyState<MessageSecurityMode> m_securityMode;
         private PropertyState<double> m_requestedLifetime;
+        private PropertyState<string> m_certificateErrorEventId;
         #endregion
     }
     #endif
@@ -12080,6 +12698,531 @@ namespace Opc.Ua
         #region Private Fields
         private PropertyState m_context;
         private PropertyState<ushort> m_progress;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region AuditClientEventState Class
+    #if (!OPCUA_EXCLUDE_AuditClientEventState)
+    /// <summary>
+    /// Stores an instance of the AuditClientEventType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class AuditClientEventState : AuditEventState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public AuditClientEventState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditClientEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAAHAAAAEF1ZGl0Q2xpZW50RXZlbnRUeXBlSW5zdGFuY2UBADZcAQA2XDZc" +
+           "AAD/////DgAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEAN1wALgBEN1wAAAAP/////wEB/////wAAAAAV" +
+           "YIkKAgAAAAAACQAAAEV2ZW50VHlwZQEAOlwALgBEOlwAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAA" +
+           "CgAAAFNvdXJjZU5vZGUBADtcAC4ARDtcAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABTb3Vy" +
+           "Y2VOYW1lAQBTXQAuAERTXQAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAEAAAAVGltZQEAVF0ALgBE" +
+           "VF0AAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRpbWUBAFVdAC4ARFVdAAAB" +
+           "ACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBAFddAC4ARFddAAAAFf////8BAf//" +
+           "//8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEAWF0ALgBEWF0AAAAF/////wEB/////wAAAAAVYIkK" +
+           "AgAAAAAADwAAAEFjdGlvblRpbWVTdGFtcAEAX10ALgBEX10AAAEAJgH/////AQH/////AAAAABVgiQoC" +
+           "AAAAAAAGAAAAU3RhdHVzAQBgXQAuAERgXQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2Vy" +
+           "dmVySWQBAGFdAC4ARGFdAAAADP////8BAf////8AAAAAFWCJCgIAAAAAABIAAABDbGllbnRBdWRpdEVu" +
+           "dHJ5SWQBAGJdAC4ARGJdAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQB" +
+           "AGNdAC4ARGNdAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABTZXJ2ZXJVcmkBAGRdAC4ARGRd" +
+           "AAABAMdc/////wEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public PropertyState<string> ServerUri
+        {
+            get
+            {
+                return m_serverUri;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_serverUri, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_serverUri = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_serverUri != null)
+            {
+                children.Add(m_serverUri);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.ServerUri:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ServerUri == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ServerUri = new PropertyState<string>(this);
+                            }
+                            else
+                            {
+                                ServerUri = (PropertyState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ServerUri;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private PropertyState<string> m_serverUri;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region AuditClientUpdateMethodResultEventState Class
+    #if (!OPCUA_EXCLUDE_AuditClientUpdateMethodResultEventState)
+    /// <summary>
+    /// Stores an instance of the AuditClientUpdateMethodResultEventType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class AuditClientUpdateMethodResultEventState : AuditClientEventState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public AuditClientUpdateMethodResultEventState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditClientUpdateMethodResultEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAALgAAAEF1ZGl0Q2xpZW50VXBkYXRlTWV0aG9kUmVzdWx0RXZlbnRUeXBl" +
+           "SW5zdGFuY2UBAHZdAQB2XXZdAAD/////EwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEAd10ALgBEd10A" +
+           "AAAP/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEAel0ALgBEel0AAAAR/////wEB" +
+           "/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBAHtdAC4ARHtdAAAAEf////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAAAoAAABTb3VyY2VOYW1lAQCXXQAuAESXXQAAAAz/////AQH/////AAAAABVgiQoCAAAA" +
+           "AAAEAAAAVGltZQEAmF0ALgBEmF0AAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2" +
+           "ZVRpbWUBAJldAC4ARJldAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBAJtd" +
+           "AC4ARJtdAAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEAnF0ALgBEnF0AAAAF" +
+           "/////wEB/////wAAAAAVYIkKAgAAAAAADwAAAEFjdGlvblRpbWVTdGFtcAEAo10ALgBEo10AAAEAJgH/" +
+           "////AQH/////AAAAABVgiQoCAAAAAAAGAAAAU3RhdHVzAQCkXQAuAESkXQAAAAH/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAAAIAAAAU2VydmVySWQBAKVdAC4ARKVdAAAADP////8BAf////8AAAAAFWCJCgIAAAAA" +
+           "ABIAAABDbGllbnRBdWRpdEVudHJ5SWQBAKZdAC4ARKZdAAAADP////8BAf////8AAAAAFWCJCgIAAAAA" +
+           "AAwAAABDbGllbnRVc2VySWQBAKddAC4ARKddAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABT" +
+           "ZXJ2ZXJVcmkBAKhdAC4ARKhdAAABAMdc/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAE9iamVjdElk" +
+           "AQC6XQAuAES6XQAAABH/////AQH/////AAAAABVgiQoCAAAAAAAIAAAATWV0aG9kSWQBALtdAC4ARLtd" +
+           "AAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABTdGF0dXNDb2RlSWQBAL5dAC4ARL5dAAAAE///" +
+           "//8BAf////8AAAAAF2CJCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAv10ALgBEv10AAAEAKAEBAAAA" +
+           "AQAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAFRkAC4ARFRkAAAB" +
+           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public PropertyState<NodeId> ObjectId
+        {
+            get
+            {
+                return m_objectId;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_objectId, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_objectId = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<NodeId> MethodId
+        {
+            get
+            {
+                return m_methodId;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_methodId, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_methodId = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<StatusCode> StatusCodeId
+        {
+            get
+            {
+                return m_statusCodeId;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_statusCodeId, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_statusCodeId = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<Argument[]> InputArguments
+        {
+            get
+            {
+                return m_inputArguments;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_inputArguments, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_inputArguments = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<Argument[]> OutputArguments
+        {
+            get
+            {
+                return m_outputArguments;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_outputArguments, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_outputArguments = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_objectId != null)
+            {
+                children.Add(m_objectId);
+            }
+
+            if (m_methodId != null)
+            {
+                children.Add(m_methodId);
+            }
+
+            if (m_statusCodeId != null)
+            {
+                children.Add(m_statusCodeId);
+            }
+
+            if (m_inputArguments != null)
+            {
+                children.Add(m_inputArguments);
+            }
+
+            if (m_outputArguments != null)
+            {
+                children.Add(m_outputArguments);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.ObjectId:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ObjectId == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ObjectId = new PropertyState<NodeId>(this);
+                            }
+                            else
+                            {
+                                ObjectId = (PropertyState<NodeId>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ObjectId;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MethodId:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MethodId == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MethodId = new PropertyState<NodeId>(this);
+                            }
+                            else
+                            {
+                                MethodId = (PropertyState<NodeId>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MethodId;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.StatusCodeId:
+                {
+                    if (createOrReplace)
+                    {
+                        if (StatusCodeId == null)
+                        {
+                            if (replacement == null)
+                            {
+                                StatusCodeId = new PropertyState<StatusCode>(this);
+                            }
+                            else
+                            {
+                                StatusCodeId = (PropertyState<StatusCode>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = StatusCodeId;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.InputArguments:
+                {
+                    if (createOrReplace)
+                    {
+                        if (InputArguments == null)
+                        {
+                            if (replacement == null)
+                            {
+                                InputArguments = new PropertyState<Argument[]>(this);
+                            }
+                            else
+                            {
+                                InputArguments = (PropertyState<Argument[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = InputArguments;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.OutputArguments:
+                {
+                    if (createOrReplace)
+                    {
+                        if (OutputArguments == null)
+                        {
+                            if (replacement == null)
+                            {
+                                OutputArguments = new PropertyState<Argument[]>(this);
+                            }
+                            else
+                            {
+                                OutputArguments = (PropertyState<Argument[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = OutputArguments;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private PropertyState<NodeId> m_objectId;
+        private PropertyState<NodeId> m_methodId;
+        private PropertyState<StatusCode> m_statusCodeId;
+        private PropertyState<Argument[]> m_inputArguments;
+        private PropertyState<Argument[]> m_outputArguments;
         #endregion
     }
     #endif
@@ -24866,7 +26009,7 @@ namespace Opc.Ua
         /// </summary>
         protected override int GetDefaultValueRank()
         {
-            return ValueRanks.Any;
+            return ValueRanks.Scalar;
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -24917,11 +26060,11 @@ namespace Opc.Ua
            "AAAAAA==";
 
         private const string InitializationString =
-           "//////////8VYIECAgAAAAAAGQAAAFNlbGVjdGlvbkxpc3RUeXBlSW5zdGFuY2UBALU/AQC1P7U/AAAA" +
-           "GAEB/////wMAAAAXYIkKAgAAAAAACgAAAFNlbGVjdGlvbnMBAOBEAC4AROBEAAAAGAEAAAABAAAAAAAA" +
-           "AAEB/////wAAAAAXYIkKAgAAAAAAFQAAAFNlbGVjdGlvbkRlc2NyaXB0aW9ucwEA4UQALgBE4UQAAAAV" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAOAAAAUmVzdHJpY3RUb0xpc3QBALg/AC4ARLg/" +
-           "AAAAAf////8BAf////8AAAAA";
+           "//////////8VYIkCAgAAAAAAGQAAAFNlbGVjdGlvbkxpc3RUeXBlSW5zdGFuY2UBALU/AQC1P7U/AAAA" +
+           "GP////8BAf////8DAAAAF2CJCgIAAAAAAAoAAABTZWxlY3Rpb25zAQDgRAAuAETgRAAAABgBAAAAAQAA" +
+           "AAAAAAABAf////8AAAAAF2CJCgIAAAAAABUAAABTZWxlY3Rpb25EZXNjcmlwdGlvbnMBAOFEAC4AROFE" +
+           "AAAAFQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAADgAAAFJlc3RyaWN0VG9MaXN0AQC4PwAu" +
+           "AES4PwAAAAH/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -25512,10 +26655,10 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGwAAAEdldE1vbml0b3JlZEl0ZW1zTWV0aG9kVHlwZQEA5ywALwEA5yzn" +
            "LAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAOgsAC4AROgsAACWAQAAAAEA" +
-           "KgEBHQAAAA4AAABTdWJzY3JpcHRpb25JZAAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAA" +
+           "KgEBHQAAAA4AAABTdWJzY3JpcHRpb25JZAAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAA" +
            "AAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA6SwALgBE6SwAAJYCAAAAAQAqAQEgAAAADQAA" +
            "AFNlcnZlckhhbmRsZXMABwEAAAABAAAAAAAAAAABACoBASAAAAANAAAAQ2xpZW50SGFuZGxlcwAHAQAA" +
-           "AAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AAEAAAAAAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -25638,7 +26781,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAFAAAAFJlc2VuZERhdGFNZXRob2RUeXBlAQBLMgAvAQBLMksyAAABAf//" +
            "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEATDIALgBETDIAAJYBAAAAAQAqAQEdAAAA" +
-           "DgAAAFN1YnNjcmlwdGlvbklkAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "DgAAAFN1YnNjcmlwdGlvbklkAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -25752,9 +26895,9 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAIAAAAFNldFN1YnNjcmlwdGlvbkR1cmFibGVNZXRob2RUeXBlAQDQMQAv" +
            "AQDQMdAxAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA0TEALgBE0TEAAJYC" +
            "AAAAAQAqAQEdAAAADgAAAFN1YnNjcmlwdGlvbklkAAf/////AAAAAAABACoBAR4AAAAPAAAATGlmZXRp" +
-           "bWVJbkhvdXJzAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAA" +
+           "bWVJbkhvdXJzAAf/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAA" +
            "T3V0cHV0QXJndW1lbnRzAQDSMQAuAETSMQAAlgEAAAABACoBASUAAAAWAAAAUmV2aXNlZExpZmV0aW1l" +
-           "SW5Ib3VycwAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "SW5Ib3VycwAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -25879,7 +27022,7 @@ namespace Opc.Ua
            "lgUAAAABACoBARYAAAAFAAAAU3RhdGUBAFQD/////wAAAAAAAQAqAQEiAAAAEwAAAEVzdGltYXRlZFJl" +
            "dHVyblRpbWUADf////8AAAAAAAEAKgEBIgAAABMAAABTZWNvbmRzVGlsbFNodXRkb3duAAf/////AAAA" +
            "AAABACoBARUAAAAGAAAAUmVhc29uABX/////AAAAAAABACoBARYAAAAHAAAAUmVzdGFydAAB/////wAA" +
-           "AAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AAAAAQAoAQEAAAABAAAABQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -32381,9 +33524,9 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAADgAAAE9wZW5NZXRob2RUeXBlAQDaLQAvAQDaLdotAAABAf////8CAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA2y0ALgBE2y0AAJYBAAAAAQAqAQETAAAABAAAAE1v" +
-           "ZGUAA/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRB" +
+           "ZGUAA/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRB" +
            "cmd1bWVudHMBANwtAC4ARNwtAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAAB" +
-           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "ACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -32502,7 +33645,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAADwAAAENsb3NlTWV0aG9kVHlwZQEA3S0ALwEA3S3dLQAAAQH/////AQAA" +
            "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAN4tAC4ARN4tAACWAQAAAAEAKgEBGQAAAAoAAABG" +
-           "aWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "aWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -32616,8 +33759,8 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAADgAAAFJlYWRNZXRob2RUeXBlAQDfLQAvAQDfLd8tAAABAf////8CAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA4C0ALgBE4C0AAJYCAAAAAQAqAQEZAAAACgAAAEZp" +
            "bGVIYW5kbGUAB/////8AAAAAAAEAKgEBFQAAAAYAAABMZW5ndGgABv////8AAAAAAAEAKAEBAAAAAQAA" +
-           "AAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAOEtAC4AROEtAACWAQAA" +
-           "AAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "AAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAOEtAC4AROEtAACWAQAA" +
+           "AAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -32740,7 +33883,7 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAADwAAAFdyaXRlTWV0aG9kVHlwZQEA4i0ALwEA4i3iLQAAAQH/////AQAA" +
            "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAOMtAC4AROMtAACWAgAAAAEAKgEBGQAAAAoAAABG" +
            "aWxlSGFuZGxlAAf/////AAAAAAABACoBARMAAAAEAAAARGF0YQAP/////wAAAAAAAQAoAQEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAA=";
+           "AgAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -32856,9 +33999,9 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAFQAAAEdldFBvc2l0aW9uTWV0aG9kVHlwZQEA5C0ALwEA5C3kLQAAAQH/" +
            "////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAOUtAC4AROUtAACWAQAAAAEAKgEBGQAA" +
-           "AAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAA" +
+           "AAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAA" +
            "AAAPAAAAT3V0cHV0QXJndW1lbnRzAQDmLQAuAETmLQAAlgEAAAABACoBARcAAAAIAAAAUG9zaXRpb24A" +
-           "Cf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "Cf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -32978,7 +34121,7 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAFQAAAFNldFBvc2l0aW9uTWV0aG9kVHlwZQEA5y0ALwEA5y3nLQAAAQH/" +
            "////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAOgtAC4AROgtAACWAgAAAAEAKgEBGQAA" +
            "AAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARcAAAAIAAAAUG9zaXRpb24ACf////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "KAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -33102,24 +34245,24 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAGQAAAEZpbGVEaXJlY3RvcnlUeXBlSW5zdGFuY2UBACk0AQApNCk0AAD/" +
            "////BAAAAARhggoEAAAAAAAPAAAAQ3JlYXRlRGlyZWN0b3J5AQBLNAAvAQBLNEs0AAABAf////8CAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEATDQALgBETDQAAJYBAAAAAQAqAQEcAAAADQAAAERp" +
-           "cmVjdG9yeU5hbWUADP////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8A" +
+           "cmVjdG9yeU5hbWUADP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8A" +
            "AABPdXRwdXRBcmd1bWVudHMBAE00AC4ARE00AACWAQAAAAEAKgEBHgAAAA8AAABEaXJlY3RvcnlOb2Rl" +
-           "SWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAoAAABDcmVhdGVG" +
+           "SWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAoAAABDcmVhdGVG" +
            "aWxlAQBONAAvAQBONE40AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEATzQA" +
            "LgBETzQAAJYCAAAAAQAqAQEXAAAACAAAAEZpbGVOYW1lAAz/////AAAAAAABACoBAR4AAAAPAAAAUmVx" +
-           "dWVzdEZpbGVPcGVuAAH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
+           "dWVzdEZpbGVPcGVuAAH/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
            "AAAAT3V0cHV0QXJndW1lbnRzAQBQNAAuAERQNAAAlgIAAAABACoBARkAAAAKAAAARmlsZU5vZGVJZAAR" +
-           "/////wAAAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAAB" +
+           "/////wAAAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAIAAAAB" +
            "Af////8AAAAABGHCCgQAAAAWAAAARGVsZXRlRmlsZVN5c3RlbU9iamVjdAAABgAAAERlbGV0ZQEAUTQA" +
            "LwEAUTRRNAAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAFI0AC4ARFI0AACW" +
-           "AQAAAAEAKgEBHQAAAA4AAABPYmplY3RUb0RlbGV0ZQAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB" +
+           "AQAAAAEAKgEBHQAAAA4AAABPYmplY3RUb0RlbGV0ZQAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB" +
            "/////wAAAAAEYYIKBAAAAAAACgAAAE1vdmVPckNvcHkBAFM0AC8BAFM0UzQAAAEB/////wIAAAAXYKkK" +
            "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBUNAAuAERUNAAAlgQAAAABACoBASEAAAASAAAAT2JqZWN0" +
            "VG9Nb3ZlT3JDb3B5ABH/////AAAAAAABACoBAR4AAAAPAAAAVGFyZ2V0RGlyZWN0b3J5ABH/////AAAA" +
            "AAABACoBARkAAAAKAAAAQ3JlYXRlQ29weQAB/////wAAAAAAAQAqAQEWAAAABwAAAE5ld05hbWUADP//" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAQAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu" +
            "dHMBAFU0AC4ARFU0AACWAQAAAAEAKgEBGAAAAAkAAABOZXdOb2RlSWQAEf////8AAAAAAAEAKAEBAAAA" +
-           "AQAAAAAAAAABAf////8AAAAA";
+           "AQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -33407,9 +34550,9 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGQAAAENyZWF0ZURpcmVjdG9yeU1ldGhvZFR5cGUBAB40AC8BAB40HjQA" +
            "AAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAfNAAuAEQfNAAAlgEAAAABACoB" +
-           "ARwAAAANAAAARGlyZWN0b3J5TmFtZQAM/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAX" +
+           "ARwAAAANAAAARGlyZWN0b3J5TmFtZQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAX" +
            "YKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAIDQALgBEIDQAAJYBAAAAAQAqAQEeAAAADwAAAERp" +
-           "cmVjdG9yeU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "cmVjdG9yeU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -33529,9 +34672,9 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAFAAAAENyZWF0ZUZpbGVNZXRob2RUeXBlAQAhNAAvAQAhNCE0AAABAf//" +
            "//8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAIjQALgBEIjQAAJYCAAAAAQAqAQEXAAAA" +
            "CAAAAEZpbGVOYW1lAAz/////AAAAAAABACoBAR4AAAAPAAAAUmVxdWVzdEZpbGVPcGVuAAH/////AAAA" +
-           "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAj" +
+           "AAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAj" +
            "NAAuAEQjNAAAlgIAAAABACoBARkAAAAKAAAARmlsZU5vZGVJZAAR/////wAAAAAAAQAqAQEZAAAACgAA" +
-           "AEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -33657,7 +34800,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAFAAAAERlbGV0ZUZpbGVNZXRob2RUeXBlAQAkNAAvAQAkNCQ0AAABAf//" +
            "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAJTQALgBEJTQAAJYBAAAAAQAqAQEdAAAA" +
-           "DgAAAE9iamVjdFRvRGVsZXRlABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "DgAAAE9iamVjdFRvRGVsZXRlABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -33772,9 +34915,9 @@ namespace Opc.Ua
            "//8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAJzQALgBEJzQAAJYEAAAAAQAqAQEhAAAA" +
            "EgAAAE9iamVjdFRvTW92ZU9yQ29weQAR/////wAAAAAAAQAqAQEeAAAADwAAAFRhcmdldERpcmVjdG9y" +
            "eQAR/////wAAAAAAAQAqAQEZAAAACgAAAENyZWF0ZUNvcHkAAf////8AAAAAAAEAKgEBFgAAAAcAAABO" +
-           "ZXdOYW1lAAz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
+           "ZXdOYW1lAAz/////AAAAAAABACgBAQAAAAEAAAAEAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
            "cHV0QXJndW1lbnRzAQAoNAAuAEQoNAAAlgEAAAABACoBARgAAAAJAAAATmV3Tm9kZUlkABH/////AAAA" +
-           "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "AAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -33911,20 +35054,20 @@ namespace Opc.Ua
            "AIA9gD0AAP////8EAAAAFWCJCgIAAAAAABcAAABDbGllbnRQcm9jZXNzaW5nVGltZW91dAEAgT0ALgBE" +
            "gT0AAAEAIgH/////AQH/////AAAAAARhggoEAAAAAAATAAAAR2VuZXJhdGVGaWxlRm9yUmVhZAEAgj0A" +
            "LwEAgj2CPQAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAIM9AC4ARIM9AACW" +
-           "AQAAAAEAKgEBHgAAAA8AAABHZW5lcmF0ZU9wdGlvbnMAGP////8AAAAAAAEAKAEBAAAAAQAAAAAAAAAB" +
+           "AQAAAAEAKgEBHgAAAA8AAABHZW5lcmF0ZU9wdGlvbnMAGP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
            "Af////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAIQ9AC4ARIQ9AACWAwAAAAEAKgEB" +
            "GQAAAAoAAABGaWxlTm9kZUlkABH/////AAAAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAA" +
            "AAAAAQAqAQElAAAAFgAAAENvbXBsZXRpb25TdGF0ZU1hY2hpbmUAEf////8AAAAAAAEAKAEBAAAAAQAA" +
-           "AAAAAAABAf////8AAAAABGGCCgQAAAAAABQAAABHZW5lcmF0ZUZpbGVGb3JXcml0ZQEAhT0ALwEAhT2F" +
+           "AAMAAAABAf////8AAAAABGGCCgQAAAAAABQAAABHZW5lcmF0ZUZpbGVGb3JXcml0ZQEAhT0ALwEAhT2F" +
            "PQAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAOc/AC4AROc/AACWAQAAAAEA" +
-           "KgEBHgAAAA8AAABHZW5lcmF0ZU9wdGlvbnMAGP////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8A" +
+           "KgEBHgAAAA8AAABHZW5lcmF0ZU9wdGlvbnMAGP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8A" +
            "AAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAIY9AC4ARIY9AACWAgAAAAEAKgEBGQAAAAoA" +
            "AABGaWxlTm9kZUlkABH/////AAAAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAo" +
-           "AQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAADgAAAENsb3NlQW5kQ29tbWl0AQCHPQAvAQCH" +
+           "AQEAAAABAAAAAgAAAAEB/////wAAAAAEYYIKBAAAAAAADgAAAENsb3NlQW5kQ29tbWl0AQCHPQAvAQCH" +
            "PYc9AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAiD0ALgBEiD0AAJYBAAAA" +
-           "AQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA" +
+           "AQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA" +
            "F2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAIk9AC4ARIk9AACWAQAAAAEAKgEBJQAAABYAAABD" +
-           "b21wbGV0aW9uU3RhdGVNYWNoaW5lABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "b21wbGV0aW9uU3RhdGVNYWNoaW5lABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -34212,10 +35355,10 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAHQAAAEdlbmVyYXRlRmlsZUZvclJlYWRNZXRob2RUeXBlAQCzPQAvAQCz" +
            "PbM9AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAtD0ALgBEtD0AAJYBAAAA" +
-           "AQAqAQEeAAAADwAAAEdlbmVyYXRlT3B0aW9ucwAY/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "AQAqAQEeAAAADwAAAEdlbmVyYXRlT3B0aW9ucwAY/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB////" +
            "/wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAtT0ALgBEtT0AAJYDAAAAAQAqAQEZAAAA" +
            "CgAAAEZpbGVOb2RlSWQAEf////8AAAAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAAB" +
-           "ACoBASUAAAAWAAAAQ29tcGxldGlvblN0YXRlTWFjaGluZQAR/////wAAAAAAAQAoAQEAAAABAAAAAAAA" +
+           "ACoBASUAAAAWAAAAQ29tcGxldGlvblN0YXRlTWFjaGluZQAR/////wAAAAAAAQAoAQEAAAABAAAAAwAA" +
            "AAEB/////wAAAAA=";
         #endregion
         #endif
@@ -34343,10 +35486,10 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAHgAAAEdlbmVyYXRlRmlsZUZvcldyaXRlTWV0aG9kVHlwZQEAtj0ALwEA" +
            "tj22PQAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAOg/AC4AROg/AACWAQAA" +
-           "AAEAKgEBHgAAAA8AAABHZW5lcmF0ZU9wdGlvbnMAGP////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
+           "AAEAKgEBHgAAAA8AAABHZW5lcmF0ZU9wdGlvbnMAGP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf//" +
            "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBALc9AC4ARLc9AACWAgAAAAEAKgEBGQAA" +
            "AAoAAABGaWxlTm9kZUlkABH/////AAAAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAA" +
-           "AQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -34469,9 +35612,9 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGAAAAENsb3NlQW5kQ29tbWl0TWV0aG9kVHlwZQEAuD0ALwEAuD24PQAA" +
            "AQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBALk9AC4ARLk9AACWAQAAAAEAKgEB" +
-           "GQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoC" +
+           "GQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoC" +
            "AAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQC6PQAuAES6PQAAlgEAAAABACoBASUAAAAWAAAAQ29tcGxl" +
-           "dGlvblN0YXRlTWFjaGluZQAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "dGlvblN0YXRlTWFjaGluZQAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -34756,12 +35899,12 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAEwAAAFJvbGVTZXRUeXBlSW5zdGFuY2UBAPc8AQD3PPc8AAD/////AgAA" +
            "AARhggoEAAAAAAAHAAAAQWRkUm9sZQEAfT4ALwEAfT59PgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAA" +
            "SW5wdXRBcmd1bWVudHMBAH4+AC4ARH4+AACWAgAAAAEAKgEBFwAAAAgAAABSb2xlTmFtZQAM/////wAA" +
-           "AAAAAQAqAQEbAAAADAAAAE5hbWVzcGFjZVVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "AAAAAQAqAQEbAAAADAAAAE5hbWVzcGFjZVVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB////" +
            "/wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAfz4ALgBEfz4AAJYBAAAAAQAqAQEZAAAA" +
-           "CgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAA" +
+           "CgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAA" +
            "AAoAAABSZW1vdmVSb2xlAQCAPgAvAQCAPoA+AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
            "Z3VtZW50cwEAgT4ALgBEgT4AAJYBAAAAAQAqAQEZAAAACgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "KAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -34958,8 +36101,8 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAEQAAAEFkZFJvbGVNZXRob2RUeXBlAQCCPgAvAQCCPoI+AAABAf////8C" +
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAgz4ALgBEgz4AAJYCAAAAAQAqAQEXAAAACAAA" +
            "AFJvbGVOYW1lAAz/////AAAAAAABACoBARsAAAAMAAAATmFtZXNwYWNlVXJpAAz/////AAAAAAABACgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCEPgAuAESE" +
-           "PgAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB" +
+           "AQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCEPgAuAESE" +
+           "PgAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB" +
            "/////wAAAAA=";
         #endregion
         #endif
@@ -35082,7 +36225,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAFAAAAFJlbW92ZVJvbGVNZXRob2RUeXBlAQCFPgAvAQCFPoU+AAABAf//" +
            "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAhj4ALgBEhj4AAJYBAAAAAQAqAQEZAAAA" +
-           "CgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "CgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -35197,14 +36340,19 @@ namespace Opc.Ua
         {
             base.InitializeOptionalChildren(context);
 
+            if (ApplicationsExclude != null)
+            {
+                ApplicationsExclude.Initialize(context, ApplicationsExclude_InitializationString);
+            }
+
             if (Applications != null)
             {
                 Applications.Initialize(context, Applications_InitializationString);
             }
 
-            if (ApplicationsExclude != null)
+            if (EndpointsExclude != null)
             {
-                ApplicationsExclude.Initialize(context, ApplicationsExclude_InitializationString);
+                EndpointsExclude.Initialize(context, EndpointsExclude_InitializationString);
             }
 
             if (Endpoints != null)
@@ -35212,9 +36360,9 @@ namespace Opc.Ua
                 Endpoints.Initialize(context, Endpoints_InitializationString);
             }
 
-            if (EndpointsExclude != null)
+            if (CustomConfiguration != null)
             {
-                EndpointsExclude.Initialize(context, EndpointsExclude_InitializationString);
+                CustomConfiguration.Initialize(context, CustomConfiguration_InitializationString);
             }
 
             if (AddIdentity != null)
@@ -35249,75 +36397,80 @@ namespace Opc.Ua
         }
 
         #region Initialization String
-        private const string Applications_InitializationString =
-           "//////////8XYIkKAgAAAAAADAAAAEFwcGxpY2F0aW9ucwEALj8ALgBELj8AAAAMAQAAAAEAAAAAAAAA" +
-           "AQH/////AAAAAA==";
-
         private const string ApplicationsExclude_InitializationString =
            "//////////8VYIkKAgAAAAAAEwAAAEFwcGxpY2F0aW9uc0V4Y2x1ZGUBADI8AC4ARDI8AAAAAf////8B" +
            "Af////8AAAAA";
 
-        private const string Endpoints_InitializationString =
-           "//////////8XYIkKAgAAAAAACQAAAEVuZHBvaW50cwEALz8ALgBELz8AAAEAqDwBAAAAAQAAAAAAAAAB" +
-           "Af////8AAAAA";
+        private const string Applications_InitializationString =
+           "//////////8XYIkKAgAAAAAADAAAAEFwcGxpY2F0aW9ucwEALj8ALgBELj8AAAAMAQAAAAEAAAAAAAAA" +
+           "AQH/////AAAAAA==";
 
         private const string EndpointsExclude_InitializationString =
            "//////////8VYIkKAgAAAAAAEAAAAEVuZHBvaW50c0V4Y2x1ZGUBADM8AC4ARDM8AAAAAf////8BAf//" +
            "//8AAAAA";
 
+        private const string Endpoints_InitializationString =
+           "//////////8XYIkKAgAAAAAACQAAAEVuZHBvaW50cwEALz8ALgBELz8AAAEAqDwBAAAAAQAAAAAAAAAB" +
+           "Af////8AAAAA";
+
+        private const string CustomConfiguration_InitializationString =
+           "//////////8VYIkKAgAAAAAAEwAAAEN1c3RvbUNvbmZpZ3VyYXRpb24BAEteAC4AREteAAAAAf////8B" +
+           "Af////8AAAAA";
+
         private const string AddIdentity_InitializationString =
            "//////////8EYYIKBAAAAAAACwAAAEFkZElkZW50aXR5AQAIPQAvAQAIPQg9AAABAf////8BAAAAF2Cp" +
            "CgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEACT0ALgBECT0AAJYBAAAAAQAqAQEVAAAABAAAAFJ1bGUB" +
-           "ABI9/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "ABI9/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string RemoveIdentity_InitializationString =
            "//////////8EYYIKBAAAAAAADgAAAFJlbW92ZUlkZW50aXR5AQAKPQAvAQAKPQo9AAABAf////8BAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEACz0ALgBECz0AAJYBAAAAAQAqAQEVAAAABAAAAFJ1" +
-           "bGUBABI9/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "bGUBABI9/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string AddApplication_InitializationString =
            "//////////8EYYIKBAAAAAAADgAAAEFkZEFwcGxpY2F0aW9uAQAwPwAvAQAwPzA/AAABAf////8BAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAMT8ALgBEMT8AAJYBAAAAAQAqAQEdAAAADgAAAEFw" +
-           "cGxpY2F0aW9uVXJpAAz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "cGxpY2F0aW9uVXJpAAz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
 
         private const string RemoveApplication_InitializationString =
            "//////////8EYYIKBAAAAAAAEQAAAFJlbW92ZUFwcGxpY2F0aW9uAQAyPwAvAQAyPzI/AAABAf////8B" +
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAMz8ALgBEMz8AAJYBAAAAAQAqAQEdAAAADgAA" +
-           "AEFwcGxpY2F0aW9uVXJpAAz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "AEFwcGxpY2F0aW9uVXJpAAz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
 
         private const string AddEndpoint_InitializationString =
            "//////////8EYYIKBAAAAAAACwAAAEFkZEVuZHBvaW50AQA0PwAvAQA0PzQ/AAABAf////8BAAAAF2Cp" +
            "CgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEANT8ALgBENT8AAJYBAAAAAQAqAQEZAAAACAAAAEVuZHBv" +
-           "aW50AQCoPP////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "aW50AQCoPP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
 
         private const string RemoveEndpoint_InitializationString =
            "//////////8EYYIKBAAAAAAADgAAAFJlbW92ZUVuZHBvaW50AQA2PwAvAQA2PzY/AAABAf////8BAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEANz8ALgBENz8AAJYBAAAAAQAqAQEZAAAACAAAAEVu" +
-           "ZHBvaW50AQCoPP////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "ZHBvaW50AQCoPP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
 
         private const string InitializationString =
-           "//////////8EYIACAQAAAAAAEAAAAFJvbGVUeXBlSW5zdGFuY2UBAAQ9AQAEPQQ9AAD/////CwAAABdg" +
+           "//////////8EYIACAQAAAAAAEAAAAFJvbGVUeXBlSW5zdGFuY2UBAAQ9AQAEPQQ9AAD/////DAAAABdg" +
            "iQoCAAAAAAAKAAAASWRlbnRpdGllcwEALT8ALgBELT8AAAEAEj0BAAAAAQAAAAAAAAABAf////8AAAAA" +
-           "F2CJCgIAAAAAAAwAAABBcHBsaWNhdGlvbnMBAC4/AC4ARC4/AAAADAEAAAABAAAAAAAAAAEB/////wAA" +
-           "AAAVYIkKAgAAAAAAEwAAAEFwcGxpY2F0aW9uc0V4Y2x1ZGUBADI8AC4ARDI8AAAAAf////8BAf////8A" +
-           "AAAAF2CJCgIAAAAAAAkAAABFbmRwb2ludHMBAC8/AC4ARC8/AAABAKg8AQAAAAEAAAAAAAAAAQH/////" +
-           "AAAAABVgiQoCAAAAAAAQAAAARW5kcG9pbnRzRXhjbHVkZQEAMzwALgBEMzwAAAAB/////wEB/////wAA" +
-           "AAAEYYIKBAAAAAAACwAAAEFkZElkZW50aXR5AQAIPQAvAQAIPQg9AAABAf////8BAAAAF2CpCgIAAAAA" +
-           "AA4AAABJbnB1dEFyZ3VtZW50cwEACT0ALgBECT0AAJYBAAAAAQAqAQEVAAAABAAAAFJ1bGUBABI9////" +
-           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAADgAAAFJlbW92ZUlkZW50aXR5" +
-           "AQAKPQAvAQAKPQo9AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEACz0ALgBE" +
-           "Cz0AAJYBAAAAAQAqAQEVAAAABAAAAFJ1bGUBABI9/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
-           "/wAAAAAEYYIKBAAAAAAADgAAAEFkZEFwcGxpY2F0aW9uAQAwPwAvAQAwPzA/AAABAf////8BAAAAF2Cp" +
-           "CgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAMT8ALgBEMT8AAJYBAAAAAQAqAQEdAAAADgAAAEFwcGxp" +
-           "Y2F0aW9uVXJpAAz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAARAAAA" +
-           "UmVtb3ZlQXBwbGljYXRpb24BADI/AC8BADI/Mj8AAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0" +
-           "QXJndW1lbnRzAQAzPwAuAEQzPwAAlgEAAAABACoBAR0AAAAOAAAAQXBwbGljYXRpb25VcmkADP////8A" +
-           "AAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABBZGRFbmRwb2ludAEAND8A" +
-           "LwEAND80PwAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBADU/AC4ARDU/AACW" +
-           "AQAAAAEAKgEBGQAAAAgAAABFbmRwb2ludAEAqDz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////" +
-           "AAAAAARhggoEAAAAAAAOAAAAUmVtb3ZlRW5kcG9pbnQBADY/AC8BADY/Nj8AAAEB/////wEAAAAXYKkK" +
-           "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQA3PwAuAEQ3PwAAlgEAAAABACoBARkAAAAIAAAARW5kcG9p" +
-           "bnQBAKg8/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "FWCJCgIAAAAAABMAAABBcHBsaWNhdGlvbnNFeGNsdWRlAQAyPAAuAEQyPAAAAAH/////AQH/////AAAA" +
+           "ABdgiQoCAAAAAAAMAAAAQXBwbGljYXRpb25zAQAuPwAuAEQuPwAAAAwBAAAAAQAAAAAAAAABAf////8A" +
+           "AAAAFWCJCgIAAAAAABAAAABFbmRwb2ludHNFeGNsdWRlAQAzPAAuAEQzPAAAAAH/////AQH/////AAAA" +
+           "ABdgiQoCAAAAAAAJAAAARW5kcG9pbnRzAQAvPwAuAEQvPwAAAQCoPAEAAAABAAAAAAAAAAEB/////wAA" +
+           "AAAVYIkKAgAAAAAAEwAAAEN1c3RvbUNvbmZpZ3VyYXRpb24BAEteAC4AREteAAAAAf////8BAf////8A" +
+           "AAAABGGCCgQAAAAAAAsAAABBZGRJZGVudGl0eQEACD0ALwEACD0IPQAAAQH/////AQAAABdgqQoCAAAA" +
+           "AAAOAAAASW5wdXRBcmd1bWVudHMBAAk9AC4ARAk9AACWAQAAAAEAKgEBFQAAAAQAAABSdWxlAQASPf//" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAA4AAABSZW1vdmVJZGVudGl0" +
+           "eQEACj0ALwEACj0KPQAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAAs9AC4A" +
+           "RAs9AACWAQAAAAEAKgEBFQAAAAQAAABSdWxlAQASPf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf//" +
+           "//8AAAAABGGCCgQAAAAAAA4AAABBZGRBcHBsaWNhdGlvbgEAMD8ALwEAMD8wPwAAAQH/////AQAAABdg" +
+           "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBADE/AC4ARDE/AACWAQAAAAEAKgEBHQAAAA4AAABBcHBs" +
+           "aWNhdGlvblVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAAEQAA" +
+           "AFJlbW92ZUFwcGxpY2F0aW9uAQAyPwAvAQAyPzI/AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1" +
+           "dEFyZ3VtZW50cwEAMz8ALgBEMz8AAJYBAAAAAQAqAQEdAAAADgAAAEFwcGxpY2F0aW9uVXJpAAz/////" +
+           "AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAQWRkRW5kcG9pbnQBADQ/" +
+           "AC8BADQ/ND8AAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQA1PwAuAEQ1PwAA" +
+           "lgEAAAABACoBARkAAAAIAAAARW5kcG9pbnQBAKg8/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB////" +
+           "/wAAAAAEYYIKBAAAAAAADgAAAFJlbW92ZUVuZHBvaW50AQA2PwAvAQA2PzY/AAABAf////8BAAAAF2Cp" +
+           "CgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEANz8ALgBENz8AAJYBAAAAAQAqAQEZAAAACAAAAEVuZHBv" +
+           "aW50AQCoPP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -35343,6 +36496,25 @@ namespace Opc.Ua
         }
 
         /// <remarks />
+        public PropertyState<bool> ApplicationsExclude
+        {
+            get
+            {
+                return m_applicationsExclude;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_applicationsExclude, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_applicationsExclude = value;
+            }
+        }
+
+        /// <remarks />
         public PropertyState<string[]> Applications
         {
             get
@@ -35362,21 +36534,21 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public PropertyState<bool> ApplicationsExclude
+        public PropertyState<bool> EndpointsExclude
         {
             get
             {
-                return m_applicationsExclude;
+                return m_endpointsExclude;
             }
 
             set
             {
-                if (!Object.ReferenceEquals(m_applicationsExclude, value))
+                if (!Object.ReferenceEquals(m_endpointsExclude, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
 
-                m_applicationsExclude = value;
+                m_endpointsExclude = value;
             }
         }
 
@@ -35400,21 +36572,21 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public PropertyState<bool> EndpointsExclude
+        public PropertyState<bool> CustomConfiguration
         {
             get
             {
-                return m_endpointsExclude;
+                return m_customConfiguration;
             }
 
             set
             {
-                if (!Object.ReferenceEquals(m_endpointsExclude, value))
+                if (!Object.ReferenceEquals(m_customConfiguration, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
 
-                m_endpointsExclude = value;
+                m_customConfiguration = value;
             }
         }
 
@@ -35548,14 +36720,19 @@ namespace Opc.Ua
                 children.Add(m_identities);
             }
 
+            if (m_applicationsExclude != null)
+            {
+                children.Add(m_applicationsExclude);
+            }
+
             if (m_applications != null)
             {
                 children.Add(m_applications);
             }
 
-            if (m_applicationsExclude != null)
+            if (m_endpointsExclude != null)
             {
-                children.Add(m_applicationsExclude);
+                children.Add(m_endpointsExclude);
             }
 
             if (m_endpoints != null)
@@ -35563,9 +36740,9 @@ namespace Opc.Ua
                 children.Add(m_endpoints);
             }
 
-            if (m_endpointsExclude != null)
+            if (m_customConfiguration != null)
             {
-                children.Add(m_endpointsExclude);
+                children.Add(m_customConfiguration);
             }
 
             if (m_addIdentityMethod != null)
@@ -35640,6 +36817,27 @@ namespace Opc.Ua
                     break;
                 }
 
+                case Opc.Ua.BrowseNames.ApplicationsExclude:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ApplicationsExclude == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ApplicationsExclude = new PropertyState<bool>(this);
+                            }
+                            else
+                            {
+                                ApplicationsExclude = (PropertyState<bool>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ApplicationsExclude;
+                    break;
+                }
+
                 case Opc.Ua.BrowseNames.Applications:
                 {
                     if (createOrReplace)
@@ -35661,24 +36859,24 @@ namespace Opc.Ua
                     break;
                 }
 
-                case Opc.Ua.BrowseNames.ApplicationsExclude:
+                case Opc.Ua.BrowseNames.EndpointsExclude:
                 {
                     if (createOrReplace)
                     {
-                        if (ApplicationsExclude == null)
+                        if (EndpointsExclude == null)
                         {
                             if (replacement == null)
                             {
-                                ApplicationsExclude = new PropertyState<bool>(this);
+                                EndpointsExclude = new PropertyState<bool>(this);
                             }
                             else
                             {
-                                ApplicationsExclude = (PropertyState<bool>)replacement;
+                                EndpointsExclude = (PropertyState<bool>)replacement;
                             }
                         }
                     }
 
-                    instance = ApplicationsExclude;
+                    instance = EndpointsExclude;
                     break;
                 }
 
@@ -35703,24 +36901,24 @@ namespace Opc.Ua
                     break;
                 }
 
-                case Opc.Ua.BrowseNames.EndpointsExclude:
+                case Opc.Ua.BrowseNames.CustomConfiguration:
                 {
                     if (createOrReplace)
                     {
-                        if (EndpointsExclude == null)
+                        if (CustomConfiguration == null)
                         {
                             if (replacement == null)
                             {
-                                EndpointsExclude = new PropertyState<bool>(this);
+                                CustomConfiguration = new PropertyState<bool>(this);
                             }
                             else
                             {
-                                EndpointsExclude = (PropertyState<bool>)replacement;
+                                CustomConfiguration = (PropertyState<bool>)replacement;
                             }
                         }
                     }
 
-                    instance = EndpointsExclude;
+                    instance = CustomConfiguration;
                     break;
                 }
 
@@ -35862,10 +37060,11 @@ namespace Opc.Ua
 
         #region Private Fields
         private PropertyState<IdentityMappingRuleType[]> m_identities;
-        private PropertyState<string[]> m_applications;
         private PropertyState<bool> m_applicationsExclude;
-        private PropertyState<EndpointType[]> m_endpoints;
+        private PropertyState<string[]> m_applications;
         private PropertyState<bool> m_endpointsExclude;
+        private PropertyState<EndpointType[]> m_endpoints;
+        private PropertyState<bool> m_customConfiguration;
         private AddIdentityMethodState m_addIdentityMethod;
         private RemoveIdentityMethodState m_removeIdentityMethod;
         private AddApplicationMethodState m_addApplicationMethod;
@@ -35927,7 +37126,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAFQAAAEFkZElkZW50aXR5TWV0aG9kVHlwZQEAFD0ALwEAFD0UPQAAAQH/" +
            "////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBABU9AC4ARBU9AACWAQAAAAEAKgEBFQAA" +
-           "AAQAAABSdWxlAQASPf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AAQAAABSdWxlAQASPf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -36040,7 +37239,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGAAAAFJlbW92ZUlkZW50aXR5TWV0aG9kVHlwZQEAFj0ALwEAFj0WPQAA" +
            "AQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBABc9AC4ARBc9AACWAQAAAAEAKgEB" +
-           "FQAAAAQAAABSdWxlAQASPf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "FQAAAAQAAABSdWxlAQASPf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -36153,7 +37352,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGAAAAEFkZEFwcGxpY2F0aW9uTWV0aG9kVHlwZQEAOD8ALwEAOD84PwAA" +
            "AQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBADk/AC4ARDk/AACWAQAAAAEAKgEB" +
-           "HQAAAA4AAABBcHBsaWNhdGlvblVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "HQAAAA4AAABBcHBsaWNhdGlvblVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -36266,7 +37465,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGwAAAFJlbW92ZUFwcGxpY2F0aW9uTWV0aG9kVHlwZQEAOj8ALwEAOj86" +
            "PwAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBADs/AC4ARDs/AACWAQAAAAEA" +
-           "KgEBHQAAAA4AAABBcHBsaWNhdGlvblVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAA" +
+           "KgEBHQAAAA4AAABBcHBsaWNhdGlvblVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAA" +
            "AAA=";
         #endregion
         #endif
@@ -36380,7 +37579,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAFQAAAEFkZEVuZHBvaW50TWV0aG9kVHlwZQEAPD8ALwEAPD88PwAAAQH/" +
            "////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAD0/AC4ARD0/AACWAQAAAAEAKgEBGQAA" +
-           "AAgAAABFbmRwb2ludAEAqDz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "AAgAAABFbmRwb2ludAEAqDz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -36493,7 +37692,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGAAAAFJlbW92ZUVuZHBvaW50TWV0aG9kVHlwZQEAPj8ALwEAPj8+PwAA" +
            "AQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAD8/AC4ARD8/AACWAQAAAAEAKgEB" +
-           "GQAAAAgAAABFbmRwb2ludAEAqDz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "GQAAAAgAAABFbmRwb2ludAEAqDz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -41619,7 +42818,7 @@ namespace Opc.Ua
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBGIwAuAERGIwAAlgIAAAABACoBAUYAAAAHAAAA" +
            "RXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNv" +
            "bW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8g" +
-           "YWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "YWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -42416,7 +43615,7 @@ namespace Opc.Ua
            "KgEBVgAAAA4AAABTdWJzY3JpcHRpb25JZAEAIAH/////AAAAAAMAAAAALwAAAFRoZSBpZGVudGlmaWVy" +
            "IGZvciB0aGUgc3Vic2NyaXB0aW9uIHRvIHJlZnJlc2guAQAqAQFZAAAADwAAAE1vbml0b3JlZEl0ZW1J" +
            "ZAEAIAH/////AAAAAAMAAAAAMQAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgbW9uaXRvcmVkIGl0ZW0g" +
-           "dG8gcmVmcmVzaC4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "dG8gcmVmcmVzaC4BACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -42533,7 +43732,7 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAGgAAAENvbmRpdGlvblJlZnJlc2hNZXRob2RUeXBlAQAvIwAvAQAvIy8j" +
            "AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAMCMALgBEMCMAAJYBAAAAAQAq" +
            "AQFWAAAADgAAAFN1YnNjcmlwdGlvbklkAQAgAf////8AAAAAAwAAAAAvAAAAVGhlIGlkZW50aWZpZXIg" +
-           "Zm9yIHRoZSBzdWJzY3JpcHRpb24gdG8gcmVmcmVzaC4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "Zm9yIHRoZSBzdWJzY3JpcHRpb24gdG8gcmVmcmVzaC4BACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -42648,7 +43847,7 @@ namespace Opc.Ua
            "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAGA8ALgBEGA8AAJYCAAAAAQAqAQFGAAAA" +
            "BwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0" +
            "byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50" +
-           "IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -42770,7 +43969,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAGwAAAERpYWxvZ0NvbmRpdGlvblR5cGVJbnN0YW5jZQEADgsBAA4LDgsA" +
-           "AP////8dAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQBcEAAuAERcEAAAAA//////AQH/////AAAAABVg" +
+           "AP////8eAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQBcEAAuAERcEAAAAA//////AQH/////AAAAABVg" +
            "iQoCAAAAAAAJAAAARXZlbnRUeXBlAQBdEAAuAERdEAAAABH/////AQH/////AAAAABVgiQoCAAAAAAAK" +
            "AAAAU291cmNlTm9kZQEAXhAALgBEXhAAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJj" +
            "ZU5hbWUBAF8QAC4ARF8QAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAQAAABUaW1lAQBgEAAuAERg" +
@@ -42795,7 +43994,7 @@ namespace Opc.Ua
            "LwEARSNdIwAAAQEBAAAAAQD5CwABAA0LAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAF4j" +
            "AC4ARF4jAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVu" +
            "dGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAA" +
-           "AAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAA" +
+           "AAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAC" +
            "AAAAAQH/////AAAAABVgiQoCAAAAAAALAAAARGlhbG9nU3RhdGUBAF8jAC8BACMjXyMAAAAV/////wEB" +
            "AQAAAAEALCMBAQBLIwQAAAAVYIkKAgAAAAAAAgAAAElkAQBgIwAuAERgIwAAAAH/////AQH/////AAAA" +
            "ABVgiQoCAAAAAAAOAAAAVHJhbnNpdGlvblRpbWUBAGQjAC4ARGQjAAABACYB/////wEB/////wAAAAAV" +
@@ -42808,9 +44007,11 @@ namespace Opc.Ua
            "AAAAABVgiQoCAAAAAAAOAAAAQ2FuY2VsUmVzcG9uc2UBAGsjAC4ARGsjAAAABv////8BAf////8AAAAA" +
            "FWCJCgIAAAAAAAwAAABMYXN0UmVzcG9uc2UBAGwjAC4ARGwjAAAABv////8BAf////8AAAAABGGCCgQA" +
            "AAAAAAcAAABSZXNwb25kAQBtIwAvAQBtI20jAAABAQEAAAABAPkLAAEA3yIBAAAAF2CpCgIAAAAAAA4A" +
-           "AABJbnB1dEFyZ3VtZW50cwEAbiMALgBEbiMAAJYBAAAAAQAqAQFMAAAAEAAAAFNlbGVjdGVkUmVzcG9u" +
-           "c2UABv////8AAAAAAwAAAAAlAAAAVGhlIHJlc3BvbnNlIHRvIHRoZSBkaWFsb2cgY29uZGl0aW9uLgEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AABJbnB1dEFyZ3VtZW50cwEAbiMALgBEbiMAAJYBAAAAAQAqAQEfAAAAEAAAAFNlbGVjdGVkUmVzcG9u" +
+           "c2UABv////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAgAAABSZXNwb25k" +
+           "MgEA+F4ALwEA+F74XgAAAQEBAAAAAQD5CwABAN8iAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVu" +
+           "dHMBAPleAC4ARPleAACWAgAAAAEAKgEBHwAAABAAAABTZWxlY3RlZFJlc3BvbnNlAAb/////AAAAAAAB" +
+           "ACoBARYAAAAHAAAAQ29tbWVudAAV/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -42967,6 +44168,25 @@ namespace Opc.Ua
                 m_respondMethod = value;
             }
         }
+
+        /// <remarks />
+        public DialogResponse2MethodState Respond2
+        {
+            get
+            {
+                return m_respond2Method;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_respond2Method, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_respond2Method = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -43017,6 +44237,11 @@ namespace Opc.Ua
             if (m_respondMethod != null)
             {
                 children.Add(m_respondMethod);
+            }
+
+            if (m_respond2Method != null)
+            {
+                children.Add(m_respond2Method);
             }
 
             base.GetChildren(context, children);
@@ -43207,6 +44432,27 @@ namespace Opc.Ua
                     instance = Respond;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.Respond2:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Respond2 == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Respond2 = new DialogResponse2MethodState(this);
+                            }
+                            else
+                            {
+                                Respond2 = (DialogResponse2MethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Respond2;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -43227,6 +44473,7 @@ namespace Opc.Ua
         private PropertyState<int> m_cancelResponse;
         private PropertyState<int> m_lastResponse;
         private DialogResponseMethodState m_respondMethod;
+        private DialogResponse2MethodState m_respond2Method;
         #endregion
     }
     #endif
@@ -43282,8 +44529,8 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGAAAAERpYWxvZ1Jlc3BvbnNlTWV0aG9kVHlwZQEARyMALwEARyNHIwAA" +
            "AQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAEgjAC4AREgjAACWAQAAAAEAKgEB" +
-           "TAAAABAAAABTZWxlY3RlZFJlc3BvbnNlAAb/////AAAAAAMAAAAAJQAAAFRoZSByZXNwb25zZSB0byB0" +
-           "aGUgZGlhbG9nIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "HwAAABAAAABTZWxlY3RlZFJlc3BvbnNlAAb/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAA" +
+           "AA==";
         #endregion
         #endif
         #endregion
@@ -43343,6 +44590,123 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         int selectedResponse);
+    #endif
+    #endregion
+
+    #region DialogResponse2MethodState Class
+    #if (!OPCUA_EXCLUDE_DialogResponse2MethodState)
+    /// <summary>
+    /// Stores an instance of the DialogResponse2MethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class DialogResponse2MethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public DialogResponse2MethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new DialogResponse2MethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAGQAAAERpYWxvZ1Jlc3BvbnNlMk1ldGhvZFR5cGUBAPpeAC8BAPpe+l4A" +
+           "AAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQD7XgAuAET7XgAAlgIAAAABACoB" +
+           "AR8AAAAQAAAAU2VsZWN0ZWRSZXNwb25zZQAG/////wAAAAAAAQAqAQEWAAAABwAAAENvbW1lbnQAFf//" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public DialogResponse2MethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            int selectedResponse = (int)_inputArguments[0];
+            LocalizedText comment = (LocalizedText)_inputArguments[1];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    selectedResponse,
+                    comment);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult DialogResponse2MethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        int selectedResponse,
+        LocalizedText comment);
     #endif
     #endregion
 
@@ -43423,7 +44787,7 @@ namespace Opc.Ua
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCaIwAuAESaIwAAlgIAAAABACoBAUYAAAAHAAAA" +
            "RXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNv" +
            "bW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8g" +
-           "YWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "YWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAJAAAAEFja25vd2xlZGdlYWJsZUNvbmRpdGlvblR5cGVJbnN0YW5jZQEA" +
@@ -43453,7 +44817,7 @@ namespace Opc.Ua
            "SW5wdXRBcmd1bWVudHMBAIQjAC4ARIQjAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAA" +
            "AAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAH" +
            "AAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRp" +
-           "dGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNrZWRTdGF0ZQEAhSMA" +
+           "dGlvbi4BACgBAQAAAAEAAAACAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNrZWRTdGF0ZQEAhSMA" +
            "LwEAIyOFIwAAABX/////AQEBAAAAAQAsIwEBAHEjBAAAABVgiQoCAAAAAAACAAAASWQBAIYjAC4ARIYj" +
            "AAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAA4AAABUcmFuc2l0aW9uVGltZQEAiiMALgBEiiMAAAEA" +
            "JgH/////AQH/////AAAAABVgqQoCAAAAAAAJAAAAVHJ1ZVN0YXRlAQCMIwAuAESMIwAAFQMCAAAAZW4M" +
@@ -43468,12 +44832,12 @@ namespace Opc.Ua
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAmCMALgBEmCMAAJYCAAAAAQAqAQFGAAAABwAA" +
            "AEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBj" +
            "b21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRv" +
-           "IGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAcA" +
+           "IGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAABGGCCgQAAAAAAAcA" +
            "AABDb25maXJtAQCZIwAvAQCZI5kjAAABAQEAAAABAPkLAAEAASMBAAAAF2CpCgIAAAAAAA4AAABJbnB1" +
            "dEFyZ3VtZW50cwEAmiMALgBEmiMAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAA" +
            "AAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABD" +
            "b21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9u" +
-           "LgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "LgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -43843,9 +45207,19 @@ namespace Opc.Ua
                 Suppress.Initialize(context, Suppress_InitializationString);
             }
 
+            if (Suppress2 != null)
+            {
+                Suppress2.Initialize(context, Suppress2_InitializationString);
+            }
+
             if (Unsuppress != null)
             {
                 Unsuppress.Initialize(context, Unsuppress_InitializationString);
+            }
+
+            if (Unsuppress2 != null)
+            {
+                Unsuppress2.Initialize(context, Unsuppress2_InitializationString);
             }
 
             if (RemoveFromService != null)
@@ -43853,14 +45227,34 @@ namespace Opc.Ua
                 RemoveFromService.Initialize(context, RemoveFromService_InitializationString);
             }
 
+            if (RemoveFromService2 != null)
+            {
+                RemoveFromService2.Initialize(context, RemoveFromService2_InitializationString);
+            }
+
             if (PlaceInService != null)
             {
                 PlaceInService.Initialize(context, PlaceInService_InitializationString);
             }
 
+            if (PlaceInService2 != null)
+            {
+                PlaceInService2.Initialize(context, PlaceInService2_InitializationString);
+            }
+
             if (Reset != null)
             {
                 Reset.Initialize(context, Reset_InitializationString);
+            }
+
+            if (Reset2 != null)
+            {
+                Reset2.Initialize(context, Reset2_InitializationString);
+            }
+
+            if (GetGroupMemberships != null)
+            {
+                GetGroupMemberships.Initialize(context, GetGroupMemberships_InitializationString);
             }
         }
 
@@ -43890,11 +45284,10 @@ namespace Opc.Ua
            "AC4AROQjAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAFVuc2hlbHZlVGltZQEA5SMALgBE" +
            "5SMAAAEAIgH/////AQH/////AAAAAARhggoEAAAAAAALAAAAVGltZWRTaGVsdmUBAP0jAC8BAIUL/SMA" +
            "AAEBAQAAAAEA+QsAAQBVKwEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQD+IwAuAET+IwAA" +
-           "lgEAAAABACoBAXoAAAAMAAAAU2hlbHZpbmdUaW1lAQAiAf////8AAAAAAwAAAABVAAAASWYgbm90IDAs" +
-           "IHRoaXMgcGFyYW1ldGVyIHNwZWNpZmllcyBhIGZpeGVkIHRpbWUgZm9yIHdoaWNoIHRoZSBBbGFybSBp" +
-           "cyB0byBiZSBzaGVsdmVkLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAgAAABVbnNo" +
-           "ZWx2ZQEA+yMALwEAgwv7IwAAAQEBAAAAAQD5CwABAFUrAAAAAARhggoEAAAAAAANAAAAT25lU2hvdFNo" +
-           "ZWx2ZQEA/CMALwEAhAv8IwAAAQEBAAAAAQD5CwABAFUrAAAAAA==";
+           "lgEAAAABACoBAR0AAAAMAAAAU2hlbHZpbmdUaW1lAQAiAf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
+           "Af////8AAAAABGGCCgQAAAAAAAgAAABVbnNoZWx2ZQEA+yMALwEAgwv7IwAAAQEBAAAAAQD5CwABAFUr" +
+           "AAAAAARhggoEAAAAAAANAAAAT25lU2hvdFNoZWx2ZQEA/CMALwEAhAv8IwAAAQEBAAAAAQD5CwABAFUr" +
+           "AAAAAA==";
 
         private const string MaxTimeShelved_InitializationString =
            "//////////8VYIkKAgAAAAAADgAAAE1heFRpbWVTaGVsdmVkAQAAJAAuAEQAJAAAAQAiAf////8BAf//" +
@@ -43953,24 +45346,54 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAACAAAAFN1cHByZXNzAQATQAAvAQATQBNAAAABAQEAAAABAPkLAAEASUMA" +
            "AAAA";
 
+        private const string Suppress2_InitializationString =
+           "//////////8EYYIKBAAAAAAACQAAAFN1cHByZXNzMgEA/F4ALwEA/F78XgAAAQEBAAAAAQD5CwABAElD" +
+           "AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAP1eAC4ARP1eAACWAQAAAAEAKgEBFgAAAAcA" +
+           "AABDb21tZW50ABX/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
+
         private const string Unsuppress_InitializationString =
            "//////////8EYYIKBAAAAAAACgAAAFVuc3VwcHJlc3MBAMxFAC8BAMxFzEUAAAEBAQAAAAEA+QsAAQBJ" +
            "QwAAAAA=";
+
+        private const string Unsuppress2_InitializationString =
+           "//////////8EYYIKBAAAAAAACwAAAFVuc3VwcHJlc3MyAQD+XgAvAQD+Xv5eAAABAQEAAAABAPkLAAEA" +
+           "SUMBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA/14ALgBE/14AAJYBAAAAAQAqAQEWAAAA" +
+           "BwAAAENvbW1lbnQAFf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
 
         private const string RemoveFromService_InitializationString =
            "//////////8EYYIKBAAAAAAAEQAAAFJlbW92ZUZyb21TZXJ2aWNlAQDNRQAvAQDNRc1FAAABAQEAAAAB" +
            "APkLAAEAa0MAAAAA";
 
+        private const string RemoveFromService2_InitializationString =
+           "//////////8EYYIKBAAAAAAAEgAAAFJlbW92ZUZyb21TZXJ2aWNlMgEAAF8ALwEAAF8AXwAAAQEBAAAA" +
+           "AQD5CwABAGtDAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAAFfAC4ARAFfAACWAQAAAAEA" +
+           "KgEBFgAAAAcAAABDb21tZW50ABX/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
+
         private const string PlaceInService_InitializationString =
            "//////////8EYYIKBAAAAAAADgAAAFBsYWNlSW5TZXJ2aWNlAQDORQAvAQDORc5FAAABAQEAAAABAPkL" +
            "AAEAa0MAAAAA";
 
+        private const string PlaceInService2_InitializationString =
+           "//////////8EYYIKBAAAAAAADwAAAFBsYWNlSW5TZXJ2aWNlMgEAAl8ALwEAAl8CXwAAAQEBAAAAAQD5" +
+           "CwABAGtDAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAANfAC4ARANfAACWAQAAAAEAKgEB" +
+           "FgAAAAcAAABDb21tZW50ABX/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
+
         private const string Reset_InitializationString =
            "//////////8EYYIKBAAAAAAABQAAAFJlc2V0AQAXRwAvAQAXRxdHAAABAQEAAAABAPkLAAEApToAAAAA";
 
+        private const string Reset2_InitializationString =
+           "//////////8EYYIKBAAAAAAABgAAAFJlc2V0MgEABF8ALwEABF8EXwAAAQEBAAAAAQD5CwABAKU6AQAA" +
+           "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAAVfAC4ARAVfAACWAQAAAAEAKgEBFgAAAAcAAABD" +
+           "b21tZW50ABX/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
+
+        private const string GetGroupMemberships_InitializationString =
+           "//////////8EYYIKBAAAAAAAEwAAAEdldEdyb3VwTWVtYmVyc2hpcHMBAKhgAC8BAKhgqGAAAAEB////" +
+           "/wEAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAQmIALgBEQmIAAJYBAAAAAQAqAQEZAAAA" +
+           "BgAAAEdyb3VwcwARAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
+
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAGgAAAEFsYXJtQ29uZGl0aW9uVHlwZUluc3RhbmNlAQBjCwEAYwtjCwAA" +
-           "/////y4AAAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBAKQVAC4ARKQVAAAAD/////8BAf////8AAAAAFWCJ" +
+           "/////zQAAAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBAKQVAC4ARKQVAAAAD/////8BAf////8AAAAAFWCJ" +
            "CgIAAAAAAAkAAABFdmVudFR5cGUBAKUVAC4ARKUVAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoA" +
            "AABTb3VyY2VOb2RlAQCmFQAuAESmFQAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNl" +
            "TmFtZQEApxUALgBEpxUAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBAKgVAC4ARKgV" +
@@ -43996,14 +45419,14 @@ namespace Opc.Ua
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAsSMALgBEsSMAAJYCAAAAAQAqAQFGAAAABwAA" +
            "AEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBj" +
            "b21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRv" +
-           "IGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAoA" +
+           "IGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAoA" +
            "AABBY2tlZFN0YXRlAQCyIwAvAQAjI7IjAAAAFf////8BAQEAAAABACwjAQEAniMBAAAAFWCJCgIAAAAA" +
            "AAIAAABJZAEAsyMALgBEsyMAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFja25vd2xlZGdl" +
            "AQDEIwAvAQCXI8QjAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50" +
            "cwEAxSMALgBExSMAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhl" +
            "IGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/" +
            "////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAA" +
-           "AQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAyCMALwEAIyPIIwAAABX/" +
+           "AQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAyCMALwEAIyPIIwAAABX/" +
            "////AQEBAAAAAQAsIwEBAJ4jBgAAABVgiQoCAAAAAAACAAAASWQBAMkjAC4ARMkjAAAAAf////8BAf//" +
            "//8AAAAAFWCJCgIAAAAAABQAAABFZmZlY3RpdmVEaXNwbGF5TmFtZQEAzCMALgBEzCMAAAAV/////wEB" +
            "/////wAAAAAVYIkKAgAAAAAADgAAAFRyYW5zaXRpb25UaW1lAQDNIwAuAETNIwAAAQAmAf////8BAf//" +
@@ -44030,36 +45453,51 @@ namespace Opc.Ua
            "JgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAVW5zaGVsdmVUaW1lAQDlIwAuAETlIwAAAQAiAf//" +
            "//8BAf////8AAAAABGGCCgQAAAAAAAsAAABUaW1lZFNoZWx2ZQEA/SMALwEAhQv9IwAAAQEBAAAAAQD5" +
            "CwABAFUrAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAP4jAC4ARP4jAACWAQAAAAEAKgEB" +
-           "egAAAAwAAABTaGVsdmluZ1RpbWUBACIB/////wAAAAADAAAAAFUAAABJZiBub3QgMCwgdGhpcyBwYXJh" +
-           "bWV0ZXIgc3BlY2lmaWVzIGEgZml4ZWQgdGltZSBmb3Igd2hpY2ggdGhlIEFsYXJtIGlzIHRvIGJlIHNo" +
-           "ZWx2ZWQuAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACAAAAFVuc2hlbHZlAQD7IwAv" +
-           "AQCDC/sjAAABAQEAAAABAPkLAAEAVSsAAAAABGGCCgQAAAAAAA0AAABPbmVTaG90U2hlbHZlAQD8IwAv" +
-           "AQCEC/wjAAABAQEAAAABAPkLAAEAVSsAAAAAFWCJCgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVk" +
-           "AQD/IwAuAET/IwAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAATWF4VGltZVNoZWx2ZWQBAAAk" +
-           "AC4ARAAkAAABACIB/////wEB/////wAAAAAVYIkKAgAAAAAADgAAAEF1ZGlibGVFbmFibGVkAQAFQAAu" +
-           "AEQFQAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQXVkaWJsZVNvdW5kAQAGQAAvAQBCRgZA" +
-           "AAABALM//////wEB/////wAAAAAVYIkKAgAAAAAADAAAAFNpbGVuY2VTdGF0ZQEA/D8ALwEAIyP8PwAA" +
-           "ABX/////AQH/////BAAAABVgiQoCAAAAAAACAAAASWQBAP0/AC4ARP0/AAAAAf////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAA4AAABUcmFuc2l0aW9uVGltZQEAAUAALgBEAUAAAAEAJgH/////AQH/////AAAAABVg" +
-           "qQoCAAAAAAAJAAAAVHJ1ZVN0YXRlAQADQAAuAEQDQAAAFQMCAAAAZW4IAAAAU2lsZW5jZWQAFf////8B" +
-           "Af////8AAAAAFWCpCgIAAAAAAAoAAABGYWxzZVN0YXRlAQAEQAAuAEQEQAAAFQMCAAAAZW4MAAAATm90" +
-           "IFNpbGVuY2VkABX/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAT25EZWxheQEAC0AALgBEC0AAAAEA" +
-           "IgH/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAT2ZmRGVsYXkBAAxAAC4ARAxAAAABACIB/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAAAEAAAAEZpcnN0SW5Hcm91cEZsYWcBAA1AAC8APw1AAAAAAf////8BAf//" +
-           "//8AAAAABGCACgEAAAAAAAwAAABGaXJzdEluR3JvdXABAA5AAC8BABVADkAAAP////8AAAAAFWCJCgIA" +
-           "AAAAAAwAAABMYXRjaGVkU3RhdGUBAA5HAC8BACMjDkcAAAAV/////wEB/////wQAAAAVYIkKAgAAAAAA" +
-           "AgAAAElkAQAPRwAuAEQPRwAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAAVHJhbnNpdGlvblRp" +
-           "bWUBABNHAC4ARBNHAAABACYB/////wEB/////wAAAAAVYKkKAgAAAAAACQAAAFRydWVTdGF0ZQEAFUcA" +
-           "LgBEFUcAABUDAgAAAGVuBwAAAExhdGNoZWQAFf////8BAf////8AAAAAFWCpCgIAAAAAAAoAAABGYWxz" +
-           "ZVN0YXRlAQAWRwAuAEQWRwAAFQMCAAAAZW4JAAAAVW5sYXRjaGVkABX/////AQH/////AAAAABVgiQoC" +
-           "AAAAAAALAAAAUmVBbGFybVRpbWUBABBAAC4ARBBAAAABACIB/////wEB/////wAAAAAVYIkKAgAAAAAA" +
-           "EgAAAFJlQWxhcm1SZXBlYXRDb3VudAEAEUAALwA/EUAAAAAE/////wEB/////wAAAAAEYYIKBAAAAAAA" +
-           "BwAAAFNpbGVuY2UBABJAAC8BABJAEkAAAAEBAQAAAAEA+QsAAQBaQwAAAAAEYYIKBAAAAAAACAAAAFN1" +
-           "cHByZXNzAQATQAAvAQATQBNAAAABAQEAAAABAPkLAAEASUMAAAAABGGCCgQAAAAAAAoAAABVbnN1cHBy" +
-           "ZXNzAQDMRQAvAQDMRcxFAAABAQEAAAABAPkLAAEASUMAAAAABGGCCgQAAAAAABEAAABSZW1vdmVGcm9t" +
-           "U2VydmljZQEAzUUALwEAzUXNRQAAAQEBAAAAAQD5CwABAGtDAAAAAARhggoEAAAAAAAOAAAAUGxhY2VJ" +
-           "blNlcnZpY2UBAM5FAC8BAM5FzkUAAAEBAQAAAAEA+QsAAQBrQwAAAAAEYYIKBAAAAAAABQAAAFJlc2V0" +
-           "AQAXRwAvAQAXRxdHAAABAQEAAAABAPkLAAEApToAAAAA";
+           "HQAAAAwAAABTaGVsdmluZ1RpbWUBACIB/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAE" +
+           "YYIKBAAAAAAACAAAAFVuc2hlbHZlAQD7IwAvAQCDC/sjAAABAQEAAAABAPkLAAEAVSsAAAAABGGCCgQA" +
+           "AAAAAA0AAABPbmVTaG90U2hlbHZlAQD8IwAvAQCEC/wjAAABAQEAAAABAPkLAAEAVSsAAAAAFWCJCgIA" +
+           "AAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQD/IwAuAET/IwAAAAH/////AQH/////AAAAABVgiQoC" +
+           "AAAAAAAOAAAATWF4VGltZVNoZWx2ZWQBAAAkAC4ARAAkAAABACIB/////wEB/////wAAAAAVYIkKAgAA" +
+           "AAAADgAAAEF1ZGlibGVFbmFibGVkAQAFQAAuAEQFQAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAM" +
+           "AAAAQXVkaWJsZVNvdW5kAQAGQAAvAQBCRgZAAAABALM//////wEB/////wAAAAAVYIkKAgAAAAAADAAA" +
+           "AFNpbGVuY2VTdGF0ZQEA/D8ALwEAIyP8PwAAABX/////AQH/////BAAAABVgiQoCAAAAAAACAAAASWQB" +
+           "AP0/AC4ARP0/AAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAA4AAABUcmFuc2l0aW9uVGltZQEAAUAA" +
+           "LgBEAUAAAAEAJgH/////AQH/////AAAAABVgqQoCAAAAAAAJAAAAVHJ1ZVN0YXRlAQADQAAuAEQDQAAA" +
+           "FQMCAAAAZW4IAAAAU2lsZW5jZWQAFf////8BAf////8AAAAAFWCpCgIAAAAAAAoAAABGYWxzZVN0YXRl" +
+           "AQAEQAAuAEQEQAAAFQMCAAAAZW4MAAAATm90IFNpbGVuY2VkABX/////AQH/////AAAAABVgiQoCAAAA" +
+           "AAAHAAAAT25EZWxheQEAC0AALgBEC0AAAAEAIgH/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAT2Zm" +
+           "RGVsYXkBAAxAAC4ARAxAAAABACIB/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAEZpcnN0SW5Hcm91" +
+           "cEZsYWcBAA1AAC8APw1AAAAAAf////8BAf////8AAAAABGCACgEAAAAAAAwAAABGaXJzdEluR3JvdXAB" +
+           "AA5AAC8BABVADkAAAP////8AAAAAFWCJCgIAAAAAAAwAAABMYXRjaGVkU3RhdGUBAA5HAC8BACMjDkcA" +
+           "AAAV/////wEB/////wQAAAAVYIkKAgAAAAAAAgAAAElkAQAPRwAuAEQPRwAAAAH/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAAAOAAAAVHJhbnNpdGlvblRpbWUBABNHAC4ARBNHAAABACYB/////wEB/////wAAAAAV" +
+           "YKkKAgAAAAAACQAAAFRydWVTdGF0ZQEAFUcALgBEFUcAABUDAgAAAGVuBwAAAExhdGNoZWQAFf////8B" +
+           "Af////8AAAAAFWCpCgIAAAAAAAoAAABGYWxzZVN0YXRlAQAWRwAuAEQWRwAAFQMCAAAAZW4JAAAAVW5s" +
+           "YXRjaGVkABX/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVBbGFybVRpbWUBABBAAC4ARBBAAAAB" +
+           "ACIB/////wEB/////wAAAAAVYIkKAgAAAAAAEgAAAFJlQWxhcm1SZXBlYXRDb3VudAEAEUAALwA/EUAA" +
+           "AAAE/////wEB/////wAAAAAEYYIKBAAAAAAABwAAAFNpbGVuY2UBABJAAC8BABJAEkAAAAEBAQAAAAEA" +
+           "+QsAAQBaQwAAAAAEYYIKBAAAAAAACAAAAFN1cHByZXNzAQATQAAvAQATQBNAAAABAQEAAAABAPkLAAEA" +
+           "SUMAAAAABGGCCgQAAAAAAAkAAABTdXBwcmVzczIBAPxeAC8BAPxe/F4AAAEBAQAAAAEA+QsAAQBJQwEA" +
+           "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQD9XgAuAET9XgAAlgEAAAABACoBARYAAAAHAAAA" +
+           "Q29tbWVudAAV/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAACgAAAFVu" +
+           "c3VwcHJlc3MBAMxFAC8BAMxFzEUAAAEBAQAAAAEA+QsAAQBJQwAAAAAEYYIKBAAAAAAACwAAAFVuc3Vw" +
+           "cHJlc3MyAQD+XgAvAQD+Xv5eAAABAQEAAAABAPkLAAEASUMBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
+           "Z3VtZW50cwEA/14ALgBE/14AAJYBAAAAAQAqAQEWAAAABwAAAENvbW1lbnQAFf////8AAAAAAAEAKAEB" +
+           "AAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAABEAAABSZW1vdmVGcm9tU2VydmljZQEAzUUALwEA" +
+           "zUXNRQAAAQEBAAAAAQD5CwABAGtDAAAAAARhggoEAAAAAAASAAAAUmVtb3ZlRnJvbVNlcnZpY2UyAQAA" +
+           "XwAvAQAAXwBfAAABAQEAAAABAPkLAAEAa0MBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA" +
+           "AV8ALgBEAV8AAJYBAAAAAQAqAQEWAAAABwAAAENvbW1lbnQAFf////8AAAAAAAEAKAEBAAAAAQAAAAEA" +
+           "AAABAf////8AAAAABGGCCgQAAAAAAA4AAABQbGFjZUluU2VydmljZQEAzkUALwEAzkXORQAAAQEBAAAA" +
+           "AQD5CwABAGtDAAAAAARhggoEAAAAAAAPAAAAUGxhY2VJblNlcnZpY2UyAQACXwAvAQACXwJfAAABAQEA" +
+           "AAABAPkLAAEAa0MBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAA18ALgBEA18AAJYBAAAA" +
+           "AQAqAQEWAAAABwAAAENvbW1lbnQAFf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGC" +
+           "CgQAAAAAAAUAAABSZXNldAEAF0cALwEAF0cXRwAAAQEBAAAAAQD5CwABAKU6AAAAAARhggoEAAAAAAAG" +
+           "AAAAUmVzZXQyAQAEXwAvAQAEXwRfAAABAQEAAAABAPkLAAEApToBAAAAF2CpCgIAAAAAAA4AAABJbnB1" +
+           "dEFyZ3VtZW50cwEABV8ALgBEBV8AAJYBAAAAAQAqAQEWAAAABwAAAENvbW1lbnQAFf////8AAAAAAAEA" +
+           "KAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAABMAAABHZXRHcm91cE1lbWJlcnNoaXBzAQCo" +
+           "YAAvAQCoYKhgAAABAf////8BAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAEJiAC4AREJi" +
+           "AACWAQAAAAEAKgEBGQAAAAYAAABHcm91cHMAEQEAAAABAAAAAAAAAAABACgBAQAAAAEAAAABAAAAAQH/" +
+           "////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -44427,6 +45865,25 @@ namespace Opc.Ua
         }
 
         /// <remarks />
+        public WithCommentMethodState Suppress2
+        {
+            get
+            {
+                return m_suppress2Method;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_suppress2Method, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_suppress2Method = value;
+            }
+        }
+
+        /// <remarks />
         public MethodState Unsuppress
         {
             get
@@ -44442,6 +45899,25 @@ namespace Opc.Ua
                 }
 
                 m_unsuppressMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public WithCommentMethodState Unsuppress2
+        {
+            get
+            {
+                return m_unsuppress2Method;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_unsuppress2Method, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_unsuppress2Method = value;
             }
         }
 
@@ -44465,6 +45941,25 @@ namespace Opc.Ua
         }
 
         /// <remarks />
+        public WithCommentMethodState RemoveFromService2
+        {
+            get
+            {
+                return m_removeFromService2Method;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_removeFromService2Method, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_removeFromService2Method = value;
+            }
+        }
+
+        /// <remarks />
         public MethodState PlaceInService
         {
             get
@@ -44484,6 +45979,25 @@ namespace Opc.Ua
         }
 
         /// <remarks />
+        public WithCommentMethodState PlaceInService2
+        {
+            get
+            {
+                return m_placeInService2Method;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_placeInService2Method, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_placeInService2Method = value;
+            }
+        }
+
+        /// <remarks />
         public MethodState Reset
         {
             get
@@ -44499,6 +46013,44 @@ namespace Opc.Ua
                 }
 
                 m_resetMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public WithCommentMethodState Reset2
+        {
+            get
+            {
+                return m_reset2Method;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_reset2Method, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_reset2Method = value;
+            }
+        }
+
+        /// <remarks />
+        public GetGroupMembershipsMethodState GetGroupMemberships
+        {
+            get
+            {
+                return m_getGroupMembershipsMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_getGroupMembershipsMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_getGroupMembershipsMethod = value;
             }
         }
         #endregion
@@ -44608,9 +46160,19 @@ namespace Opc.Ua
                 children.Add(m_suppressMethod);
             }
 
+            if (m_suppress2Method != null)
+            {
+                children.Add(m_suppress2Method);
+            }
+
             if (m_unsuppressMethod != null)
             {
                 children.Add(m_unsuppressMethod);
+            }
+
+            if (m_unsuppress2Method != null)
+            {
+                children.Add(m_unsuppress2Method);
             }
 
             if (m_removeFromServiceMethod != null)
@@ -44618,14 +46180,34 @@ namespace Opc.Ua
                 children.Add(m_removeFromServiceMethod);
             }
 
+            if (m_removeFromService2Method != null)
+            {
+                children.Add(m_removeFromService2Method);
+            }
+
             if (m_placeInServiceMethod != null)
             {
                 children.Add(m_placeInServiceMethod);
             }
 
+            if (m_placeInService2Method != null)
+            {
+                children.Add(m_placeInService2Method);
+            }
+
             if (m_resetMethod != null)
             {
                 children.Add(m_resetMethod);
+            }
+
+            if (m_reset2Method != null)
+            {
+                children.Add(m_reset2Method);
+            }
+
+            if (m_getGroupMembershipsMethod != null)
+            {
+                children.Add(m_getGroupMembershipsMethod);
             }
 
             base.GetChildren(context, children);
@@ -45048,6 +46630,27 @@ namespace Opc.Ua
                     break;
                 }
 
+                case Opc.Ua.BrowseNames.Suppress2:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Suppress2 == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Suppress2 = new WithCommentMethodState(this);
+                            }
+                            else
+                            {
+                                Suppress2 = (WithCommentMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Suppress2;
+                    break;
+                }
+
                 case Opc.Ua.BrowseNames.Unsuppress:
                 {
                     if (createOrReplace)
@@ -45066,6 +46669,27 @@ namespace Opc.Ua
                     }
 
                     instance = Unsuppress;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.Unsuppress2:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Unsuppress2 == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Unsuppress2 = new WithCommentMethodState(this);
+                            }
+                            else
+                            {
+                                Unsuppress2 = (WithCommentMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Unsuppress2;
                     break;
                 }
 
@@ -45090,6 +46714,27 @@ namespace Opc.Ua
                     break;
                 }
 
+                case Opc.Ua.BrowseNames.RemoveFromService2:
+                {
+                    if (createOrReplace)
+                    {
+                        if (RemoveFromService2 == null)
+                        {
+                            if (replacement == null)
+                            {
+                                RemoveFromService2 = new WithCommentMethodState(this);
+                            }
+                            else
+                            {
+                                RemoveFromService2 = (WithCommentMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = RemoveFromService2;
+                    break;
+                }
+
                 case Opc.Ua.BrowseNames.PlaceInService:
                 {
                     if (createOrReplace)
@@ -45111,6 +46756,27 @@ namespace Opc.Ua
                     break;
                 }
 
+                case Opc.Ua.BrowseNames.PlaceInService2:
+                {
+                    if (createOrReplace)
+                    {
+                        if (PlaceInService2 == null)
+                        {
+                            if (replacement == null)
+                            {
+                                PlaceInService2 = new WithCommentMethodState(this);
+                            }
+                            else
+                            {
+                                PlaceInService2 = (WithCommentMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = PlaceInService2;
+                    break;
+                }
+
                 case Opc.Ua.BrowseNames.Reset:
                 {
                     if (createOrReplace)
@@ -45129,6 +46795,48 @@ namespace Opc.Ua
                     }
 
                     instance = Reset;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.Reset2:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Reset2 == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Reset2 = new WithCommentMethodState(this);
+                            }
+                            else
+                            {
+                                Reset2 = (WithCommentMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Reset2;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.GetGroupMemberships:
+                {
+                    if (createOrReplace)
+                    {
+                        if (GetGroupMemberships == null)
+                        {
+                            if (replacement == null)
+                            {
+                                GetGroupMemberships = new GetGroupMembershipsMethodState(this);
+                            }
+                            else
+                            {
+                                GetGroupMemberships = (GetGroupMembershipsMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = GetGroupMemberships;
                     break;
                 }
             }
@@ -45162,12 +46870,247 @@ namespace Opc.Ua
         private BaseDataVariableState<short> m_reAlarmRepeatCount;
         private MethodState m_silenceMethod;
         private MethodState m_suppressMethod;
+        private WithCommentMethodState m_suppress2Method;
         private MethodState m_unsuppressMethod;
+        private WithCommentMethodState m_unsuppress2Method;
         private MethodState m_removeFromServiceMethod;
+        private WithCommentMethodState m_removeFromService2Method;
         private MethodState m_placeInServiceMethod;
+        private WithCommentMethodState m_placeInService2Method;
         private MethodState m_resetMethod;
+        private WithCommentMethodState m_reset2Method;
+        private GetGroupMembershipsMethodState m_getGroupMembershipsMethod;
         #endregion
     }
+    #endif
+    #endregion
+
+    #region WithCommentMethodState Class
+    #if (!OPCUA_EXCLUDE_WithCommentMethodState)
+    /// <summary>
+    /// Stores an instance of the WithCommentMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class WithCommentMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public WithCommentMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new WithCommentMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAFQAAAFdpdGhDb21tZW50TWV0aG9kVHlwZQEABl8ALwEABl8GXwAAAQH/" +
+           "////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAAdfAC4ARAdfAACWAQAAAAEAKgEBFgAA" +
+           "AAcAAABDb21tZW50ABX/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public WithCommentMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            LocalizedText comment = (LocalizedText)_inputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    comment);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult WithCommentMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        LocalizedText comment);
+    #endif
+    #endregion
+
+    #region GetGroupMembershipsMethodState Class
+    #if (!OPCUA_EXCLUDE_GetGroupMembershipsMethodState)
+    /// <summary>
+    /// Stores an instance of the GetGroupMembershipsMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class GetGroupMembershipsMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public GetGroupMembershipsMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new GetGroupMembershipsMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAHQAAAEdldEdyb3VwTWVtYmVyc2hpcHNNZXRob2RUeXBlAQCqYAAvAQCq" +
+           "YKpgAAABAf////8BAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAENiAC4ARENiAACWAQAA" +
+           "AAEAKgEBGQAAAAYAAABHcm91cHMAEQEAAAABAAAAAAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAA" +
+           "AA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public GetGroupMembershipsMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            NodeId[] groups = (NodeId[])_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    ref groups);
+            }
+
+            _outputArguments[0] = groups;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult GetGroupMembershipsMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ref NodeId[] groups);
     #endif
     #endregion
 
@@ -45295,21 +47238,61 @@ namespace Opc.Ua
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
+
+            if (TimedShelve2 != null)
+            {
+                TimedShelve2.Initialize(context, TimedShelve2_InitializationString);
+            }
+
+            if (Unshelve2 != null)
+            {
+                Unshelve2.Initialize(context, Unshelve2_InitializationString);
+            }
+
+            if (OneShotShelve2 != null)
+            {
+                OneShotShelve2.Initialize(context, OneShotShelve2_InitializationString);
+            }
         }
 
         #region Initialization String
+        private const string TimedShelve2_InitializationString =
+           "//////////8EYYIKBAAAAAAADAAAAFRpbWVkU2hlbHZlMgEAtGAALwEAtGC0YAAAAQEDAAAAADUBAQB3" +
+           "CwA1AQEAgQsBAPkLAAEAVSsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAtWAALgBEtWAA" +
+           "AJYCAAAAAQAqAQEdAAAADAAAAFNoZWx2aW5nVGltZQEAIgH/////AAAAAAABACoBARYAAAAHAAAAQ29t" +
+           "bWVudAAV/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
+
+        private const string Unshelve2_InitializationString =
+           "//////////8EYYIKBAAAAAAACQAAAFVuc2hlbHZlMgEAtmAALwEAtmC2YAAAAQEDAAAAADUBAQB8CwA1" +
+           "AQEAfwsBAPkLAAEAVSsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAt2AALgBEt2AAAJYB" +
+           "AAAAAQAqAQEWAAAABwAAAENvbW1lbnQAFf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
+
+        private const string OneShotShelve2_InitializationString =
+           "//////////8EYYIKBAAAAAAADgAAAE9uZVNob3RTaGVsdmUyAQC4YAAvAQC4YLhgAAABAQMAAAAANQEB" +
+           "AHgLADUBAQB+CwEA+QsAAQBVKwEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQC5YAAuAES5" +
+           "YAAAlgEAAAABACoBARYAAAAHAAAAQ29tbWVudAAV/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB////" +
+           "/wAAAAA=";
+
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHwAAAFNoZWx2ZWRTdGF0ZU1hY2hpbmVUeXBlSW5zdGFuY2UBAHELAQBx" +
-           "C3ELAAD/////BQAAABVgiQoCAAAAAAAMAAAAQ3VycmVudFN0YXRlAQDIFwAvAQDICsgXAAAAFf////8B" +
+           "C3ELAAD/////CAAAABVgiQoCAAAAAAAMAAAAQ3VycmVudFN0YXRlAQDIFwAvAQDICsgXAAAAFf////8B" +
            "Af////8BAAAAFWCJCgIAAAAAAAIAAABJZAEAyRcALgBEyRcAAAAR/////wEB/////wAAAAAVYIkKAgAA" +
            "AAAADAAAAFVuc2hlbHZlVGltZQEAmyMALgBEmyMAAAEAIgH/////AQH/////AAAAAARhggoEAAAAAAAL" +
            "AAAAVGltZWRTaGVsdmUBAIULAC8BAIULhQsAAAEBAwAAAAA1AQEAdwsANQEBAIELAQD5CwABAFUrAQAA" +
-           "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAK8LAC4ARK8LAACWAQAAAAEAKgEBegAAAAwAAABT" +
-           "aGVsdmluZ1RpbWUBACIB/////wAAAAADAAAAAFUAAABJZiBub3QgMCwgdGhpcyBwYXJhbWV0ZXIgc3Bl" +
-           "Y2lmaWVzIGEgZml4ZWQgdGltZSBmb3Igd2hpY2ggdGhlIEFsYXJtIGlzIHRvIGJlIHNoZWx2ZWQuAQAo" +
-           "AQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACAAAAFVuc2hlbHZlAQCDCwAvAQCDC4MLAAAB" +
-           "AQMAAAAANQEBAHwLADUBAQB/CwEA+QsAAQBVKwAAAAAEYYIKBAAAAAAADQAAAE9uZVNob3RTaGVsdmUB" +
-           "AIQLAC8BAIQLhAsAAAEBAwAAAAA1AQEAeAsANQEBAH4LAQD5CwABAFUrAAAAAA==";
+           "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAK8LAC4ARK8LAACWAQAAAAEAKgEBHQAAAAwAAABT" +
+           "aGVsdmluZ1RpbWUBACIB/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAA" +
+           "DAAAAFRpbWVkU2hlbHZlMgEAtGAALwEAtGC0YAAAAQEDAAAAADUBAQB3CwA1AQEAgQsBAPkLAAEAVSsB" +
+           "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAtWAALgBEtWAAAJYCAAAAAQAqAQEdAAAADAAA" +
+           "AFNoZWx2aW5nVGltZQEAIgH/////AAAAAAABACoBARYAAAAHAAAAQ29tbWVudAAV/////wAAAAAAAQAo" +
+           "AQEAAAABAAAAAgAAAAEB/////wAAAAAEYYIKBAAAAAAACAAAAFVuc2hlbHZlAQCDCwAvAQCDC4MLAAAB" +
+           "AQMAAAAANQEBAHwLADUBAQB/CwEA+QsAAQBVKwAAAAAEYYIKBAAAAAAACQAAAFVuc2hlbHZlMgEAtmAA" +
+           "LwEAtmC2YAAAAQEDAAAAADUBAQB8CwA1AQEAfwsBAPkLAAEAVSsBAAAAF2CpCgIAAAAAAA4AAABJbnB1" +
+           "dEFyZ3VtZW50cwEAt2AALgBEt2AAAJYBAAAAAQAqAQEWAAAABwAAAENvbW1lbnQAFf////8AAAAAAAEA" +
+           "KAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAA0AAABPbmVTaG90U2hlbHZlAQCECwAvAQCE" +
+           "C4QLAAABAQMAAAAANQEBAHgLADUBAQB+CwEA+QsAAQBVKwAAAAAEYYIKBAAAAAAADgAAAE9uZVNob3RT" +
+           "aGVsdmUyAQC4YAAvAQC4YLhgAAABAQMAAAAANQEBAHgLADUBAQB+CwEA+QsAAQBVKwEAAAAXYKkKAgAA" +
+           "AAAADgAAAElucHV0QXJndW1lbnRzAQC5YAAuAES5YAAAlgEAAAABACoBARYAAAAHAAAAQ29tbWVudAAV" +
+           "/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -45354,6 +47337,25 @@ namespace Opc.Ua
         }
 
         /// <remarks />
+        public TimedShelve2MethodState TimedShelve2
+        {
+            get
+            {
+                return m_timedShelve2Method;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_timedShelve2Method, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_timedShelve2Method = value;
+            }
+        }
+
+        /// <remarks />
         public MethodState Unshelve
         {
             get
@@ -45373,6 +47375,25 @@ namespace Opc.Ua
         }
 
         /// <remarks />
+        public WithCommentMethodState Unshelve2
+        {
+            get
+            {
+                return m_unshelve2Method;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_unshelve2Method, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_unshelve2Method = value;
+            }
+        }
+
+        /// <remarks />
         public MethodState OneShotShelve
         {
             get
@@ -45388,6 +47409,25 @@ namespace Opc.Ua
                 }
 
                 m_oneShotShelveMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public WithCommentMethodState OneShotShelve2
+        {
+            get
+            {
+                return m_oneShotShelve2Method;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_oneShotShelve2Method, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_oneShotShelve2Method = value;
             }
         }
         #endregion
@@ -45412,14 +47452,29 @@ namespace Opc.Ua
                 children.Add(m_timedShelveMethod);
             }
 
+            if (m_timedShelve2Method != null)
+            {
+                children.Add(m_timedShelve2Method);
+            }
+
             if (m_unshelveMethod != null)
             {
                 children.Add(m_unshelveMethod);
             }
 
+            if (m_unshelve2Method != null)
+            {
+                children.Add(m_unshelve2Method);
+            }
+
             if (m_oneShotShelveMethod != null)
             {
                 children.Add(m_oneShotShelveMethod);
+            }
+
+            if (m_oneShotShelve2Method != null)
+            {
+                children.Add(m_oneShotShelve2Method);
             }
 
             base.GetChildren(context, children);
@@ -45485,6 +47540,27 @@ namespace Opc.Ua
                     break;
                 }
 
+                case Opc.Ua.BrowseNames.TimedShelve2:
+                {
+                    if (createOrReplace)
+                    {
+                        if (TimedShelve2 == null)
+                        {
+                            if (replacement == null)
+                            {
+                                TimedShelve2 = new TimedShelve2MethodState(this);
+                            }
+                            else
+                            {
+                                TimedShelve2 = (TimedShelve2MethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = TimedShelve2;
+                    break;
+                }
+
                 case Opc.Ua.BrowseNames.Unshelve:
                 {
                     if (createOrReplace)
@@ -45503,6 +47579,27 @@ namespace Opc.Ua
                     }
 
                     instance = Unshelve;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.Unshelve2:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Unshelve2 == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Unshelve2 = new WithCommentMethodState(this);
+                            }
+                            else
+                            {
+                                Unshelve2 = (WithCommentMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Unshelve2;
                     break;
                 }
 
@@ -45526,6 +47623,27 @@ namespace Opc.Ua
                     instance = OneShotShelve;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.OneShotShelve2:
+                {
+                    if (createOrReplace)
+                    {
+                        if (OneShotShelve2 == null)
+                        {
+                            if (replacement == null)
+                            {
+                                OneShotShelve2 = new WithCommentMethodState(this);
+                            }
+                            else
+                            {
+                                OneShotShelve2 = (WithCommentMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = OneShotShelve2;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -45540,8 +47658,11 @@ namespace Opc.Ua
         #region Private Fields
         private PropertyState<double> m_unshelveTime;
         private TimedShelveMethodState m_timedShelveMethod;
+        private TimedShelve2MethodState m_timedShelve2Method;
         private MethodState m_unshelveMethod;
+        private WithCommentMethodState m_unshelve2Method;
         private MethodState m_oneShotShelveMethod;
+        private WithCommentMethodState m_oneShotShelve2Method;
         #endregion
     }
     #endif
@@ -45596,10 +47717,8 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAFQAAAFRpbWVkU2hlbHZlTWV0aG9kVHlwZQEA1hcALwEA1hfWFwAAAQH/" +
-           "////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBANcXAC4ARNcXAACWAQAAAAEAKgEBegAA" +
-           "AAwAAABTaGVsdmluZ1RpbWUBACIB/////wAAAAADAAAAAFUAAABJZiBub3QgMCwgdGhpcyBwYXJhbWV0" +
-           "ZXIgc3BlY2lmaWVzIGEgZml4ZWQgdGltZSBmb3Igd2hpY2ggdGhlIEFsYXJtIGlzIHRvIGJlIHNoZWx2" +
-           "ZWQuAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBANcXAC4ARNcXAACWAQAAAAEAKgEBHQAA" +
+           "AAwAAABTaGVsdmluZ1RpbWUBACIB/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -45659,6 +47778,123 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         double shelvingTime);
+    #endif
+    #endregion
+
+    #region TimedShelve2MethodState Class
+    #if (!OPCUA_EXCLUDE_TimedShelve2MethodState)
+    /// <summary>
+    /// Stores an instance of the TimedShelve2MethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class TimedShelve2MethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public TimedShelve2MethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new TimedShelve2MethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAFgAAAFRpbWVkU2hlbHZlMk1ldGhvZFR5cGUBAEViAC8BAEViRWIAAAEB" +
+           "/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBGYgAuAERGYgAAlgIAAAABACoBAR0A" +
+           "AAAMAAAAU2hlbHZpbmdUaW1lAQAiAf////8AAAAAAAEAKgEBFgAAAAcAAABDb21tZW50ABX/////AAAA" +
+           "AAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public TimedShelve2MethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            double shelvingTime = (double)_inputArguments[0];
+            LocalizedText comment = (LocalizedText)_inputArguments[1];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    shelvingTime,
+                    comment);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult TimedShelve2MethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        double shelvingTime,
+        LocalizedText comment);
     #endif
     #endregion
 
@@ -45753,6 +47989,46 @@ namespace Opc.Ua
             {
                 BaseLowLowLimit.Initialize(context, BaseLowLowLimit_InitializationString);
             }
+
+            if (SeverityHighHigh != null)
+            {
+                SeverityHighHigh.Initialize(context, SeverityHighHigh_InitializationString);
+            }
+
+            if (SeverityHigh != null)
+            {
+                SeverityHigh.Initialize(context, SeverityHigh_InitializationString);
+            }
+
+            if (SeverityLow != null)
+            {
+                SeverityLow.Initialize(context, SeverityLow_InitializationString);
+            }
+
+            if (SeverityLowLow != null)
+            {
+                SeverityLowLow.Initialize(context, SeverityLowLow_InitializationString);
+            }
+
+            if (HighHighDeadband != null)
+            {
+                HighHighDeadband.Initialize(context, HighHighDeadband_InitializationString);
+            }
+
+            if (HighDeadband != null)
+            {
+                HighDeadband.Initialize(context, HighDeadband_InitializationString);
+            }
+
+            if (LowDeadband != null)
+            {
+                LowDeadband.Initialize(context, LowDeadband_InitializationString);
+            }
+
+            if (LowLowDeadband != null)
+            {
+                LowLowDeadband.Initialize(context, LowLowDeadband_InitializationString);
+            }
         }
 
         #region Initialization String
@@ -45786,9 +48062,41 @@ namespace Opc.Ua
            "//////////8VYIkKAgAAAAAADwAAAEJhc2VMb3dMb3dMaW1pdAEAv0AALgBEv0AAAAAL/////wEB////" +
            "/wAAAAA=";
 
+        private const string SeverityHighHigh_InitializationString =
+           "//////////8VYIkKAgAAAAAAEAAAAFNldmVyaXR5SGlnaEhpZ2gBAMJgAC4ARMJgAAAABf////8BAf//" +
+           "//8AAAAA";
+
+        private const string SeverityHigh_InitializationString =
+           "//////////8VYIkKAgAAAAAADAAAAFNldmVyaXR5SGlnaAEAw2AALgBEw2AAAAAF/////wEB/////wAA" +
+           "AAA=";
+
+        private const string SeverityLow_InitializationString =
+           "//////////8VYIkKAgAAAAAACwAAAFNldmVyaXR5TG93AQDEYAAuAETEYAAAAAX/////AQH/////AAAA" +
+           "AA==";
+
+        private const string SeverityLowLow_InitializationString =
+           "//////////8VYIkKAgAAAAAADgAAAFNldmVyaXR5TG93TG93AQDFYAAuAETFYAAAAAX/////AQH/////" +
+           "AAAAAA==";
+
+        private const string HighHighDeadband_InitializationString =
+           "//////////8VYIkKAgAAAAAAEAAAAEhpZ2hIaWdoRGVhZGJhbmQBAMZgAC4ARMZgAAAAC/////8BAf//" +
+           "//8AAAAA";
+
+        private const string HighDeadband_InitializationString =
+           "//////////8VYIkKAgAAAAAADAAAAEhpZ2hEZWFkYmFuZAEAx2AALgBEx2AAAAAL/////wEB/////wAA" +
+           "AAA=";
+
+        private const string LowDeadband_InitializationString =
+           "//////////8VYIkKAgAAAAAACwAAAExvd0RlYWRiYW5kAQDIYAAuAETIYAAAAAv/////AQH/////AAAA" +
+           "AA==";
+
+        private const string LowLowDeadband_InitializationString =
+           "//////////8VYIkKAgAAAAAADgAAAExvd0xvd0RlYWRiYW5kAQDJYAAuAETJYAAAAAv/////AQH/////" +
+           "AAAAAA==";
+
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAFgAAAExpbWl0QWxhcm1UeXBlSW5zdGFuY2UBAIsLAQCLC4sLAAD/////" +
-           "IgAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEA5BcALgBE5BcAAAAP/////wEB/////wAAAAAVYIkKAgAA" +
+           "KgAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEA5BcALgBE5BcAAAAP/////wEB/////wAAAAAVYIkKAgAA" +
            "AAAACQAAAEV2ZW50VHlwZQEA5RcALgBE5RcAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFNv" +
            "dXJjZU5vZGUBAOYXAC4AROYXAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABTb3VyY2VOYW1l" +
            "AQDnFwAuAETnFwAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAEAAAAVGltZQEA6BcALgBE6BcAAAEA" +
@@ -45814,14 +48122,14 @@ namespace Opc.Ua
            "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAWJAAuAEQWJAAAlgIAAAABACoBAUYAAAAHAAAARXZl" +
            "bnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1l" +
            "bnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRk" +
-           "IHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFj" +
+           "IHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFj" +
            "a2VkU3RhdGUBABckAC8BACMjFyQAAAAV/////wEBAQAAAAEALCMBAQADJAEAAAAVYIkKAgAAAAAAAgAA" +
            "AElkAQAYJAAuAEQYJAAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBACkk" +
            "AC8BAJcjKSQAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAq" +
            "JAAuAEQqJAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRl" +
            "bnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8A" +
            "AAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQAtJAAvAQAjIy0kAAAAFf////8B" +
+           "AgAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQAtJAAvAQAjIy0kAAAAFf////8B" +
            "AQEAAAABACwjAQEAAyQBAAAAFWCJCgIAAAAAAAIAAABJZAEALiQALgBELiQAAAAB/////wEB/////wAA" +
            "AAAVYIkKAgAAAAAACQAAAElucHV0Tm9kZQEAcysALgBEcysAAAAR/////wEB/////wAAAAAVYIkKAgAA" +
            "AAAAEwAAAFN1cHByZXNzZWRPclNoZWx2ZWQBAGQkAC4ARGQkAAAAAf////8BAf////8AAAAAFWCJCgIA" +
@@ -45832,7 +48140,14 @@ namespace Opc.Ua
            "AES8QAAAAAv/////AQH/////AAAAABVgiQoCAAAAAAANAAAAQmFzZUhpZ2hMaW1pdAEAvUAALgBEvUAA" +
            "AAAL/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAEJhc2VMb3dMaW1pdAEAvkAALgBEvkAAAAAL////" +
            "/wEB/////wAAAAAVYIkKAgAAAAAADwAAAEJhc2VMb3dMb3dMaW1pdAEAv0AALgBEv0AAAAAL/////wEB" +
-           "/////wAAAAA=";
+           "/////wAAAAAVYIkKAgAAAAAAEAAAAFNldmVyaXR5SGlnaEhpZ2gBAMJgAC4ARMJgAAAABf////8BAf//" +
+           "//8AAAAAFWCJCgIAAAAAAAwAAABTZXZlcml0eUhpZ2gBAMNgAC4ARMNgAAAABf////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAAAsAAABTZXZlcml0eUxvdwEAxGAALgBExGAAAAAF/////wEB/////wAAAAAVYIkKAgAA" +
+           "AAAADgAAAFNldmVyaXR5TG93TG93AQDFYAAuAETFYAAAAAX/////AQH/////AAAAABVgiQoCAAAAAAAQ" +
+           "AAAASGlnaEhpZ2hEZWFkYmFuZAEAxmAALgBExmAAAAAL/////wEB/////wAAAAAVYIkKAgAAAAAADAAA" +
+           "AEhpZ2hEZWFkYmFuZAEAx2AALgBEx2AAAAAL/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAExvd0Rl" +
+           "YWRiYW5kAQDIYAAuAETIYAAAAAv/////AQH/////AAAAABVgiQoCAAAAAAAOAAAATG93TG93RGVhZGJh" +
+           "bmQBAMlgAC4ARMlgAAAAC/////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -45989,6 +48304,158 @@ namespace Opc.Ua
                 m_baseLowLowLimit = value;
             }
         }
+
+        /// <remarks />
+        public PropertyState<ushort> SeverityHighHigh
+        {
+            get
+            {
+                return m_severityHighHigh;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_severityHighHigh, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_severityHighHigh = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<ushort> SeverityHigh
+        {
+            get
+            {
+                return m_severityHigh;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_severityHigh, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_severityHigh = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<ushort> SeverityLow
+        {
+            get
+            {
+                return m_severityLow;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_severityLow, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_severityLow = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<ushort> SeverityLowLow
+        {
+            get
+            {
+                return m_severityLowLow;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_severityLowLow, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_severityLowLow = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<double> HighHighDeadband
+        {
+            get
+            {
+                return m_highHighDeadband;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_highHighDeadband, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_highHighDeadband = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<double> HighDeadband
+        {
+            get
+            {
+                return m_highDeadband;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_highDeadband, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_highDeadband = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<double> LowDeadband
+        {
+            get
+            {
+                return m_lowDeadband;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_lowDeadband, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_lowDeadband = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<double> LowLowDeadband
+        {
+            get
+            {
+                return m_lowLowDeadband;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_lowLowDeadband, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_lowLowDeadband = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -46039,6 +48506,46 @@ namespace Opc.Ua
             if (m_baseLowLowLimit != null)
             {
                 children.Add(m_baseLowLowLimit);
+            }
+
+            if (m_severityHighHigh != null)
+            {
+                children.Add(m_severityHighHigh);
+            }
+
+            if (m_severityHigh != null)
+            {
+                children.Add(m_severityHigh);
+            }
+
+            if (m_severityLow != null)
+            {
+                children.Add(m_severityLow);
+            }
+
+            if (m_severityLowLow != null)
+            {
+                children.Add(m_severityLowLow);
+            }
+
+            if (m_highHighDeadband != null)
+            {
+                children.Add(m_highHighDeadband);
+            }
+
+            if (m_highDeadband != null)
+            {
+                children.Add(m_highDeadband);
+            }
+
+            if (m_lowDeadband != null)
+            {
+                children.Add(m_lowDeadband);
+            }
+
+            if (m_lowLowDeadband != null)
+            {
+                children.Add(m_lowLowDeadband);
             }
 
             base.GetChildren(context, children);
@@ -46229,6 +48736,174 @@ namespace Opc.Ua
                     instance = BaseLowLowLimit;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.SeverityHighHigh:
+                {
+                    if (createOrReplace)
+                    {
+                        if (SeverityHighHigh == null)
+                        {
+                            if (replacement == null)
+                            {
+                                SeverityHighHigh = new PropertyState<ushort>(this);
+                            }
+                            else
+                            {
+                                SeverityHighHigh = (PropertyState<ushort>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = SeverityHighHigh;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.SeverityHigh:
+                {
+                    if (createOrReplace)
+                    {
+                        if (SeverityHigh == null)
+                        {
+                            if (replacement == null)
+                            {
+                                SeverityHigh = new PropertyState<ushort>(this);
+                            }
+                            else
+                            {
+                                SeverityHigh = (PropertyState<ushort>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = SeverityHigh;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.SeverityLow:
+                {
+                    if (createOrReplace)
+                    {
+                        if (SeverityLow == null)
+                        {
+                            if (replacement == null)
+                            {
+                                SeverityLow = new PropertyState<ushort>(this);
+                            }
+                            else
+                            {
+                                SeverityLow = (PropertyState<ushort>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = SeverityLow;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.SeverityLowLow:
+                {
+                    if (createOrReplace)
+                    {
+                        if (SeverityLowLow == null)
+                        {
+                            if (replacement == null)
+                            {
+                                SeverityLowLow = new PropertyState<ushort>(this);
+                            }
+                            else
+                            {
+                                SeverityLowLow = (PropertyState<ushort>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = SeverityLowLow;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.HighHighDeadband:
+                {
+                    if (createOrReplace)
+                    {
+                        if (HighHighDeadband == null)
+                        {
+                            if (replacement == null)
+                            {
+                                HighHighDeadband = new PropertyState<double>(this);
+                            }
+                            else
+                            {
+                                HighHighDeadband = (PropertyState<double>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = HighHighDeadband;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.HighDeadband:
+                {
+                    if (createOrReplace)
+                    {
+                        if (HighDeadband == null)
+                        {
+                            if (replacement == null)
+                            {
+                                HighDeadband = new PropertyState<double>(this);
+                            }
+                            else
+                            {
+                                HighDeadband = (PropertyState<double>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = HighDeadband;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.LowDeadband:
+                {
+                    if (createOrReplace)
+                    {
+                        if (LowDeadband == null)
+                        {
+                            if (replacement == null)
+                            {
+                                LowDeadband = new PropertyState<double>(this);
+                            }
+                            else
+                            {
+                                LowDeadband = (PropertyState<double>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = LowDeadband;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.LowLowDeadband:
+                {
+                    if (createOrReplace)
+                    {
+                        if (LowLowDeadband == null)
+                        {
+                            if (replacement == null)
+                            {
+                                LowLowDeadband = new PropertyState<double>(this);
+                            }
+                            else
+                            {
+                                LowLowDeadband = (PropertyState<double>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = LowLowDeadband;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -46249,6 +48924,14 @@ namespace Opc.Ua
         private PropertyState<double> m_baseHighLimit;
         private PropertyState<double> m_baseLowLimit;
         private PropertyState<double> m_baseLowLowLimit;
+        private PropertyState<ushort> m_severityHighHigh;
+        private PropertyState<ushort> m_severityHigh;
+        private PropertyState<ushort> m_severityLow;
+        private PropertyState<ushort> m_severityLowLow;
+        private PropertyState<double> m_highHighDeadband;
+        private PropertyState<double> m_highDeadband;
+        private PropertyState<double> m_lowDeadband;
+        private PropertyState<double> m_lowLowDeadband;
         #endregion
     }
     #endif
@@ -46410,14 +49093,14 @@ namespace Opc.Ua
            "AQANCwEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCdJAAuAESdJAAAlgIAAAABACoBAUYA" +
            "AAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50" +
            "IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1l" +
-           "bnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAA" +
+           "bnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAA" +
            "AAAACgAAAEFja2VkU3RhdGUBAKAkAC8BACMjoCQAAAAV/////wEBAQAAAAEALCMBAQCKJAEAAAAVYIkK" +
            "AgAAAAAAAgAAAElkAQChJAAuAEShJAAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93" +
            "bGVkZ2UBALIkAC8BAJcjsiQAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJn" +
            "dW1lbnRzAQCzJAAuAESzJAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgA" +
            "AABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1l" +
            "bnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAo" +
-           "AQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQC2JAAvAQAjI7Yk" +
+           "AQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQC2JAAvAQAjI7Yk" +
            "AAAAFf////8BAQIAAAABACwjAQEAiiQBACwjAAEA7yQBAAAAFWCJCgIAAAAAAAIAAABJZAEAtyQALgBE" +
            "tyQAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAElucHV0Tm9kZQEAeisALgBEeisAAAAR////" +
            "/wEB/////wAAAAAVYIkKAgAAAAAAEwAAAFN1cHByZXNzZWRPclNoZWx2ZWQBAO0kAC4ARO0kAAAAAf//" +
@@ -46660,14 +49343,14 @@ namespace Opc.Ua
            "+QsAAQANCwEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDSJgAuAETSJgAAlgIAAAABACoB" +
            "AUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2" +
            "ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNv" +
-           "bW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkK" +
+           "bW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkK" +
            "AgAAAAAACgAAAEFja2VkU3RhdGUBANUmAC8BACMj1SYAAAAV/////wEBAQAAAAEALCMBAQC/JgEAAAAV" +
            "YIkKAgAAAAAAAgAAAElkAQDWJgAuAETWJgAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNr" +
            "bm93bGVkZ2UBAOcmAC8BAJcj5yYAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0" +
            "QXJndW1lbnRzAQDoJgAuAEToJgAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAA" +
            "ACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENv" +
            "bW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24u" +
-           "AQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQDrJgAvAQAj" +
+           "AQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQDrJgAvAQAj" +
            "I+smAAAAFf////8BAQUAAAABACwjAQEAvyYBACwjAAEAJCcBACwjAAEALScBACwjAAEANicBACwjAAEA" +
            "PycBAAAAFWCJCgIAAAAAAAIAAABJZAEA7CYALgBE7CYAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAA" +
            "CQAAAElucHV0Tm9kZQEAhisALgBEhisAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAAEwAAAFN1cHBy" +
@@ -47012,14 +49695,14 @@ namespace Opc.Ua
            "+QsAAQANCwEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBsJwAuAERsJwAAlgIAAAABACoB" +
            "AUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2" +
            "ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNv" +
-           "bW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkK" +
+           "bW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkK" +
            "AgAAAAAACgAAAEFja2VkU3RhdGUBAG8nAC8BACMjbycAAAAV/////wEBAQAAAAEALCMBAQBZJwEAAAAV" +
            "YIkKAgAAAAAAAgAAAElkAQBwJwAuAERwJwAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNr" +
            "bm93bGVkZ2UBAIEnAC8BAJcjgScAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0" +
            "QXJndW1lbnRzAQCCJwAuAESCJwAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAA" +
            "ACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENv" +
            "bW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24u" +
-           "AQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQCFJwAvAQAj" +
+           "AQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQCFJwAvAQAj" +
            "I4UnAAAAFf////8BAQUAAAABACwjAQEAWScBACwjAAEAvicBACwjAAEAxycBACwjAAEA0CcBACwjAAEA" +
            "2ScBAAAAFWCJCgIAAAAAAAIAAABJZAEAhicALgBEhicAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAA" +
            "CQAAAElucHV0Tm9kZQEAiSsALgBEiSsAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAAEwAAAFN1cHBy" +
@@ -47122,14 +49805,14 @@ namespace Opc.Ua
            "AQANCwEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAqJQAuAEQqJQAAlgIAAAABACoBAUYA" +
            "AAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50" +
            "IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1l" +
-           "bnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAA" +
+           "bnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAA" +
            "AAAACgAAAEFja2VkU3RhdGUBAC0lAC8BACMjLSUAAAAV/////wEBAQAAAAEALCMBAQAXJQEAAAAVYIkK" +
            "AgAAAAAAAgAAAElkAQAuJQAuAEQuJQAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93" +
            "bGVkZ2UBAD8lAC8BAJcjPyUAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJn" +
            "dW1lbnRzAQBAJQAuAERAJQAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgA" +
            "AABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1l" +
            "bnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAo" +
-           "AQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQBDJQAvAQAjI0Ml" +
+           "AQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQBDJQAvAQAjI0Ml" +
            "AAAAFf////8BAQIAAAABACwjAQEAFyUBACwjAAEAfCUBAAAAFWCJCgIAAAAAAAIAAABJZAEARCUALgBE" +
            "RCUAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAElucHV0Tm9kZQEAfSsALgBEfSsAAAAR////" +
            "/wEB/////wAAAAAVYIkKAgAAAAAAEwAAAFN1cHByZXNzZWRPclNoZWx2ZWQBAHolAC4ARHolAAAAAf//" +
@@ -47243,14 +49926,14 @@ namespace Opc.Ua
            "AAABAPkLAAEADQsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAoCgALgBEoCgAAJYCAAAA" +
            "AQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRo" +
            "ZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRo" +
-           "ZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA" +
+           "ZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA" +
            "FWCJCgIAAAAAAAoAAABBY2tlZFN0YXRlAQCjKAAvAQAjI6MoAAAAFf////8BAQEAAAABACwjAQEAjSgB" +
            "AAAAFWCJCgIAAAAAAAIAAABJZAEApCgALgBEpCgAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAA" +
            "AEFja25vd2xlZGdlAQC1KAAvAQCXI7UoAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJ" +
            "bnB1dEFyZ3VtZW50cwEAtigALgBEtigAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAA" +
            "AwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcA" +
            "AABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0" +
-           "aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAuSgA" +
+           "aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAuSgA" +
            "LwEAIyO5KAAAABX/////AQEFAAAAAQAsIwEBAI0oAQAsIwABAPIoAQAsIwABAPsoAQAsIwABAAQpAQAs" +
            "IwABAA0pAQAAABVgiQoCAAAAAAACAAAASWQBALooAC4ARLooAAAAAf////8BAf////8AAAAAFWCJCgIA" +
            "AAAAAAkAAABJbnB1dE5vZGUBAI8rAC4ARI8rAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAABMAAABT" +
@@ -47493,14 +50176,14 @@ namespace Opc.Ua
            "AQEAAAABAPkLAAEADQsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEABigALgBEBigAAJYC" +
            "AAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9y" +
            "IHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAA" +
-           "AFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8A" +
+           "AFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8A" +
            "AAAAFWCJCgIAAAAAAAoAAABBY2tlZFN0YXRlAQAJKAAvAQAjIwkoAAAAFf////8BAQEAAAABACwjAQEA" +
            "8ycBAAAAFWCJCgIAAAAAAAIAAABJZAEACigALgBECigAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAA" +
            "CwAAAEFja25vd2xlZGdlAQAbKAAvAQCXIxsoAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4A" +
            "AABJbnB1dEFyZ3VtZW50cwEAHCgALgBEHCgAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8A" +
            "AAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAA" +
            "AAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29u" +
-           "ZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEA" +
+           "ZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEA" +
            "HygALwEAIyMfKAAAABX/////AQEFAAAAAQAsIwEBAPMnAQAsIwABAFgoAQAsIwABAGEoAQAsIwABAGoo" +
            "AQAsIwABAHMoAQAAABVgiQoCAAAAAAACAAAASWQBACAoAC4ARCAoAAAAAf////8BAf////8AAAAAFWCJ" +
            "CgIAAAAAAAkAAABJbnB1dE5vZGUBAIwrAC4ARIwrAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAABMA" +
@@ -47696,14 +50379,14 @@ namespace Opc.Ua
            "APkLAAEADQsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEARCYALgBERCYAAJYCAAAAAQAq" +
            "AQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBl" +
            "dmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBj" +
-           "b21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJ" +
+           "b21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJ" +
            "CgIAAAAAAAoAAABBY2tlZFN0YXRlAQBHJgAvAQAjI0cmAAAAFf////8BAQEAAAABACwjAQEAMSYBAAAA" +
            "FWCJCgIAAAAAAAIAAABJZAEASCYALgBESCYAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFj" +
            "a25vd2xlZGdlAQBZJgAvAQCXI1kmAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1" +
            "dEFyZ3VtZW50cwEAWiYALgBEWiYAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAA" +
            "AAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABD" +
            "b21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9u" +
-           "LgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAXSYALwEA" +
+           "LgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAXSYALwEA" +
            "IyNdJgAAABX/////AQECAAAAAQAsIwEBADEmAQAsIwABAJYmAQAAABVgiQoCAAAAAAACAAAASWQBAF4m" +
            "AC4ARF4mAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAIMrAC4ARIMrAAAA" +
            "Ef////8BAf////8AAAAAFWCJCgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQCUJgAuAESUJgAA" +
@@ -47948,14 +50631,14 @@ namespace Opc.Ua
            "AAABAPkLAAEADQsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAtyUALgBEtyUAAJYCAAAA" +
            "AQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRo" +
            "ZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRo" +
-           "ZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA" +
+           "ZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA" +
            "FWCJCgIAAAAAAAoAAABBY2tlZFN0YXRlAQC6JQAvAQAjI7olAAAAFf////8BAQEAAAABACwjAQEApCUB" +
            "AAAAFWCJCgIAAAAAAAIAAABJZAEAuyUALgBEuyUAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAA" +
            "AEFja25vd2xlZGdlAQDMJQAvAQCXI8wlAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJ" +
            "bnB1dEFyZ3VtZW50cwEAzSUALgBEzSUAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAA" +
            "AwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcA" +
            "AABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0" +
-           "aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEA0CUA" +
+           "aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEA0CUA" +
            "LwEAIyPQJQAAABX/////AQECAAAAAQAsIwEBAKQlAQAsIwABAAkmAQAAABVgiQoCAAAAAAACAAAASWQB" +
            "ANElAC4ARNElAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAIArAC4ARIAr" +
            "AAAAEf////8BAf////8AAAAAFWCJCgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQAHJgAuAEQH" +
@@ -48144,14 +50827,14 @@ namespace Opc.Ua
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQA7KQAuAEQ7KQAAlgIAAAABACoBAUYAAAAHAAAA" +
            "RXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNv" +
            "bW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8g" +
-           "YWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAA" +
+           "YWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAAAAAACgAA" +
            "AEFja2VkU3RhdGUBAD4pAC8BACMjPikAAAAV/////wEBAQAAAAEALCMBAQAoKQEAAAAVYIkKAgAAAAAA" +
            "AgAAAElkAQA/KQAuAEQ/KQAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UB" +
            "AFApAC8BAJcjUCkAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRz" +
            "AQBRKQAuAERRKQAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUg" +
            "aWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf//" +
            "//8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQBUKQAvAQAjI1QpAAAAFf//" +
+           "AAAAAgAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQBUKQAvAQAjI1QpAAAAFf//" +
            "//8BAQEAAAABACwjAQEAKCkBAAAAFWCJCgIAAAAAAAIAAABJZAEAVSkALgBEVSkAAAAB/////wEB////" +
            "/wAAAAAVYIkKAgAAAAAACQAAAElucHV0Tm9kZQEAkisALgBEkisAAAAR/////wEB/////wAAAAAVYIkK" +
            "AgAAAAAAEwAAAFN1cHByZXNzZWRPclNoZWx2ZWQBAIspAC4ARIspAAAAAf////8BAf////8AAAAA";
@@ -48253,14 +50936,14 @@ namespace Opc.Ua
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEArSkALgBErSkAAJYCAAAAAQAqAQFGAAAABwAA" +
            "AEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBj" +
            "b21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRv" +
-           "IGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAoA" +
+           "IGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAoA" +
            "AABBY2tlZFN0YXRlAQCwKQAvAQAjI7ApAAAAFf////8BAQEAAAABACwjAQEAmikBAAAAFWCJCgIAAAAA" +
            "AAIAAABJZAEAsSkALgBEsSkAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFja25vd2xlZGdl" +
            "AQDCKQAvAQCXI8IpAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50" +
            "cwEAwykALgBEwykAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhl" +
            "IGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/" +
            "////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAA" +
-           "AQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAxikALwEAIyPGKQAAABX/" +
+           "AQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAxikALwEAIyPGKQAAABX/" +
            "////AQEBAAAAAQAsIwEBAJopAQAAABVgiQoCAAAAAAACAAAASWQBAMcpAC4ARMcpAAAAAf////8BAf//" +
            "//8AAAAAFWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAJUrAC4ARJUrAAAAEf////8BAf////8AAAAAFWCJ" +
            "CgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQD9KQAuAET9KQAAAAH/////AQH/////AAAAABVg" +
@@ -48446,14 +51129,14 @@ namespace Opc.Ua
            "AAEADQsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEACy4ALgBECy4AAJYCAAAAAQAqAQFG" +
            "AAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVu" +
            "dCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21t" +
-           "ZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIA" +
+           "ZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIA" +
            "AAAAAAoAAABBY2tlZFN0YXRlAQAOLgAvAQAjIw4uAAAAFf////8BAQEAAAABACwjAQEA+C0BAAAAFWCJ" +
            "CgIAAAAAAAIAAABJZAEADy4ALgBEDy4AAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFja25v" +
            "d2xlZGdlAQAgLgAvAQCXIyAuAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
            "Z3VtZW50cwEAIS4ALgBEIS4AAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAo" +
            "AAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21t" +
            "ZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAJC4ALwEAIyMk" +
+           "KAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAJC4ALwEAIyMk" +
            "LgAAABX/////AQEBAAAAAQAsIwEBAPgtAQAAABVgiQoCAAAAAAACAAAASWQBACUuAC4ARCUuAAAAAf//" +
            "//8BAf////8AAAAAFWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAC0uAC4ARC0uAAAAEf////8BAf////8A" +
            "AAAAFWCJCgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQBILgAuAERILgAAAAH/////AQH/////" +
@@ -48556,13 +51239,13 @@ namespace Opc.Ua
            "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAB8qAC4ARB8qAACWAgAAAAEAKgEBRgAAAAcAAABFdmVu" +
            "dElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVu" +
            "dC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQg" +
-           "dG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNr" +
+           "dG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAACAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNr" +
            "ZWRTdGF0ZQEAIioALwEAIyMiKgAAABX/////AQEBAAAAAQAsIwEBAAwqAQAAABVgiQoCAAAAAAACAAAA" +
            "SWQBACMqAC4ARCMqAAAAAf////8BAf////8AAAAABGGCCgQAAAAAAAsAAABBY2tub3dsZWRnZQEANCoA" +
            "LwEAlyM0KgAAAQEBAAAAAQD5CwABAPAiAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBADUq" +
            "AC4ARDUqAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVu" +
            "dGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAA" +
-           "AAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAA" +
+           "AAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAC" +
            "AAAAAQH/////AAAAABVgiQoCAAAAAAALAAAAQWN0aXZlU3RhdGUBADgqAC8BACMjOCoAAAAV/////wEB" +
            "AQAAAAEALCMBAQAMKgEAAAAVYIkKAgAAAAAAAgAAAElkAQA5KgAuAEQ5KgAAAAH/////AQH/////AAAA" +
            "ABVgiQoCAAAAAAAJAAAASW5wdXROb2RlAQCZKwAuAESZKwAAABH/////AQH/////AAAAABVgiQoCAAAA" +
@@ -48666,14 +51349,14 @@ namespace Opc.Ua
            "AAEA+QsAAQANCwEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDPRwAuAETPRwAAlgIAAAAB" +
            "ACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhl" +
            "IGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhl" +
-           "IGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAV" +
+           "IGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAV" +
            "YIkKAgAAAAAACgAAAEFja2VkU3RhdGUBANRHAC8BACMj1EcAAAAV/////wEBAQAAAAEALCMBAQC8RwEA" +
            "AAAVYIkKAgAAAAAAAgAAAElkAQDVRwAuAETVRwAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAA" +
            "QWNrbm93bGVkZ2UBAOZHAC8BAJcj5kcAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElu" +
            "cHV0QXJndW1lbnRzAQDnRwAuAETnRwAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAAD" +
            "AAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAA" +
            "AENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRp" +
-           "b24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQDqRwAv" +
+           "b24uAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQDqRwAv" +
            "AQAjI+pHAAAAFf////8BAQEAAAABACwjAQEAvEcBAAAAFWCJCgIAAAAAAAIAAABJZAEA60cALgBE60cA" +
            "AAAB/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAElucHV0Tm9kZQEA80cALgBE80cAAAAR/////wEB" +
            "/////wAAAAAVYIkKAgAAAAAAEwAAAFN1cHByZXNzZWRPclNoZWx2ZWQBABlIAC4ARBlIAAAAAf////8B" +
@@ -48777,14 +51460,14 @@ namespace Opc.Ua
            "CwABAA0LAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAGRIAC4ARGRIAACWAgAAAAEAKgEB" +
            "RgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZl" +
            "bnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29t" +
-           "bWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoC" +
+           "bWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAACAAAAAQH/////AAAAABVgiQoC" +
            "AAAAAAAKAAAAQWNrZWRTdGF0ZQEAaUgALwEAIyNpSAAAABX/////AQEBAAAAAQAsIwEBAFFIAQAAABVg" +
            "iQoCAAAAAAACAAAASWQBAGpIAC4ARGpIAAAAAf////8BAf////8AAAAABGGCCgQAAAAAAAsAAABBY2tu" +
            "b3dsZWRnZQEAe0gALwEAlyN7SAAAAQEBAAAAAQD5CwABAPAiAQAAABdgqQoCAAAAAAAOAAAASW5wdXRB" +
            "cmd1bWVudHMBAHxIAC4ARHxIAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAA" +
            "KAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29t" +
            "bWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4B" +
-           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAALAAAAQWN0aXZlU3RhdGUBAH9IAC8BACMj" +
+           "ACgBAQAAAAEAAAACAAAAAQH/////AAAAABVgiQoCAAAAAAALAAAAQWN0aXZlU3RhdGUBAH9IAC8BACMj" +
            "f0gAAAAV/////wEBAQAAAAEALCMBAQBRSAEAAAAVYIkKAgAAAAAAAgAAAElkAQCASAAuAESASAAAAAH/" +
            "////AQH/////AAAAABVgiQoCAAAAAAAJAAAASW5wdXROb2RlAQCISAAuAESISAAAABH/////AQH/////" +
            "AAAAABVgiQoCAAAAAAATAAAAU3VwcHJlc3NlZE9yU2hlbHZlZAEArkgALgBErkgAAAAB/////wEB////" +
@@ -48896,14 +51579,14 @@ namespace Opc.Ua
            "AAABAPkLAAEADQsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAyzMALgBEyzMAAJYCAAAA" +
            "AQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRo" +
            "ZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRo" +
-           "ZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA" +
+           "ZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA" +
            "FWCJCgIAAAAAAAoAAABBY2tlZFN0YXRlAQDQMwAvAQAjI9AzAAAAFf////8BAQEAAAABACwjAQEAuDMB" +
            "AAAAFWCJCgIAAAAAAAIAAABJZAEA0TMALgBE0TMAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAA" +
            "AEFja25vd2xlZGdlAQDiMwAvAQCXI+IzAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJ" +
            "bnB1dEFyZ3VtZW50cwEA4zMALgBE4zMAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAA" +
            "AwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcA" +
            "AABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0" +
-           "aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEA5jMA" +
+           "aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEA5jMA" +
            "LwEAIyPmMwAAABX/////AQEBAAAAAQAsIwEBALgzAQAAABVgiQoCAAAAAAACAAAASWQBAOczAC4AROcz" +
            "AAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAO8zAC4ARO8zAAAAEf////8B" +
            "Af////8AAAAAFWCJCgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQAKNAAuAEQKNAAAAAH/////" +
@@ -49239,14 +51922,14 @@ namespace Opc.Ua
            "CwEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDcQgAuAETcQgAAlgIAAAABACoBAUYAAAAH" +
            "AAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRv" +
            "IGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQg" +
-           "dG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAA" +
+           "dG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAAAAAA" +
            "CgAAAEFja2VkU3RhdGUBAOFCAC8BACMj4UIAAAAV/////wEBAQAAAAEALCMBAQDJQgEAAAAVYIkKAgAA" +
            "AAAAAgAAAElkAQDiQgAuAETiQgAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVk" +
            "Z2UBAPNCAC8BAJcj80IAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l" +
            "bnRzAQD0QgAuAET0QgAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABU" +
            "aGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQA" +
            "Ff////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEA" +
-           "AAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQD3QgAvAQAjI/dCAAAA" +
+           "AAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAEFjdGl2ZVN0YXRlAQD3QgAvAQAjI/dCAAAA" +
            "Ff////8BAQEAAAABACwjAQEAyUIBAAAAFWCJCgIAAAAAAAIAAABJZAEA+EIALgBE+EIAAAAB/////wEB" +
            "/////wAAAAAVYIkKAgAAAAAACQAAAElucHV0Tm9kZQEAAEMALgBEAEMAAAAR/////wEB/////wAAAAAV" +
            "YIkKAgAAAAAAEwAAAFN1cHByZXNzZWRPclNoZWx2ZWQBAC1DAC4ARC1DAAAAAf////8BAf////8AAAAA" +
@@ -59416,9 +62099,9 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAFwAAAE9wZW5XaXRoTWFza3NNZXRob2RUeXBlAQDhMAAvAQDhMOEwAAAB" +
            "Af////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA4jAALgBE4jAAAJYBAAAAAQAqAQEU" +
-           "AAAABQAAAE1hc2tzAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
+           "AAAABQAAAE1hc2tzAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
            "AAAAT3V0cHV0QXJndW1lbnRzAQDjMAAuAETjMAAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH" +
-           "/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -59537,9 +62220,9 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGAAAAENsb3NlQW5kVXBkYXRlTWV0aG9kVHlwZQEA5DAALwEA5DDkMAAA" +
            "AQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAKAxAC4ARKAxAACWAQAAAAEAKgEB" +
-           "GQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoC" +
+           "GQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoC" +
            "AAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQDlMAAuAETlMAAAlgEAAAABACoBASMAAAAUAAAAQXBwbHlD" +
-           "aGFuZ2VzUmVxdWlyZWQAAf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "aGFuZ2VzUmVxdWlyZWQAAf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -59659,7 +62342,7 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAGAAAAEFkZENlcnRpZmljYXRlTWV0aG9kVHlwZQEA5jAALwEA5jDmMAAA" +
            "AQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAOcwAC4AROcwAACWAgAAAAEAKgEB" +
            "GgAAAAsAAABDZXJ0aWZpY2F0ZQAP/////wAAAAAAAQAqAQEjAAAAFAAAAElzVHJ1c3RlZENlcnRpZmlj" +
-           "YXRlAAH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "YXRlAAH/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -59776,7 +62459,7 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAGwAAAFJlbW92ZUNlcnRpZmljYXRlTWV0aG9kVHlwZQEA6DAALwEA6DDo" +
            "MAAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAOkwAC4AROkwAACWAgAAAAEA" +
            "KgEBGQAAAAoAAABUaHVtYnByaW50AAz/////AAAAAAABACoBASMAAAAUAAAASXNUcnVzdGVkQ2VydGlm" +
-           "aWNhdGUAAf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "aWNhdGUAAf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -59923,21 +62606,21 @@ namespace Opc.Ua
         private const string CloseAndUpdate_InitializationString =
            "//////////8EYYIKBAAAAAAADgAAAENsb3NlQW5kVXBkYXRlAQACMQAvAQACMQIxAAABAf////8CAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAoTEALgBEoTEAAJYBAAAAAQAqAQEZAAAACgAAAEZp" +
-           "bGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABP" +
+           "bGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABP" +
            "dXRwdXRBcmd1bWVudHMBAAMxAC4ARAMxAACWAQAAAAEAKgEBIwAAABQAAABBcHBseUNoYW5nZXNSZXF1" +
-           "aXJlZAAB/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "aXJlZAAB/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string AddCertificate_InitializationString =
            "//////////8EYYIKBAAAAAAADgAAAEFkZENlcnRpZmljYXRlAQAEMQAvAQAEMQQxAAABAf////8BAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEABTEALgBEBTEAAJYCAAAAAQAqAQEaAAAACwAAAENl" +
            "cnRpZmljYXRlAA//////AAAAAAABACoBASMAAAAUAAAASXNUcnVzdGVkQ2VydGlmaWNhdGUAAf////8A" +
-           "AAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
 
         private const string RemoveCertificate_InitializationString =
            "//////////8EYYIKBAAAAAAAEQAAAFJlbW92ZUNlcnRpZmljYXRlAQAGMQAvAQAGMQYxAAABAf////8B" +
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEABzEALgBEBzEAAJYCAAAAAQAqAQEZAAAACgAA" +
            "AFRodW1icHJpbnQADP////8AAAAAAAEAKgEBIwAAABQAAABJc1RydXN0ZWRDZXJ0aWZpY2F0ZQAB////" +
-           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "/wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAFQAAAFRydXN0TGlzdFR5cGVJbnN0YW5jZQEA6jABAOow6jAAAP////8Q" +
@@ -59946,44 +62629,44 @@ namespace Opc.Ua
            "dGFibGUBAJsxAC4ARJsxAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABPcGVuQ291bnQBAO4w" +
            "AC4ARO4wAAAABf////8BAf////8AAAAABGGCCgQAAAAAAAQAAABPcGVuAQDvMAAvAQA8Le8wAAABAf//" +
            "//8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA8DAALgBE8DAAAJYBAAAAAQAqAQETAAAA" +
-           "BAAAAE1vZGUAA/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABP" +
+           "BAAAAE1vZGUAA/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABP" +
            "dXRwdXRBcmd1bWVudHMBAPEwAC4ARPEwAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////" +
-           "AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAQ2xvc2UBAPIwAC8BAD8t" +
+           "AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAQ2xvc2UBAPIwAC8BAD8t" +
            "8jAAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDzMAAuAETzMAAAlgEAAAAB" +
-           "ACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAE" +
+           "ACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAE" +
            "YYIKBAAAAAAABAAAAFJlYWQBAPQwAC8BAEEt9DAAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0" +
            "QXJndW1lbnRzAQD1MAAuAET1MAAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAA" +
-           "AQAqAQEVAAAABgAAAExlbmd0aAAG/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkK" +
+           "AQAqAQEVAAAABgAAAExlbmd0aAAG/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAXYKkK" +
            "AgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA9jAALgBE9jAAAJYBAAAAAQAqAQETAAAABAAAAERhdGEA" +
-           "D/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABXcml0ZQEA9zAA" +
+           "D/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABXcml0ZQEA9zAA" +
            "LwEARC33MAAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAPgwAC4ARPgwAACW" +
            "AgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARMAAAAEAAAARGF0YQAP////" +
-           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAEdldFBvc2l0aW9uAQD5" +
+           "/wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAEdldFBvc2l0aW9uAQD5" +
            "MAAvAQBGLfkwAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA+jAALgBE+jAA" +
-           "AJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
+           "AJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf//" +
            "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAPswAC4ARPswAACWAQAAAAEAKgEBFwAA" +
-           "AAgAAABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAA" +
+           "AAgAAABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAA" +
            "CwAAAFNldFBvc2l0aW9uAQD8MAAvAQBJLfwwAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
            "Z3VtZW50cwEA/TAALgBE/TAAAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEA" +
-           "KgEBFwAAAAgAAABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkK" +
+           "KgEBFwAAAAgAAABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkK" +
            "AgAAAAAADgAAAExhc3RVcGRhdGVUaW1lAQD+MAAuAET+MAAAAQAmAf////8BAf////8AAAAAFWCJCgIA" +
            "AAAAAA8AAABVcGRhdGVGcmVxdWVuY3kBAGBLAC4ARGBLAAABACIB/////wEB/////wAAAAAEYYIKBAAA" +
            "AAAADQAAAE9wZW5XaXRoTWFza3MBAP8wAC8BAP8w/zAAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElu" +
            "cHV0QXJndW1lbnRzAQAAMQAuAEQAMQAAlgEAAAABACoBARQAAAAFAAAATWFza3MAB/////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAAExAC4A" +
-           "RAExAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAA" +
+           "KAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAAExAC4A" +
+           "RAExAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAA" +
            "AQH/////AAAAAARhggoEAAAAAAAOAAAAQ2xvc2VBbmRVcGRhdGUBAAIxAC8BAAIxAjEAAAEB/////wIA" +
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQChMQAuAEShMQAAlgEAAAABACoBARkAAAAKAAAA" +
-           "RmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAA" +
+           "RmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAA" +
            "AE91dHB1dEFyZ3VtZW50cwEAAzEALgBEAzEAAJYBAAAAAQAqAQEjAAAAFAAAAEFwcGx5Q2hhbmdlc1Jl" +
-           "cXVpcmVkAAH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAOAAAAQWRk" +
+           "cXVpcmVkAAH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAOAAAAQWRk" +
            "Q2VydGlmaWNhdGUBAAQxAC8BAAQxBDEAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l" +
            "bnRzAQAFMQAuAEQFMQAAlgIAAAABACoBARoAAAALAAAAQ2VydGlmaWNhdGUAD/////8AAAAAAAEAKgEB" +
-           "IwAAABQAAABJc1RydXN0ZWRDZXJ0aWZpY2F0ZQAB/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "IwAAABQAAABJc1RydXN0ZWRDZXJ0aWZpY2F0ZQAB/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB////" +
            "/wAAAAAEYYIKBAAAAAAAEQAAAFJlbW92ZUNlcnRpZmljYXRlAQAGMQAvAQAGMQYxAAABAf////8BAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEABzEALgBEBzEAAJYCAAAAAQAqAQEZAAAACgAAAFRo" +
            "dW1icHJpbnQADP////8AAAAAAAEAKgEBIwAAABQAAABJc1RydXN0ZWRDZXJ0aWZpY2F0ZQAB/////wAA" +
-           "AAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -60395,14 +63078,14 @@ namespace Opc.Ua
            "APkLAAEADQsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAhUsALgBEhUsAAJYCAAAAAQAq" +
            "AQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBl" +
            "dmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBj" +
-           "b21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJ" +
+           "b21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJ" +
            "CgIAAAAAAAoAAABBY2tlZFN0YXRlAQCKSwAvAQAjI4pLAAAAFf////8BAQEAAAABACwjAQEAcksBAAAA" +
            "FWCJCgIAAAAAAAIAAABJZAEAi0sALgBEi0sAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFj" +
            "a25vd2xlZGdlAQCcSwAvAQCXI5xLAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1" +
            "dEFyZ3VtZW50cwEAnUsALgBEnUsAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAA" +
            "AAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABD" +
            "b21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9u" +
-           "LgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAoEsALwEA" +
+           "LgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAoEsALwEA" +
            "IyOgSwAAABX/////AQEBAAAAAQAsIwEBAHJLAQAAABVgiQoCAAAAAAACAAAASWQBAKFLAC4ARKFLAAAA" +
            "Af////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAKlLAC4ARKlLAAAAEf////8BAf//" +
            "//8AAAAAFWCJCgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQDPSwAuAETPSwAAAAH/////AQH/" +
@@ -60653,6 +63336,11 @@ namespace Opc.Ua
         {
             base.InitializeOptionalChildren(context);
 
+            if (GetRejectedList != null)
+            {
+                GetRejectedList.Initialize(context, GetRejectedList_InitializationString);
+            }
+
             if (CertificateExpired != null)
             {
                 CertificateExpired.Initialize(context, CertificateExpired_InitializationString);
@@ -60662,14 +63350,14 @@ namespace Opc.Ua
             {
                 TrustListOutOfDate.Initialize(context, TrustListOutOfDate_InitializationString);
             }
-
-            if (GetRejectedList != null)
-            {
-                GetRejectedList.Initialize(context, GetRejectedList_InitializationString);
-            }
         }
 
         #region Initialization String
+        private const string GetRejectedList_InitializationString =
+           "//////////8EYYIKBAAAAAAADwAAAEdldFJlamVjdGVkTGlzdAEA5lsALwEA5lvmWwAAAQH/////AQAA" +
+           "ABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQDnWwAuAETnWwAAlgEAAAABACoBAR8AAAAMAAAA" +
+           "Q2VydGlmaWNhdGVzAA8BAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
+
         private const string CertificateExpired_InitializationString =
            "//////////8EYIAKAQAAAAAAEgAAAENlcnRpZmljYXRlRXhwaXJlZAEA+ksALwEAqTP6SwAA/////x4A" +
            "AAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBAPtLAC4ARPtLAAAAD/////8BAf////8AAAAAFWCJCgIAAAAA" +
@@ -60698,13 +63386,13 @@ namespace Opc.Ua
            "CgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAHkwALgBEHkwAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50" +
            "SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50" +
            "LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0" +
-           "byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAoAAABBY2tl" +
+           "byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAoAAABBY2tl" +
            "ZFN0YXRlAQAfTAAvAQAjIx9MAAAAFf////8BAQEAAAABACwjAQEAC0wBAAAAFWCJCgIAAAAAAAIAAABJ" +
            "ZAEAIEwALgBEIEwAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFja25vd2xlZGdlAQAxTAAv" +
            "AQCXIzFMAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAMkwA" +
            "LgBEMkwAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50" +
            "aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAA" +
-           "AAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAA" +
+           "AAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIA" +
            "AAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEANUwALwEAIyM1TAAAABX/////AQEB" +
            "AAAAAQAsIwEBAAtMAQAAABVgiQoCAAAAAAACAAAASWQBADZMAC4ARDZMAAAAAf////8BAf////8AAAAA" +
            "FWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAD5MAC4ARD5MAAAAEf////8BAf////8AAAAAFWCJCgIAAAAA" +
@@ -60742,13 +63430,13 @@ namespace Opc.Ua
            "CgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA004ALgBE004AAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50" +
            "SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50" +
            "LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0" +
-           "byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAoAAABBY2tl" +
+           "byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAoAAABBY2tl" +
            "ZFN0YXRlAQDUTgAvAQAjI9ROAAAAFf////8BAQEAAAABACwjAQEAwE4BAAAAFWCJCgIAAAAAAAIAAABJ" +
            "ZAEA1U4ALgBE1U4AAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFja25vd2xlZGdlAQDmTgAv" +
            "AQCXI+ZOAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA504A" +
            "LgBE504AAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50" +
            "aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAA" +
-           "AAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAA" +
+           "AAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIA" +
            "AAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEA6k4ALwEAIyPqTgAAABX/////AQEB" +
            "AAAAAQAsIwEBAMBOAQAAABVgiQoCAAAAAAACAAAASWQBAOtOAC4AROtOAAAAAf////8BAf////8AAAAA" +
            "FWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAPNOAC4ARPNOAAAAEf////8BAf////8AAAAAFWCJCgIAAAAA" +
@@ -60758,11 +63446,6 @@ namespace Opc.Ua
            "dGVUaW1lAQBATwAuAERATwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABVcGRhdGVGcmVx" +
            "dWVuY3kBAEFPAC4AREFPAAABACIB/////wEB/////wAAAAA=";
 
-        private const string GetRejectedList_InitializationString =
-           "//////////8EYYIKBAAAAAAADwAAAEdldFJlamVjdGVkTGlzdAEA5lsALwEA5lvmWwAAAQH/////AQAA" +
-           "ABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQDnWwAuAETnWwAAlgEAAAABACoBAR8AAAAMAAAA" +
-           "Q2VydGlmaWNhdGVzAA8BAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
-
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHAAAAENlcnRpZmljYXRlR3JvdXBUeXBlSW5zdGFuY2UBAAsxAQALMQsx" +
            "AAD/////BQAAAARggAoBAAAAAAAJAAAAVHJ1c3RMaXN0AQAfNQAvAQDqMB81AAD/////DAAAABVgiQoC" +
@@ -60771,118 +63454,118 @@ namespace Opc.Ua
            "NQAuAEQiNQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAJAAAAT3BlbkNvdW50AQAjNQAuAEQjNQAA" +
            "AAX/////AQH/////AAAAAARhggoEAAAAAAAEAAAAT3BlbgEAJTUALwEAPC0lNQAAAQH/////AgAAABdg" +
            "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBACY1AC4ARCY1AACWAQAAAAEAKgEBEwAAAAQAAABNb2Rl" +
-           "AAP/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
+           "AAP/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
            "dW1lbnRzAQAnNQAuAEQnNQAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAo" +
-           "AQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAENsb3NlAQAoNQAvAQA/LSg1AAABAf//" +
+           "AQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAENsb3NlAQAoNQAvAQA/LSg1AAABAf//" +
            "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAKTUALgBEKTUAAJYBAAAAAQAqAQEZAAAA" +
-           "CgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAA" +
+           "CgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAA" +
            "AAQAAABSZWFkAQAqNQAvAQBBLSo1AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50" +
            "cwEAKzUALgBEKzUAAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBFQAA" +
-           "AAYAAABMZW5ndGgABv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8A" +
+           "AAYAAABMZW5ndGgABv////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8A" +
            "AABPdXRwdXRBcmd1bWVudHMBACw1AC4ARCw1AACWAQAAAAEAKgEBEwAAAAQAAABEYXRhAA//////AAAA" +
-           "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAV3JpdGUBAC01AC8BAEQtLTUA" +
+           "AAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAV3JpdGUBAC01AC8BAEQtLTUA" +
            "AAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAuNQAuAEQuNQAAlgIAAAABACoB" +
            "ARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQETAAAABAAAAERhdGEAD/////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABHZXRQb3NpdGlvbgEALzUALwEARi0v" +
+           "KAEBAAAAAQAAAAIAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABHZXRQb3NpdGlvbgEALzUALwEARi0v" +
            "NQAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBADA1AC4ARDA1AACWAQAAAAEA" +
-           "KgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdg" +
+           "KgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdg" +
            "qQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAxNQAuAEQxNQAAlgEAAAABACoBARcAAAAIAAAAUG9z" +
-           "aXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABTZXRQ" +
+           "aXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABTZXRQ" +
            "b3NpdGlvbgEAMjUALwEASS0yNQAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMB" +
            "ADM1AC4ARDM1AACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARcAAAAI" +
-           "AAAAUG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAA4A" +
+           "AAAAUG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAA4A" +
            "AABMYXN0VXBkYXRlVGltZQEANDUALgBENDUAAAEAJgH/////AQH/////AAAAAARhggoEAAAAAAANAAAA" +
            "T3BlbldpdGhNYXNrcwEANTUALwEA/zA1NQAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1" +
            "bWVudHMBADY1AC4ARDY1AACWAQAAAAEAKgEBFAAAAAUAAABNYXNrcwAH/////wAAAAAAAQAoAQEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEANzUALgBENzUAAJYB" +
-           "AAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8A" +
+           "AAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEANzUALgBENzUAAJYB" +
+           "AAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8A" +
            "AAAAF2CJCgIAAAAAABAAAABDZXJ0aWZpY2F0ZVR5cGVzAQA/NQAuAEQ/NQAAABEBAAAAAQAAAAAAAAAB" +
-           "Af////8AAAAABGCACgEAAAAAABIAAABDZXJ0aWZpY2F0ZUV4cGlyZWQBAPpLAC8BAKkz+ksAAP////8e" +
-           "AAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQD7SwAuAET7SwAAAA//////AQH/////AAAAABVgiQoCAAAA" +
-           "AAAJAAAARXZlbnRUeXBlAQD8SwAuAET8SwAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291" +
-           "cmNlTm9kZQEA/UsALgBE/UsAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5hbWUB" +
-           "AP5LAC4ARP5LAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAQAAABUaW1lAQD/SwAuAET/SwAAAQAm" +
-           "Af////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNlaXZlVGltZQEAAEwALgBEAEwAAAEAJgH/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQEAAkwALgBEAkwAAAAV/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAAACAAAAFNldmVyaXR5AQADTAAuAEQDTAAAAAX/////AQH/////AAAAABVgiQoCAAAAAAAQ" +
-           "AAAAQ29uZGl0aW9uQ2xhc3NJZAEABEwALgBEBEwAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAAEgAA" +
-           "AENvbmRpdGlvbkNsYXNzTmFtZQEABUwALgBEBUwAAAAV/////wEB/////wAAAAAVYIkKAgAAAAAADQAA" +
-           "AENvbmRpdGlvbk5hbWUBAAhMAC4ARAhMAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABCcmFu" +
-           "Y2hJZAEACUwALgBECUwAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAABgAAAFJldGFpbgEACkwALgBE" +
-           "CkwAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAEVuYWJsZWRTdGF0ZQEAC0wALwEAIyMLTAAA" +
-           "ABX/////AQEFAAAAAQAsIwABAB9MAQAsIwABAChMAQAsIwABADVMAQAsIwABAD9MAQAsIwABAFFMAQAA" +
-           "ABVgiQoCAAAAAAACAAAASWQBAAxMAC4ARAxMAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABR" +
-           "dWFsaXR5AQAUTAAvAQAqIxRMAAAAE/////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1l" +
-           "c3RhbXABABVMAC4ARBVMAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAExhc3RTZXZlcml0" +
-           "eQEAFkwALwEAKiMWTAAAAAX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1w" +
-           "AQAXTAAuAEQXTAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABDb21tZW50AQAYTAAvAQAq" +
-           "IxhMAAAAFf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABABlMAC4ARBlM" +
-           "AAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAEAGkwALgBEGkwAAAAM" +
-           "/////wEB/////wAAAAAEYYIKBAAAAAAABwAAAERpc2FibGUBABtMAC8BAEQjG0wAAAEBAQAAAAEA+QsA" +
-           "AQDzCgAAAAAEYYIKBAAAAAAABgAAAEVuYWJsZQEAHEwALwEAQyMcTAAAAQEBAAAAAQD5CwABAPMKAAAA" +
-           "AARhggoEAAAAAAAKAAAAQWRkQ29tbWVudAEAHUwALwEARSMdTAAAAQEBAAAAAQD5CwABAA0LAQAAABdg" +
-           "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAB5MAC4ARB5MAACWAgAAAAEAKgEBRgAAAAcAAABFdmVu" +
-           "dElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVu" +
-           "dC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQg" +
-           "dG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNr" +
-           "ZWRTdGF0ZQEAH0wALwEAIyMfTAAAABX/////AQEBAAAAAQAsIwEBAAtMAQAAABVgiQoCAAAAAAACAAAA" +
-           "SWQBACBMAC4ARCBMAAAAAf////8BAf////8AAAAABGGCCgQAAAAAAAsAAABBY2tub3dsZWRnZQEAMUwA" +
-           "LwEAlyMxTAAAAQEBAAAAAQD5CwABAPAiAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBADJM" +
-           "AC4ARDJMAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVu" +
-           "dGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAA" +
-           "AAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAA" +
-           "AAAAAQH/////AAAAABVgiQoCAAAAAAALAAAAQWN0aXZlU3RhdGUBADVMAC8BACMjNUwAAAAV/////wEB" +
-           "AQAAAAEALCMBAQALTAEAAAAVYIkKAgAAAAAAAgAAAElkAQA2TAAuAEQ2TAAAAAH/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAJAAAASW5wdXROb2RlAQA+TAAuAEQ+TAAAABH/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAATAAAAU3VwcHJlc3NlZE9yU2hlbHZlZAEAhU4ALgBEhU4AAAAB/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAACwAAAE5vcm1hbFN0YXRlAQCqTgAuAESqTgAAABH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAA" +
-           "RXhwaXJhdGlvbkRhdGUBAKtOAC4ARKtOAAAADf////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABDZXJ0" +
-           "aWZpY2F0ZVR5cGUBAK1OAC4ARK1OAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABDZXJ0aWZp" +
-           "Y2F0ZQEArk4ALgBErk4AAAAP/////wEB/////wAAAAAEYIAKAQAAAAAAEgAAAFRydXN0TGlzdE91dE9m" +
-           "RGF0ZQEAr04ALwEAYUuvTgAA/////x4AAAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBALBOAC4ARLBOAAAA" +
-           "D/////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABFdmVudFR5cGUBALFOAC4ARLFOAAAAEf////8BAf//" +
-           "//8AAAAAFWCJCgIAAAAAAAoAAABTb3VyY2VOb2RlAQCyTgAuAESyTgAAABH/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAKAAAAU291cmNlTmFtZQEAs04ALgBEs04AAAAM/////wEB/////wAAAAAVYIkKAgAAAAAA" +
-           "BAAAAFRpbWUBALROAC4ARLROAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVU" +
-           "aW1lAQC1TgAuAES1TgAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAQC3TgAu" +
-           "AES3TgAAABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkBALhOAC4ARLhOAAAABf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAABAAAABDb25kaXRpb25DbGFzc0lkAQC5TgAuAES5TgAAABH/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAASAAAAQ29uZGl0aW9uQ2xhc3NOYW1lAQC6TgAuAES6TgAAABX/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAANAAAAQ29uZGl0aW9uTmFtZQEAvU4ALgBEvU4AAAAM/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAACAAAAEJyYW5jaElkAQC+TgAuAES+TgAAABH/////AQH/////AAAAABVgiQoC" +
-           "AAAAAAAGAAAAUmV0YWluAQC/TgAuAES/TgAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAARW5h" +
-           "YmxlZFN0YXRlAQDATgAvAQAjI8BOAAAAFf////8BAQUAAAABACwjAAEA1E4BACwjAAEA3U4BACwjAAEA" +
-           "6k4BACwjAAEA9E4BACwjAAEABk8BAAAAFWCJCgIAAAAAAAIAAABJZAEAwU4ALgBEwU4AAAAB/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAAABwAAAFF1YWxpdHkBAMlOAC8BACojyU4AAAAT/////wEB/////wEAAAAV" +
-           "YIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEAyk4ALgBEyk4AAAEAJgH/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAMAAAATGFzdFNldmVyaXR5AQDLTgAvAQAqI8tOAAAABf////8BAf////8BAAAAFWCJCgIA" +
-           "AAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAMxOAC4ARMxOAAABACYB/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAABwAAAENvbW1lbnQBAM1OAC8BACojzU4AAAAV/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNv" +
-           "dXJjZVRpbWVzdGFtcAEAzk4ALgBEzk4AAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQ2xp" +
-           "ZW50VXNlcklkAQDPTgAuAETPTgAAAAz/////AQH/////AAAAAARhggoEAAAAAAAHAAAARGlzYWJsZQEA" +
-           "0E4ALwEARCPQTgAAAQEBAAAAAQD5CwABAPMKAAAAAARhggoEAAAAAAAGAAAARW5hYmxlAQDRTgAvAQBD" +
-           "I9FOAAABAQEAAAABAPkLAAEA8woAAAAABGGCCgQAAAAAAAoAAABBZGRDb21tZW50AQDSTgAvAQBFI9JO" +
-           "AAABAQEAAAABAPkLAAEADQsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA004ALgBE004A" +
-           "AJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIg" +
-           "Zm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAA" +
-           "JAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAAFWCJCgIAAAAAAAoAAABBY2tlZFN0YXRlAQDUTgAvAQAjI9ROAAAAFf////8BAQEAAAABACwj" +
-           "AQEAwE4BAAAAFWCJCgIAAAAAAAIAAABJZAEA1U4ALgBE1U4AAAAB/////wEB/////wAAAAAEYYIKBAAA" +
-           "AAAACwAAAEFja25vd2xlZGdlAQDmTgAvAQCXI+ZOAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAA" +
-           "AA4AAABJbnB1dEFyZ3VtZW50cwEA504ALgBE504AAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD///" +
-           "//8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEB" +
-           "QgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUg" +
-           "Y29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0" +
-           "ZQEA6k4ALwEAIyPqTgAAABX/////AQEBAAAAAQAsIwEBAMBOAQAAABVgiQoCAAAAAAACAAAASWQBAOtO" +
-           "AC4AROtOAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAPNOAC4ARPNOAAAA" +
-           "Ef////8BAf////8AAAAAFWCJCgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQAZTwAuAEQZTwAA" +
-           "AAH/////AQH/////AAAAABVgiQoCAAAAAAALAAAATm9ybWFsU3RhdGUBAD5PAC4ARD5PAAAAEf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAAAsAAABUcnVzdExpc3RJZAEAP08ALgBEP08AAAAR/////wEB/////wAA" +
-           "AAAVYIkKAgAAAAAADgAAAExhc3RVcGRhdGVUaW1lAQBATwAuAERATwAAAQAmAf////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAA8AAABVcGRhdGVGcmVxdWVuY3kBAEFPAC4AREFPAAABACIB/////wEB/////wAAAAAE" +
-           "YYIKBAAAAAAADwAAAEdldFJlamVjdGVkTGlzdAEA5lsALwEA5lvmWwAAAQH/////AQAAABdgqQoCAAAA" +
-           "AAAPAAAAT3V0cHV0QXJndW1lbnRzAQDnWwAuAETnWwAAlgEAAAABACoBAR8AAAAMAAAAQ2VydGlmaWNh" +
-           "dGVzAA8BAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "Af////8AAAAABGGCCgQAAAAAAA8AAABHZXRSZWplY3RlZExpc3QBAOZbAC8BAOZb5lsAAAEB/////wEA" +
+           "AAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA51sALgBE51sAAJYBAAAAAQAqAQEfAAAADAAA" +
+           "AENlcnRpZmljYXRlcwAPAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGCACgEA" +
+           "AAAAABIAAABDZXJ0aWZpY2F0ZUV4cGlyZWQBAPpLAC8BAKkz+ksAAP////8eAAAAFWCJCgIAAAAAAAcA" +
+           "AABFdmVudElkAQD7SwAuAET7SwAAAA//////AQH/////AAAAABVgiQoCAAAAAAAJAAAARXZlbnRUeXBl" +
+           "AQD8SwAuAET8SwAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTm9kZQEA/UsALgBE" +
+           "/UsAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5hbWUBAP5LAC4ARP5LAAAADP//" +
+           "//8BAf////8AAAAAFWCJCgIAAAAAAAQAAABUaW1lAQD/SwAuAET/SwAAAQAmAf////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAAAsAAABSZWNlaXZlVGltZQEAAEwALgBEAEwAAAEAJgH/////AQH/////AAAAABVgiQoC" +
+           "AAAAAAAHAAAATWVzc2FnZQEAAkwALgBEAkwAAAAV/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNl" +
+           "dmVyaXR5AQADTAAuAEQDTAAAAAX/////AQH/////AAAAABVgiQoCAAAAAAAQAAAAQ29uZGl0aW9uQ2xh" +
+           "c3NJZAEABEwALgBEBEwAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAAEgAAAENvbmRpdGlvbkNsYXNz" +
+           "TmFtZQEABUwALgBEBUwAAAAV/////wEB/////wAAAAAVYIkKAgAAAAAADQAAAENvbmRpdGlvbk5hbWUB" +
+           "AAhMAC4ARAhMAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABCcmFuY2hJZAEACUwALgBECUwA" +
+           "AAAR/////wEB/////wAAAAAVYIkKAgAAAAAABgAAAFJldGFpbgEACkwALgBECkwAAAAB/////wEB////" +
+           "/wAAAAAVYIkKAgAAAAAADAAAAEVuYWJsZWRTdGF0ZQEAC0wALwEAIyMLTAAAABX/////AQEFAAAAAQAs" +
+           "IwABAB9MAQAsIwABAChMAQAsIwABADVMAQAsIwABAD9MAQAsIwABAFFMAQAAABVgiQoCAAAAAAACAAAA" +
+           "SWQBAAxMAC4ARAxMAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABRdWFsaXR5AQAUTAAvAQAq" +
+           "IxRMAAAAE/////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABABVMAC4ARBVM" +
+           "AAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAExhc3RTZXZlcml0eQEAFkwALwEAKiMWTAAA" +
+           "AAX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQAXTAAuAEQXTAAAAQAm" +
+           "Af////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABDb21tZW50AQAYTAAvAQAqIxhMAAAAFf////8BAf//" +
+           "//8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABABlMAC4ARBlMAAABACYB/////wEB////" +
+           "/wAAAAAVYIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAEAGkwALgBEGkwAAAAM/////wEB/////wAAAAAE" +
+           "YYIKBAAAAAAABwAAAERpc2FibGUBABtMAC8BAEQjG0wAAAEBAQAAAAEA+QsAAQDzCgAAAAAEYYIKBAAA" +
+           "AAAABgAAAEVuYWJsZQEAHEwALwEAQyMcTAAAAQEBAAAAAQD5CwABAPMKAAAAAARhggoEAAAAAAAKAAAA" +
+           "QWRkQ29tbWVudAEAHUwALwEARSMdTAAAAQEBAAAAAQD5CwABAA0LAQAAABdgqQoCAAAAAAAOAAAASW5w" +
+           "dXRBcmd1bWVudHMBAB5MAC4ARB5MAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMA" +
+           "AAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAA" +
+           "Q29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlv" +
+           "bi4BACgBAQAAAAEAAAACAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNrZWRTdGF0ZQEAH0wALwEA" +
+           "IyMfTAAAABX/////AQEBAAAAAQAsIwEBAAtMAQAAABVgiQoCAAAAAAACAAAASWQBACBMAC4ARCBMAAAA" +
+           "Af////8BAf////8AAAAABGGCCgQAAAAAAAsAAABBY2tub3dsZWRnZQEAMUwALwEAlyMxTAAAAQEBAAAA" +
+           "AQD5CwABAPAiAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBADJMAC4ARDJMAACWAgAAAAEA" +
+           "KgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUg" +
+           "ZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUg" +
+           "Y29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAACAAAAAQH/////AAAAABVg" +
+           "iQoCAAAAAAALAAAAQWN0aXZlU3RhdGUBADVMAC8BACMjNUwAAAAV/////wEBAQAAAAEALCMBAQALTAEA" +
+           "AAAVYIkKAgAAAAAAAgAAAElkAQA2TAAuAEQ2TAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAJAAAA" +
+           "SW5wdXROb2RlAQA+TAAuAEQ+TAAAABH/////AQH/////AAAAABVgiQoCAAAAAAATAAAAU3VwcHJlc3Nl" +
+           "ZE9yU2hlbHZlZAEAhU4ALgBEhU4AAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAE5vcm1hbFN0" +
+           "YXRlAQCqTgAuAESqTgAAABH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAARXhwaXJhdGlvbkRhdGUB" +
+           "AKtOAC4ARKtOAAAADf////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABDZXJ0aWZpY2F0ZVR5cGUBAK1O" +
+           "AC4ARK1OAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABDZXJ0aWZpY2F0ZQEArk4ALgBErk4A" +
+           "AAAP/////wEB/////wAAAAAEYIAKAQAAAAAAEgAAAFRydXN0TGlzdE91dE9mRGF0ZQEAr04ALwEAYUuv" +
+           "TgAA/////x4AAAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBALBOAC4ARLBOAAAAD/////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAAAkAAABFdmVudFR5cGUBALFOAC4ARLFOAAAAEf////8BAf////8AAAAAFWCJCgIAAAAA" +
+           "AAoAAABTb3VyY2VOb2RlAQCyTgAuAESyTgAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291" +
+           "cmNlTmFtZQEAs04ALgBEs04AAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBALROAC4A" +
+           "RLROAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVUaW1lAQC1TgAuAES1TgAA" +
+           "AQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAQC3TgAuAES3TgAAABX/////AQH/" +
+           "////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkBALhOAC4ARLhOAAAABf////8BAf////8AAAAAFWCJ" +
+           "CgIAAAAAABAAAABDb25kaXRpb25DbGFzc0lkAQC5TgAuAES5TgAAABH/////AQH/////AAAAABVgiQoC" +
+           "AAAAAAASAAAAQ29uZGl0aW9uQ2xhc3NOYW1lAQC6TgAuAES6TgAAABX/////AQH/////AAAAABVgiQoC" +
+           "AAAAAAANAAAAQ29uZGl0aW9uTmFtZQEAvU4ALgBEvU4AAAAM/////wEB/////wAAAAAVYIkKAgAAAAAA" +
+           "CAAAAEJyYW5jaElkAQC+TgAuAES+TgAAABH/////AQH/////AAAAABVgiQoCAAAAAAAGAAAAUmV0YWlu" +
+           "AQC/TgAuAES/TgAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAARW5hYmxlZFN0YXRlAQDATgAv" +
+           "AQAjI8BOAAAAFf////8BAQUAAAABACwjAAEA1E4BACwjAAEA3U4BACwjAAEA6k4BACwjAAEA9E4BACwj" +
+           "AAEABk8BAAAAFWCJCgIAAAAAAAIAAABJZAEAwU4ALgBEwU4AAAAB/////wEB/////wAAAAAVYIkKAgAA" +
+           "AAAABwAAAFF1YWxpdHkBAMlOAC8BACojyU4AAAAT/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNv" +
+           "dXJjZVRpbWVzdGFtcAEAyk4ALgBEyk4AAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAATGFz" +
+           "dFNldmVyaXR5AQDLTgAvAQAqI8tOAAAABf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VU" +
+           "aW1lc3RhbXABAMxOAC4ARMxOAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAENvbW1lbnQB" +
+           "AM1OAC8BACojzU4AAAAV/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEA" +
+           "zk4ALgBEzk4AAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAQDPTgAu" +
+           "AETPTgAAAAz/////AQH/////AAAAAARhggoEAAAAAAAHAAAARGlzYWJsZQEA0E4ALwEARCPQTgAAAQEB" +
+           "AAAAAQD5CwABAPMKAAAAAARhggoEAAAAAAAGAAAARW5hYmxlAQDRTgAvAQBDI9FOAAABAQEAAAABAPkL" +
+           "AAEA8woAAAAABGGCCgQAAAAAAAoAAABBZGRDb21tZW50AQDSTgAvAQBFI9JOAAABAQEAAAABAPkLAAEA" +
+           "DQsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA004ALgBE004AAJYCAAAAAQAqAQFGAAAA" +
+           "BwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0" +
+           "byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50" +
+           "IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAA" +
+           "AAoAAABBY2tlZFN0YXRlAQDUTgAvAQAjI9ROAAAAFf////8BAQEAAAABACwjAQEAwE4BAAAAFWCJCgIA" +
+           "AAAAAAIAAABJZAEA1U4ALgBE1U4AAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFja25vd2xl" +
+           "ZGdlAQDmTgAvAQCXI+ZOAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3Vt" +
+           "ZW50cwEA504ALgBE504AAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAA" +
+           "VGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50" +
+           "ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEB" +
+           "AAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEA6k4ALwEAIyPqTgAA" +
+           "ABX/////AQEBAAAAAQAsIwEBAMBOAQAAABVgiQoCAAAAAAACAAAASWQBAOtOAC4AROtOAAAAAf////8B" +
+           "Af////8AAAAAFWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAPNOAC4ARPNOAAAAEf////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQAZTwAuAEQZTwAAAAH/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAAALAAAATm9ybWFsU3RhdGUBAD5PAC4ARD5PAAAAEf////8BAf////8AAAAAFWCJCgIA" +
+           "AAAAAAsAAABUcnVzdExpc3RJZAEAP08ALgBEP08AAAAR/////wEB/////wAAAAAVYIkKAgAAAAAADgAA" +
+           "AExhc3RVcGRhdGVUaW1lAQBATwAuAERATwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABV" +
+           "cGRhdGVGcmVxdWVuY3kBAEFPAC4AREFPAAABACIB/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -60927,6 +63610,25 @@ namespace Opc.Ua
         }
 
         /// <remarks />
+        public GetRejectedListMethodState GetRejectedList
+        {
+            get
+            {
+                return m_getRejectedListMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_getRejectedListMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_getRejectedListMethod = value;
+            }
+        }
+
+        /// <remarks />
         public CertificateExpirationAlarmState CertificateExpired
         {
             get
@@ -60963,25 +63665,6 @@ namespace Opc.Ua
                 m_trustListOutOfDate = value;
             }
         }
-
-        /// <remarks />
-        public GetRejectedListMethodState GetRejectedList
-        {
-            get
-            {
-                return m_getRejectedListMethod;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_getRejectedListMethod, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_getRejectedListMethod = value;
-            }
-        }
         #endregion
 
         #region Overridden Methods
@@ -61004,6 +63687,11 @@ namespace Opc.Ua
                 children.Add(m_certificateTypes);
             }
 
+            if (m_getRejectedListMethod != null)
+            {
+                children.Add(m_getRejectedListMethod);
+            }
+
             if (m_certificateExpired != null)
             {
                 children.Add(m_certificateExpired);
@@ -61012,11 +63700,6 @@ namespace Opc.Ua
             if (m_trustListOutOfDate != null)
             {
                 children.Add(m_trustListOutOfDate);
-            }
-
-            if (m_getRejectedListMethod != null)
-            {
-                children.Add(m_getRejectedListMethod);
             }
 
             base.GetChildren(context, children);
@@ -61082,6 +63765,27 @@ namespace Opc.Ua
                     break;
                 }
 
+                case Opc.Ua.BrowseNames.GetRejectedList:
+                {
+                    if (createOrReplace)
+                    {
+                        if (GetRejectedList == null)
+                        {
+                            if (replacement == null)
+                            {
+                                GetRejectedList = new GetRejectedListMethodState(this);
+                            }
+                            else
+                            {
+                                GetRejectedList = (GetRejectedListMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = GetRejectedList;
+                    break;
+                }
+
                 case Opc.Ua.BrowseNames.CertificateExpired:
                 {
                     if (createOrReplace)
@@ -61123,27 +63827,6 @@ namespace Opc.Ua
                     instance = TrustListOutOfDate;
                     break;
                 }
-
-                case Opc.Ua.BrowseNames.GetRejectedList:
-                {
-                    if (createOrReplace)
-                    {
-                        if (GetRejectedList == null)
-                        {
-                            if (replacement == null)
-                            {
-                                GetRejectedList = new GetRejectedListMethodState(this);
-                            }
-                            else
-                            {
-                                GetRejectedList = (GetRejectedListMethodState)replacement;
-                            }
-                        }
-                    }
-
-                    instance = GetRejectedList;
-                    break;
-                }
             }
 
             if (instance != null)
@@ -61158,9 +63841,9 @@ namespace Opc.Ua
         #region Private Fields
         private TrustListState m_trustList;
         private PropertyState<NodeId[]> m_certificateTypes;
+        private GetRejectedListMethodState m_getRejectedListMethod;
         private CertificateExpirationAlarmState m_certificateExpired;
         private TrustListOutOfDateAlarmState m_trustListOutOfDate;
-        private GetRejectedListMethodState m_getRejectedListMethod;
         #endregion
     }
     #endif
@@ -61231,176 +63914,176 @@ namespace Opc.Ua
 
         #region Initialization String
         private const string DefaultHttpsGroup_InitializationString =
-           "//////////8EYIAKAQAAAAAAEQAAAERlZmF1bHRIdHRwc0dyb3VwAQAYNgAvAQALMRg2AAD/////AgAA" +
+           "//////////8EYIAKAQAAAAAAEQAAAERlZmF1bHRIdHRwc0dyb3VwAQAYNgAjAQALMRg2AAD/////AgAA" +
            "AARggAoBAAAAAAAJAAAAVHJ1c3RMaXN0AQAZNgAvAQDqMBk2AAD/////DAAAABVgiQoCAAAAAAAEAAAA" +
            "U2l6ZQEAGjYALgBEGjYAAAAJ/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFdyaXRhYmxlAQAbNgAu" +
            "AEQbNgAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAVXNlcldyaXRhYmxlAQAcNgAuAEQcNgAA" +
            "AAH/////AQH/////AAAAABVgiQoCAAAAAAAJAAAAT3BlbkNvdW50AQAdNgAuAEQdNgAAAAX/////AQH/" +
            "////AAAAAARhggoEAAAAAAAEAAAAT3BlbgEAHzYALwEAPC0fNgAAAQH/////AgAAABdgqQoCAAAAAAAO" +
            "AAAASW5wdXRBcmd1bWVudHMBACA2AC4ARCA2AACWAQAAAAEAKgEBEwAAAAQAAABNb2RlAAP/////AAAA" +
-           "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAh" +
+           "AAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAh" +
            "NgAuAEQhNgAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAENsb3NlAQAiNgAvAQA/LSI2AAABAf////8BAAAAF2Cp" +
+           "AQAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAENsb3NlAQAiNgAvAQA/LSI2AAABAf////8BAAAAF2Cp" +
            "CgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAIzYALgBEIzYAAJYBAAAAAQAqAQEZAAAACgAAAEZpbGVI" +
-           "YW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAQAAABSZWFk" +
+           "YW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAQAAABSZWFk" +
            "AQAkNgAvAQBBLSQ2AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAJTYALgBE" +
            "JTYAAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBFQAAAAYAAABMZW5n" +
-           "dGgABv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRB" +
+           "dGgABv////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRB" +
            "cmd1bWVudHMBACY2AC4ARCY2AACWAQAAAAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAABACgBAQAA" +
-           "AAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAV3JpdGUBACc2AC8BAEQtJzYAAAEB/////wEA" +
+           "AAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAV3JpdGUBACc2AC8BAEQtJzYAAAEB/////wEA" +
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAoNgAuAEQoNgAAlgIAAAABACoBARkAAAAKAAAA" +
            "RmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQETAAAABAAAAERhdGEAD/////8AAAAAAAEAKAEBAAAAAQAA" +
-           "AAAAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABHZXRQb3NpdGlvbgEAKTYALwEARi0pNgAAAQH/////" +
+           "AAIAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABHZXRQb3NpdGlvbgEAKTYALwEARi0pNgAAAQH/////" +
            "AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBACo2AC4ARCo2AACWAQAAAAEAKgEBGQAAAAoA" +
-           "AABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
+           "AABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
            "AAAAT3V0cHV0QXJndW1lbnRzAQArNgAuAEQrNgAAlgEAAAABACoBARcAAAAIAAAAUG9zaXRpb24ACf//" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABTZXRQb3NpdGlvbgEA" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABTZXRQb3NpdGlvbgEA" +
            "LDYALwEASS0sNgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAC02AC4ARC02" +
            "AACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARcAAAAIAAAAUG9zaXRp" +
-           "b24ACf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAA4AAABMYXN0VXBk" +
+           "b24ACf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAA4AAABMYXN0VXBk" +
            "YXRlVGltZQEALjYALgBELjYAAAEAJgH/////AQH/////AAAAAARhggoEAAAAAAANAAAAT3BlbldpdGhN" +
            "YXNrcwEALzYALwEA/zAvNgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBADA2" +
-           "AC4ARDA2AACWAQAAAAEAKgEBFAAAAAUAAABNYXNrcwAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB" +
+           "AC4ARDA2AACWAQAAAAEAKgEBFAAAAAUAAABNYXNrcwAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB" +
            "/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAMTYALgBEMTYAAJYBAAAAAQAqAQEZ" +
-           "AAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIA" +
+           "AAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CJCgIA" +
            "AAAAABAAAABDZXJ0aWZpY2F0ZVR5cGVzAQA5NgAuAEQ5NgAAABEBAAAAAQAAAAAAAAABAf////8AAAAA";
 
         private const string DefaultUserTokenGroup_InitializationString =
-           "//////////8EYIAKAQAAAAAAFQAAAERlZmF1bHRVc2VyVG9rZW5Hcm91cAEAOjYALwEACzE6NgAA////" +
+           "//////////8EYIAKAQAAAAAAFQAAAERlZmF1bHRVc2VyVG9rZW5Hcm91cAEAOjYAIwEACzE6NgAA////" +
            "/wIAAAAEYIAKAQAAAAAACQAAAFRydXN0TGlzdAEAOzYALwEA6jA7NgAA/////wwAAAAVYIkKAgAAAAAA" +
            "BAAAAFNpemUBADw2AC4ARDw2AAAACf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABXcml0YWJsZQEA" +
            "PTYALgBEPTYAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAFVzZXJXcml0YWJsZQEAPjYALgBE" +
            "PjYAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAE9wZW5Db3VudAEAPzYALgBEPzYAAAAF////" +
            "/wEB/////wAAAAAEYYIKBAAAAAAABAAAAE9wZW4BAEE2AC8BADwtQTYAAAEB/////wIAAAAXYKkKAgAA" +
            "AAAADgAAAElucHV0QXJndW1lbnRzAQBCNgAuAERCNgAAlgEAAAABACoBARMAAAAEAAAATW9kZQAD////" +
-           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50" +
+           "/wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50" +
            "cwEAQzYALgBEQzYAAJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAA" +
-           "AQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABDbG9zZQEARDYALwEAPy1ENgAAAQH/////AQAA" +
+           "AQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABDbG9zZQEARDYALwEAPy1ENgAAAQH/////AQAA" +
            "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAEU2AC4AREU2AACWAQAAAAEAKgEBGQAAAAoAAABG" +
-           "aWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAEAAAA" +
+           "aWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAEAAAA" +
            "UmVhZAEARjYALwEAQS1GNgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAEc2" +
            "AC4AREc2AACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARUAAAAGAAAA" +
-           "TGVuZ3RoAAb/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
+           "TGVuZ3RoAAb/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
            "cHV0QXJndW1lbnRzAQBINgAuAERINgAAlgEAAAABACoBARMAAAAEAAAARGF0YQAP/////wAAAAAAAQAo" +
-           "AQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAFdyaXRlAQBJNgAvAQBELUk2AAABAf//" +
+           "AQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAFdyaXRlAQBJNgAvAQBELUk2AAABAf//" +
            "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEASjYALgBESjYAAJYCAAAAAQAqAQEZAAAA" +
            "CgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAABACgBAQAA" +
-           "AAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAR2V0UG9zaXRpb24BAEs2AC8BAEYtSzYAAAEB" +
+           "AAEAAAACAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAR2V0UG9zaXRpb24BAEs2AC8BAEYtSzYAAAEB" +
            "/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBMNgAuAERMNgAAlgEAAAABACoBARkA" +
-           "AAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAA" +
+           "AAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAA" +
            "AAAADwAAAE91dHB1dEFyZ3VtZW50cwEATTYALgBETTYAAJYBAAAAAQAqAQEXAAAACAAAAFBvc2l0aW9u" +
-           "AAn/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAU2V0UG9zaXRp" +
+           "AAn/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAU2V0UG9zaXRp" +
            "b24BAE42AC8BAEktTjYAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBPNgAu" +
            "AERPNgAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQEXAAAACAAAAFBv" +
-           "c2l0aW9uAAn/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAOAAAATGFz" +
+           "c2l0aW9uAAn/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABVgiQoCAAAAAAAOAAAATGFz" +
            "dFVwZGF0ZVRpbWUBAFA2AC4ARFA2AAABACYB/////wEB/////wAAAAAEYYIKBAAAAAAADQAAAE9wZW5X" +
            "aXRoTWFza3MBAFE2AC8BAP8wUTYAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRz" +
-           "AQBSNgAuAERSNgAAlgEAAAABACoBARQAAAAFAAAATWFza3MAB/////8AAAAAAAEAKAEBAAAAAQAAAAAA" +
+           "AQBSNgAuAERSNgAAlgEAAAABACoBARQAAAAFAAAATWFza3MAB/////8AAAAAAAEAKAEBAAAAAQAAAAEA" +
            "AAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAFM2AC4ARFM2AACWAQAAAAEA" +
-           "KgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdg" +
+           "KgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdg" +
            "iQoCAAAAAAAQAAAAQ2VydGlmaWNhdGVUeXBlcwEAWzYALgBEWzYAAAARAQAAAAEAAAAAAAAAAQH/////" +
            "AAAAAA==";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAIgAAAENlcnRpZmljYXRlR3JvdXBGb2xkZXJUeXBlSW5zdGFuY2UBAPU1" +
-           "AQD1NfU1AAD/////AwAAAARggAoBAAAAAAAXAAAARGVmYXVsdEFwcGxpY2F0aW9uR3JvdXABAPY1AC8B" +
+           "AQD1NfU1AAD/////AwAAAARggAoBAAAAAAAXAAAARGVmYXVsdEFwcGxpY2F0aW9uR3JvdXABAPY1ACMB" +
            "AAsx9jUAAP////8CAAAABGCACgEAAAAAAAkAAABUcnVzdExpc3QBAPc1AC8BAOow9zUAAP////8MAAAA" +
            "FWCJCgIAAAAAAAQAAABTaXplAQD4NQAuAET4NQAAAAn/////AQH/////AAAAABVgiQoCAAAAAAAIAAAA" +
            "V3JpdGFibGUBAPk1AC4ARPk1AAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABVc2VyV3JpdGFi" +
            "bGUBAPo1AC4ARPo1AAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABPcGVuQ291bnQBAPs1AC4A" +
            "RPs1AAAABf////8BAf////8AAAAABGGCCgQAAAAAAAQAAABPcGVuAQD9NQAvAQA8Lf01AAABAf////8C" +
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA/jUALgBE/jUAAJYBAAAAAQAqAQETAAAABAAA" +
-           "AE1vZGUAA/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRw" +
+           "AE1vZGUAA/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRw" +
            "dXRBcmd1bWVudHMBAP81AC4ARP81AACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAA" +
-           "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAQ2xvc2UBAAA2AC8BAD8tADYA" +
+           "AAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAQ2xvc2UBAAA2AC8BAD8tADYA" +
            "AAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQABNgAuAEQBNgAAlgEAAAABACoB" +
-           "ARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIK" +
+           "ARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIK" +
            "BAAAAAAABAAAAFJlYWQBAAI2AC8BAEEtAjYAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJn" +
            "dW1lbnRzAQADNgAuAEQDNgAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAq" +
-           "AQEVAAAABgAAAExlbmd0aAAG/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAA" +
+           "AQEVAAAABgAAAExlbmd0aAAG/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAXYKkKAgAA" +
            "AAAADwAAAE91dHB1dEFyZ3VtZW50cwEABDYALgBEBDYAAJYBAAAAAQAqAQETAAAABAAAAERhdGEAD///" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABXcml0ZQEABTYALwEA" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABXcml0ZQEABTYALwEA" +
            "RC0FNgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAAY2AC4ARAY2AACWAgAA" +
            "AAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARMAAAAEAAAARGF0YQAP/////wAA" +
-           "AAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAEdldFBvc2l0aW9uAQAHNgAv" +
+           "AAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAEdldFBvc2l0aW9uAQAHNgAv" +
            "AQBGLQc2AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEACDYALgBECDYAAJYB" +
-           "AAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8A" +
+           "AAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8A" +
            "AAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAAk2AC4ARAk2AACWAQAAAAEAKgEBFwAAAAgA" +
-           "AABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACwAA" +
+           "AABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAACwAA" +
            "AFNldFBvc2l0aW9uAQAKNgAvAQBJLQo2AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3Vt" +
            "ZW50cwEACzYALgBECzYAAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEB" +
-           "FwAAAAgAAABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAA" +
+           "FwAAAAgAAABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAA" +
            "AAAADgAAAExhc3RVcGRhdGVUaW1lAQAMNgAuAEQMNgAAAQAmAf////8BAf////8AAAAABGGCCgQAAAAA" +
            "AA0AAABPcGVuV2l0aE1hc2tzAQANNgAvAQD/MA02AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1" +
            "dEFyZ3VtZW50cwEADjYALgBEDjYAAJYBAAAAAQAqAQEUAAAABQAAAE1hc2tzAAf/////AAAAAAABACgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAPNgAuAEQP" +
-           "NgAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB" +
+           "AQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAPNgAuAEQP" +
+           "NgAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB" +
            "/////wAAAAAXYIkKAgAAAAAAEAAAAENlcnRpZmljYXRlVHlwZXMBABc2AC4ARBc2AAAAEQEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAAEYIAKAQAAAAAAEQAAAERlZmF1bHRIdHRwc0dyb3VwAQAYNgAvAQALMRg2AAD/" +
+           "AAAAAAEB/////wAAAAAEYIAKAQAAAAAAEQAAAERlZmF1bHRIdHRwc0dyb3VwAQAYNgAjAQALMRg2AAD/" +
            "////AgAAAARggAoBAAAAAAAJAAAAVHJ1c3RMaXN0AQAZNgAvAQDqMBk2AAD/////DAAAABVgiQoCAAAA" +
            "AAAEAAAAU2l6ZQEAGjYALgBEGjYAAAAJ/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFdyaXRhYmxl" +
            "AQAbNgAuAEQbNgAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAVXNlcldyaXRhYmxlAQAcNgAu" +
            "AEQcNgAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAJAAAAT3BlbkNvdW50AQAdNgAuAEQdNgAAAAX/" +
            "////AQH/////AAAAAARhggoEAAAAAAAEAAAAT3BlbgEAHzYALwEAPC0fNgAAAQH/////AgAAABdgqQoC" +
            "AAAAAAAOAAAASW5wdXRBcmd1bWVudHMBACA2AC4ARCA2AACWAQAAAAEAKgEBEwAAAAQAAABNb2RlAAP/" +
-           "////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1l" +
+           "////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1l" +
            "bnRzAQAhNgAuAEQhNgAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEA" +
-           "AAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAENsb3NlAQAiNgAvAQA/LSI2AAABAf////8B" +
+           "AAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAENsb3NlAQAiNgAvAQA/LSI2AAABAf////8B" +
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAIzYALgBEIzYAAJYBAAAAAQAqAQEZAAAACgAA" +
-           "AEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAQA" +
+           "AEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAQA" +
            "AABSZWFkAQAkNgAvAQBBLSQ2AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA" +
            "JTYALgBEJTYAAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBFQAAAAYA" +
-           "AABMZW5ndGgABv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABP" +
+           "AABMZW5ndGgABv////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABP" +
            "dXRwdXRBcmd1bWVudHMBACY2AC4ARCY2AACWAQAAAAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAAB" +
-           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAV3JpdGUBACc2AC8BAEQtJzYAAAEB" +
+           "ACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAV3JpdGUBACc2AC8BAEQtJzYAAAEB" +
            "/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAoNgAuAEQoNgAAlgIAAAABACoBARkA" +
            "AAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQETAAAABAAAAERhdGEAD/////8AAAAAAAEAKAEB" +
-           "AAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABHZXRQb3NpdGlvbgEAKTYALwEARi0pNgAA" +
+           "AAAAAQAAAAIAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABHZXRQb3NpdGlvbgEAKTYALwEARi0pNgAA" +
            "AQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBACo2AC4ARCo2AACWAQAAAAEAKgEB" +
-           "GQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoC" +
+           "GQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoC" +
            "AAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQArNgAuAEQrNgAAlgEAAAABACoBARcAAAAIAAAAUG9zaXRp" +
-           "b24ACf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABTZXRQb3Np" +
+           "b24ACf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABTZXRQb3Np" +
            "dGlvbgEALDYALwEASS0sNgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAC02" +
            "AC4ARC02AACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARcAAAAIAAAA" +
-           "UG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAA4AAABM" +
+           "UG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIAAAAAAA4AAABM" +
            "YXN0VXBkYXRlVGltZQEALjYALgBELjYAAAEAJgH/////AQH/////AAAAAARhggoEAAAAAAANAAAAT3Bl" +
            "bldpdGhNYXNrcwEALzYALwEA/zAvNgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVu" +
            "dHMBADA2AC4ARDA2AACWAQAAAAEAKgEBFAAAAAUAAABNYXNrcwAH/////wAAAAAAAQAoAQEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAMTYALgBEMTYAAJYBAAAA" +
-           "AQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA" +
+           "AQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAMTYALgBEMTYAAJYBAAAA" +
+           "AQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA" +
            "F2CJCgIAAAAAABAAAABDZXJ0aWZpY2F0ZVR5cGVzAQA5NgAuAEQ5NgAAABEBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAABGCACgEAAAAAABUAAABEZWZhdWx0VXNlclRva2VuR3JvdXABADo2AC8BAAsxOjYAAP////8C" +
+           "//8AAAAABGCACgEAAAAAABUAAABEZWZhdWx0VXNlclRva2VuR3JvdXABADo2ACMBAAsxOjYAAP////8C" +
            "AAAABGCACgEAAAAAAAkAAABUcnVzdExpc3QBADs2AC8BAOowOzYAAP////8MAAAAFWCJCgIAAAAAAAQA" +
            "AABTaXplAQA8NgAuAEQ8NgAAAAn/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAV3JpdGFibGUBAD02" +
            "AC4ARD02AAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABVc2VyV3JpdGFibGUBAD42AC4ARD42" +
            "AAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABPcGVuQ291bnQBAD82AC4ARD82AAAABf////8B" +
            "Af////8AAAAABGGCCgQAAAAAAAQAAABPcGVuAQBBNgAvAQA8LUE2AAABAf////8CAAAAF2CpCgIAAAAA" +
            "AA4AAABJbnB1dEFyZ3VtZW50cwEAQjYALgBEQjYAAJYBAAAAAQAqAQETAAAABAAAAE1vZGUAA/////8A" +
-           "AAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMB" +
+           "AAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMB" +
            "AEM2AC4AREM2AACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEA" +
-           "AAAAAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAQ2xvc2UBAEQ2AC8BAD8tRDYAAAEB/////wEAAAAX" +
+           "AAABAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAQ2xvc2UBAEQ2AC8BAD8tRDYAAAEB/////wEAAAAX" +
            "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBFNgAuAERFNgAAlgEAAAABACoBARkAAAAKAAAARmls" +
-           "ZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAABAAAAFJl" +
+           "ZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAABAAAAFJl" +
            "YWQBAEY2AC8BAEEtRjYAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBHNgAu" +
            "AERHNgAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQEVAAAABgAAAExl" +
-           "bmd0aAAG/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1" +
+           "bmd0aAAG/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1" +
            "dEFyZ3VtZW50cwEASDYALgBESDYAAJYBAAAAAQAqAQETAAAABAAAAERhdGEAD/////8AAAAAAAEAKAEB" +
-           "AAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABXcml0ZQEASTYALwEARC1JNgAAAQH/////" +
+           "AAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABXcml0ZQEASTYALwEARC1JNgAAAQH/////" +
            "AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAEo2AC4AREo2AACWAgAAAAEAKgEBGQAAAAoA" +
            "AABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARMAAAAEAAAARGF0YQAP/////wAAAAAAAQAoAQEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAEdldFBvc2l0aW9uAQBLNgAvAQBGLUs2AAABAf//" +
+           "AAAAAgAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAEdldFBvc2l0aW9uAQBLNgAvAQBGLUs2AAABAf//" +
            "//8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEATDYALgBETDYAAJYBAAAAAQAqAQEZAAAA" +
-           "CgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAA" +
+           "CgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAA" +
            "AA8AAABPdXRwdXRBcmd1bWVudHMBAE02AC4ARE02AACWAQAAAAEAKgEBFwAAAAgAAABQb3NpdGlvbgAJ" +
-           "/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAFNldFBvc2l0aW9u" +
+           "/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAFNldFBvc2l0aW9u" +
            "AQBONgAvAQBJLU42AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEATzYALgBE" +
            "TzYAAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBFwAAAAgAAABQb3Np" +
-           "dGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAADgAAAExhc3RV" +
+           "dGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAVYIkKAgAAAAAADgAAAExhc3RV" +
            "cGRhdGVUaW1lAQBQNgAuAERQNgAAAQAmAf////8BAf////8AAAAABGGCCgQAAAAAAA0AAABPcGVuV2l0" +
            "aE1hc2tzAQBRNgAvAQD/MFE2AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA" +
-           "UjYALgBEUjYAAJYBAAAAAQAqAQEUAAAABQAAAE1hc2tzAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAA" +
+           "UjYALgBEUjYAAJYBAAAAAQAqAQEUAAAABQAAAE1hc2tzAAf/////AAAAAAABACgBAQAAAAEAAAABAAAA" +
            "AQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBTNgAuAERTNgAAlgEAAAABACoB" +
-           "ARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYIkK" +
+           "ARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYIkK" +
            "AgAAAAAAEAAAAENlcnRpZmljYXRlVHlwZXMBAFs2AC4ARFs2AAAAEQEAAAABAAAAAAAAAAEB/////wAA" +
            "AAA=";
         #endregion
@@ -62683,9 +65366,9 @@ namespace Opc.Ua
            "Y2F0ZVR5cGVJZAAR/////wAAAAAAAQAqAQEaAAAACwAAAENlcnRpZmljYXRlAA//////AAAAAAABACoB" +
            "ASUAAAASAAAASXNzdWVyQ2VydGlmaWNhdGVzAA8BAAAAAQAAAAAAAAAAAQAqAQEfAAAAEAAAAFByaXZh" +
            "dGVLZXlGb3JtYXQADP////8AAAAAAAEAKgEBGQAAAAoAAABQcml2YXRlS2V5AA//////AAAAAAABACgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAkMQAuAEQk" +
+           "AQAAAAEAAAAGAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAkMQAuAEQk" +
            "MQAAlgEAAAABACoBASMAAAAUAAAAQXBwbHlDaGFuZ2VzUmVxdWlyZWQAAf////8AAAAAAAEAKAEBAAAA" +
-           "AQAAAAAAAAABAf////8AAAAA";
+           "AQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -62822,9 +65505,9 @@ namespace Opc.Ua
            "AAEAKgEBIQAAABIAAABDZXJ0aWZpY2F0ZUdyb3VwSWQAEf////8AAAAAAAEAKgEBIAAAABEAAABDZXJ0" +
            "aWZpY2F0ZVR5cGVJZAAR/////wAAAAAAAQAqAQEaAAAACwAAAFN1YmplY3ROYW1lAAz/////AAAAAAAB" +
            "ACoBASMAAAAUAAAAUmVnZW5lcmF0ZVByaXZhdGVLZXkAAf////8AAAAAAAEAKgEBFAAAAAUAAABOb25j" +
-           "ZQAP/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFy" +
+           "ZQAP/////wAAAAAAAQAoAQEAAAABAAAABQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFy" +
            "Z3VtZW50cwEAxzEALgBExzEAAJYBAAAAAQAqAQEhAAAAEgAAAENlcnRpZmljYXRlUmVxdWVzdAAP////" +
-           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "/wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -62955,7 +65638,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGQAAAEdldFJlamVjdGVkTGlzdE1ldGhvZFR5cGUBAOUxAC8BAOUx5TEA" +
            "AAEB/////wEAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA5jEALgBE5jEAAJYBAAAAAQAq" +
-           "AQEfAAAADAAAAENlcnRpZmljYXRlcwAPAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8A" +
+           "AQEfAAAADAAAAENlcnRpZmljYXRlcwAPAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8A" +
            "AAAA";
         #endregion
         #endif
@@ -63078,38 +65761,38 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHwAAAFNlcnZlckNvbmZpZ3VyYXRpb25UeXBlSW5zdGFuY2UBACUxAQAl" +
            "MSUxAAD/////CQAAAARggAoBAAAAAAARAAAAQ2VydGlmaWNhdGVHcm91cHMBAH42AC8BAPU1fjYAAP//" +
-           "//8BAAAABGCACgEAAAAAABcAAABEZWZhdWx0QXBwbGljYXRpb25Hcm91cAEAfzYALwEACzF/NgAA////" +
+           "//8BAAAABGCACgEAAAAAABcAAABEZWZhdWx0QXBwbGljYXRpb25Hcm91cAEAfzYAIwEACzF/NgAA////" +
            "/wIAAAAEYIAKAQAAAAAACQAAAFRydXN0TGlzdAEAgDYALwEA6jCANgAA/////wwAAAAVYIkKAgAAAAAA" +
            "BAAAAFNpemUBAIE2AC4ARIE2AAAACf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABXcml0YWJsZQEA" +
            "gjYALgBEgjYAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAFVzZXJXcml0YWJsZQEAgzYALgBE" +
            "gzYAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAE9wZW5Db3VudAEAhDYALgBEhDYAAAAF////" +
            "/wEB/////wAAAAAEYYIKBAAAAAAABAAAAE9wZW4BAIY2AC8BADwthjYAAAEB/////wIAAAAXYKkKAgAA" +
            "AAAADgAAAElucHV0QXJndW1lbnRzAQCHNgAuAESHNgAAlgEAAAABACoBARMAAAAEAAAATW9kZQAD////" +
-           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50" +
+           "/wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50" +
            "cwEAiDYALgBEiDYAAJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAA" +
-           "AQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABDbG9zZQEAiTYALwEAPy2JNgAAAQH/////AQAA" +
+           "AQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABDbG9zZQEAiTYALwEAPy2JNgAAAQH/////AQAA" +
            "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAIo2AC4ARIo2AACWAQAAAAEAKgEBGQAAAAoAAABG" +
-           "aWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAEAAAA" +
+           "aWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAEAAAA" +
            "UmVhZAEAizYALwEAQS2LNgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAIw2" +
            "AC4ARIw2AACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARUAAAAGAAAA" +
-           "TGVuZ3RoAAb/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
+           "TGVuZ3RoAAb/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
            "cHV0QXJndW1lbnRzAQCNNgAuAESNNgAAlgEAAAABACoBARMAAAAEAAAARGF0YQAP/////wAAAAAAAQAo" +
-           "AQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAFdyaXRlAQCONgAvAQBELY42AAABAf//" +
+           "AQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAFdyaXRlAQCONgAvAQBELY42AAABAf//" +
            "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAjzYALgBEjzYAAJYCAAAAAQAqAQEZAAAA" +
            "CgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAABACgBAQAA" +
-           "AAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAR2V0UG9zaXRpb24BAJA2AC8BAEYtkDYAAAEB" +
+           "AAEAAAACAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAR2V0UG9zaXRpb24BAJA2AC8BAEYtkDYAAAEB" +
            "/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCRNgAuAESRNgAAlgEAAAABACoBARkA" +
-           "AAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAA" +
+           "AAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAA" +
            "AAAADwAAAE91dHB1dEFyZ3VtZW50cwEAkjYALgBEkjYAAJYBAAAAAQAqAQEXAAAACAAAAFBvc2l0aW9u" +
-           "AAn/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAU2V0UG9zaXRp" +
+           "AAn/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAU2V0UG9zaXRp" +
            "b24BAJM2AC8BAEktkzYAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCUNgAu" +
            "AESUNgAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQEXAAAACAAAAFBv" +
-           "c2l0aW9uAAn/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAOAAAATGFz" +
+           "c2l0aW9uAAn/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABVgiQoCAAAAAAAOAAAATGFz" +
            "dFVwZGF0ZVRpbWUBAJU2AC4ARJU2AAABACYB/////wEB/////wAAAAAEYYIKBAAAAAAADQAAAE9wZW5X" +
            "aXRoTWFza3MBAJY2AC8BAP8wljYAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRz" +
-           "AQCXNgAuAESXNgAAlgEAAAABACoBARQAAAAFAAAATWFza3MAB/////8AAAAAAAEAKAEBAAAAAQAAAAAA" +
+           "AQCXNgAuAESXNgAAlgEAAAABACoBARQAAAAFAAAATWFza3MAB/////8AAAAAAAEAKAEBAAAAAQAAAAEA" +
            "AAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAJg2AC4ARJg2AACWAQAAAAEA" +
-           "KgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdg" +
+           "KgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdg" +
            "iQoCAAAAAAAQAAAAQ2VydGlmaWNhdGVUeXBlcwEAoDYALgBEoDYAAAARAQAAAAEAAAAAAAAAAQH/////" +
            "AAAAABdgiQoCAAAAAAASAAAAU2VydmVyQ2FwYWJpbGl0aWVzAQCkMQAuAESkMQAAAAwBAAAAAQAAAAAA" +
            "AAABAf////8AAAAAF2CJCgIAAAAAABoAAABTdXBwb3J0ZWRQcml2YXRlS2V5Rm9ybWF0cwEAJzEALgBE" +
@@ -63121,20 +65804,20 @@ namespace Opc.Ua
            "AABDZXJ0aWZpY2F0ZVR5cGVJZAAR/////wAAAAAAAQAqAQEaAAAACwAAAENlcnRpZmljYXRlAA//////" +
            "AAAAAAABACoBASUAAAASAAAASXNzdWVyQ2VydGlmaWNhdGVzAA8BAAAAAQAAAAAAAAAAAQAqAQEfAAAA" +
            "EAAAAFByaXZhdGVLZXlGb3JtYXQADP////8AAAAAAAEAKgEBGQAAAAoAAABQcml2YXRlS2V5AA//////" +
-           "AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
+           "AAAAAAABACgBAQAAAAEAAAAGAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
            "AQBKMQAuAERKMQAAlgEAAAABACoBASMAAAAUAAAAQXBwbHlDaGFuZ2VzUmVxdWlyZWQAAf////8AAAAA" +
-           "AAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAwAAABBcHBseUNoYW5nZXMBAL4xAC8B" +
+           "AAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAwAAABBcHBseUNoYW5nZXMBAL4xAC8B" +
            "AL4xvjEAAAEB/////wAAAAAEYYIKBAAAAAAAFAAAAENyZWF0ZVNpZ25pbmdSZXF1ZXN0AQC7MQAvAQC7" +
            "MbsxAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAvDEALgBEvDEAAJYFAAAA" +
            "AQAqAQEhAAAAEgAAAENlcnRpZmljYXRlR3JvdXBJZAAR/////wAAAAAAAQAqAQEgAAAAEQAAAENlcnRp" +
            "ZmljYXRlVHlwZUlkABH/////AAAAAAABACoBARoAAAALAAAAU3ViamVjdE5hbWUADP////8AAAAAAAEA" +
            "KgEBIwAAABQAAABSZWdlbmVyYXRlUHJpdmF0ZUtleQAB/////wAAAAAAAQAqAQEUAAAABQAAAE5vbmNl" +
-           "AA//////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
+           "AA//////AAAAAAABACgBAQAAAAEAAAAFAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
            "dW1lbnRzAQC9MQAuAES9MQAAlgEAAAABACoBASEAAAASAAAAQ2VydGlmaWNhdGVSZXF1ZXN0AA//////" +
-           "AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAPAAAAR2V0UmVqZWN0ZWRMaXN0" +
+           "AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAPAAAAR2V0UmVqZWN0ZWRMaXN0" +
            "AQDnMQAvAQDnMecxAAABAf////8BAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAOgxAC4A" +
            "ROgxAACWAQAAAAEAKgEBHwAAAAwAAABDZXJ0aWZpY2F0ZXMADwEAAAABAAAAAAAAAAABACgBAQAAAAEA" +
-           "AAAAAAAAAQH/////AAAAAA==";
+           "AAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -63870,9 +66553,9 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAGgAAAENyZWF0ZUNyZWRlbnRpYWxNZXRob2RUeXBlAQCQOwAvAQCQO5A7" +
            "AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAlTsALgBElTsAAJYDAAAAAQAq" +
            "AQEaAAAACwAAAFJlc291cmNlVXJpAAz/////AAAAAAABACoBARkAAAAKAAAAUHJvZmlsZVVyaQAM////" +
-           "/wAAAAAAAQAqAQEfAAAADAAAAEVuZHBvaW50VXJscwAMAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAA" +
+           "/wAAAAAAAQAqAQEfAAAADAAAAEVuZHBvaW50VXJscwAMAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAMA" +
            "AAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAFdEAC4ARFdEAACWAQAAAAEA" +
-           "KgEBHwAAABAAAABDcmVkZW50aWFsTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////" +
+           "KgEBHwAAABAAAABDcmVkZW50aWFsTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////" +
            "AAAAAA==";
         #endregion
         #endif
@@ -64011,9 +66694,9 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAEAAAAENyZWF0ZUNyZWRlbnRpYWwBAHJEAC8BAHJEckQAAAEB/////wIA" +
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBzRAAuAERzRAAAlgMAAAABACoBARoAAAALAAAA" +
            "UmVzb3VyY2VVcmkADP////8AAAAAAAEAKgEBGQAAAAoAAABQcm9maWxlVXJpAAz/////AAAAAAABACoB" +
-           "AR8AAAAMAAAARW5kcG9pbnRVcmxzAAwBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAA" +
+           "AR8AAAAMAAAARW5kcG9pbnRVcmxzAAwBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAwAAAAEB/////wAA" +
            "AAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAdEQALgBEdEQAAJYBAAAAAQAqAQEfAAAAEAAA" +
-           "AENyZWRlbnRpYWxOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AENyZWRlbnRpYWxOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAALAAAAEtleUNyZWRlbnRpYWxDb25maWd1cmF0aW9uRm9sZGVyVHlwZUlu" +
@@ -64021,8 +66704,8 @@ namespace Opc.Ua
            "AC8BAHJEckQAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBzRAAuAERzRAAA" +
            "lgMAAAABACoBARoAAAALAAAAUmVzb3VyY2VVcmkADP////8AAAAAAAEAKgEBGQAAAAoAAABQcm9maWxl" +
            "VXJpAAz/////AAAAAAABACoBAR8AAAAMAAAARW5kcG9pbnRVcmxzAAwBAAAAAQAAAAAAAAAAAQAoAQEA" +
-           "AAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAdEQALgBEdEQA" +
-           "AJYBAAAAAQAqAQEfAAAAEAAAAENyZWRlbnRpYWxOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAA" +
+           "AAABAAAAAwAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAdEQALgBEdEQA" +
+           "AJYBAAAAAQAqAQEfAAAAEAAAAENyZWRlbnRpYWxOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEA" +
            "AAABAf////8AAAAA";
         #endregion
         #endif
@@ -64174,10 +66857,10 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAGgAAAEdldEVuY3J5cHRpbmdLZXlNZXRob2RUeXBlAQB7RAAvAQB7RHtE" +
            "AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAfEQALgBEfEQAAJYCAAAAAQAq" +
            "AQEbAAAADAAAAENyZWRlbnRpYWxJZAAM/////wAAAAAAAQAqAQEpAAAAGgAAAFJlcXVlc3RlZFNlY3Vy" +
-           "aXR5UG9saWN5VXJpAAz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
+           "aXR5UG9saWN5VXJpAAz/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
            "AAAAT3V0cHV0QXJndW1lbnRzAQB9RAAuAER9RAAAlgIAAAABACoBARgAAAAJAAAAUHVibGljS2V5AA//" +
            "////AAAAAAABACoBAScAAAAYAAAAUmV2aXNlZFNlY3VyaXR5UG9saWN5VXJpABH/////AAAAAAABACgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "AQAAAAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -64344,9 +67027,9 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAEAAAAEdldEVuY3J5cHRpbmdLZXkBAH5EAC8BAH5EfkQAAAEB/////wIA" +
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQB/RAAuAER/RAAAlgIAAAABACoBARsAAAAMAAAA" +
            "Q3JlZGVudGlhbElkAAz/////AAAAAAABACoBASkAAAAaAAAAUmVxdWVzdGVkU2VjdXJpdHlQb2xpY3lV" +
-           "cmkADP////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRB" +
+           "cmkADP////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRB" +
            "cmd1bWVudHMBAIBEAC4ARIBEAACWAgAAAAEAKgEBGAAAAAkAAABQdWJsaWNLZXkAD/////8AAAAAAAEA" +
-           "KgEBJwAAABgAAABSZXZpc2VkU2VjdXJpdHlQb2xpY3lVcmkAEf////8AAAAAAAEAKAEBAAAAAQAAAAAA" +
+           "KgEBJwAAABgAAABSZXZpc2VkU2VjdXJpdHlQb2xpY3lVcmkAEf////8AAAAAAAEAKAEBAAAAAQAAAAIA" +
            "AAABAf////8AAAAA";
 
         private const string UpdateCredential_InitializationString =
@@ -64354,7 +67037,7 @@ namespace Opc.Ua
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBXRgAuAERXRgAAlgQAAAABACoBARsAAAAMAAAA" +
            "Q3JlZGVudGlhbElkAAz/////AAAAAAABACoBAR8AAAAQAAAAQ3JlZGVudGlhbFNlY3JldAAP/////wAA" +
            "AAAAAQAqAQEkAAAAFQAAAENlcnRpZmljYXRlVGh1bWJwcmludAAM/////wAAAAAAAQAqAQEgAAAAEQAA" +
-           "AFNlY3VyaXR5UG9saWN5VXJpAAz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "AFNlY3VyaXR5UG9saWN5VXJpAAz/////AAAAAAABACgBAQAAAAEAAAAEAAAAAQH/////AAAAAA==";
 
         private const string DeleteCredential_InitializationString =
            "//////////8EYYIKBAAAAAAAEAAAAERlbGV0ZUNyZWRlbnRpYWwBAFhGAC8BAFhGWEYAAAEB/////wAA" +
@@ -64369,14 +67052,14 @@ namespace Opc.Ua
            "AAAEYYIKBAAAAAAAEAAAAEdldEVuY3J5cHRpbmdLZXkBAH5EAC8BAH5EfkQAAAEB/////wIAAAAXYKkK" +
            "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQB/RAAuAER/RAAAlgIAAAABACoBARsAAAAMAAAAQ3JlZGVu" +
            "dGlhbElkAAz/////AAAAAAABACoBASkAAAAaAAAAUmVxdWVzdGVkU2VjdXJpdHlQb2xpY3lVcmkADP//" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu" +
            "dHMBAIBEAC4ARIBEAACWAgAAAAEAKgEBGAAAAAkAAABQdWJsaWNLZXkAD/////8AAAAAAAEAKgEBJwAA" +
-           "ABgAAABSZXZpc2VkU2VjdXJpdHlQb2xpY3lVcmkAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
+           "ABgAAABSZXZpc2VkU2VjdXJpdHlQb2xpY3lVcmkAEf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf//" +
            "//8AAAAABGGCCgQAAAAAABAAAABVcGRhdGVDcmVkZW50aWFsAQBWRgAvAQBWRlZGAAABAf////8BAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAV0YALgBEV0YAAJYEAAAAAQAqAQEbAAAADAAAAENy" +
            "ZWRlbnRpYWxJZAAM/////wAAAAAAAQAqAQEfAAAAEAAAAENyZWRlbnRpYWxTZWNyZXQAD/////8AAAAA" +
            "AAEAKgEBJAAAABUAAABDZXJ0aWZpY2F0ZVRodW1icHJpbnQADP////8AAAAAAAEAKgEBIAAAABEAAABT" +
-           "ZWN1cml0eVBvbGljeVVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAA" +
+           "ZWN1cml0eVBvbGljeVVyaQAM/////wAAAAAAAQAoAQEAAAABAAAABAAAAAEB/////wAAAAAEYYIKBAAA" +
            "AAAAEAAAAERlbGV0ZUNyZWRlbnRpYWwBAFhGAC8BAFhGWEYAAAEB/////wAAAAA=";
         #endregion
         #endif
@@ -64805,7 +67488,7 @@ namespace Opc.Ua
            "RllGAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAWkYALgBEWkYAAJYEAAAA" +
            "AQAqAQEbAAAADAAAAENyZWRlbnRpYWxJZAAM/////wAAAAAAAQAqAQEfAAAAEAAAAENyZWRlbnRpYWxT" +
            "ZWNyZXQAD/////8AAAAAAAEAKgEBJAAAABUAAABDZXJ0aWZpY2F0ZVRodW1icHJpbnQADP////8AAAAA" +
-           "AAEAKgEBIAAAABEAAABTZWN1cml0eVBvbGljeVVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB" +
+           "AAEAKgEBIAAAABEAAABTZWN1cml0eVBvbGljeVVyaQAM/////wAAAAAAAQAoAQEAAAABAAAABAAAAAEB" +
            "/////wAAAAA=";
         #endregion
         #endif
@@ -65910,6 +68593,11 @@ namespace Opc.Ua
             {
                 SecurityGroups.Initialize(context, SecurityGroups_InitializationString);
             }
+
+            if (KeyPushTargets != null)
+            {
+                KeyPushTargets.Initialize(context, KeyPushTargets_InitializationString);
+            }
         }
 
         #region Initialization String
@@ -65917,19 +68605,19 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAADwAAAEdldFNlY3VyaXR5S2V5cwEAIz4ALwEAIz4jPgAAAQH/////AgAA" +
            "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBACQ+AC4ARCQ+AACWAwAAAAEAKgEBHgAAAA8AAABT" +
            "ZWN1cml0eUdyb3VwSWQADP////8AAAAAAAEAKgEBIAAAAA8AAABTdGFydGluZ1Rva2VuSWQBACAB////" +
-           "/wAAAAAAAQAqAQEgAAAAEQAAAFJlcXVlc3RlZEtleUNvdW50AAf/////AAAAAAABACgBAQAAAAEAAAAA" +
+           "/wAAAAAAAQAqAQEgAAAAEQAAAFJlcXVlc3RlZEtleUNvdW50AAf/////AAAAAAABACgBAQAAAAEAAAAD" +
            "AAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAlPgAuAEQlPgAAlgUAAAAB" +
            "ACoBASAAAAARAAAAU2VjdXJpdHlQb2xpY3lVcmkADP////8AAAAAAAEAKgEBHQAAAAwAAABGaXJzdFRv" +
            "a2VuSWQBACAB/////wAAAAAAAQAqAQEXAAAABAAAAEtleXMADwEAAAABAAAAAAAAAAABACoBAR4AAAAN" +
            "AAAAVGltZVRvTmV4dEtleQEAIgH/////AAAAAAABACoBARwAAAALAAAAS2V5TGlmZXRpbWUBACIB////" +
-           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "/wAAAAAAAQAoAQEAAAABAAAABQAAAAEB/////wAAAAA=";
 
         private const string GetSecurityGroup_InitializationString =
            "//////////8EYYIKBAAAAAAAEAAAAEdldFNlY3VyaXR5R3JvdXABACY+AC8BACY+Jj4AAAEB/////wIA" +
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAnPgAuAEQnPgAAlgEAAAABACoBAR4AAAAPAAAA" +
-           "U2VjdXJpdHlHcm91cElkAAz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAA" +
+           "U2VjdXJpdHlHcm91cElkAAz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAA" +
            "AAAPAAAAT3V0cHV0QXJndW1lbnRzAQAoPgAuAEQoPgAAlgEAAAABACoBASIAAAATAAAAU2VjdXJpdHlH" +
-           "cm91cE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "cm91cE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string SecurityGroups_InitializationString =
            "//////////8EYIAKAQAAAAAADgAAAFNlY3VyaXR5R3JvdXBzAQApPgAvAQBcPCk+AAD/////AgAAAARh" +
@@ -65938,40 +68626,66 @@ namespace Opc.Ua
            "b3VwTmFtZQAM/////wAAAAAAAQAqAQEcAAAACwAAAEtleUxpZmV0aW1lAQAiAf////8AAAAAAAEAKgEB" +
            "IAAAABEAAABTZWN1cml0eVBvbGljeVVyaQAM/////wAAAAAAAQAqAQEgAAAAEQAAAE1heEZ1dHVyZUtl" +
            "eUNvdW50AAf/////AAAAAAABACoBAR4AAAAPAAAATWF4UGFzdEtleUNvdW50AAf/////AAAAAAABACgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAsPgAuAEQs" +
+           "AQAAAAEAAAAFAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAsPgAuAEQs" +
            "PgAAlgIAAAABACoBAR4AAAAPAAAAU2VjdXJpdHlHcm91cElkAAz/////AAAAAAABACoBASIAAAATAAAA" +
-           "U2VjdXJpdHlHcm91cE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIK" +
+           "U2VjdXJpdHlHcm91cE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAEYYIK" +
            "BAAAAAAAEwAAAFJlbW92ZVNlY3VyaXR5R3JvdXABAC0+AC8BAGg8LT4AAAEB/////wEAAAAXYKkKAgAA" +
            "AAAADgAAAElucHV0QXJndW1lbnRzAQAuPgAuAEQuPgAAlgEAAAABACoBASIAAAATAAAAU2VjdXJpdHlH" +
-           "cm91cE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "cm91cE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
+
+        private const string KeyPushTargets_InitializationString =
+           "//////////8EYIAKAQAAAAAADgAAAEtleVB1c2hUYXJnZXRzAQC9YgAvAQACY71iAAD/////AgAAAARh" +
+           "ggoEAAAAAAANAAAAQWRkUHVzaFRhcmdldAEAvmIALwEAFmO+YgAAAQH/////AgAAABdgqQoCAAAAAAAO" +
+           "AAAASW5wdXRBcmd1bWVudHMBAL9iAC4ARL9iAACWBgAAAAEAKgEBHQAAAA4AAABBcHBsaWNhdGlvblVy" +
+           "aQAM/////wAAAAAAAQAqAQEaAAAACwAAAEVuZHBvaW50VXJsAAz/////AAAAAAABACoBASAAAAARAAAA" +
+           "U2VjdXJpdHlQb2xpY3lVcmkADP////8AAAAAAAEAKgEBHgAAAA0AAABVc2VyVG9rZW5UeXBlAQAwAf//" +
+           "//8AAAAAAAEAKgEBIAAAABEAAABSZXF1ZXN0ZWRLZXlDb3VudAAF/////wAAAAAAAQAqAQEeAAAADQAA" +
+           "AFJldHJ5SW50ZXJ2YWwBACIB/////wAAAAAAAQAoAQEAAAABAAAABgAAAAEB/////wAAAAAXYKkKAgAA" +
+           "AAAADwAAAE91dHB1dEFyZ3VtZW50cwEAwGIALgBEwGIAAJYBAAAAAQAqAQEbAAAADAAAAFB1c2hUYXJn" +
+           "ZXRJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAAEAAAAFJlbW92" +
+           "ZVB1c2hUYXJnZXQBAMFiAC8BABljwWIAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l" +
+           "bnRzAQDCYgAuAETCYgAAlgEAAAABACoBARsAAAAMAAAAUHVzaFRhcmdldElkABH/////AAAAAAABACgB" +
+           "AQAAAAEAAAABAAAAAQH/////AAAAAA==";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHAAAAFB1YlN1YktleVNlcnZpY2VUeXBlSW5zdGFuY2UBACI+AQAiPiI+" +
-           "AAD/////AwAAAARhggoEAAAAAAAPAAAAR2V0U2VjdXJpdHlLZXlzAQAjPgAvAQAjPiM+AAABAf////8C" +
+           "AAD/////BAAAAARhggoEAAAAAAAPAAAAR2V0U2VjdXJpdHlLZXlzAQAjPgAvAQAjPiM+AAABAf////8C" +
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAJD4ALgBEJD4AAJYDAAAAAQAqAQEeAAAADwAA" +
            "AFNlY3VyaXR5R3JvdXBJZAAM/////wAAAAAAAQAqAQEgAAAADwAAAFN0YXJ0aW5nVG9rZW5JZAEAIAH/" +
            "////AAAAAAABACoBASAAAAARAAAAUmVxdWVzdGVkS2V5Q291bnQAB/////8AAAAAAAEAKAEBAAAAAQAA" +
-           "AAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBACU+AC4ARCU+AACWBQAA" +
+           "AAMAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBACU+AC4ARCU+AACWBQAA" +
            "AAEAKgEBIAAAABEAAABTZWN1cml0eVBvbGljeVVyaQAM/////wAAAAAAAQAqAQEdAAAADAAAAEZpcnN0" +
            "VG9rZW5JZAEAIAH/////AAAAAAABACoBARcAAAAEAAAAS2V5cwAPAQAAAAEAAAAAAAAAAAEAKgEBHgAA" +
            "AA0AAABUaW1lVG9OZXh0S2V5AQAiAf////8AAAAAAAEAKgEBHAAAAAsAAABLZXlMaWZldGltZQEAIgH/" +
-           "////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAQAAAAR2V0U2VjdXJpdHlH" +
+           "////AAAAAAABACgBAQAAAAEAAAAFAAAAAQH/////AAAAAARhggoEAAAAAAAQAAAAR2V0U2VjdXJpdHlH" +
            "cm91cAEAJj4ALwEAJj4mPgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBACc+" +
            "AC4ARCc+AACWAQAAAAEAKgEBHgAAAA8AAABTZWN1cml0eUdyb3VwSWQADP////8AAAAAAAEAKAEBAAAA" +
-           "AQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBACg+AC4ARCg+AACW" +
-           "AQAAAAEAKgEBIgAAABMAAABTZWN1cml0eUdyb3VwTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAA" +
+           "AQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBACg+AC4ARCg+AACW" +
+           "AQAAAAEAKgEBIgAAABMAAABTZWN1cml0eUdyb3VwTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAB" +
            "AAAAAQH/////AAAAAARggAoBAAAAAAAOAAAAU2VjdXJpdHlHcm91cHMBACk+AC8BAFw8KT4AAP////8C" +
            "AAAABGGCCgQAAAAAABAAAABBZGRTZWN1cml0eUdyb3VwAQAqPgAvAQBlPCo+AAABAf////8CAAAAF2Cp" +
            "CgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAKz4ALgBEKz4AAJYFAAAAAQAqAQEgAAAAEQAAAFNlY3Vy" +
            "aXR5R3JvdXBOYW1lAAz/////AAAAAAABACoBARwAAAALAAAAS2V5TGlmZXRpbWUBACIB/////wAAAAAA" +
            "AQAqAQEgAAAAEQAAAFNlY3VyaXR5UG9saWN5VXJpAAz/////AAAAAAABACoBASAAAAARAAAATWF4RnV0" +
            "dXJlS2V5Q291bnQAB/////8AAAAAAAEAKgEBHgAAAA8AAABNYXhQYXN0S2V5Q291bnQAB/////8AAAAA" +
-           "AAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBACw+" +
+           "AAEAKAEBAAAAAQAAAAUAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBACw+" +
            "AC4ARCw+AACWAgAAAAEAKgEBHgAAAA8AAABTZWN1cml0eUdyb3VwSWQADP////8AAAAAAAEAKgEBIgAA" +
-           "ABMAAABTZWN1cml0eUdyb3VwTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAA" +
+           "ABMAAABTZWN1cml0eUdyb3VwTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAA" +
            "AARhggoEAAAAAAATAAAAUmVtb3ZlU2VjdXJpdHlHcm91cAEALT4ALwEAaDwtPgAAAQH/////AQAAABdg" +
            "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAC4+AC4ARC4+AACWAQAAAAEAKgEBIgAAABMAAABTZWN1" +
-           "cml0eUdyb3VwTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "cml0eUdyb3VwTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARggAoBAAAA" +
+           "AAAOAAAAS2V5UHVzaFRhcmdldHMBAL1iAC8BAAJjvWIAAP////8CAAAABGGCCgQAAAAAAA0AAABBZGRQ" +
+           "dXNoVGFyZ2V0AQC+YgAvAQAWY75iAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50" +
+           "cwEAv2IALgBEv2IAAJYGAAAAAQAqAQEdAAAADgAAAEFwcGxpY2F0aW9uVXJpAAz/////AAAAAAABACoB" +
+           "ARoAAAALAAAARW5kcG9pbnRVcmwADP////8AAAAAAAEAKgEBIAAAABEAAABTZWN1cml0eVBvbGljeVVy" +
+           "aQAM/////wAAAAAAAQAqAQEeAAAADQAAAFVzZXJUb2tlblR5cGUBADAB/////wAAAAAAAQAqAQEgAAAA" +
+           "EQAAAFJlcXVlc3RlZEtleUNvdW50AAX/////AAAAAAABACoBAR4AAAANAAAAUmV0cnlJbnRlcnZhbAEA" +
+           "IgH/////AAAAAAABACgBAQAAAAEAAAAGAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
+           "dW1lbnRzAQDAYgAuAETAYgAAlgEAAAABACoBARsAAAAMAAAAUHVzaFRhcmdldElkABH/////AAAAAAAB" +
+           "ACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAQAAAAUmVtb3ZlUHVzaFRhcmdldAEAwWIA" +
+           "LwEAGWPBYgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAMJiAC4ARMJiAACW" +
+           "AQAAAAEAKgEBGwAAAAwAAABQdXNoVGFyZ2V0SWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf//" +
+           "//8AAAAA";
         #endregion
         #endif
         #endregion
@@ -66033,6 +68747,25 @@ namespace Opc.Ua
                 m_securityGroups = value;
             }
         }
+
+        /// <remarks />
+        public PubSubKeyPushTargetFolderState KeyPushTargets
+        {
+            get
+            {
+                return m_keyPushTargets;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_keyPushTargets, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_keyPushTargets = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -66058,6 +68791,11 @@ namespace Opc.Ua
             if (m_securityGroups != null)
             {
                 children.Add(m_securityGroups);
+            }
+
+            if (m_keyPushTargets != null)
+            {
+                children.Add(m_keyPushTargets);
             }
 
             base.GetChildren(context, children);
@@ -66143,6 +68881,27 @@ namespace Opc.Ua
                     instance = SecurityGroups;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.KeyPushTargets:
+                {
+                    if (createOrReplace)
+                    {
+                        if (KeyPushTargets == null)
+                        {
+                            if (replacement == null)
+                            {
+                                KeyPushTargets = new PubSubKeyPushTargetFolderState(this);
+                            }
+                            else
+                            {
+                                KeyPushTargets = (PubSubKeyPushTargetFolderState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = KeyPushTargets;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -66158,6 +68917,7 @@ namespace Opc.Ua
         private GetSecurityKeysMethodState m_getSecurityKeysMethod;
         private GetSecurityGroupMethodState m_getSecurityGroupMethod;
         private SecurityGroupFolderState m_securityGroups;
+        private PubSubKeyPushTargetFolderState m_keyPushTargets;
         #endregion
     }
     #endif
@@ -66215,11 +68975,11 @@ namespace Opc.Ua
            "AAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBzOwAuAERzOwAAlgMAAAABACoB" +
            "AR4AAAAPAAAAU2VjdXJpdHlHcm91cElkAAz/////AAAAAAABACoBASAAAAAPAAAAU3RhcnRpbmdUb2tl" +
            "bklkAQAgAf////8AAAAAAAEAKgEBIAAAABEAAABSZXF1ZXN0ZWRLZXlDb3VudAAH/////wAAAAAAAQAo" +
-           "AQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAdDsALgBE" +
+           "AQEAAAABAAAAAwAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAdDsALgBE" +
            "dDsAAJYFAAAAAQAqAQEgAAAAEQAAAFNlY3VyaXR5UG9saWN5VXJpAAz/////AAAAAAABACoBAR0AAAAM" +
            "AAAARmlyc3RUb2tlbklkAQAgAf////8AAAAAAAEAKgEBFwAAAAQAAABLZXlzAA8BAAAAAQAAAAAAAAAA" +
            "AQAqAQEeAAAADQAAAFRpbWVUb05leHRLZXkBACIB/////wAAAAAAAQAqAQEcAAAACwAAAEtleUxpZmV0" +
-           "aW1lAQAiAf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "aW1lAQAiAf////8AAAAAAAEAKAEBAAAAAQAAAAUAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -66360,9 +69120,9 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGgAAAEdldFNlY3VyaXR5R3JvdXBNZXRob2RUeXBlAQBZPAAvAQBZPFk8" +
            "AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAWjwALgBEWjwAAJYBAAAAAQAq" +
-           "AQEeAAAADwAAAFNlY3VyaXR5R3JvdXBJZAAM/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAA" +
+           "AQEeAAAADwAAAFNlY3VyaXR5R3JvdXBJZAAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAA" +
            "AAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAWzwALgBEWzwAAJYBAAAAAQAqAQEiAAAAEwAA" +
-           "AFNlY3VyaXR5R3JvdXBOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AFNlY3VyaXR5R3JvdXBOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -66484,10 +69244,10 @@ namespace Opc.Ua
            "AQEgAAAAEQAAAFNlY3VyaXR5R3JvdXBOYW1lAAz/////AAAAAAABACoBARwAAAALAAAAS2V5TGlmZXRp" +
            "bWUBACIB/////wAAAAAAAQAqAQEgAAAAEQAAAFNlY3VyaXR5UG9saWN5VXJpAAz/////AAAAAAABACoB" +
            "ASAAAAARAAAATWF4RnV0dXJlS2V5Q291bnQAB/////8AAAAAAAEAKgEBHgAAAA8AAABNYXhQYXN0S2V5" +
-           "Q291bnQAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRw" +
+           "Q291bnQAB/////8AAAAAAAEAKAEBAAAAAQAAAAUAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRw" +
            "dXRBcmd1bWVudHMBAGw8AC4ARGw8AACWAgAAAAEAKgEBHgAAAA8AAABTZWN1cml0eUdyb3VwSWQADP//" +
            "//8AAAAAAAEAKgEBIgAAABMAAABTZWN1cml0eUdyb3VwTm9kZUlkABH/////AAAAAAABACgBAQAAAAEA" +
-           "AAAAAAAAAQH/////AAAAAA==";
+           "AAACAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -66622,7 +69382,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAHQAAAFJlbW92ZVNlY3VyaXR5R3JvdXBNZXRob2RUeXBlAQBtPAAvAQBt" +
            "PG08AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAbjwALgBEbjwAAJYBAAAA" +
-           "AQAqAQEiAAAAEwAAAFNlY3VyaXR5R3JvdXBOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAAB" +
+           "AQAqAQEiAAAAEwAAAFNlY3VyaXR5R3JvdXBOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
            "Af////8AAAAA";
         #endregion
         #endif
@@ -66686,6 +69446,241 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region AddSecurityGroupFolderMethodState Class
+    #if (!OPCUA_EXCLUDE_AddSecurityGroupFolderMethodState)
+    /// <summary>
+    /// Stores an instance of the AddSecurityGroupFolderMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class AddSecurityGroupFolderMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public AddSecurityGroupFolderMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new AddSecurityGroupFolderMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAIAAAAEFkZFNlY3VyaXR5R3JvdXBGb2xkZXJNZXRob2RUeXBlAQDIYgAv" +
+           "AQDIYshiAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAyWIALgBEyWIAAJYB" +
+           "AAAAAQAqAQETAAAABAAAAE5hbWUADP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2Cp" +
+           "CgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAMpiAC4ARMpiAACWAQAAAAEAKgEBKAAAABkAAABTZWN1" +
+           "cml0eUdyb3VwRm9sZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public AddSecurityGroupFolderMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            string name = (string)_inputArguments[0];
+
+            NodeId securityGroupFolderNodeId = (NodeId)_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    name,
+                    ref securityGroupFolderNodeId);
+            }
+
+            _outputArguments[0] = securityGroupFolderNodeId;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult AddSecurityGroupFolderMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string name,
+        ref NodeId securityGroupFolderNodeId);
+    #endif
+    #endregion
+
+    #region RemoveSecurityGroupFolderMethodState Class
+    #if (!OPCUA_EXCLUDE_RemoveSecurityGroupFolderMethodState)
+    /// <summary>
+    /// Stores an instance of the RemoveSecurityGroupFolderMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class RemoveSecurityGroupFolderMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public RemoveSecurityGroupFolderMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new RemoveSecurityGroupFolderMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAIwAAAFJlbW92ZVNlY3VyaXR5R3JvdXBGb2xkZXJNZXRob2RUeXBlAQDL" +
+           "YgAvAQDLYstiAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAzGIALgBEzGIA" +
+           "AJYBAAAAAQAqAQEoAAAAGQAAAFNlY3VyaXR5R3JvdXBGb2xkZXJOb2RlSWQAEf////8AAAAAAAEAKAEB" +
+           "AAAAAQAAAAEAAAABAf////8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public RemoveSecurityGroupFolderMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            NodeId securityGroupFolderNodeId = (NodeId)_inputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    securityGroupFolderNodeId);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult RemoveSecurityGroupFolderMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId securityGroupFolderNodeId);
+    #endif
+    #endregion
+
     #region SecurityGroupFolderState Class
     #if (!OPCUA_EXCLUDE_SecurityGroupFolderState)
     /// <summary>
@@ -66737,22 +69732,63 @@ namespace Opc.Ua
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
+
+            if (AddSecurityGroupFolder != null)
+            {
+                AddSecurityGroupFolder.Initialize(context, AddSecurityGroupFolder_InitializationString);
+            }
+
+            if (RemoveSecurityGroupFolder != null)
+            {
+                RemoveSecurityGroupFolder.Initialize(context, RemoveSecurityGroupFolder_InitializationString);
+            }
+
+            if (SupportedSecurityPolicyUris != null)
+            {
+                SupportedSecurityPolicyUris.Initialize(context, SupportedSecurityPolicyUris_InitializationString);
+            }
         }
 
         #region Initialization String
+        private const string AddSecurityGroupFolder_InitializationString =
+           "//////////8EYYIKBAAAAAAAFgAAAEFkZFNlY3VyaXR5R3JvdXBGb2xkZXIBAOBiAC8BAOBi4GIAAAEB" +
+           "/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDhYgAuAEThYgAAlgEAAAABACoBARMA" +
+           "AAAEAAAATmFtZQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAA" +
+           "AE91dHB1dEFyZ3VtZW50cwEA4mIALgBE4mIAAJYBAAAAAQAqAQEoAAAAGQAAAFNlY3VyaXR5R3JvdXBG" +
+           "b2xkZXJOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
+
+        private const string RemoveSecurityGroupFolder_InitializationString =
+           "//////////8EYYIKBAAAAAAAGQAAAFJlbW92ZVNlY3VyaXR5R3JvdXBGb2xkZXIBAONiAC8BAONi42IA" +
+           "AAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDkYgAuAETkYgAAlgEAAAABACoB" +
+           "ASgAAAAZAAAAU2VjdXJpdHlHcm91cEZvbGRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAA" +
+           "AAEB/////wAAAAA=";
+
+        private const string SupportedSecurityPolicyUris_InitializationString =
+           "//////////8XYIkKAgAAAAAAGwAAAFN1cHBvcnRlZFNlY3VyaXR5UG9saWN5VXJpcwEA5WIALgBE5WIA" +
+           "AAAMAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHwAAAFNlY3VyaXR5R3JvdXBGb2xkZXJUeXBlSW5zdGFuY2UBAFw8AQBc" +
-           "PFw8AAD/////AgAAAARhggoEAAAAAAAQAAAAQWRkU2VjdXJpdHlHcm91cAEAZTwALwEAZTxlPAAAAQH/" +
+           "PFw8AAD/////BQAAAARhggoEAAAAAAAQAAAAQWRkU2VjdXJpdHlHcm91cAEAZTwALwEAZTxlPAAAAQH/" +
            "////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAGY8AC4ARGY8AACWBQAAAAEAKgEBIAAA" +
            "ABEAAABTZWN1cml0eUdyb3VwTmFtZQAM/////wAAAAAAAQAqAQEcAAAACwAAAEtleUxpZmV0aW1lAQAi" +
            "Af////8AAAAAAAEAKgEBIAAAABEAAABTZWN1cml0eVBvbGljeVVyaQAM/////wAAAAAAAQAqAQEgAAAA" +
            "EQAAAE1heEZ1dHVyZUtleUNvdW50AAf/////AAAAAAABACoBAR4AAAAPAAAATWF4UGFzdEtleUNvdW50" +
-           "AAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
+           "AAf/////AAAAAAABACgBAQAAAAEAAAAFAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
            "dW1lbnRzAQBnPAAuAERnPAAAlgIAAAABACoBAR4AAAAPAAAAU2VjdXJpdHlHcm91cElkAAz/////AAAA" +
-           "AAABACoBASIAAAATAAAAU2VjdXJpdHlHcm91cE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAA" +
+           "AAABACoBASIAAAATAAAAU2VjdXJpdHlHcm91cE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAgAA" +
            "AAEB/////wAAAAAEYYIKBAAAAAAAEwAAAFJlbW92ZVNlY3VyaXR5R3JvdXABAGg8AC8BAGg8aDwAAAEB" +
            "/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBpPAAuAERpPAAAlgEAAAABACoBASIA" +
-           "AAATAAAAU2VjdXJpdHlHcm91cE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAA" +
+           "AAATAAAAU2VjdXJpdHlHcm91cE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAA" +
+           "AAAEYYIKBAAAAAAAFgAAAEFkZFNlY3VyaXR5R3JvdXBGb2xkZXIBAOBiAC8BAOBi4GIAAAEB/////wIA" +
+           "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDhYgAuAEThYgAAlgEAAAABACoBARMAAAAEAAAA" +
+           "TmFtZQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1" +
+           "dEFyZ3VtZW50cwEA4mIALgBE4mIAAJYBAAAAAQAqAQEoAAAAGQAAAFNlY3VyaXR5R3JvdXBGb2xkZXJO" +
+           "b2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAABkAAABSZW1v" +
+           "dmVTZWN1cml0eUdyb3VwRm9sZGVyAQDjYgAvAQDjYuNiAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJ" +
+           "bnB1dEFyZ3VtZW50cwEA5GIALgBE5GIAAJYBAAAAAQAqAQEoAAAAGQAAAFNlY3VyaXR5R3JvdXBGb2xk" +
+           "ZXJOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CJCgIAAAAAABsAAABT" +
+           "dXBwb3J0ZWRTZWN1cml0eVBvbGljeVVyaXMBAOViAC4AROViAAAADAEAAAABAAAAAAAAAAEB/////wAA" +
            "AAA=";
         #endregion
         #endif
@@ -66796,6 +69832,63 @@ namespace Opc.Ua
                 m_removeSecurityGroupMethod = value;
             }
         }
+
+        /// <remarks />
+        public AddSecurityGroupFolderMethodState AddSecurityGroupFolder
+        {
+            get
+            {
+                return m_addSecurityGroupFolderMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_addSecurityGroupFolderMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_addSecurityGroupFolderMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public RemoveSecurityGroupFolderMethodState RemoveSecurityGroupFolder
+        {
+            get
+            {
+                return m_removeSecurityGroupFolderMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_removeSecurityGroupFolderMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_removeSecurityGroupFolderMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<string[]> SupportedSecurityPolicyUris
+        {
+            get
+            {
+                return m_supportedSecurityPolicyUris;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_supportedSecurityPolicyUris, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_supportedSecurityPolicyUris = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -66816,6 +69909,21 @@ namespace Opc.Ua
             if (m_removeSecurityGroupMethod != null)
             {
                 children.Add(m_removeSecurityGroupMethod);
+            }
+
+            if (m_addSecurityGroupFolderMethod != null)
+            {
+                children.Add(m_addSecurityGroupFolderMethod);
+            }
+
+            if (m_removeSecurityGroupFolderMethod != null)
+            {
+                children.Add(m_removeSecurityGroupFolderMethod);
+            }
+
+            if (m_supportedSecurityPolicyUris != null)
+            {
+                children.Add(m_supportedSecurityPolicyUris);
             }
 
             base.GetChildren(context, children);
@@ -66880,6 +69988,69 @@ namespace Opc.Ua
                     instance = RemoveSecurityGroup;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.AddSecurityGroupFolder:
+                {
+                    if (createOrReplace)
+                    {
+                        if (AddSecurityGroupFolder == null)
+                        {
+                            if (replacement == null)
+                            {
+                                AddSecurityGroupFolder = new AddSecurityGroupFolderMethodState(this);
+                            }
+                            else
+                            {
+                                AddSecurityGroupFolder = (AddSecurityGroupFolderMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = AddSecurityGroupFolder;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.RemoveSecurityGroupFolder:
+                {
+                    if (createOrReplace)
+                    {
+                        if (RemoveSecurityGroupFolder == null)
+                        {
+                            if (replacement == null)
+                            {
+                                RemoveSecurityGroupFolder = new RemoveSecurityGroupFolderMethodState(this);
+                            }
+                            else
+                            {
+                                RemoveSecurityGroupFolder = (RemoveSecurityGroupFolderMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = RemoveSecurityGroupFolder;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.SupportedSecurityPolicyUris:
+                {
+                    if (createOrReplace)
+                    {
+                        if (SupportedSecurityPolicyUris == null)
+                        {
+                            if (replacement == null)
+                            {
+                                SupportedSecurityPolicyUris = new PropertyState<string[]>(this);
+                            }
+                            else
+                            {
+                                SupportedSecurityPolicyUris = (PropertyState<string[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = SupportedSecurityPolicyUris;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -66894,6 +70065,9 @@ namespace Opc.Ua
         #region Private Fields
         private AddSecurityGroupMethodState m_addSecurityGroupMethod;
         private RemoveSecurityGroupMethodState m_removeSecurityGroupMethod;
+        private AddSecurityGroupFolderMethodState m_addSecurityGroupFolderMethod;
+        private RemoveSecurityGroupFolderMethodState m_removeSecurityGroupFolderMethod;
+        private PropertyState<string[]> m_supportedSecurityPolicyUris;
         #endregion
     }
     #endif
@@ -66950,16 +70124,35 @@ namespace Opc.Ua
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
+
+            if (InvalidateKeys != null)
+            {
+                InvalidateKeys.Initialize(context, InvalidateKeys_InitializationString);
+            }
+
+            if (ForceKeyRotation != null)
+            {
+                ForceKeyRotation.Initialize(context, ForceKeyRotation_InitializationString);
+            }
         }
 
         #region Initialization String
+        private const string InvalidateKeys_InitializationString =
+           "//////////8EYYIKBAAAAAAADgAAAEludmFsaWRhdGVLZXlzAQAYZAAvAQAYZBhkAAABAf////8AAAAA";
+
+        private const string ForceKeyRotation_InitializationString =
+           "//////////8EYYIKBAAAAAAAEAAAAEZvcmNlS2V5Um90YXRpb24BABlkAC8BABlkGWQAAAEB/////wAA" +
+           "AAA=";
+
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAGQAAAFNlY3VyaXR5R3JvdXBUeXBlSW5zdGFuY2UBAG88AQBvPG88AAD/" +
-           "////BQAAABVgiQoCAAAAAAAPAAAAU2VjdXJpdHlHcm91cElkAQBwPAAuAERwPAAAAAz/////AQH/////" +
+           "////BwAAABVgiQoCAAAAAAAPAAAAU2VjdXJpdHlHcm91cElkAQBwPAAuAERwPAAAAAz/////AQH/////" +
            "AAAAABVgiQoCAAAAAAALAAAAS2V5TGlmZXRpbWUBAMY6AC4ARMY6AAABACIB/////wEB/////wAAAAAV" +
            "YIkKAgAAAAAAEQAAAFNlY3VyaXR5UG9saWN5VXJpAQDHOgAuAETHOgAAAAz/////AQH/////AAAAABVg" +
            "iQoCAAAAAAARAAAATWF4RnV0dXJlS2V5Q291bnQBAMg6AC4ARMg6AAAAB/////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAAA8AAABNYXhQYXN0S2V5Q291bnQBANA6AC4ARNA6AAAAB/////8BAf////8AAAAA";
+           "CgIAAAAAAA8AAABNYXhQYXN0S2V5Q291bnQBANA6AC4ARNA6AAAAB/////8BAf////8AAAAABGGCCgQA" +
+           "AAAAAA4AAABJbnZhbGlkYXRlS2V5cwEAGGQALwEAGGQYZAAAAQH/////AAAAAARhggoEAAAAAAAQAAAA" +
+           "Rm9yY2VLZXlSb3RhdGlvbgEAGWQALwEAGWQZZAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -67059,6 +70252,44 @@ namespace Opc.Ua
                 m_maxPastKeyCount = value;
             }
         }
+
+        /// <remarks />
+        public MethodState InvalidateKeys
+        {
+            get
+            {
+                return m_invalidateKeysMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_invalidateKeysMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_invalidateKeysMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public MethodState ForceKeyRotation
+        {
+            get
+            {
+                return m_forceKeyRotationMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_forceKeyRotationMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_forceKeyRotationMethod = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -67094,6 +70325,16 @@ namespace Opc.Ua
             if (m_maxPastKeyCount != null)
             {
                 children.Add(m_maxPastKeyCount);
+            }
+
+            if (m_invalidateKeysMethod != null)
+            {
+                children.Add(m_invalidateKeysMethod);
+            }
+
+            if (m_forceKeyRotationMethod != null)
+            {
+                children.Add(m_forceKeyRotationMethod);
             }
 
             base.GetChildren(context, children);
@@ -67221,6 +70462,48 @@ namespace Opc.Ua
                     instance = MaxPastKeyCount;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.InvalidateKeys:
+                {
+                    if (createOrReplace)
+                    {
+                        if (InvalidateKeys == null)
+                        {
+                            if (replacement == null)
+                            {
+                                InvalidateKeys = new MethodState(this);
+                            }
+                            else
+                            {
+                                InvalidateKeys = (MethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = InvalidateKeys;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.ForceKeyRotation:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ForceKeyRotation == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ForceKeyRotation = new MethodState(this);
+                            }
+                            else
+                            {
+                                ForceKeyRotation = (MethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ForceKeyRotation;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -67238,8 +70521,1711 @@ namespace Opc.Ua
         private PropertyState<string> m_securityPolicyUri;
         private PropertyState<uint> m_maxFutureKeyCount;
         private PropertyState<uint> m_maxPastKeyCount;
+        private MethodState m_invalidateKeysMethod;
+        private MethodState m_forceKeyRotationMethod;
         #endregion
     }
+    #endif
+    #endregion
+
+    #region ConnectSecurityGroupsMethodState Class
+    #if (!OPCUA_EXCLUDE_ConnectSecurityGroupsMethodState)
+    /// <summary>
+    /// Stores an instance of the ConnectSecurityGroupsMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class ConnectSecurityGroupsMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public ConnectSecurityGroupsMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new ConnectSecurityGroupsMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAHwAAAENvbm5lY3RTZWN1cml0eUdyb3Vwc01ldGhvZFR5cGUBAPNiAC8B" +
+           "APNi82IAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQD0YgAuAET0YgAAlgEA" +
+           "AAABACoBASMAAAAQAAAAU2VjdXJpdHlHcm91cElkcwARAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEA" +
+           "AAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAPViAC4ARPViAACWAQAAAAEA" +
+           "KgEBIQAAAA4AAABDb25uZWN0UmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEAAAABAf//" +
+           "//8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public ConnectSecurityGroupsMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            NodeId[] securityGroupIds = (NodeId[])_inputArguments[0];
+
+            StatusCode[] connectResults = (StatusCode[])_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    securityGroupIds,
+                    ref connectResults);
+            }
+
+            _outputArguments[0] = connectResults;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult ConnectSecurityGroupsMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId[] securityGroupIds,
+        ref StatusCode[] connectResults);
+    #endif
+    #endregion
+
+    #region DisconnectSecurityGroupsMethodState Class
+    #if (!OPCUA_EXCLUDE_DisconnectSecurityGroupsMethodState)
+    /// <summary>
+    /// Stores an instance of the DisconnectSecurityGroupsMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class DisconnectSecurityGroupsMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public DisconnectSecurityGroupsMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new DisconnectSecurityGroupsMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAIgAAAERpc2Nvbm5lY3RTZWN1cml0eUdyb3Vwc01ldGhvZFR5cGUBAPZi" +
+           "AC8BAPZi9mIAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQD3YgAuAET3YgAA" +
+           "lgEAAAABACoBASMAAAAQAAAAU2VjdXJpdHlHcm91cElkcwARAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAA" +
+           "AAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAPhiAC4ARPhiAACWAQAA" +
+           "AAEAKgEBJAAAABEAAABEaXNjb25uZWN0UmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEA" +
+           "AAABAf////8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public DisconnectSecurityGroupsMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            NodeId[] securityGroupIds = (NodeId[])_inputArguments[0];
+
+            StatusCode[] disconnectResults = (StatusCode[])_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    securityGroupIds,
+                    ref disconnectResults);
+            }
+
+            _outputArguments[0] = disconnectResults;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult DisconnectSecurityGroupsMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId[] securityGroupIds,
+        ref StatusCode[] disconnectResults);
+    #endif
+    #endregion
+
+    #region PubSubKeyPushTargetState Class
+    #if (!OPCUA_EXCLUDE_PubSubKeyPushTargetState)
+    /// <summary>
+    /// Stores an instance of the PubSubKeyPushTargetType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class PubSubKeyPushTargetState : BaseObjectState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public PubSubKeyPushTargetState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubKeyPushTargetType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAAHwAAAFB1YlN1YktleVB1c2hUYXJnZXRUeXBlSW5zdGFuY2UBAPliAQD5" +
+           "YvliAAD/////CwAAABVgiQoCAAAAAAAOAAAAQXBwbGljYXRpb25VcmkBACJkAC4ARCJkAAAADP////8B" +
+           "Af////8AAAAAFWCJCgIAAAAAAAsAAABFbmRwb2ludFVybAEAI2QALgBEI2QAAAAM/////wEB/////wAA" +
+           "AAAVYIkKAgAAAAAAEQAAAFNlY3VyaXR5UG9saWN5VXJpAQD8YgAuAET8YgAAAAz/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAAANAAAAVXNlclRva2VuVHlwZQEAJGQALgBEJGQAAAEAMAH/////AQH/////AAAAABVg" +
+           "iQoCAAAAAAARAAAAUmVxdWVzdGVkS2V5Q291bnQBACVkAC4ARCVkAAAABf////8BAf////8AAAAAFWCJ" +
+           "CgIAAAAAAA0AAABSZXRyeUludGVydmFsAQAmZAAuAEQmZAAAAQAiAf////8BAf////8AAAAAFWCJCgIA" +
+           "AAAAABUAAABMYXN0UHVzaEV4ZWN1dGlvblRpbWUBACdkAC4ARCdkAAAADf////8BAf////8AAAAAFWCJ" +
+           "CgIAAAAAABEAAABMYXN0UHVzaEVycm9yVGltZQEAKGQALgBEKGQAAAAN/////wEB/////wAAAAAEYYIK" +
+           "BAAAAAAAFQAAAENvbm5lY3RTZWN1cml0eUdyb3VwcwEAKWQALwEAKWQpZAAAAQH/////AgAAABdgqQoC" +
+           "AAAAAAAOAAAASW5wdXRBcmd1bWVudHMBACpkAC4ARCpkAACWAQAAAAEAKgEBIwAAABAAAABTZWN1cml0" +
+           "eUdyb3VwSWRzABEBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAA" +
+           "DwAAAE91dHB1dEFyZ3VtZW50cwEAK2QALgBEK2QAAJYBAAAAAQAqAQEhAAAADgAAAENvbm5lY3RSZXN1" +
+           "bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAAGAAAAERp" +
+           "c2Nvbm5lY3RTZWN1cml0eUdyb3VwcwEALGQALwEALGQsZAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAA" +
+           "SW5wdXRBcmd1bWVudHMBAC1kAC4ARC1kAACWAQAAAAEAKgEBIwAAABAAAABTZWN1cml0eUdyb3VwSWRz" +
+           "ABEBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1" +
+           "dEFyZ3VtZW50cwEALmQALgBELmQAAJYBAAAAAQAqAQEkAAAAEQAAAERpc2Nvbm5lY3RSZXN1bHRzABMB" +
+           "AAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAAEAAAAFRyaWdnZXJL" +
+           "ZXlVcGRhdGUBAC9kAC8BAC9kL2QAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public PropertyState<string> ApplicationUri
+        {
+            get
+            {
+                return m_applicationUri;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_applicationUri, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_applicationUri = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<string> EndpointUrl
+        {
+            get
+            {
+                return m_endpointUrl;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_endpointUrl, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_endpointUrl = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<string> SecurityPolicyUri
+        {
+            get
+            {
+                return m_securityPolicyUri;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_securityPolicyUri, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_securityPolicyUri = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<UserTokenPolicy> UserTokenType
+        {
+            get
+            {
+                return m_userTokenType;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_userTokenType, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_userTokenType = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<ushort> RequestedKeyCount
+        {
+            get
+            {
+                return m_requestedKeyCount;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_requestedKeyCount, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_requestedKeyCount = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<double> RetryInterval
+        {
+            get
+            {
+                return m_retryInterval;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_retryInterval, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_retryInterval = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<DateTime> LastPushExecutionTime
+        {
+            get
+            {
+                return m_lastPushExecutionTime;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_lastPushExecutionTime, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_lastPushExecutionTime = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<DateTime> LastPushErrorTime
+        {
+            get
+            {
+                return m_lastPushErrorTime;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_lastPushErrorTime, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_lastPushErrorTime = value;
+            }
+        }
+
+        /// <remarks />
+        public ConnectSecurityGroupsMethodState ConnectSecurityGroups
+        {
+            get
+            {
+                return m_connectSecurityGroupsMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_connectSecurityGroupsMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_connectSecurityGroupsMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public DisconnectSecurityGroupsMethodState DisconnectSecurityGroups
+        {
+            get
+            {
+                return m_disconnectSecurityGroupsMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_disconnectSecurityGroupsMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_disconnectSecurityGroupsMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public MethodState TriggerKeyUpdate
+        {
+            get
+            {
+                return m_triggerKeyUpdateMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_triggerKeyUpdateMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_triggerKeyUpdateMethod = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_applicationUri != null)
+            {
+                children.Add(m_applicationUri);
+            }
+
+            if (m_endpointUrl != null)
+            {
+                children.Add(m_endpointUrl);
+            }
+
+            if (m_securityPolicyUri != null)
+            {
+                children.Add(m_securityPolicyUri);
+            }
+
+            if (m_userTokenType != null)
+            {
+                children.Add(m_userTokenType);
+            }
+
+            if (m_requestedKeyCount != null)
+            {
+                children.Add(m_requestedKeyCount);
+            }
+
+            if (m_retryInterval != null)
+            {
+                children.Add(m_retryInterval);
+            }
+
+            if (m_lastPushExecutionTime != null)
+            {
+                children.Add(m_lastPushExecutionTime);
+            }
+
+            if (m_lastPushErrorTime != null)
+            {
+                children.Add(m_lastPushErrorTime);
+            }
+
+            if (m_connectSecurityGroupsMethod != null)
+            {
+                children.Add(m_connectSecurityGroupsMethod);
+            }
+
+            if (m_disconnectSecurityGroupsMethod != null)
+            {
+                children.Add(m_disconnectSecurityGroupsMethod);
+            }
+
+            if (m_triggerKeyUpdateMethod != null)
+            {
+                children.Add(m_triggerKeyUpdateMethod);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.ApplicationUri:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ApplicationUri == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ApplicationUri = new PropertyState<string>(this);
+                            }
+                            else
+                            {
+                                ApplicationUri = (PropertyState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ApplicationUri;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.EndpointUrl:
+                {
+                    if (createOrReplace)
+                    {
+                        if (EndpointUrl == null)
+                        {
+                            if (replacement == null)
+                            {
+                                EndpointUrl = new PropertyState<string>(this);
+                            }
+                            else
+                            {
+                                EndpointUrl = (PropertyState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = EndpointUrl;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.SecurityPolicyUri:
+                {
+                    if (createOrReplace)
+                    {
+                        if (SecurityPolicyUri == null)
+                        {
+                            if (replacement == null)
+                            {
+                                SecurityPolicyUri = new PropertyState<string>(this);
+                            }
+                            else
+                            {
+                                SecurityPolicyUri = (PropertyState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = SecurityPolicyUri;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.UserTokenType:
+                {
+                    if (createOrReplace)
+                    {
+                        if (UserTokenType == null)
+                        {
+                            if (replacement == null)
+                            {
+                                UserTokenType = new PropertyState<UserTokenPolicy>(this);
+                            }
+                            else
+                            {
+                                UserTokenType = (PropertyState<UserTokenPolicy>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = UserTokenType;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.RequestedKeyCount:
+                {
+                    if (createOrReplace)
+                    {
+                        if (RequestedKeyCount == null)
+                        {
+                            if (replacement == null)
+                            {
+                                RequestedKeyCount = new PropertyState<ushort>(this);
+                            }
+                            else
+                            {
+                                RequestedKeyCount = (PropertyState<ushort>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = RequestedKeyCount;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.RetryInterval:
+                {
+                    if (createOrReplace)
+                    {
+                        if (RetryInterval == null)
+                        {
+                            if (replacement == null)
+                            {
+                                RetryInterval = new PropertyState<double>(this);
+                            }
+                            else
+                            {
+                                RetryInterval = (PropertyState<double>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = RetryInterval;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.LastPushExecutionTime:
+                {
+                    if (createOrReplace)
+                    {
+                        if (LastPushExecutionTime == null)
+                        {
+                            if (replacement == null)
+                            {
+                                LastPushExecutionTime = new PropertyState<DateTime>(this);
+                            }
+                            else
+                            {
+                                LastPushExecutionTime = (PropertyState<DateTime>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = LastPushExecutionTime;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.LastPushErrorTime:
+                {
+                    if (createOrReplace)
+                    {
+                        if (LastPushErrorTime == null)
+                        {
+                            if (replacement == null)
+                            {
+                                LastPushErrorTime = new PropertyState<DateTime>(this);
+                            }
+                            else
+                            {
+                                LastPushErrorTime = (PropertyState<DateTime>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = LastPushErrorTime;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.ConnectSecurityGroups:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ConnectSecurityGroups == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ConnectSecurityGroups = new ConnectSecurityGroupsMethodState(this);
+                            }
+                            else
+                            {
+                                ConnectSecurityGroups = (ConnectSecurityGroupsMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ConnectSecurityGroups;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.DisconnectSecurityGroups:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DisconnectSecurityGroups == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DisconnectSecurityGroups = new DisconnectSecurityGroupsMethodState(this);
+                            }
+                            else
+                            {
+                                DisconnectSecurityGroups = (DisconnectSecurityGroupsMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DisconnectSecurityGroups;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.TriggerKeyUpdate:
+                {
+                    if (createOrReplace)
+                    {
+                        if (TriggerKeyUpdate == null)
+                        {
+                            if (replacement == null)
+                            {
+                                TriggerKeyUpdate = new MethodState(this);
+                            }
+                            else
+                            {
+                                TriggerKeyUpdate = (MethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = TriggerKeyUpdate;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private PropertyState<string> m_applicationUri;
+        private PropertyState<string> m_endpointUrl;
+        private PropertyState<string> m_securityPolicyUri;
+        private PropertyState<UserTokenPolicy> m_userTokenType;
+        private PropertyState<ushort> m_requestedKeyCount;
+        private PropertyState<double> m_retryInterval;
+        private PropertyState<DateTime> m_lastPushExecutionTime;
+        private PropertyState<DateTime> m_lastPushErrorTime;
+        private ConnectSecurityGroupsMethodState m_connectSecurityGroupsMethod;
+        private DisconnectSecurityGroupsMethodState m_disconnectSecurityGroupsMethod;
+        private MethodState m_triggerKeyUpdateMethod;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region PubSubKeyPushTargetFolderState Class
+    #if (!OPCUA_EXCLUDE_PubSubKeyPushTargetFolderState)
+    /// <summary>
+    /// Stores an instance of the PubSubKeyPushTargetFolderType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class PubSubKeyPushTargetFolderState : FolderState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public PubSubKeyPushTargetFolderState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubKeyPushTargetFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+
+            if (AddPushTargetFolder != null)
+            {
+                AddPushTargetFolder.Initialize(context, AddPushTargetFolder_InitializationString);
+            }
+
+            if (RemovePushTargetFolder != null)
+            {
+                RemovePushTargetFolder.Initialize(context, RemovePushTargetFolder_InitializationString);
+            }
+        }
+
+        #region Initialization String
+        private const string AddPushTargetFolder_InitializationString =
+           "//////////8EYYIKBAAAAAAAEwAAAEFkZFB1c2hUYXJnZXRGb2xkZXIBABtjAC8BABtjG2MAAAEB////" +
+           "/wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAcYwAuAEQcYwAAlgEAAAABACoBARMAAAAE" +
+           "AAAATmFtZQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91" +
+           "dHB1dEFyZ3VtZW50cwEAHWMALgBEHWMAAJYBAAAAAQAqAQElAAAAFgAAAFB1c2hUYXJnZXRGb2xkZXJO" +
+           "b2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
+
+        private const string RemovePushTargetFolder_InitializationString =
+           "//////////8EYYIKBAAAAAAAFgAAAFJlbW92ZVB1c2hUYXJnZXRGb2xkZXIBAB5jAC8BAB5jHmMAAAEB" +
+           "/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAfYwAuAEQfYwAAlgEAAAABACoBASUA" +
+           "AAAWAAAAUHVzaFRhcmdldEZvbGRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB////" +
+           "/wAAAAA=";
+
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAAJQAAAFB1YlN1YktleVB1c2hUYXJnZXRGb2xkZXJUeXBlSW5zdGFuY2UB" +
+           "AAJjAQACYwJjAAD/////BAAAAARhggoEAAAAAAANAAAAQWRkUHVzaFRhcmdldAEAFmMALwEAFmMWYwAA" +
+           "AQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBABdjAC4ARBdjAACWBgAAAAEAKgEB" +
+           "HQAAAA4AAABBcHBsaWNhdGlvblVyaQAM/////wAAAAAAAQAqAQEaAAAACwAAAEVuZHBvaW50VXJsAAz/" +
+           "////AAAAAAABACoBASAAAAARAAAAU2VjdXJpdHlQb2xpY3lVcmkADP////8AAAAAAAEAKgEBHgAAAA0A" +
+           "AABVc2VyVG9rZW5UeXBlAQAwAf////8AAAAAAAEAKgEBIAAAABEAAABSZXF1ZXN0ZWRLZXlDb3VudAAF" +
+           "/////wAAAAAAAQAqAQEeAAAADQAAAFJldHJ5SW50ZXJ2YWwBACIB/////wAAAAAAAQAoAQEAAAABAAAA" +
+           "BgAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAGGMALgBEGGMAAJYBAAAA" +
+           "AQAqAQEbAAAADAAAAFB1c2hUYXJnZXRJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAA" +
+           "AAAEYYIKBAAAAAAAEAAAAFJlbW92ZVB1c2hUYXJnZXQBABljAC8BABljGWMAAAEB/////wEAAAAXYKkK" +
+           "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAaYwAuAEQaYwAAlgEAAAABACoBARsAAAAMAAAAUHVzaFRh" +
+           "cmdldElkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAATAAAAQWRk" +
+           "UHVzaFRhcmdldEZvbGRlcgEAG2MALwEAG2MbYwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRB" +
+           "cmd1bWVudHMBABxjAC4ARBxjAACWAQAAAAEAKgEBEwAAAAQAAABOYW1lAAz/////AAAAAAABACgBAQAA" +
+           "AAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAdYwAuAEQdYwAA" +
+           "lgEAAAABACoBASUAAAAWAAAAUHVzaFRhcmdldEZvbGRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAAB" +
+           "AAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAAFgAAAFJlbW92ZVB1c2hUYXJnZXRGb2xkZXIBAB5jAC8B" +
+           "AB5jHmMAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAfYwAuAEQfYwAAlgEA" +
+           "AAABACoBASUAAAAWAAAAUHVzaFRhcmdldEZvbGRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAA" +
+           "AQAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public AddPushTargetMethodState AddPushTarget
+        {
+            get
+            {
+                return m_addPushTargetMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_addPushTargetMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_addPushTargetMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public RemovePushTargetMethodState RemovePushTarget
+        {
+            get
+            {
+                return m_removePushTargetMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_removePushTargetMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_removePushTargetMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public AddPushTargetFolderMethodState AddPushTargetFolder
+        {
+            get
+            {
+                return m_addPushTargetFolderMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_addPushTargetFolderMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_addPushTargetFolderMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public RemovePushTargetFolderMethodState RemovePushTargetFolder
+        {
+            get
+            {
+                return m_removePushTargetFolderMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_removePushTargetFolderMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_removePushTargetFolderMethod = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_addPushTargetMethod != null)
+            {
+                children.Add(m_addPushTargetMethod);
+            }
+
+            if (m_removePushTargetMethod != null)
+            {
+                children.Add(m_removePushTargetMethod);
+            }
+
+            if (m_addPushTargetFolderMethod != null)
+            {
+                children.Add(m_addPushTargetFolderMethod);
+            }
+
+            if (m_removePushTargetFolderMethod != null)
+            {
+                children.Add(m_removePushTargetFolderMethod);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.AddPushTarget:
+                {
+                    if (createOrReplace)
+                    {
+                        if (AddPushTarget == null)
+                        {
+                            if (replacement == null)
+                            {
+                                AddPushTarget = new AddPushTargetMethodState(this);
+                            }
+                            else
+                            {
+                                AddPushTarget = (AddPushTargetMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = AddPushTarget;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.RemovePushTarget:
+                {
+                    if (createOrReplace)
+                    {
+                        if (RemovePushTarget == null)
+                        {
+                            if (replacement == null)
+                            {
+                                RemovePushTarget = new RemovePushTargetMethodState(this);
+                            }
+                            else
+                            {
+                                RemovePushTarget = (RemovePushTargetMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = RemovePushTarget;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.AddPushTargetFolder:
+                {
+                    if (createOrReplace)
+                    {
+                        if (AddPushTargetFolder == null)
+                        {
+                            if (replacement == null)
+                            {
+                                AddPushTargetFolder = new AddPushTargetFolderMethodState(this);
+                            }
+                            else
+                            {
+                                AddPushTargetFolder = (AddPushTargetFolderMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = AddPushTargetFolder;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.RemovePushTargetFolder:
+                {
+                    if (createOrReplace)
+                    {
+                        if (RemovePushTargetFolder == null)
+                        {
+                            if (replacement == null)
+                            {
+                                RemovePushTargetFolder = new RemovePushTargetFolderMethodState(this);
+                            }
+                            else
+                            {
+                                RemovePushTargetFolder = (RemovePushTargetFolderMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = RemovePushTargetFolder;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private AddPushTargetMethodState m_addPushTargetMethod;
+        private RemovePushTargetMethodState m_removePushTargetMethod;
+        private AddPushTargetFolderMethodState m_addPushTargetFolderMethod;
+        private RemovePushTargetFolderMethodState m_removePushTargetFolderMethod;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region AddPushTargetMethodState Class
+    #if (!OPCUA_EXCLUDE_AddPushTargetMethodState)
+    /// <summary>
+    /// Stores an instance of the AddPushTargetMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class AddPushTargetMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public AddPushTargetMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new AddPushTargetMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAFwAAAEFkZFB1c2hUYXJnZXRNZXRob2RUeXBlAQAgYwAvAQAgYyBjAAAB" +
+           "Af////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAIWMALgBEIWMAAJYGAAAAAQAqAQEd" +
+           "AAAADgAAAEFwcGxpY2F0aW9uVXJpAAz/////AAAAAAABACoBARoAAAALAAAARW5kcG9pbnRVcmwADP//" +
+           "//8AAAAAAAEAKgEBIAAAABEAAABTZWN1cml0eVBvbGljeVVyaQAM/////wAAAAAAAQAqAQEeAAAADQAA" +
+           "AFVzZXJUb2tlblR5cGUBADAB/////wAAAAAAAQAqAQEgAAAAEQAAAFJlcXVlc3RlZEtleUNvdW50AAX/" +
+           "////AAAAAAABACoBAR4AAAANAAAAUmV0cnlJbnRlcnZhbAEAIgH/////AAAAAAABACgBAQAAAAEAAAAG" +
+           "AAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAiYwAuAEQiYwAAlgEAAAAB" +
+           "ACoBARsAAAAMAAAAUHVzaFRhcmdldElkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAA" +
+           "AA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public AddPushTargetMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            string applicationUri = (string)_inputArguments[0];
+            string endpointUrl = (string)_inputArguments[1];
+            string securityPolicyUri = (string)_inputArguments[2];
+            UserTokenPolicy userTokenType = (UserTokenPolicy)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[3]);
+            ushort requestedKeyCount = (ushort)_inputArguments[4];
+            double retryInterval = (double)_inputArguments[5];
+
+            NodeId pushTargetId = (NodeId)_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationUri,
+                    endpointUrl,
+                    securityPolicyUri,
+                    userTokenType,
+                    requestedKeyCount,
+                    retryInterval,
+                    ref pushTargetId);
+            }
+
+            _outputArguments[0] = pushTargetId;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult AddPushTargetMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string applicationUri,
+        string endpointUrl,
+        string securityPolicyUri,
+        UserTokenPolicy userTokenType,
+        ushort requestedKeyCount,
+        double retryInterval,
+        ref NodeId pushTargetId);
+    #endif
+    #endregion
+
+    #region RemovePushTargetMethodState Class
+    #if (!OPCUA_EXCLUDE_RemovePushTargetMethodState)
+    /// <summary>
+    /// Stores an instance of the RemovePushTargetMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class RemovePushTargetMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public RemovePushTargetMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new RemovePushTargetMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAGgAAAFJlbW92ZVB1c2hUYXJnZXRNZXRob2RUeXBlAQAjYwAvAQAjYyNj" +
+           "AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAJGMALgBEJGMAAJYBAAAAAQAq" +
+           "AQEbAAAADAAAAFB1c2hUYXJnZXRJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public RemovePushTargetMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            NodeId pushTargetId = (NodeId)_inputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    pushTargetId);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult RemovePushTargetMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId pushTargetId);
+    #endif
+    #endregion
+
+    #region AddPushTargetFolderMethodState Class
+    #if (!OPCUA_EXCLUDE_AddPushTargetFolderMethodState)
+    /// <summary>
+    /// Stores an instance of the AddPushTargetFolderMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class AddPushTargetFolderMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public AddPushTargetFolderMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new AddPushTargetFolderMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAHQAAAEFkZFB1c2hUYXJnZXRGb2xkZXJNZXRob2RUeXBlAQAlYwAvAQAl" +
+           "YyVjAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAJmMALgBEJmMAAJYBAAAA" +
+           "AQAqAQETAAAABAAAAE5hbWUADP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIA" +
+           "AAAAAA8AAABPdXRwdXRBcmd1bWVudHMBACdjAC4ARCdjAACWAQAAAAEAKgEBJQAAABYAAABQdXNoVGFy" +
+           "Z2V0Rm9sZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public AddPushTargetFolderMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            string name = (string)_inputArguments[0];
+
+            NodeId pushTargetFolderNodeId = (NodeId)_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    name,
+                    ref pushTargetFolderNodeId);
+            }
+
+            _outputArguments[0] = pushTargetFolderNodeId;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult AddPushTargetFolderMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string name,
+        ref NodeId pushTargetFolderNodeId);
+    #endif
+    #endregion
+
+    #region RemovePushTargetFolderMethodState Class
+    #if (!OPCUA_EXCLUDE_RemovePushTargetFolderMethodState)
+    /// <summary>
+    /// Stores an instance of the RemovePushTargetFolderMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class RemovePushTargetFolderMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public RemovePushTargetFolderMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new RemovePushTargetFolderMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAIAAAAFJlbW92ZVB1c2hUYXJnZXRGb2xkZXJNZXRob2RUeXBlAQAoYwAv" +
+           "AQAoYyhjAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAKWMALgBEKWMAAJYB" +
+           "AAAAAQAqAQElAAAAFgAAAFB1c2hUYXJnZXRGb2xkZXJOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAA" +
+           "AAEAAAABAf////8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public RemovePushTargetFolderMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            NodeId pushTargetFolderNodeId = (NodeId)_inputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    pushTargetFolderNodeId);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult RemovePushTargetFolderMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId pushTargetFolderNodeId);
     #endif
     #endregion
 
@@ -67310,9 +72296,39 @@ namespace Opc.Ua
                 RemoveConnection.Initialize(context, RemoveConnection_InitializationString);
             }
 
+            if (SubscribedDataSets != null)
+            {
+                SubscribedDataSets.Initialize(context, SubscribedDataSets_InitializationString);
+            }
+
+            if (PubSubConfiguration != null)
+            {
+                PubSubConfiguration.Initialize(context, PubSubConfiguration_InitializationString);
+            }
+
             if (Diagnostics != null)
             {
                 Diagnostics.Initialize(context, Diagnostics_InitializationString);
+            }
+
+            if (PubSubCapablities != null)
+            {
+                PubSubCapablities.Initialize(context, PubSubCapablities_InitializationString);
+            }
+
+            if (DataSetClasses != null)
+            {
+                DataSetClasses.Initialize(context, DataSetClasses_InitializationString);
+            }
+
+            if (DefaultDatagramPublisherId != null)
+            {
+                DefaultDatagramPublisherId.Initialize(context, DefaultDatagramPublisherId_InitializationString);
+            }
+
+            if (ConfigurationVersion != null)
+            {
+                ConfigurationVersion.Initialize(context, ConfigurationVersion_InitializationString);
             }
         }
 
@@ -67324,19 +72340,67 @@ namespace Opc.Ua
            "/wAAAAAAAQAqAQEfAAAADgAAAEN1cnJlbnRUb2tlbklkAQAgAf////8AAAAAAAEAKgEBGQAAAAoAAABD" +
            "dXJyZW50S2V5AA//////AAAAAAABACoBAR0AAAAKAAAARnV0dXJlS2V5cwAPAQAAAAEAAAAAAAAAAAEA" +
            "KgEBHgAAAA0AAABUaW1lVG9OZXh0S2V5AQAiAf////8AAAAAAAEAKgEBHAAAAAsAAABLZXlMaWZldGlt" +
-           "ZQEAIgH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "ZQEAIgH/////AAAAAAABACgBAQAAAAEAAAAHAAAAAQH/////AAAAAA==";
 
         private const string AddConnection_InitializationString =
            "//////////8EYYIKBAAAAAAADQAAAEFkZENvbm5lY3Rpb24BANZAAC8BANZA1kAAAAEB/////wIAAAAX" +
            "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDXQAAuAETXQAAAlgEAAAABACoBAR4AAAANAAAAQ29u" +
-           "ZmlndXJhdGlvbgEAAT3/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
+           "ZmlndXJhdGlvbgEAAT3/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
            "AAAAT3V0cHV0QXJndW1lbnRzAQDYQAAuAETYQAAAlgEAAAABACoBARsAAAAMAAAAQ29ubmVjdGlvbklk" +
-           "ABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "ABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
 
         private const string RemoveConnection_InitializationString =
            "//////////8EYYIKBAAAAAAAEAAAAFJlbW92ZUNvbm5lY3Rpb24BAGA4AC8BAGA4YDgAAAEB/////wEA" +
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBhOAAuAERhOAAAlgEAAAABACoBARsAAAAMAAAA" +
-           "Q29ubmVjdGlvbklkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "Q29ubmVjdGlvbklkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
+
+        private const string SubscribedDataSets_InitializationString =
+           "//////////8EYIAKAQAAAAAAEgAAAFN1YnNjcmliZWREYXRhU2V0cwEARlwALwEA81xGXAAA/////wAA" +
+           "AAA=";
+
+        private const string PubSubConfiguration_InitializationString =
+           "//////////8EYIAKAQAAAAAAEwAAAFB1YlN1YkNvbmZpZ3VyYXRpb24BADtjAC8BAIpjO2MAAP////8M" +
+           "AAAAFWCJCgIAAAAAAAQAAABTaXplAQA8YwAuAEQ8YwAAAAn/////AQH/////AAAAABVgiQoCAAAAAAAI" +
+           "AAAAV3JpdGFibGUBAD1jAC4ARD1jAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABVc2VyV3Jp" +
+           "dGFibGUBAD5jAC4ARD5jAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABPcGVuQ291bnQBAD9j" +
+           "AC4ARD9jAAAABf////8BAf////8AAAAABGGCCgQAAAAAAAQAAABPcGVuAQBDYwAvAQA8LUNjAAABAf//" +
+           "//8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEARGMALgBERGMAAJYBAAAAAQAqAQETAAAA" +
+           "BAAAAE1vZGUAA/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABP" +
+           "dXRwdXRBcmd1bWVudHMBAEVjAC4AREVjAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////" +
+           "AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAQ2xvc2UBAEZjAC8BAD8t" +
+           "RmMAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBHYwAuAERHYwAAlgEAAAAB" +
+           "ACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAE" +
+           "YYIKBAAAAAAABAAAAFJlYWQBAEhjAC8BAEEtSGMAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0" +
+           "QXJndW1lbnRzAQBJYwAuAERJYwAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAA" +
+           "AQAqAQEVAAAABgAAAExlbmd0aAAG/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAXYKkK" +
+           "AgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEASmMALgBESmMAAJYBAAAAAQAqAQETAAAABAAAAERhdGEA" +
+           "D/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABXcml0ZQEAS2MA" +
+           "LwEARC1LYwAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAExjAC4ARExjAACW" +
+           "AgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARMAAAAEAAAARGF0YQAP////" +
+           "/wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAEdldFBvc2l0aW9uAQBN" +
+           "YwAvAQBGLU1jAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEATmMALgBETmMA" +
+           "AJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf//" +
+           "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAE9jAC4ARE9jAACWAQAAAAEAKgEBFwAA" +
+           "AAgAAABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAA" +
+           "CwAAAFNldFBvc2l0aW9uAQBQYwAvAQBJLVBjAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
+           "Z3VtZW50cwEAUWMALgBEUWMAAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEA" +
+           "KgEBFwAAAAgAAABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAEYYIK" +
+           "BAAAAAAACgAAAFJlc2VydmVJZHMBAFJjAC8BAKFjUmMAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElu" +
+           "cHV0QXJndW1lbnRzAQBTYwAuAERTYwAAlgMAAAABACoBASIAAAATAAAAVHJhbnNwb3J0UHJvZmlsZVVy" +
+           "aQAM/////wAAAAAAAQAqAQEjAAAAFAAAAE51bVJlcVdyaXRlckdyb3VwSWRzAAX/////AAAAAAABACoB" +
+           "ASUAAAAWAAAATnVtUmVxRGF0YVNldFdyaXRlcklkcwAF/////wAAAAAAAQAoAQEAAAABAAAAAwAAAAEB" +
+           "/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAVGMALgBEVGMAAJYDAAAAAQAqAQEh" +
+           "AAAAEgAAAERlZmF1bHRQdWJsaXNoZXJJZAAY/////wAAAAAAAQAqAQEdAAAADgAAAFdyaXRlckdyb3Vw" +
+           "SWRzAAX/////AAAAAAABACoBAR8AAAAQAAAARGF0YVNldFdyaXRlcklkcwAF/////wAAAAAAAQAoAQEA" +
+           "AAABAAAAAwAAAAEB/////wAAAAAEYYIKBAAAAAAADgAAAENsb3NlQW5kVXBkYXRlAQBVYwAvAQCkY1Vj" +
+           "AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAVmMALgBEVmMAAJYDAAAAAQAq" +
+           "AQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBJAAAABUAAABSZXF1aXJlQ29tcGxldGVV" +
+           "cGRhdGUAAf////8AAAAAAAEAKgEBLAAAABcAAABDb25maWd1cmF0aW9uUmVmZXJlbmNlcwEAr2MBAAAA" +
+           "AQAAAAAAAAAAAQAoAQEAAAABAAAAAwAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3Vt" +
+           "ZW50cwEAV2MALgBEV2MAAJYEAAAAAQAqAQEdAAAADgAAAENoYW5nZXNBcHBsaWVkAAH/////AAAAAAAB" +
+           "ACoBASQAAAARAAAAUmVmZXJlbmNlc1Jlc3VsdHMAEwEAAAABAAAAAAAAAAABACoBASgAAAATAAAAQ29u" +
+           "ZmlndXJhdGlvblZhbHVlcwEAsGMBAAAAAQAAAAAAAAAAAQAqAQEnAAAAFAAAAENvbmZpZ3VyYXRpb25P" +
+           "YmplY3RzABEBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAABAAAAAEB/////wAAAAA=";
 
         private const string Diagnostics_InitializationString =
            "//////////8EYIAKAQAAAAAACwAAAERpYWdub3N0aWNzAQAbSQAvAQAUTRtJAAD/////BwAAABVgiQoC" +
@@ -67386,71 +72450,143 @@ namespace Opc.Ua
            "AQAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAUEkALgBEUEkAAAYAAAAAAQALTf////8B" +
            "Af////8AAAAA";
 
+        private const string PubSubCapablities_InitializationString =
+           "//////////8EYIAKAQAAAAAAEQAAAFB1YlN1YkNhcGFibGl0aWVzAQBaXAAvAQAYXVpcAAD/////BgAA" +
+           "ABVgiQoCAAAAAAAUAAAATWF4UHViU3ViQ29ubmVjdGlvbnMBAFtcAC4ARFtcAAAAB/////8BAf////8A" +
+           "AAAAFWCJCgIAAAAAAA8AAABNYXhXcml0ZXJHcm91cHMBAFxcAC4ARFxcAAAAB/////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAAA8AAABNYXhSZWFkZXJHcm91cHMBAF1cAC4ARF1cAAAAB/////8BAf////8AAAAAFWCJ" +
+           "CgIAAAAAABEAAABNYXhEYXRhU2V0V3JpdGVycwEAXlwALgBEXlwAAAAH/////wEB/////wAAAAAVYIkK" +
+           "AgAAAAAAEQAAAE1heERhdGFTZXRSZWFkZXJzAQBfXAAuAERfXAAAAAf/////AQH/////AAAAABVgiQoC" +
+           "AAAAAAATAAAATWF4RmllbGRzUGVyRGF0YVNldAEAYFwALgBEYFwAAAAH/////wEB/////wAAAAA=";
+
+        private const string DataSetClasses_InitializationString =
+           "//////////8EYIAKAQAAAAAADgAAAERhdGFTZXRDbGFzc2VzAQBhXAAvAD1hXAAA/////wAAAAA=";
+
+        private const string DefaultDatagramPublisherId_InitializationString =
+           "//////////8VYIkKAgAAAAAAGgAAAERlZmF1bHREYXRhZ3JhbVB1Ymxpc2hlcklkAQBYYwAuAERYYwAA" +
+           "AAn/////AQH/////AAAAAA==";
+
+        private const string ConfigurationVersion_InitializationString =
+           "//////////8VYIkKAgAAAAAAFAAAAENvbmZpZ3VyYXRpb25WZXJzaW9uAQBZYwAuAERZYwAAAQAGUv//" +
+           "//8BAf////8AAAAA";
+
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHAAAAFB1Ymxpc2hTdWJzY3JpYmVUeXBlSW5zdGFuY2UBAFA4AQBQOFA4" +
-           "AAD/////BwAAAARhggoEAAAAAAAPAAAAU2V0U2VjdXJpdHlLZXlzAQCQQwAvAQCQQ5BDAAABAf////8B" +
+           "AAD/////DQAAAARhggoEAAAAAAAPAAAAU2V0U2VjdXJpdHlLZXlzAQCQQwAvAQCQQ5BDAAABAf////8B" +
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAkUMALgBEkUMAAJYHAAAAAQAqAQEeAAAADwAA" +
            "AFNlY3VyaXR5R3JvdXBJZAAM/////wAAAAAAAQAqAQEgAAAAEQAAAFNlY3VyaXR5UG9saWN5VXJpAAz/" +
            "////AAAAAAABACoBAR8AAAAOAAAAQ3VycmVudFRva2VuSWQBACAB/////wAAAAAAAQAqAQEZAAAACgAA" +
            "AEN1cnJlbnRLZXkAD/////8AAAAAAAEAKgEBHQAAAAoAAABGdXR1cmVLZXlzAA8BAAAAAQAAAAAAAAAA" +
            "AQAqAQEeAAAADQAAAFRpbWVUb05leHRLZXkBACIB/////wAAAAAAAQAqAQEcAAAACwAAAEtleUxpZmV0" +
-           "aW1lAQAiAf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAA0AAABBZGRD" +
+           "aW1lAQAiAf////8AAAAAAAEAKAEBAAAAAQAAAAcAAAABAf////8AAAAABGGCCgQAAAAAAA0AAABBZGRD" +
            "b25uZWN0aW9uAQDWQAAvAQDWQNZAAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50" +
            "cwEA10AALgBE10AAAJYBAAAAAQAqAQEeAAAADQAAAENvbmZpZ3VyYXRpb24BAAE9/////wAAAAAAAQAo" +
-           "AQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA2EAALgBE" +
-           "2EAAAJYBAAAAAQAqAQEbAAAADAAAAENvbm5lY3Rpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAA" +
+           "AQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA2EAALgBE" +
+           "2EAAAJYBAAAAAQAqAQEbAAAADAAAAENvbm5lY3Rpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAA" +
            "AAEB/////wAAAAAEYYIKBAAAAAAAEAAAAFJlbW92ZUNvbm5lY3Rpb24BAGA4AC8BAGA4YDgAAAEB////" +
            "/wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBhOAAuAERhOAAAlgEAAAABACoBARsAAAAM" +
-           "AAAAQ29ubmVjdGlvbklkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARggAoBAAAA" +
-           "AAARAAAAUHVibGlzaGVkRGF0YVNldHMBAGI4AC8BAI04YjgAAP////8AAAAABGCACgEAAAAAAAYAAABT" +
-           "dGF0dXMBAOQ9AC8BADM55D0AAP////8BAAAAFWCJCgIAAAAAAAUAAABTdGF0ZQEA5T0ALwA/5T0AAAEA" +
-           "Nzn/////AQH/////AAAAAARggAoBAAAAAAALAAAARGlhZ25vc3RpY3MBABtJAC8BABRNG0kAAP////8H" +
-           "AAAAFWCJCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQAcSQAvAD8cSQAAAQALTf////8BAf////8A" +
-           "AAAAFWCJCgIAAAAAABAAAABUb3RhbEluZm9ybWF0aW9uAQAdSQAvAQANTR1JAAAAB/////8BAf////8D" +
-           "AAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBAB5JAC4ARB5JAAAAAf////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "AA4AAABDbGFzc2lmaWNhdGlvbgEAH0kALgBEH0kAAAEAEk3/////AQH/////AAAAABVgiQoCAAAAAAAQ" +
-           "AAAARGlhZ25vc3RpY3NMZXZlbAEAIEkALgBEIEkAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAK" +
-           "AAAAVG90YWxFcnJvcgEAIkkALwEADU0iSQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0" +
-           "aXZlAQAjSQAuAEQjSQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24B" +
-           "ACRJAC4ARCRJAAABABJN/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwB" +
-           "ACVJAC4ARCVJAAABAAtN/////wEB/////wAAAAAEYYIKBAAAAAAABQAAAFJlc2V0AQAnSQAvAQDpTCdJ" +
-           "AAABAf////8AAAAAFWCJCgIAAAAAAAgAAABTdWJFcnJvcgEAKEkALwA/KEkAAAAB/////wEB/////wAA" +
-           "AAAEYIAKAQAAAAAACAAAAENvdW50ZXJzAQApSQAvADopSQAA/////wYAAAAVYIkKAgAAAAAACgAAAFN0" +
-           "YXRlRXJyb3IBACpJAC8BAA1NKkkAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEA" +
-           "K0kALgBEK0kAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQAsSQAu" +
-           "AEQsSQAABgEAAAABABJN/////wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwB" +
-           "AC1JAC4ARC1JAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAYAAAAU3RhdGVPcGVyYXRp" +
-           "b25hbEJ5TWV0aG9kAQAvSQAvAQANTS9JAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3Rp" +
-           "dmUBADBJAC4ARDBJAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEA" +
-           "MUkALgBEMUkAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xl" +
-           "dmVsAQAySQAuAEQySQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAGAAAAFN0YXRlT3Bl" +
-           "cmF0aW9uYWxCeVBhcmVudAEANEkALwEADU00SQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAA" +
-           "QWN0aXZlAQA1SQAuAEQ1SQAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRp" +
-           "b24BADZJAC4ARDZJAAAGAAAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3Rp" +
-           "Y3NMZXZlbAEAN0kALgBEN0kAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABkAAABTdGF0" +
-           "ZU9wZXJhdGlvbmFsRnJvbUVycm9yAQA5SQAvAQANTTlJAAAAB/////8BAf////8DAAAAFWCJCgIAAAAA" +
-           "AAYAAABBY3RpdmUBADpJAC4ARDpJAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lm" +
-           "aWNhdGlvbgEAO0kALgBEO0kAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFn" +
-           "bm9zdGljc0xldmVsAQA8SQAuAEQ8SQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAEwAA" +
-           "AFN0YXRlUGF1c2VkQnlQYXJlbnQBAD5JAC8BAA1NPkkAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAA" +
-           "BgAAAEFjdGl2ZQEAP0kALgBEP0kAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZp" +
-           "Y2F0aW9uAQBASQAuAERASQAABgAAAAABABJN/////wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdu" +
-           "b3N0aWNzTGV2ZWwBAEFJAC4AREFJAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAVAAAA" +
-           "U3RhdGVEaXNhYmxlZEJ5TWV0aG9kAQBDSQAvAQANTUNJAAAAB/////8BAf////8DAAAAFWCJCgIAAAAA" +
-           "AAYAAABBY3RpdmUBAERJAC4ARERJAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lm" +
-           "aWNhdGlvbgEARUkALgBERUkAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFn" +
-           "bm9zdGljc0xldmVsAQBGSQAuAERGSQAABgAAAAABAAtN/////wEB/////wAAAAAEYIAKAQAAAAAACgAA" +
-           "AExpdmVWYWx1ZXMBAEhJAC8AOkhJAAD/////BAAAABVgiQoCAAAAAAAYAAAAQ29uZmlndXJlZERhdGFT" +
-           "ZXRXcml0ZXJzAQBJSQAvAD9JSQAAAAX/////AQH/////AQAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3Rp" +
-           "Y3NMZXZlbAEASkkALgBESkkAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABgAAABDb25m" +
-           "aWd1cmVkRGF0YVNldFJlYWRlcnMBAEtJAC8AP0tJAAAABf////8BAf////8BAAAAFWCpCgIAAAAAABAA" +
-           "AABEaWFnbm9zdGljc0xldmVsAQBMSQAuAERMSQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAAGQAAAE9wZXJhdGlvbmFsRGF0YVNldFdyaXRlcnMBAE1JAC8AP01JAAAABf////8BAf////8BAAAA" +
-           "FWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQBOSQAuAEROSQAABgAAAAABAAtN/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAAGQAAAE9wZXJhdGlvbmFsRGF0YVNldFJlYWRlcnMBAE9JAC8AP09JAAAABf//" +
-           "//8BAf////8BAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQBQSQAuAERQSQAABgAAAAAB" +
-           "AAtN/////wEB/////wAAAAAXYIkKAgAAAAAAGgAAAFN1cHBvcnRlZFRyYW5zcG9ydFByb2ZpbGVzAQBH" +
-           "RAAuAERHRAAAAAwBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AAAAQ29ubmVjdGlvbklkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARggAoBAAAA" +
+           "AAARAAAAUHVibGlzaGVkRGF0YVNldHMBAGI4AC8BAI04YjgAAP////8AAAAABGCACgEAAAAAABIAAABT" +
+           "dWJzY3JpYmVkRGF0YVNldHMBAEZcAC8BAPNcRlwAAP////8AAAAABGCACgEAAAAAABMAAABQdWJTdWJD" +
+           "b25maWd1cmF0aW9uAQA7YwAvAQCKYztjAAD/////DAAAABVgiQoCAAAAAAAEAAAAU2l6ZQEAPGMALgBE" +
+           "PGMAAAAJ/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFdyaXRhYmxlAQA9YwAuAEQ9YwAAAAH/////" +
+           "AQH/////AAAAABVgiQoCAAAAAAAMAAAAVXNlcldyaXRhYmxlAQA+YwAuAEQ+YwAAAAH/////AQH/////" +
+           "AAAAABVgiQoCAAAAAAAJAAAAT3BlbkNvdW50AQA/YwAuAEQ/YwAAAAX/////AQH/////AAAAAARhggoE" +
+           "AAAAAAAEAAAAT3BlbgEAQ2MALwEAPC1DYwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1" +
+           "bWVudHMBAERjAC4ARERjAACWAQAAAAEAKgEBEwAAAAQAAABNb2RlAAP/////AAAAAAABACgBAQAAAAEA" +
+           "AAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBFYwAuAERFYwAAlgEA" +
+           "AAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAA" +
+           "AAAEYYIKBAAAAAAABQAAAENsb3NlAQBGYwAvAQA/LUZjAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJ" +
+           "bnB1dEFyZ3VtZW50cwEAR2MALgBER2MAAJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8A" +
+           "AAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAQAAABSZWFkAQBIYwAvAQBBLUhj" +
+           "AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEASWMALgBESWMAAJYCAAAAAQAq" +
+           "AQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBFQAAAAYAAABMZW5ndGgABv////8AAAAA" +
+           "AAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAEpj" +
+           "AC4AREpjAACWAQAAAAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/" +
+           "////AAAAAARhggoEAAAAAAAFAAAAV3JpdGUBAEtjAC8BAEQtS2MAAAEB/////wEAAAAXYKkKAgAAAAAA" +
+           "DgAAAElucHV0QXJndW1lbnRzAQBMYwAuAERMYwAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH" +
+           "/////wAAAAAAAQAqAQETAAAABAAAAERhdGEAD/////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8A" +
+           "AAAABGGCCgQAAAAAAAsAAABHZXRQb3NpdGlvbgEATWMALwEARi1NYwAAAQH/////AgAAABdgqQoCAAAA" +
+           "AAAOAAAASW5wdXRBcmd1bWVudHMBAE5jAC4ARE5jAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxl" +
+           "AAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
+           "dW1lbnRzAQBPYwAuAERPYwAAlgEAAAABACoBARcAAAAIAAAAUG9zaXRpb24ACf////8AAAAAAAEAKAEB" +
+           "AAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABTZXRQb3NpdGlvbgEAUGMALwEASS1QYwAA" +
+           "AQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAFFjAC4ARFFjAACWAgAAAAEAKgEB" +
+           "GQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARcAAAAIAAAAUG9zaXRpb24ACf////8AAAAA" +
+           "AAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAABGGCCgQAAAAAAAoAAABSZXNlcnZlSWRzAQBSYwAvAQCh" +
+           "Y1JjAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAU2MALgBEU2MAAJYDAAAA" +
+           "AQAqAQEiAAAAEwAAAFRyYW5zcG9ydFByb2ZpbGVVcmkADP////8AAAAAAAEAKgEBIwAAABQAAABOdW1S" +
+           "ZXFXcml0ZXJHcm91cElkcwAF/////wAAAAAAAQAqAQElAAAAFgAAAE51bVJlcURhdGFTZXRXcml0ZXJJ" +
+           "ZHMABf////8AAAAAAAEAKAEBAAAAAQAAAAMAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRB" +
+           "cmd1bWVudHMBAFRjAC4ARFRjAACWAwAAAAEAKgEBIQAAABIAAABEZWZhdWx0UHVibGlzaGVySWQAGP//" +
+           "//8AAAAAAAEAKgEBHQAAAA4AAABXcml0ZXJHcm91cElkcwAF/////wAAAAAAAQAqAQEfAAAAEAAAAERh" +
+           "dGFTZXRXcml0ZXJJZHMABf////8AAAAAAAEAKAEBAAAAAQAAAAMAAAABAf////8AAAAABGGCCgQAAAAA" +
+           "AA4AAABDbG9zZUFuZFVwZGF0ZQEAVWMALwEApGNVYwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5w" +
+           "dXRBcmd1bWVudHMBAFZjAC4ARFZjAACWAwAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAA" +
+           "AAABACoBASQAAAAVAAAAUmVxdWlyZUNvbXBsZXRlVXBkYXRlAAH/////AAAAAAABACoBASwAAAAXAAAA" +
+           "Q29uZmlndXJhdGlvblJlZmVyZW5jZXMBAK9jAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAMAAAABAf//" +
+           "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAFdjAC4ARFdjAACWBAAAAAEAKgEBHQAA" +
+           "AA4AAABDaGFuZ2VzQXBwbGllZAAB/////wAAAAAAAQAqAQEkAAAAEQAAAFJlZmVyZW5jZXNSZXN1bHRz" +
+           "ABMBAAAAAQAAAAAAAAAAAQAqAQEoAAAAEwAAAENvbmZpZ3VyYXRpb25WYWx1ZXMBALBjAQAAAAEAAAAA" +
+           "AAAAAAEAKgEBJwAAABQAAABDb25maWd1cmF0aW9uT2JqZWN0cwARAQAAAAEAAAAAAAAAAAEAKAEBAAAA" +
+           "AQAAAAQAAAABAf////8AAAAABGCACgEAAAAAAAYAAABTdGF0dXMBAOQ9AC8BADM55D0AAP////8BAAAA" +
+           "FWCJCgIAAAAAAAUAAABTdGF0ZQEA5T0ALwA/5T0AAAEANzn/////AQH/////AAAAAARggAoBAAAAAAAL" +
+           "AAAARGlhZ25vc3RpY3MBABtJAC8BABRNG0kAAP////8HAAAAFWCJCgIAAAAAABAAAABEaWFnbm9zdGlj" +
+           "c0xldmVsAQAcSQAvAD8cSQAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABAAAABUb3RhbEluZm9y" +
+           "bWF0aW9uAQAdSQAvAQANTR1JAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBAB5J" +
+           "AC4ARB5JAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEAH0kALgBE" +
+           "H0kAAAEAEk3/////AQH/////AAAAABVgiQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAIEkALgBE" +
+           "IEkAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAVG90YWxFcnJvcgEAIkkALwEADU0iSQAA" +
+           "AAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0aXZlAQAjSQAuAEQjSQAAAAH/////AQH/////" +
+           "AAAAABVgiQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24BACRJAC4ARCRJAAABABJN/////wEB/////wAA" +
+           "AAAVYIkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBACVJAC4ARCVJAAABAAtN/////wEB/////wAA" +
+           "AAAEYYIKBAAAAAAABQAAAFJlc2V0AQAnSQAvAQDpTCdJAAABAf////8AAAAAFWCJCgIAAAAAAAgAAABT" +
+           "dWJFcnJvcgEAKEkALwA/KEkAAAAB/////wEB/////wAAAAAEYIAKAQAAAAAACAAAAENvdW50ZXJzAQAp" +
+           "SQAvADopSQAA/////wYAAAAVYIkKAgAAAAAACgAAAFN0YXRlRXJyb3IBACpJAC8BAA1NKkkAAAAH////" +
+           "/wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEAK0kALgBEK0kAAAAB/////wEB/////wAAAAAV" +
+           "YKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQAsSQAuAEQsSQAABgEAAAABABJN/////wEB/////wAA" +
+           "AAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBAC1JAC4ARC1JAAAGAAAAAAEAC03/////AQH/" +
+           "////AAAAABVgiQoCAAAAAAAYAAAAU3RhdGVPcGVyYXRpb25hbEJ5TWV0aG9kAQAvSQAvAQANTS9JAAAA" +
+           "B/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBADBJAC4ARDBJAAAAAf////8BAf////8A" +
+           "AAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEAMUkALgBEMUkAAAYAAAAAAQASTf////8BAf//" +
+           "//8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQAySQAuAEQySQAABgAAAAABAAtN////" +
+           "/wEB/////wAAAAAVYIkKAgAAAAAAGAAAAFN0YXRlT3BlcmF0aW9uYWxCeVBhcmVudAEANEkALwEADU00" +
+           "SQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0aXZlAQA1SQAuAEQ1SQAAAAH/////AQH/" +
+           "////AAAAABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24BADZJAC4ARDZJAAAGAAAAAAEAEk3/////" +
+           "AQH/////AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAN0kALgBEN0kAAAYAAAAAAQAL" +
+           "Tf////8BAf////8AAAAAFWCJCgIAAAAAABkAAABTdGF0ZU9wZXJhdGlvbmFsRnJvbUVycm9yAQA5SQAv" +
+           "AQANTTlJAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBADpJAC4ARDpJAAAAAf//" +
+           "//8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEAO0kALgBEO0kAAAYAAAAAAQAS" +
+           "Tf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQA8SQAuAEQ8SQAABgAA" +
+           "AAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAEwAAAFN0YXRlUGF1c2VkQnlQYXJlbnQBAD5JAC8B" +
+           "AA1NPkkAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEAP0kALgBEP0kAAAAB////" +
+           "/wEB/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQBASQAuAERASQAABgAAAAABABJN" +
+           "/////wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBAEFJAC4AREFJAAAGAAAA" +
+           "AAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAVAAAAU3RhdGVEaXNhYmxlZEJ5TWV0aG9kAQBDSQAv" +
+           "AQANTUNJAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBAERJAC4ARERJAAAAAf//" +
+           "//8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEARUkALgBERUkAAAYAAAAAAQAS" +
+           "Tf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQBGSQAuAERGSQAABgAA" +
+           "AAABAAtN/////wEB/////wAAAAAEYIAKAQAAAAAACgAAAExpdmVWYWx1ZXMBAEhJAC8AOkhJAAD/////" +
+           "BAAAABVgiQoCAAAAAAAYAAAAQ29uZmlndXJlZERhdGFTZXRXcml0ZXJzAQBJSQAvAD9JSQAAAAX/////" +
+           "AQH/////AQAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEASkkALgBESkkAAAYAAAAAAQAL" +
+           "Tf////8BAf////8AAAAAFWCJCgIAAAAAABgAAABDb25maWd1cmVkRGF0YVNldFJlYWRlcnMBAEtJAC8A" +
+           "P0tJAAAABf////8BAf////8BAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQBMSQAuAERM" +
+           "SQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAGQAAAE9wZXJhdGlvbmFsRGF0YVNldFdy" +
+           "aXRlcnMBAE1JAC8AP01JAAAABf////8BAf////8BAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xl" +
+           "dmVsAQBOSQAuAEROSQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAGQAAAE9wZXJhdGlv" +
+           "bmFsRGF0YVNldFJlYWRlcnMBAE9JAC8AP09JAAAABf////8BAf////8BAAAAFWCpCgIAAAAAABAAAABE" +
+           "aWFnbm9zdGljc0xldmVsAQBQSQAuAERQSQAABgAAAAABAAtN/////wEB/////wAAAAAEYIAKAQAAAAAA" +
+           "EQAAAFB1YlN1YkNhcGFibGl0aWVzAQBaXAAvAQAYXVpcAAD/////BgAAABVgiQoCAAAAAAAUAAAATWF4" +
+           "UHViU3ViQ29ubmVjdGlvbnMBAFtcAC4ARFtcAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABN" +
+           "YXhXcml0ZXJHcm91cHMBAFxcAC4ARFxcAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABNYXhS" +
+           "ZWFkZXJHcm91cHMBAF1cAC4ARF1cAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABEAAABNYXhEYXRh" +
+           "U2V0V3JpdGVycwEAXlwALgBEXlwAAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAEQAAAE1heERhdGFT" +
+           "ZXRSZWFkZXJzAQBfXAAuAERfXAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAATAAAATWF4RmllbGRz" +
+           "UGVyRGF0YVNldAEAYFwALgBEYFwAAAAH/////wEB/////wAAAAAEYIAKAQAAAAAADgAAAERhdGFTZXRD" +
+           "bGFzc2VzAQBhXAAvAD1hXAAA/////wAAAAAXYIkKAgAAAAAAGgAAAFN1cHBvcnRlZFRyYW5zcG9ydFBy" +
+           "b2ZpbGVzAQBHRAAuAERHRAAAAAwBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAABoAAABEZWZh" +
+           "dWx0RGF0YWdyYW1QdWJsaXNoZXJJZAEAWGMALgBEWGMAAAAJ/////wEB/////wAAAAAVYIkKAgAAAAAA" +
+           "FAAAAENvbmZpZ3VyYXRpb25WZXJzaW9uAQBZYwAuAERZYwAAAQAGUv////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -67533,6 +72669,44 @@ namespace Opc.Ua
         }
 
         /// <remarks />
+        public SubscribedDataSetFolderState SubscribedDataSets
+        {
+            get
+            {
+                return m_subscribedDataSets;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_subscribedDataSets, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_subscribedDataSets = value;
+            }
+        }
+
+        /// <remarks />
+        public PubSubConfigurationState PubSubConfiguration
+        {
+            get
+            {
+                return m_pubSubConfiguration;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_pubSubConfiguration, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_pubSubConfiguration = value;
+            }
+        }
+
+        /// <remarks />
         public PubSubStatusState Status
         {
             get
@@ -67571,6 +72745,44 @@ namespace Opc.Ua
         }
 
         /// <remarks />
+        public PubSubCapabilitiesState PubSubCapablities
+        {
+            get
+            {
+                return m_pubSubCapablities;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_pubSubCapablities, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_pubSubCapablities = value;
+            }
+        }
+
+        /// <remarks />
+        public FolderState DataSetClasses
+        {
+            get
+            {
+                return m_dataSetClasses;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_dataSetClasses, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_dataSetClasses = value;
+            }
+        }
+
+        /// <remarks />
         public PropertyState<string[]> SupportedTransportProfiles
         {
             get
@@ -67586,6 +72798,44 @@ namespace Opc.Ua
                 }
 
                 m_supportedTransportProfiles = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<ulong> DefaultDatagramPublisherId
+        {
+            get
+            {
+                return m_defaultDatagramPublisherId;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_defaultDatagramPublisherId, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_defaultDatagramPublisherId = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> ConfigurationVersion
+        {
+            get
+            {
+                return m_configurationVersion;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_configurationVersion, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_configurationVersion = value;
             }
         }
         #endregion
@@ -67620,6 +72870,16 @@ namespace Opc.Ua
                 children.Add(m_publishedDataSets);
             }
 
+            if (m_subscribedDataSets != null)
+            {
+                children.Add(m_subscribedDataSets);
+            }
+
+            if (m_pubSubConfiguration != null)
+            {
+                children.Add(m_pubSubConfiguration);
+            }
+
             if (m_status != null)
             {
                 children.Add(m_status);
@@ -67630,9 +72890,29 @@ namespace Opc.Ua
                 children.Add(m_diagnostics);
             }
 
+            if (m_pubSubCapablities != null)
+            {
+                children.Add(m_pubSubCapablities);
+            }
+
+            if (m_dataSetClasses != null)
+            {
+                children.Add(m_dataSetClasses);
+            }
+
             if (m_supportedTransportProfiles != null)
             {
                 children.Add(m_supportedTransportProfiles);
+            }
+
+            if (m_defaultDatagramPublisherId != null)
+            {
+                children.Add(m_defaultDatagramPublisherId);
+            }
+
+            if (m_configurationVersion != null)
+            {
+                children.Add(m_configurationVersion);
             }
 
             base.GetChildren(context, children);
@@ -67740,6 +73020,48 @@ namespace Opc.Ua
                     break;
                 }
 
+                case Opc.Ua.BrowseNames.SubscribedDataSets:
+                {
+                    if (createOrReplace)
+                    {
+                        if (SubscribedDataSets == null)
+                        {
+                            if (replacement == null)
+                            {
+                                SubscribedDataSets = new SubscribedDataSetFolderState(this);
+                            }
+                            else
+                            {
+                                SubscribedDataSets = (SubscribedDataSetFolderState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = SubscribedDataSets;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.PubSubConfiguration:
+                {
+                    if (createOrReplace)
+                    {
+                        if (PubSubConfiguration == null)
+                        {
+                            if (replacement == null)
+                            {
+                                PubSubConfiguration = new PubSubConfigurationState(this);
+                            }
+                            else
+                            {
+                                PubSubConfiguration = (PubSubConfigurationState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = PubSubConfiguration;
+                    break;
+                }
+
                 case Opc.Ua.BrowseNames.Status:
                 {
                     if (createOrReplace)
@@ -67782,6 +73104,48 @@ namespace Opc.Ua
                     break;
                 }
 
+                case Opc.Ua.BrowseNames.PubSubCapablities:
+                {
+                    if (createOrReplace)
+                    {
+                        if (PubSubCapablities == null)
+                        {
+                            if (replacement == null)
+                            {
+                                PubSubCapablities = new PubSubCapabilitiesState(this);
+                            }
+                            else
+                            {
+                                PubSubCapablities = (PubSubCapabilitiesState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = PubSubCapablities;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.DataSetClasses:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DataSetClasses == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DataSetClasses = new FolderState(this);
+                            }
+                            else
+                            {
+                                DataSetClasses = (FolderState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DataSetClasses;
+                    break;
+                }
+
                 case Opc.Ua.BrowseNames.SupportedTransportProfiles:
                 {
                     if (createOrReplace)
@@ -67802,6 +73166,48 @@ namespace Opc.Ua
                     instance = SupportedTransportProfiles;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.DefaultDatagramPublisherId:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DefaultDatagramPublisherId == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DefaultDatagramPublisherId = new PropertyState<ulong>(this);
+                            }
+                            else
+                            {
+                                DefaultDatagramPublisherId = (PropertyState<ulong>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DefaultDatagramPublisherId;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.ConfigurationVersion:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ConfigurationVersion == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ConfigurationVersion = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                ConfigurationVersion = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ConfigurationVersion;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -67818,9 +73224,15 @@ namespace Opc.Ua
         private AddConnectionMethodState m_addConnectionMethod;
         private RemoveConnectionMethodState m_removeConnectionMethod;
         private DataSetFolderState m_publishedDataSets;
+        private SubscribedDataSetFolderState m_subscribedDataSets;
+        private PubSubConfigurationState m_pubSubConfiguration;
         private PubSubStatusState m_status;
         private PubSubDiagnosticsRootState m_diagnostics;
+        private PubSubCapabilitiesState m_pubSubCapablities;
+        private FolderState m_dataSetClasses;
         private PropertyState<string[]> m_supportedTransportProfiles;
+        private PropertyState<ulong> m_defaultDatagramPublisherId;
+        private PropertyState<uint> m_configurationVersion;
         #endregion
     }
     #endif
@@ -67880,7 +73292,7 @@ namespace Opc.Ua
            "Y3lVcmkADP////8AAAAAAAEAKgEBHwAAAA4AAABDdXJyZW50VG9rZW5JZAEAIAH/////AAAAAAABACoB" +
            "ARkAAAAKAAAAQ3VycmVudEtleQAP/////wAAAAAAAQAqAQEdAAAACgAAAEZ1dHVyZUtleXMADwEAAAAB" +
            "AAAAAAAAAAABACoBAR4AAAANAAAAVGltZVRvTmV4dEtleQEAIgH/////AAAAAAABACoBARwAAAALAAAA" +
-           "S2V5TGlmZXRpbWUBACIB/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "S2V5TGlmZXRpbWUBACIB/////wAAAAAAAQAoAQEAAAABAAAABwAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -68011,9 +73423,9 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAFwAAAEFkZENvbm5lY3Rpb25NZXRob2RUeXBlAQAzQQAvAQAzQTNBAAAB" +
            "Af////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEATkEALgBETkEAAJYBAAAAAQAqAQEe" +
-           "AAAADQAAAENvbmZpZ3VyYXRpb24BAAE9/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAX" +
+           "AAAADQAAAENvbmZpZ3VyYXRpb24BAAE9/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAX" +
            "YKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAT0EALgBET0EAAJYBAAAAAQAqAQEbAAAADAAAAENv" +
-           "bm5lY3Rpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "bm5lY3Rpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -68132,7 +73544,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGgAAAFJlbW92ZUNvbm5lY3Rpb25NZXRob2RUeXBlAQBnNwAvAQBnN2c3" +
            "AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAaDcALgBEaDcAAJYBAAAAAQAq" +
-           "AQEbAAAADAAAAENvbm5lY3Rpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AQEbAAAADAAAAENvbm5lY3Rpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -68195,6 +73607,531 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region PubSubConfigurationState Class
+    #if (!OPCUA_EXCLUDE_PubSubConfigurationState)
+    /// <summary>
+    /// Stores an instance of the PubSubConfigurationType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class PubSubConfigurationState : FileState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public PubSubConfigurationState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubConfigurationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAAHwAAAFB1YlN1YkNvbmZpZ3VyYXRpb25UeXBlSW5zdGFuY2UBAIpjAQCK" +
+           "Y4pjAAD/////DAAAABVgiQoCAAAAAAAEAAAAU2l6ZQEAi2MALgBEi2MAAAAJ/////wEB/////wAAAAAV" +
+           "YIkKAgAAAAAACAAAAFdyaXRhYmxlAQCMYwAuAESMYwAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAM" +
+           "AAAAVXNlcldyaXRhYmxlAQCNYwAuAESNYwAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAJAAAAT3Bl" +
+           "bkNvdW50AQCOYwAuAESOYwAAAAX/////AQH/////AAAAAARhggoEAAAAAAAEAAAAT3BlbgEAkmMALwEA" +
+           "PC2SYwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAJNjAC4ARJNjAACWAQAA" +
+           "AAEAKgEBEwAAAAQAAABNb2RlAAP/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoC" +
+           "AAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCUYwAuAESUYwAAlgEAAAABACoBARkAAAAKAAAARmlsZUhh" +
+           "bmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAENsb3Nl" +
+           "AQCVYwAvAQA/LZVjAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAlmMALgBE" +
+           "lmMAAJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
+           "Af////8AAAAABGGCCgQAAAAAAAQAAABSZWFkAQCXYwAvAQBBLZdjAAABAf////8CAAAAF2CpCgIAAAAA" +
+           "AA4AAABJbnB1dEFyZ3VtZW50cwEAmGMALgBEmGMAAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUA" +
+           "B/////8AAAAAAAEAKgEBFQAAAAYAAABMZW5ndGgABv////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf//" +
+           "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAJljAC4ARJljAACWAQAAAAEAKgEBEwAA" +
+           "AAQAAABEYXRhAA//////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAA" +
+           "V3JpdGUBAJpjAC8BAEQtmmMAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCb" +
+           "YwAuAESbYwAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQETAAAABAAA" +
+           "AERhdGEAD/////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABHZXRQ" +
+           "b3NpdGlvbgEAnGMALwEARi2cYwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMB" +
+           "AJ1jAC4ARJ1jAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEA" +
+           "AAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCeYwAuAESeYwAAlgEA" +
+           "AAABACoBARcAAAAIAAAAUG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA" +
+           "BGGCCgQAAAAAAAsAAABTZXRQb3NpdGlvbgEAn2MALwEASS2fYwAAAQH/////AQAAABdgqQoCAAAAAAAO" +
+           "AAAASW5wdXRBcmd1bWVudHMBAKBjAC4ARKBjAACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/" +
+           "////AAAAAAABACoBARcAAAAIAAAAUG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf//" +
+           "//8AAAAABGGCCgQAAAAAAAoAAABSZXNlcnZlSWRzAQChYwAvAQChY6FjAAABAf////8CAAAAF2CpCgIA" +
+           "AAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAomMALgBEomMAAJYDAAAAAQAqAQEiAAAAEwAAAFRyYW5zcG9y" +
+           "dFByb2ZpbGVVcmkADP////8AAAAAAAEAKgEBIwAAABQAAABOdW1SZXFXcml0ZXJHcm91cElkcwAF////" +
+           "/wAAAAAAAQAqAQElAAAAFgAAAE51bVJlcURhdGFTZXRXcml0ZXJJZHMABf////8AAAAAAAEAKAEBAAAA" +
+           "AQAAAAMAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAKNjAC4ARKNjAACW" +
+           "AwAAAAEAKgEBIQAAABIAAABEZWZhdWx0UHVibGlzaGVySWQAGP////8AAAAAAAEAKgEBHQAAAA4AAABX" +
+           "cml0ZXJHcm91cElkcwAF/////wAAAAAAAQAqAQEfAAAAEAAAAERhdGFTZXRXcml0ZXJJZHMABf////8A" +
+           "AAAAAAEAKAEBAAAAAQAAAAMAAAABAf////8AAAAABGGCCgQAAAAAAA4AAABDbG9zZUFuZFVwZGF0ZQEA" +
+           "pGMALwEApGOkYwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAKVjAC4ARKVj" +
+           "AACWAwAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBASQAAAAVAAAAUmVxdWly" +
+           "ZUNvbXBsZXRlVXBkYXRlAAH/////AAAAAAABACoBASwAAAAXAAAAQ29uZmlndXJhdGlvblJlZmVyZW5j" +
+           "ZXMBAK9jAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAMAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABP" +
+           "dXRwdXRBcmd1bWVudHMBAKZjAC4ARKZjAACWBAAAAAEAKgEBHQAAAA4AAABDaGFuZ2VzQXBwbGllZAAB" +
+           "/////wAAAAAAAQAqAQEkAAAAEQAAAFJlZmVyZW5jZXNSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAqAQEo" +
+           "AAAAEwAAAENvbmZpZ3VyYXRpb25WYWx1ZXMBALBjAQAAAAEAAAAAAAAAAAEAKgEBJwAAABQAAABDb25m" +
+           "aWd1cmF0aW9uT2JqZWN0cwARAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAQAAAABAf////8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public PubSubConfigurationTypeReserveIdsMethodState ReserveIds
+        {
+            get
+            {
+                return m_reserveIdsMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_reserveIdsMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_reserveIdsMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public PubSubConfigurationTypeCloseAndUpdateMethodState CloseAndUpdate
+        {
+            get
+            {
+                return m_closeAndUpdateMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_closeAndUpdateMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_closeAndUpdateMethod = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_reserveIdsMethod != null)
+            {
+                children.Add(m_reserveIdsMethod);
+            }
+
+            if (m_closeAndUpdateMethod != null)
+            {
+                children.Add(m_closeAndUpdateMethod);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.ReserveIds:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ReserveIds == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ReserveIds = new PubSubConfigurationTypeReserveIdsMethodState(this);
+                            }
+                            else
+                            {
+                                ReserveIds = (PubSubConfigurationTypeReserveIdsMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ReserveIds;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.CloseAndUpdate:
+                {
+                    if (createOrReplace)
+                    {
+                        if (CloseAndUpdate == null)
+                        {
+                            if (replacement == null)
+                            {
+                                CloseAndUpdate = new PubSubConfigurationTypeCloseAndUpdateMethodState(this);
+                            }
+                            else
+                            {
+                                CloseAndUpdate = (PubSubConfigurationTypeCloseAndUpdateMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = CloseAndUpdate;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private PubSubConfigurationTypeReserveIdsMethodState m_reserveIdsMethod;
+        private PubSubConfigurationTypeCloseAndUpdateMethodState m_closeAndUpdateMethod;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region PubSubConfigurationTypeReserveIdsMethodState Class
+    #if (!OPCUA_EXCLUDE_PubSubConfigurationTypeReserveIdsMethodState)
+    /// <summary>
+    /// Stores an instance of the PubSubConfigurationTypeReserveIdsMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class PubSubConfigurationTypeReserveIdsMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public PubSubConfigurationTypeReserveIdsMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new PubSubConfigurationTypeReserveIdsMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAKwAAAFB1YlN1YkNvbmZpZ3VyYXRpb25UeXBlUmVzZXJ2ZUlkc01ldGhv" +
+           "ZFR5cGUBAKdjAC8BAKdjp2MAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCo" +
+           "YwAuAESoYwAAlgMAAAABACoBASIAAAATAAAAVHJhbnNwb3J0UHJvZmlsZVVyaQAM/////wAAAAAAAQAq" +
+           "AQEjAAAAFAAAAE51bVJlcVdyaXRlckdyb3VwSWRzAAX/////AAAAAAABACoBASUAAAAWAAAATnVtUmVx" +
+           "RGF0YVNldFdyaXRlcklkcwAF/////wAAAAAAAQAoAQEAAAABAAAAAwAAAAEB/////wAAAAAXYKkKAgAA" +
+           "AAAADwAAAE91dHB1dEFyZ3VtZW50cwEAqWMALgBEqWMAAJYDAAAAAQAqAQEhAAAAEgAAAERlZmF1bHRQ" +
+           "dWJsaXNoZXJJZAAY/////wAAAAAAAQAqAQEdAAAADgAAAFdyaXRlckdyb3VwSWRzAAX/////AAAAAAAB" +
+           "ACoBAR8AAAAQAAAARGF0YVNldFdyaXRlcklkcwAF/////wAAAAAAAQAoAQEAAAABAAAAAwAAAAEB////" +
+           "/wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public PubSubConfigurationTypeReserveIdsMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            string transportProfileUri = (string)_inputArguments[0];
+            ushort numReqWriterGroupIds = (ushort)_inputArguments[1];
+            ushort numReqDataSetWriterIds = (ushort)_inputArguments[2];
+
+            object defaultPublisherId = (object)_outputArguments[0];
+            ushort writerGroupIds = (ushort)_outputArguments[1];
+            ushort dataSetWriterIds = (ushort)_outputArguments[2];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    transportProfileUri,
+                    numReqWriterGroupIds,
+                    numReqDataSetWriterIds,
+                    ref defaultPublisherId,
+                    ref writerGroupIds,
+                    ref dataSetWriterIds);
+            }
+
+            _outputArguments[0] = defaultPublisherId;
+            _outputArguments[1] = writerGroupIds;
+            _outputArguments[2] = dataSetWriterIds;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult PubSubConfigurationTypeReserveIdsMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string transportProfileUri,
+        ushort numReqWriterGroupIds,
+        ushort numReqDataSetWriterIds,
+        ref object defaultPublisherId,
+        ref ushort writerGroupIds,
+        ref ushort dataSetWriterIds);
+    #endif
+    #endregion
+
+    #region PubSubConfigurationTypeCloseAndUpdateMethodState Class
+    #if (!OPCUA_EXCLUDE_PubSubConfigurationTypeCloseAndUpdateMethodState)
+    /// <summary>
+    /// Stores an instance of the PubSubConfigurationTypeCloseAndUpdateMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class PubSubConfigurationTypeCloseAndUpdateMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public PubSubConfigurationTypeCloseAndUpdateMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new PubSubConfigurationTypeCloseAndUpdateMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAALwAAAFB1YlN1YkNvbmZpZ3VyYXRpb25UeXBlQ2xvc2VBbmRVcGRhdGVN" +
+           "ZXRob2RUeXBlAQCqYwAvAQCqY6pjAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50" +
+           "cwEAq2MALgBEq2MAAJYDAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBJAAA" +
+           "ABUAAABSZXF1aXJlQ29tcGxldGVVcGRhdGUAAf////8AAAAAAAEAKgEBLAAAABcAAABDb25maWd1cmF0" +
+           "aW9uUmVmZXJlbmNlcwEAr2MBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAwAAAAEB/////wAAAAAXYKkK" +
+           "AgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEArGMALgBErGMAAJYEAAAAAQAqAQEdAAAADgAAAENoYW5n" +
+           "ZXNBcHBsaWVkAAH/////AAAAAAABACoBASQAAAARAAAAUmVmZXJlbmNlc1Jlc3VsdHMAEwEAAAABAAAA" +
+           "AAAAAAABACoBASgAAAATAAAAQ29uZmlndXJhdGlvblZhbHVlcwEAsGMBAAAAAQAAAAAAAAAAAQAqAQEn" +
+           "AAAAFAAAAENvbmZpZ3VyYXRpb25PYmplY3RzABEBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAABAAAAAEB" +
+           "/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public PubSubConfigurationTypeCloseAndUpdateMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            uint fileHandle = (uint)_inputArguments[0];
+            bool requireCompleteUpdate = (bool)_inputArguments[1];
+            PubSubConfigurationRefDataType[] configurationReferences = (PubSubConfigurationRefDataType[])ExtensionObject.ToArray(_inputArguments[2], typeof(PubSubConfigurationRefDataType));
+
+            bool changesApplied = (bool)_outputArguments[0];
+            StatusCode[] referencesResults = (StatusCode[])_outputArguments[1];
+            PubSubConfigurationValueDataType[] configurationValues = (PubSubConfigurationValueDataType[])_outputArguments[2];
+            NodeId[] configurationObjects = (NodeId[])_outputArguments[3];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    fileHandle,
+                    requireCompleteUpdate,
+                    configurationReferences,
+                    ref changesApplied,
+                    ref referencesResults,
+                    ref configurationValues,
+                    ref configurationObjects);
+            }
+
+            _outputArguments[0] = changesApplied;
+            _outputArguments[1] = referencesResults;
+            _outputArguments[2] = configurationValues;
+            _outputArguments[3] = configurationObjects;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult PubSubConfigurationTypeCloseAndUpdateMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint fileHandle,
+        bool requireCompleteUpdate,
+        PubSubConfigurationRefDataType[] configurationReferences,
+        ref bool changesApplied,
+        ref StatusCode[] referencesResults,
+        ref PubSubConfigurationValueDataType[] configurationValues,
+        ref NodeId[] configurationObjects);
+    #endif
+    #endregion
+
     #region PublishedDataSetState Class
     #if (!OPCUA_EXCLUDE_PublishedDataSetState)
     /// <summary>
@@ -68252,6 +74189,11 @@ namespace Opc.Ua
                 DataSetClassId.Initialize(context, DataSetClassId_InitializationString);
             }
 
+            if (CyclicDataSet != null)
+            {
+                CyclicDataSet.Initialize(context, CyclicDataSet_InitializationString);
+            }
+
             if (ExtensionFields != null)
             {
                 ExtensionFields.Initialize(context, ExtensionFields_InitializationString);
@@ -68263,31 +74205,36 @@ namespace Opc.Ua
            "//////////8VYIkKAgAAAAAADgAAAERhdGFTZXRDbGFzc0lkAQB3QQAuAER3QQAAAA7/////AQH/////" +
            "AAAAAA==";
 
+        private const string CyclicDataSet_InitializationString =
+           "//////////8VYIkKAgAAAAAADQAAAEN5Y2xpY0RhdGFTZXQBALFjAC4ARLFjAAAAAf////8BAf////8A" +
+           "AAAA";
+
         private const string ExtensionFields_InitializationString =
            "//////////8EYIAKAQAAAAAADwAAAEV4dGVuc2lvbkZpZWxkcwEAeTwALwEAgTx5PAAA/////wIAAAAE" +
            "YYIKBAAAAAAAEQAAAEFkZEV4dGVuc2lvbkZpZWxkAQB6PAAvAQCDPHo8AAABAf////8CAAAAF2CpCgIA" +
            "AAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAezwALgBEezwAAJYCAAAAAQAqAQEYAAAACQAAAEZpZWxkTmFt" +
-           "ZQAU/////wAAAAAAAQAqAQEZAAAACgAAAEZpZWxkVmFsdWUAGP7///8AAAAAAAEAKAEBAAAAAQAAAAAA" +
+           "ZQAU/////wAAAAAAAQAqAQEZAAAACgAAAEZpZWxkVmFsdWUAGP7///8AAAAAAAEAKAEBAAAAAQAAAAIA" +
            "AAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAHw8AC4ARHw8AACWAQAAAAEA" +
-           "KgEBFgAAAAcAAABGaWVsZElkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoE" +
+           "KgEBFgAAAAcAAABGaWVsZElkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoE" +
            "AAAAAAAUAAAAUmVtb3ZlRXh0ZW5zaW9uRmllbGQBAH08AC8BAIY8fTwAAAEB/////wEAAAAXYKkKAgAA" +
            "AAAADgAAAElucHV0QXJndW1lbnRzAQB+PAAuAER+PAAAlgEAAAABACoBARYAAAAHAAAARmllbGRJZAAR" +
-           "/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHAAAAFB1Ymxpc2hlZERhdGFTZXRUeXBlSW5zdGFuY2UBAK04AQCtOK04" +
-           "AAD/////BAAAABVgiQoCAAAAAAAUAAAAQ29uZmlndXJhdGlvblZlcnNpb24BALc4AC4ARLc4AAABAAE5" +
+           "AAD/////BQAAABVgiQoCAAAAAAAUAAAAQ29uZmlndXJhdGlvblZlcnNpb24BALc4AC4ARLc4AAABAAE5" +
            "/////wEB/////wAAAAAVYIkKAgAAAAAADwAAAERhdGFTZXRNZXRhRGF0YQEAfTsALgBEfTsAAAEAuzj/" +
            "////AQH/////AAAAABVgiQoCAAAAAAAOAAAARGF0YVNldENsYXNzSWQBAHdBAC4ARHdBAAAADv////8B" +
-           "Af////8AAAAABGCACgEAAAAAAA8AAABFeHRlbnNpb25GaWVsZHMBAHk8AC8BAIE8eTwAAP////8CAAAA" +
-           "BGGCCgQAAAAAABEAAABBZGRFeHRlbnNpb25GaWVsZAEAejwALwEAgzx6PAAAAQH/////AgAAABdgqQoC" +
-           "AAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAHs8AC4ARHs8AACWAgAAAAEAKgEBGAAAAAkAAABGaWVsZE5h" +
-           "bWUAFP////8AAAAAAAEAKgEBGQAAAAoAAABGaWVsZFZhbHVlABj+////AAAAAAABACgBAQAAAAEAAAAA" +
-           "AAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQB8PAAuAER8PAAAlgEAAAAB" +
-           "ACoBARYAAAAHAAAARmllbGRJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIK" +
-           "BAAAAAAAFAAAAFJlbW92ZUV4dGVuc2lvbkZpZWxkAQB9PAAvAQCGPH08AAABAf////8BAAAAF2CpCgIA" +
-           "AAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAfjwALgBEfjwAAJYBAAAAAQAqAQEWAAAABwAAAEZpZWxkSWQA" +
-           "Ef////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "Af////8AAAAAFWCJCgIAAAAAAA0AAABDeWNsaWNEYXRhU2V0AQCxYwAuAESxYwAAAAH/////AQH/////" +
+           "AAAAAARggAoBAAAAAAAPAAAARXh0ZW5zaW9uRmllbGRzAQB5PAAvAQCBPHk8AAD/////AgAAAARhggoE" +
+           "AAAAAAARAAAAQWRkRXh0ZW5zaW9uRmllbGQBAHo8AC8BAIM8ejwAAAEB/////wIAAAAXYKkKAgAAAAAA" +
+           "DgAAAElucHV0QXJndW1lbnRzAQB7PAAuAER7PAAAlgIAAAABACoBARgAAAAJAAAARmllbGROYW1lABT/" +
+           "////AAAAAAABACoBARkAAAAKAAAARmllbGRWYWx1ZQAY/v///wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB" +
+           "/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAfDwALgBEfDwAAJYBAAAAAQAqAQEW" +
+           "AAAABwAAAEZpZWxkSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAA" +
+           "ABQAAABSZW1vdmVFeHRlbnNpb25GaWVsZAEAfTwALwEAhjx9PAAAAQH/////AQAAABdgqQoCAAAAAAAO" +
+           "AAAASW5wdXRBcmd1bWVudHMBAH48AC4ARH48AACWAQAAAAEAKgEBFgAAAAcAAABGaWVsZElkABH/////" +
+           "AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -68351,6 +74298,25 @@ namespace Opc.Ua
         }
 
         /// <remarks />
+        public PropertyState<bool> CyclicDataSet
+        {
+            get
+            {
+                return m_cyclicDataSet;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_cyclicDataSet, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_cyclicDataSet = value;
+            }
+        }
+
+        /// <remarks />
         public ExtensionFieldsState ExtensionFields
         {
             get
@@ -68393,6 +74359,11 @@ namespace Opc.Ua
             if (m_dataSetClassId != null)
             {
                 children.Add(m_dataSetClassId);
+            }
+
+            if (m_cyclicDataSet != null)
+            {
+                children.Add(m_cyclicDataSet);
             }
 
             if (m_extensionFields != null)
@@ -68484,6 +74455,27 @@ namespace Opc.Ua
                     break;
                 }
 
+                case Opc.Ua.BrowseNames.CyclicDataSet:
+                {
+                    if (createOrReplace)
+                    {
+                        if (CyclicDataSet == null)
+                        {
+                            if (replacement == null)
+                            {
+                                CyclicDataSet = new PropertyState<bool>(this);
+                            }
+                            else
+                            {
+                                CyclicDataSet = (PropertyState<bool>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = CyclicDataSet;
+                    break;
+                }
+
                 case Opc.Ua.BrowseNames.ExtensionFields:
                 {
                     if (createOrReplace)
@@ -68519,6 +74511,7 @@ namespace Opc.Ua
         private PropertyState<ConfigurationVersionDataType> m_configurationVersion;
         private PropertyState<DataSetMetaDataType> m_dataSetMetaData;
         private PropertyState<Guid> m_dataSetClassId;
+        private PropertyState<bool> m_cyclicDataSet;
         private ExtensionFieldsState m_extensionFields;
         #endregion
     }
@@ -68584,11 +74577,11 @@ namespace Opc.Ua
            "AP////8CAAAABGGCCgQAAAAAABEAAABBZGRFeHRlbnNpb25GaWVsZAEAgzwALwEAgzyDPAAAAQH/////" +
            "AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAIQ8AC4ARIQ8AACWAgAAAAEAKgEBGAAAAAkA" +
            "AABGaWVsZE5hbWUAFP////8AAAAAAAEAKgEBGQAAAAoAAABGaWVsZFZhbHVlABj+////AAAAAAABACgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCFPAAuAESF" +
-           "PAAAlgEAAAABACoBARYAAAAHAAAARmllbGRJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "AQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCFPAAuAESF" +
+           "PAAAlgEAAAABACoBARYAAAAHAAAARmllbGRJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB////" +
            "/wAAAAAEYYIKBAAAAAAAFAAAAFJlbW92ZUV4dGVuc2lvbkZpZWxkAQCGPAAvAQCGPIY8AAABAf////8B" +
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAhzwALgBEhzwAAJYBAAAAAQAqAQEWAAAABwAA" +
-           "AEZpZWxkSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AEZpZWxkSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -68785,9 +74778,9 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAGwAAAEFkZEV4dGVuc2lvbkZpZWxkTWV0aG9kVHlwZQEAiDwALwEAiDyI" +
            "PAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAIk8AC4ARIk8AACWAgAAAAEA" +
            "KgEBGAAAAAkAAABGaWVsZE5hbWUAFP////8AAAAAAAEAKgEBGQAAAAoAAABGaWVsZFZhbHVlABj+////" +
-           "AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
+           "AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
            "AQCKPAAuAESKPAAAlgEAAAABACoBARYAAAAHAAAARmllbGRJZAAR/////wAAAAAAAQAoAQEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAA=";
+           "AQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -68909,7 +74902,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAHgAAAFJlbW92ZUV4dGVuc2lvbkZpZWxkTWV0aG9kVHlwZQEAizwALwEA" +
            "izyLPAAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAIw8AC4ARIw8AACWAQAA" +
-           "AAEAKgEBFgAAAAcAAABGaWVsZElkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "AAEAKgEBFgAAAAcAAABGaWVsZElkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -69041,19 +75034,19 @@ namespace Opc.Ua
            "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBANw4AC4ARNw4AACWBAAAAAEAKgEBJQAAABQAAABDb25m" +
            "aWd1cmF0aW9uVmVyc2lvbgEAATn/////AAAAAAABACoBASMAAAAQAAAARmllbGROYW1lQWxpYXNlcwAM" +
            "AQAAAAEAAAAAAAAAAAEAKgEBIQAAAA4AAABQcm9tb3RlZEZpZWxkcwABAQAAAAEAAAAAAAAAAAEAKgEB" +
-           "IwAAAA4AAABWYXJpYWJsZXNUb0FkZAEAwTcBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "IwAAAA4AAABWYXJpYWJsZXNUb0FkZAEAwTcBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAABAAAAAEB////" +
            "/wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA3TgALgBE3TgAAJYCAAAAAQAqAQEoAAAA" +
            "FwAAAE5ld0NvbmZpZ3VyYXRpb25WZXJzaW9uAQABOf////8AAAAAAAEAKgEBHQAAAAoAAABBZGRSZXN1" +
-           "bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
 
         private const string RemoveVariables_InitializationString =
            "//////////8EYYIKBAAAAAAADwAAAFJlbW92ZVZhcmlhYmxlcwEA3jgALwEA3jjeOAAAAQH/////AgAA" +
            "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAN84AC4ARN84AACWAgAAAAEAKgEBJQAAABQAAABD" +
            "b25maWd1cmF0aW9uVmVyc2lvbgEAATn/////AAAAAAABACoBASQAAAARAAAAVmFyaWFibGVzVG9SZW1v" +
-           "dmUABwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
+           "dmUABwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
            "cHV0QXJndW1lbnRzAQDgOAAuAETgOAAAlgIAAAABACoBASgAAAAXAAAATmV3Q29uZmlndXJhdGlvblZl" +
            "cnNpb24BAAE5/////wAAAAAAAQAqAQEgAAAADQAAAFJlbW92ZVJlc3VsdHMAEwEAAAABAAAAAAAAAAAB" +
-           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "ACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHgAAAFB1Ymxpc2hlZERhdGFJdGVtc1R5cGVJbnN0YW5jZQEAxjgBAMY4" +
@@ -69065,15 +75058,15 @@ namespace Opc.Ua
            "JQAAABQAAABDb25maWd1cmF0aW9uVmVyc2lvbgEAATn/////AAAAAAABACoBASMAAAAQAAAARmllbGRO" +
            "YW1lQWxpYXNlcwAMAQAAAAEAAAAAAAAAAAEAKgEBIQAAAA4AAABQcm9tb3RlZEZpZWxkcwABAQAAAAEA" +
            "AAAAAAAAAAEAKgEBIwAAAA4AAABWYXJpYWJsZXNUb0FkZAEAwTcBAAAAAQAAAAAAAAAAAQAoAQEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA3TgALgBE3TgAAJYC" +
+           "AAAABAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA3TgALgBE3TgAAJYC" +
            "AAAAAQAqAQEoAAAAFwAAAE5ld0NvbmZpZ3VyYXRpb25WZXJzaW9uAQABOf////8AAAAAAAEAKgEBHQAA" +
-           "AAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIK" +
+           "AAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAEYYIK" +
            "BAAAAAAADwAAAFJlbW92ZVZhcmlhYmxlcwEA3jgALwEA3jjeOAAAAQH/////AgAAABdgqQoCAAAAAAAO" +
            "AAAASW5wdXRBcmd1bWVudHMBAN84AC4ARN84AACWAgAAAAEAKgEBJQAAABQAAABDb25maWd1cmF0aW9u" +
            "VmVyc2lvbgEAATn/////AAAAAAABACoBASQAAAARAAAAVmFyaWFibGVzVG9SZW1vdmUABwEAAAABAAAA" +
-           "AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
+           "AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
            "AQDgOAAuAETgOAAAlgIAAAABACoBASgAAAAXAAAATmV3Q29uZmlndXJhdGlvblZlcnNpb24BAAE5////" +
-           "/wAAAAAAAQAqAQEgAAAADQAAAFJlbW92ZVJlc3VsdHMAEwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAA" +
+           "/wAAAAAAAQAqAQEgAAAADQAAAFJlbW92ZVJlc3VsdHMAEwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAC" +
            "AAAAAQH/////AAAAAA==";
         #endregion
         #endif
@@ -69319,9 +75312,9 @@ namespace Opc.Ua
            "AETlOAAAlgQAAAABACoBASUAAAAUAAAAQ29uZmlndXJhdGlvblZlcnNpb24BAAE5/////wAAAAAAAQAq" +
            "AQEjAAAAEAAAAEZpZWxkTmFtZUFsaWFzZXMADAEAAAABAAAAAAAAAAABACoBASEAAAAOAAAAUHJvbW90" +
            "ZWRGaWVsZHMAAQEAAAABAAAAAAAAAAABACoBASMAAAAOAAAAVmFyaWFibGVzVG9BZGQBAME3AQAAAAEA" +
-           "AAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu" +
+           "AAAAAAAAAAEAKAEBAAAAAQAAAAQAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu" +
            "dHMBAOY4AC4AROY4AACWAgAAAAEAKgEBKAAAABcAAABOZXdDb25maWd1cmF0aW9uVmVyc2lvbgEAATn/" +
-           "////AAAAAAABACoBAR0AAAAKAAAAQWRkUmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAA" +
+           "////AAAAAAABACoBAR0AAAAKAAAAQWRkUmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAIA" +
            "AAABAf////8AAAAA";
         #endregion
         #endif
@@ -69455,10 +75448,10 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAKwAAAFB1Ymxpc2hlZERhdGFJdGVtc1JlbW92ZVZhcmlhYmxlc01ldGhv" +
            "ZFR5cGUBAOc4AC8BAOc45zgAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDo" +
            "OAAuAEToOAAAlgIAAAABACoBASUAAAAUAAAAQ29uZmlndXJhdGlvblZlcnNpb24BAAE5/////wAAAAAA" +
-           "AQAqAQEkAAAAEQAAAFZhcmlhYmxlc1RvUmVtb3ZlAAcBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAA" +
+           "AQAqAQEkAAAAEQAAAFZhcmlhYmxlc1RvUmVtb3ZlAAcBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAA" +
            "AAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA6TgALgBE6TgAAJYCAAAAAQAq" +
            "AQEoAAAAFwAAAE5ld0NvbmZpZ3VyYXRpb25WZXJzaW9uAQABOf////8AAAAAAAEAKgEBIAAAAA0AAABS" +
-           "ZW1vdmVSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "ZW1vdmVSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -69598,10 +75591,10 @@ namespace Opc.Ua
            "//8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAzToALgBEzToAAJYEAAAAAQAqAQElAAAA" +
            "FAAAAENvbmZpZ3VyYXRpb25WZXJzaW9uAQABOf////8AAAAAAAEAKgEBIwAAABAAAABGaWVsZE5hbWVB" +
            "bGlhc2VzAAwBAAAAAQAAAAAAAAAAAQAqAQEhAAAADgAAAFByb21vdGVkRmllbGRzAAEBAAAAAQAAAAAA" +
-           "AAAAAQAqAQEjAAAADgAAAFNlbGVjdGVkRmllbGRzAQBZAgEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAA" +
+           "AAAAAQAqAQEjAAAADgAAAFNlbGVjdGVkRmllbGRzAQBZAgEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAE" +
            "AAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCdPAAuAESdPAAAlgEAAAAB" +
            "ACoBASgAAAAXAAAATmV3Q29uZmlndXJhdGlvblZlcnNpb24BAAE5/////wAAAAAAAQAoAQEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAA=";
+           "AQAAAAEB/////wAAAAA=";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAGwAAAFB1Ymxpc2hlZEV2ZW50c1R5cGVJbnN0YW5jZQEA7DgBAOw47DgA" +
@@ -69615,9 +75608,9 @@ namespace Opc.Ua
            "zToAAJYEAAAAAQAqAQElAAAAFAAAAENvbmZpZ3VyYXRpb25WZXJzaW9uAQABOf////8AAAAAAAEAKgEB" +
            "IwAAABAAAABGaWVsZE5hbWVBbGlhc2VzAAwBAAAAAQAAAAAAAAAAAQAqAQEhAAAADgAAAFByb21vdGVk" +
            "RmllbGRzAAEBAAAAAQAAAAAAAAAAAQAqAQEjAAAADgAAAFNlbGVjdGVkRmllbGRzAQBZAgEAAAABAAAA" +
-           "AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
+           "AAAAAAABACgBAQAAAAEAAAAEAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
            "AQCdPAAuAESdPAAAlgEAAAABACoBASgAAAAXAAAATmV3Q29uZmlndXJhdGlvblZlcnNpb24BAAE5////" +
-           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "/wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -69855,139 +75848,6 @@ namespace Opc.Ua
     #endif
     #endregion
 
-    #region PublishedEventsTypeModifyFieldSelectionMethodState Class
-    #if (!OPCUA_EXCLUDE_PublishedEventsTypeModifyFieldSelectionMethodState)
-    /// <summary>
-    /// Stores an instance of the PublishedEventsTypeModifyFieldSelectionMethodType Method.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class PublishedEventsTypeModifyFieldSelectionMethodState : MethodState
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
-        public PublishedEventsTypeModifyFieldSelectionMethodState(NodeState parent) : base(parent)
-        {
-        }
-
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
-        public new static NodeState Construct(NodeState parent)
-        {
-            return new PublishedEventsTypeModifyFieldSelectionMethodState(parent);
-        }
-
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            base.Initialize(context);
-            Initialize(context, InitializationString);
-            InitializeOptionalChildren(context);
-        }
-
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
-        protected override void InitializeOptionalChildren(ISystemContext context)
-        {
-            base.InitializeOptionalChildren(context);
-        }
-
-        #region Initialization String
-        private const string InitializationString =
-           "//////////8EYYIKBAAAAAAAMQAAAFB1Ymxpc2hlZEV2ZW50c1R5cGVNb2RpZnlGaWVsZFNlbGVjdGlv" +
-           "bk1ldGhvZFR5cGUBAM46AC8BAM46zjoAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l" +
-           "bnRzAQDPOgAuAETPOgAAlgQAAAABACoBASUAAAAUAAAAQ29uZmlndXJhdGlvblZlcnNpb24BAAE5////" +
-           "/wAAAAAAAQAqAQEjAAAAEAAAAEZpZWxkTmFtZUFsaWFzZXMADAEAAAABAAAAAAAAAAABACoBASEAAAAO" +
-           "AAAAUHJvbW90ZWRGaWVsZHMAAQEAAAABAAAAAAAAAAABACoBASMAAAAOAAAAU2VsZWN0ZWRGaWVsZHMB" +
-           "AFkCAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRw" +
-           "dXRBcmd1bWVudHMBAJ48AC4ARJ48AACWAQAAAAEAKgEBKAAAABcAAABOZXdDb25maWd1cmF0aW9uVmVy" +
-           "c2lvbgEAATn/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
-        #endregion
-        #endif
-        #endregion
-
-        #region Event Callbacks
-        /// <summary>
-        /// Raised when the the method is called.
-        /// </summary>
-        public PublishedEventsTypeModifyFieldSelectionMethodStateMethodCallHandler OnCall;
-        #endregion
-
-        #region Public Properties
-        #endregion
-
-        #region Overridden Methods
-        /// <summary>
-        /// Invokes the method, returns the result and output argument.
-        /// </summary>
-        protected override ServiceResult Call(
-            ISystemContext _context,
-            NodeId _objectId,
-            IList<object> _inputArguments,
-            IList<object> _outputArguments)
-        {
-            if (OnCall == null)
-            {
-                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
-            }
-
-            ServiceResult result = null;
-
-            ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
-            string[] fieldNameAliases = (string[])_inputArguments[1];
-            bool[] promotedFields = (bool[])_inputArguments[2];
-            SimpleAttributeOperand[] selectedFields = (SimpleAttributeOperand[])ExtensionObject.ToArray(_inputArguments[3], typeof(SimpleAttributeOperand));
-
-            ConfigurationVersionDataType newConfigurationVersion = (ConfigurationVersionDataType)_outputArguments[0];
-
-            if (OnCall != null)
-            {
-                result = OnCall(
-                    _context,
-                    this,
-                    _objectId,
-                    configurationVersion,
-                    fieldNameAliases,
-                    promotedFields,
-                    selectedFields,
-                    ref newConfigurationVersion);
-            }
-
-            _outputArguments[0] = newConfigurationVersion;
-
-            return result;
-        }
-        #endregion
-
-        #region Private Fields
-        #endregion
-    }
-
-    /// <summary>
-    /// Used to receive notifications when the method is called.
-    /// </summary>
-    /// <exclude />
-    public delegate ServiceResult PublishedEventsTypeModifyFieldSelectionMethodStateMethodCallHandler(
-        ISystemContext _context,
-        MethodState _method,
-        NodeId _objectId,
-        ConfigurationVersionDataType configurationVersion,
-        string[] fieldNameAliases,
-        bool[] promotedFields,
-        SimpleAttributeOperand[] selectedFields,
-        ref ConfigurationVersionDataType newConfigurationVersion);
-    #endif
-    #endregion
-
     #region DataSetFolderState Class
     #if (!OPCUA_EXCLUDE_DataSetFolderState)
     /// <summary>
@@ -70082,10 +75942,10 @@ namespace Opc.Ua
            "////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAJ44AC4ARJ44AACWBAAAAAEAKgEBEwAA" +
            "AAQAAABOYW1lAAz/////AAAAAAABACoBASMAAAAQAAAARmllbGROYW1lQWxpYXNlcwAMAQAAAAEAAAAA" +
            "AAAAAAEAKgEBHwAAAAoAAABGaWVsZEZsYWdzAQAgPgEAAAABAAAAAAAAAAABACoBASMAAAAOAAAAVmFy" +
-           "aWFibGVzVG9BZGQBAME3AQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIA" +
+           "aWFibGVzVG9BZGQBAME3AQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAQAAAABAf////8AAAAAF2CpCgIA" +
            "AAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAJ84AC4ARJ84AACWAwAAAAEAKgEBHAAAAA0AAABEYXRhU2V0" +
            "Tm9kZUlkABH/////AAAAAAABACoBASUAAAAUAAAAQ29uZmlndXJhdGlvblZlcnNpb24BAAE5/////wAA" +
-           "AAAAAQAqAQEdAAAACgAAAEFkZFJlc3VsdHMAEwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/" +
+           "AAAAAQAqAQEdAAAACgAAAEFkZFJlc3VsdHMAEwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAADAAAAAQH/" +
            "////AAAAAA==";
 
         private const string AddPublishedEvents_InitializationString =
@@ -70094,19 +75954,19 @@ namespace Opc.Ua
            "AABOYW1lAAz/////AAAAAAABACoBARwAAAANAAAARXZlbnROb3RpZmllcgAR/////wAAAAAAAQAqAQEj" +
            "AAAAEAAAAEZpZWxkTmFtZUFsaWFzZXMADAEAAAABAAAAAAAAAAABACoBAR8AAAAKAAAARmllbGRGbGFn" +
            "cwEAID4BAAAAAQAAAAAAAAAAAQAqAQEjAAAADgAAAFNlbGVjdGVkRmllbGRzAQBZAgEAAAABAAAAAAAA" +
-           "AAABACoBARcAAAAGAAAARmlsdGVyAQBKAv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA" +
+           "AAABACoBARcAAAAGAAAARmlsdGVyAQBKAv////8AAAAAAAEAKAEBAAAAAQAAAAYAAAABAf////8AAAAA" +
            "F2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAKI4AC4ARKI4AACWAgAAAAEAKgEBJQAAABQAAABD" +
            "b25maWd1cmF0aW9uVmVyc2lvbgEAATn/////AAAAAAABACoBARwAAAANAAAARGF0YVNldE5vZGVJZAAR" +
-           "/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
 
         private const string AddPublishedDataItemsTemplate_InitializationString =
            "//////////8EYYIKBAAAAAAAHQAAAEFkZFB1Ymxpc2hlZERhdGFJdGVtc1RlbXBsYXRlAQAnQgAvAQAn" +
            "QidCAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAPkIALgBEPkIAAJYDAAAA" +
            "AQAqAQETAAAABAAAAE5hbWUADP////8AAAAAAAEAKgEBIAAAAA8AAABEYXRhU2V0TWV0YURhdGEBALs4" +
            "/////wAAAAAAAQAqAQEjAAAADgAAAFZhcmlhYmxlc1RvQWRkAQDBNwEAAAABAAAAAAAAAAABACgBAQAA" +
-           "AAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQA/QgAuAEQ/QgAA" +
+           "AAEAAAADAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQA/QgAuAEQ/QgAA" +
            "lgIAAAABACoBARwAAAANAAAARGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAqAQEdAAAACgAAAEFkZFJl" +
-           "c3VsdHMAEwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "c3VsdHMAEwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
 
         private const string AddPublishedEventsTemplate_InitializationString =
            "//////////8EYYIKBAAAAAAAGgAAAEFkZFB1Ymxpc2hlZEV2ZW50c1RlbXBsYXRlAQBAQgAvAQBAQkBC" +
@@ -70114,26 +75974,26 @@ namespace Opc.Ua
            "AQETAAAABAAAAE5hbWUADP////8AAAAAAAEAKgEBIAAAAA8AAABEYXRhU2V0TWV0YURhdGEBALs4////" +
            "/wAAAAAAAQAqAQEcAAAADQAAAEV2ZW50Tm90aWZpZXIAEf////8AAAAAAAEAKgEBIwAAAA4AAABTZWxl" +
            "Y3RlZEZpZWxkcwEAWQIBAAAAAQAAAAAAAAAAAQAqAQEXAAAABgAAAEZpbHRlcgEASgL/////AAAAAAAB" +
-           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBLQgAu" +
+           "ACgBAQAAAAEAAAAFAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBLQgAu" +
            "AERLQgAAlgEAAAABACoBARwAAAANAAAARGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAA=";
+           "AQAAAAEB/////wAAAAA=";
 
         private const string RemovePublishedDataSet_InitializationString =
            "//////////8EYYIKBAAAAAAAFgAAAFJlbW92ZVB1Ymxpc2hlZERhdGFTZXQBAKM4AC8BAKM4ozgAAAEB" +
            "/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCkOAAuAESkOAAAlgEAAAABACoBARwA" +
-           "AAANAAAARGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AAANAAAARGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string AddDataSetFolder_InitializationString =
            "//////////8EYYIKBAAAAAAAEAAAAEFkZERhdGFTZXRGb2xkZXIBAGJCAC8BAGJCYkIAAAEB/////wIA" +
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBjQgAuAERjQgAAlgEAAAABACoBARMAAAAEAAAA" +
-           "TmFtZQAM/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1" +
+           "TmFtZQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1" +
            "dEFyZ3VtZW50cwEAZEIALgBEZEIAAJYBAAAAAQAqAQEiAAAAEwAAAERhdGFTZXRGb2xkZXJOb2RlSWQA" +
-           "Ef////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "Ef////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
 
         private const string RemoveDataSetFolder_InitializationString =
            "//////////8EYYIKBAAAAAAAEwAAAFJlbW92ZURhdGFTZXRGb2xkZXIBAGVCAC8BAGVCZUIAAAEB////" +
            "/wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBvQgAuAERvQgAAlgEAAAABACoBASIAAAAT" +
-           "AAAARGF0YVNldEZvbGRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AAAARGF0YVNldEZvbGRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAGQAAAERhdGFTZXRGb2xkZXJUeXBlSW5zdGFuY2UBAI04AQCNOI04AAD/" +
@@ -70141,43 +76001,43 @@ namespace Opc.Ua
            "//8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAnjgALgBEnjgAAJYEAAAAAQAqAQETAAAA" +
            "BAAAAE5hbWUADP////8AAAAAAAEAKgEBIwAAABAAAABGaWVsZE5hbWVBbGlhc2VzAAwBAAAAAQAAAAAA" +
            "AAAAAQAqAQEfAAAACgAAAEZpZWxkRmxhZ3MBACA+AQAAAAEAAAAAAAAAAAEAKgEBIwAAAA4AAABWYXJp" +
-           "YWJsZXNUb0FkZAEAwTcBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAA" +
+           "YWJsZXNUb0FkZAEAwTcBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAABAAAAAEB/////wAAAAAXYKkKAgAA" +
            "AAAADwAAAE91dHB1dEFyZ3VtZW50cwEAnzgALgBEnzgAAJYDAAAAAQAqAQEcAAAADQAAAERhdGFTZXRO" +
            "b2RlSWQAEf////8AAAAAAAEAKgEBJQAAABQAAABDb25maWd1cmF0aW9uVmVyc2lvbgEAATn/////AAAA" +
-           "AAABACoBAR0AAAAKAAAAQWRkUmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
+           "AAABACoBAR0AAAAKAAAAQWRkUmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAMAAAABAf//" +
            "//8AAAAABGGCCgQAAAAAABIAAABBZGRQdWJsaXNoZWRFdmVudHMBAKA4AC8BAKA4oDgAAAEB/////wIA" +
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQChOAAuAEShOAAAlgYAAAABACoBARMAAAAEAAAA" +
            "TmFtZQAM/////wAAAAAAAQAqAQEcAAAADQAAAEV2ZW50Tm90aWZpZXIAEf////8AAAAAAAEAKgEBIwAA" +
            "ABAAAABGaWVsZE5hbWVBbGlhc2VzAAwBAAAAAQAAAAAAAAAAAQAqAQEfAAAACgAAAEZpZWxkRmxhZ3MB" +
            "ACA+AQAAAAEAAAAAAAAAAAEAKgEBIwAAAA4AAABTZWxlY3RlZEZpZWxkcwEAWQIBAAAAAQAAAAAAAAAA" +
-           "AQAqAQEXAAAABgAAAEZpbHRlcgEASgL/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdg" +
+           "AQAqAQEXAAAABgAAAEZpbHRlcgEASgL/////AAAAAAABACgBAQAAAAEAAAAGAAAAAQH/////AAAAABdg" +
            "qQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCiOAAuAESiOAAAlgIAAAABACoBASUAAAAUAAAAQ29u" +
            "ZmlndXJhdGlvblZlcnNpb24BAAE5/////wAAAAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf//" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAB0AAABBZGRQdWJsaXNoZWRE" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAABGGCCgQAAAAAAB0AAABBZGRQdWJsaXNoZWRE" +
            "YXRhSXRlbXNUZW1wbGF0ZQEAJ0IALwEAJ0InQgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRB" +
            "cmd1bWVudHMBAD5CAC4ARD5CAACWAwAAAAEAKgEBEwAAAAQAAABOYW1lAAz/////AAAAAAABACoBASAA" +
            "AAAPAAAARGF0YVNldE1ldGFEYXRhAQC7OP////8AAAAAAAEAKgEBIwAAAA4AAABWYXJpYWJsZXNUb0Fk" +
-           "ZAEAwTcBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91" +
+           "ZAEAwTcBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAwAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91" +
            "dHB1dEFyZ3VtZW50cwEAP0IALgBEP0IAAJYCAAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf//" +
-           "//8AAAAAAAEAKgEBHQAAAAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAA" +
+           "//8AAAAAAAEAKgEBHQAAAAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAA" +
            "AAEB/////wAAAAAEYYIKBAAAAAAAGgAAAEFkZFB1Ymxpc2hlZEV2ZW50c1RlbXBsYXRlAQBAQgAvAQBA" +
            "QkBCAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAQUIALgBEQUIAAJYFAAAA" +
            "AQAqAQETAAAABAAAAE5hbWUADP////8AAAAAAAEAKgEBIAAAAA8AAABEYXRhU2V0TWV0YURhdGEBALs4" +
            "/////wAAAAAAAQAqAQEcAAAADQAAAEV2ZW50Tm90aWZpZXIAEf////8AAAAAAAEAKgEBIwAAAA4AAABT" +
            "ZWxlY3RlZEZpZWxkcwEAWQIBAAAAAQAAAAAAAAAAAQAqAQEXAAAABgAAAEZpbHRlcgEASgL/////AAAA" +
-           "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBL" +
+           "AAABACgBAQAAAAEAAAAFAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBL" +
            "QgAuAERLQgAAlgEAAAABACoBARwAAAANAAAARGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAAFgAAAFJlbW92ZVB1Ymxpc2hlZERhdGFTZXQBAKM4AC8B" +
+           "AAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAAFgAAAFJlbW92ZVB1Ymxpc2hlZERhdGFTZXQBAKM4AC8B" +
            "AKM4ozgAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCkOAAuAESkOAAAlgEA" +
-           "AAABACoBARwAAAANAAAARGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "AAABACoBARwAAAANAAAARGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB////" +
            "/wAAAAAEYYIKBAAAAAAAEAAAAEFkZERhdGFTZXRGb2xkZXIBAGJCAC8BAGJCYkIAAAEB/////wIAAAAX" +
            "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBjQgAuAERjQgAAlgEAAAABACoBARMAAAAEAAAATmFt" +
-           "ZQAM/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFy" +
+           "ZQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFy" +
            "Z3VtZW50cwEAZEIALgBEZEIAAJYBAAAAAQAqAQEiAAAAEwAAAERhdGFTZXRGb2xkZXJOb2RlSWQAEf//" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAABMAAABSZW1vdmVEYXRhU2V0" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAABMAAABSZW1vdmVEYXRhU2V0" +
            "Rm9sZGVyAQBlQgAvAQBlQmVCAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA" +
            "b0IALgBEb0IAAJYBAAAAAQAqAQEiAAAAEwAAAERhdGFTZXRGb2xkZXJOb2RlSWQAEf////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "KAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -70553,6 +76413,139 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region PublishedEventsTypeModifyFieldSelectionMethodState Class
+    #if (!OPCUA_EXCLUDE_PublishedEventsTypeModifyFieldSelectionMethodState)
+    /// <summary>
+    /// Stores an instance of the PublishedEventsTypeModifyFieldSelectionMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class PublishedEventsTypeModifyFieldSelectionMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public PublishedEventsTypeModifyFieldSelectionMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new PublishedEventsTypeModifyFieldSelectionMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAMQAAAFB1Ymxpc2hlZEV2ZW50c1R5cGVNb2RpZnlGaWVsZFNlbGVjdGlv" +
+           "bk1ldGhvZFR5cGUBAM46AC8BAM46zjoAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l" +
+           "bnRzAQDPOgAuAETPOgAAlgQAAAABACoBASUAAAAUAAAAQ29uZmlndXJhdGlvblZlcnNpb24BAAE5////" +
+           "/wAAAAAAAQAqAQEjAAAAEAAAAEZpZWxkTmFtZUFsaWFzZXMADAEAAAABAAAAAAAAAAABACoBASEAAAAO" +
+           "AAAAUHJvbW90ZWRGaWVsZHMAAQEAAAABAAAAAAAAAAABACoBASMAAAAOAAAAU2VsZWN0ZWRGaWVsZHMB" +
+           "AFkCAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAQAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRw" +
+           "dXRBcmd1bWVudHMBAJ48AC4ARJ48AACWAQAAAAEAKgEBKAAAABcAAABOZXdDb25maWd1cmF0aW9uVmVy" +
+           "c2lvbgEAATn/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public PublishedEventsTypeModifyFieldSelectionMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            string[] fieldNameAliases = (string[])_inputArguments[1];
+            bool[] promotedFields = (bool[])_inputArguments[2];
+            SimpleAttributeOperand[] selectedFields = (SimpleAttributeOperand[])ExtensionObject.ToArray(_inputArguments[3], typeof(SimpleAttributeOperand));
+
+            ConfigurationVersionDataType newConfigurationVersion = (ConfigurationVersionDataType)_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    configurationVersion,
+                    fieldNameAliases,
+                    promotedFields,
+                    selectedFields,
+                    ref newConfigurationVersion);
+            }
+
+            _outputArguments[0] = newConfigurationVersion;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult PublishedEventsTypeModifyFieldSelectionMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ConfigurationVersionDataType configurationVersion,
+        string[] fieldNameAliases,
+        bool[] promotedFields,
+        SimpleAttributeOperand[] selectedFields,
+        ref ConfigurationVersionDataType newConfigurationVersion);
+    #endif
+    #endregion
+
     #region AddPublishedDataItemsMethodState Class
     #if (!OPCUA_EXCLUDE_AddPublishedDataItemsMethodState)
     /// <summary>
@@ -70605,11 +76598,11 @@ namespace Opc.Ua
            "AKU4pTgAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCmOAAuAESmOAAAlgQA" +
            "AAABACoBARMAAAAEAAAATmFtZQAM/////wAAAAAAAQAqAQEjAAAAEAAAAEZpZWxkTmFtZUFsaWFzZXMA" +
            "DAEAAAABAAAAAAAAAAABACoBAR8AAAAKAAAARmllbGRGbGFncwEAID4BAAAAAQAAAAAAAAAAAQAqAQEj" +
-           "AAAADgAAAFZhcmlhYmxlc1RvQWRkAQDBNwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////" +
+           "AAAADgAAAFZhcmlhYmxlc1RvQWRkAQDBNwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAEAAAAAQH/////" +
            "AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCnOAAuAESnOAAAlgMAAAABACoBARwAAAAN" +
            "AAAARGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAqAQElAAAAFAAAAENvbmZpZ3VyYXRpb25WZXJzaW9u" +
            "AQABOf////8AAAAAAAEAKgEBHQAAAAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAA=";
+           "AAAAAwAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -70748,10 +76741,10 @@ namespace Opc.Ua
            "ACoBARMAAAAEAAAATmFtZQAM/////wAAAAAAAQAqAQEcAAAADQAAAEV2ZW50Tm90aWZpZXIAEf////8A" +
            "AAAAAAEAKgEBIwAAABAAAABGaWVsZE5hbWVBbGlhc2VzAAwBAAAAAQAAAAAAAAAAAQAqAQEfAAAACgAA" +
            "AEZpZWxkRmxhZ3MBACA+AQAAAAEAAAAAAAAAAAEAKgEBIwAAAA4AAABTZWxlY3RlZEZpZWxkcwEAWQIB" +
-           "AAAAAQAAAAAAAAAAAQAqAQEXAAAABgAAAEZpbHRlcgEASgL/////AAAAAAABACgBAQAAAAEAAAAAAAAA" +
+           "AAAAAQAAAAAAAAAAAQAqAQEXAAAABgAAAEZpbHRlcgEASgL/////AAAAAAABACgBAQAAAAEAAAAGAAAA" +
            "AQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCqOAAuAESqOAAAlgIAAAABACoB" +
            "ASUAAAAUAAAAQ29uZmlndXJhdGlvblZlcnNpb24BAAE5/////wAAAAAAAQAqAQEcAAAADQAAAERhdGFT" +
-           "ZXROb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "ZXROb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -70891,9 +76884,9 @@ namespace Opc.Ua
            "ZQEAhkIALwEAhkKGQgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAIdCAC4A" +
            "RIdCAACWAwAAAAEAKgEBEwAAAAQAAABOYW1lAAz/////AAAAAAABACoBASAAAAAPAAAARGF0YVNldE1l" +
            "dGFEYXRhAQC7OP////8AAAAAAAEAKgEBIwAAAA4AAABWYXJpYWJsZXNUb0FkZAEAwTcBAAAAAQAAAAAA" +
-           "AAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA" +
+           "AAAAAQAoAQEAAAABAAAAAwAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA" +
            "iEIALgBEiEIAAJYCAAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf////8AAAAAAAEAKgEBHQAA" +
-           "AAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -71025,9 +77018,9 @@ namespace Opc.Ua
            "AACWBQAAAAEAKgEBEwAAAAQAAABOYW1lAAz/////AAAAAAABACoBASAAAAAPAAAARGF0YVNldE1ldGFE" +
            "YXRhAQC7OP////8AAAAAAAEAKgEBHAAAAA0AAABFdmVudE5vdGlmaWVyABH/////AAAAAAABACoBASMA" +
            "AAAOAAAAU2VsZWN0ZWRGaWVsZHMBAFkCAQAAAAEAAAAAAAAAAAEAKgEBFwAAAAYAAABGaWx0ZXIBAEoC" +
-           "/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3Vt" +
+           "/////wAAAAAAAQAoAQEAAAABAAAABQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3Vt" +
            "ZW50cwEAqkIALgBEqkIAAJYBAAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "KAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -71158,7 +77151,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAIAAAAFJlbW92ZVB1Ymxpc2hlZERhdGFTZXRNZXRob2RUeXBlAQCrOAAv" +
            "AQCrOKs4AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEArDgALgBErDgAAJYB" +
-           "AAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
+           "AAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf//" +
            "//8AAAAA";
         #endregion
         #endif
@@ -71272,9 +77265,9 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGgAAAEFkZERhdGFTZXRGb2xkZXJNZXRob2RUeXBlAQCrQgAvAQCrQqtC" +
            "AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEArEIALgBErEIAAJYBAAAAAQAq" +
-           "AQETAAAABAAAAE5hbWUADP////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAA" +
+           "AQETAAAABAAAAE5hbWUADP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAA" +
            "AA8AAABPdXRwdXRBcmd1bWVudHMBAK1CAC4ARK1CAACWAQAAAAEAKgEBIgAAABMAAABEYXRhU2V0Rm9s" +
-           "ZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "ZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -71393,7 +77386,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAHQAAAFJlbW92ZURhdGFTZXRGb2xkZXJNZXRob2RUeXBlAQC3QgAvAQC3" +
            "QrdCAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAMUMALgBEMUMAAJYBAAAA" +
-           "AQAqAQEiAAAAEwAAAERhdGFTZXRGb2xkZXJOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAAB" +
+           "AQAqAQEiAAAAEwAAAERhdGFTZXRGb2xkZXJOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
            "Af////8AAAAA";
         #endregion
         #endif
@@ -71584,21 +77577,21 @@ namespace Opc.Ua
         private const string AddWriterGroup_InitializationString =
            "//////////8EYYIKBAAAAAAADgAAAEFkZFdyaXRlckdyb3VwAQATRAAvAQATRBNEAAABAf////8CAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAFEQALgBEFEQAAJYBAAAAAQAqAQEeAAAADQAAAENv" +
-           "bmZpZ3VyYXRpb24BAHg8/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAA" +
+           "bmZpZ3VyYXRpb24BAHg8/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAA" +
            "DwAAAE91dHB1dEFyZ3VtZW50cwEAMEQALgBEMEQAAJYBAAAAAQAqAQEWAAAABwAAAEdyb3VwSWQAEf//" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "//8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
 
         private const string AddReaderGroup_InitializationString =
            "//////////8EYYIKBAAAAAAADgAAAEFkZFJlYWRlckdyb3VwAQA5RAAvAQA5RDlEAAABAf////8CAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAY0QALgBEY0QAAJYBAAAAAQAqAQEeAAAADQAAAENv" +
-           "bmZpZ3VyYXRpb24BAKA8/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAA" +
+           "bmZpZ3VyYXRpb24BAKA8/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAA" +
            "DwAAAE91dHB1dEFyZ3VtZW50cwEAZEQALgBEZEQAAJYBAAAAAQAqAQEWAAAABwAAAEdyb3VwSWQAEf//" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "//8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
 
         private const string RemoveGroup_InitializationString =
            "//////////8EYYIKBAAAAAAACwAAAFJlbW92ZUdyb3VwAQCRNwAvAQCRN5E3AAABAf////8BAAAAF2Cp" +
            "CgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAkjcALgBEkjcAAJYBAAAAAQAqAQEWAAAABwAAAEdyb3Vw" +
-           "SWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "SWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHAAAAFB1YlN1YkNvbm5lY3Rpb25UeXBlSW5zdGFuY2UBAIE3AQCBN4E3" +
@@ -71652,15 +77645,15 @@ namespace Opc.Ua
            "Y3NMZXZlbAEAWEsALgBEWEsAAAYAAAAAAQALTf////8BAf////8AAAAABGGCCgQAAAAAAA4AAABBZGRX" +
            "cml0ZXJHcm91cAEAE0QALwEAE0QTRAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVu" +
            "dHMBABREAC4ARBREAACWAQAAAAEAKgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQB4PP////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBADBEAC4A" +
-           "RDBEAACWAQAAAAEAKgEBFgAAAAcAAABHcm91cElkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/" +
+           "KAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBADBEAC4A" +
+           "RDBEAACWAQAAAAEAKgEBFgAAAAcAAABHcm91cElkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/" +
            "////AAAAAARhggoEAAAAAAAOAAAAQWRkUmVhZGVyR3JvdXABADlEAC8BADlEOUQAAAEB/////wIAAAAX" +
            "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBjRAAuAERjRAAAlgEAAAABACoBAR4AAAANAAAAQ29u" +
-           "ZmlndXJhdGlvbgEAoDz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
+           "ZmlndXJhdGlvbgEAoDz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
            "AAAAT3V0cHV0QXJndW1lbnRzAQBkRAAuAERkRAAAlgEAAAABACoBARYAAAAHAAAAR3JvdXBJZAAR////" +
-           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAFJlbW92ZUdyb3VwAQCR" +
+           "/wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAFJlbW92ZUdyb3VwAQCR" +
            "NwAvAQCRN5E3AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAkjcALgBEkjcA" +
-           "AJYBAAAAAQAqAQEWAAAABwAAAEdyb3VwSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8A" +
+           "AJYBAAAAAQAqAQEWAAAABwAAAEdyb3VwSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8A" +
            "AAAA";
         #endregion
         #endif
@@ -72175,6 +78168,264 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region GetConnectionMethodState Class
+    #if (!OPCUA_EXCLUDE_GetConnectionMethodState)
+    /// <summary>
+    /// Stores an instance of the GetConnectionMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class GetConnectionMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public GetConnectionMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new GetConnectionMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAFwAAAEdldENvbm5lY3Rpb25NZXRob2RUeXBlAQCuXAAvAQCuXK5cAAAB" +
+           "Af////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAr1wALgBEr1wAAJYBAAAAAQAqAQEe" +
+           "AAAADwAAAEluY2x1ZGVDaGlsZHJlbgAB/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAX" +
+           "YKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAsFwALgBEsFwAAJYCAAAAAQAqAQEeAAAADQAAAENv" +
+           "bmZpZ3VyYXRpb24BAAE9/////wAAAAAAAQAqAQEXAAAACAAAAENoZWNrU3VtAA//////AAAAAAABACgB" +
+           "AQAAAAEAAAACAAAAAQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public GetConnectionMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            bool includeChildren = (bool)_inputArguments[0];
+
+            PubSubConnectionDataType configuration = (PubSubConnectionDataType)_outputArguments[0];
+            byte[] checkSum = (byte[])_outputArguments[1];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    includeChildren,
+                    ref configuration,
+                    ref checkSum);
+            }
+
+            _outputArguments[0] = configuration;
+            _outputArguments[1] = checkSum;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult GetConnectionMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        bool includeChildren,
+        ref PubSubConnectionDataType configuration,
+        ref byte[] checkSum);
+    #endif
+    #endregion
+
+    #region ModifyConnectionMethodState Class
+    #if (!OPCUA_EXCLUDE_ModifyConnectionMethodState)
+    /// <summary>
+    /// Stores an instance of the ModifyConnectionMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class ModifyConnectionMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public ModifyConnectionMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new ModifyConnectionMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAGgAAAE1vZGlmeUNvbm5lY3Rpb25NZXRob2RUeXBlAQCxXAAvAQCxXLFc" +
+           "AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAslwALgBEslwAAJYEAAAAAQAq" +
+           "AQEeAAAADQAAAENvbmZpZ3VyYXRpb24BAAE9/////wAAAAAAAQAqAQEdAAAADgAAAE1vZGlmeUNoaWxk" +
+           "cmVuAAH/////AAAAAAABACoBARcAAAAIAAAAQ2hlY2tTdW0AD/////8AAAAAAAEAKgEBFAAAAAUAAABG" +
+           "b3JjZQAB/////wAAAAAAAQAoAQEAAAABAAAABAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1" +
+           "dEFyZ3VtZW50cwEAs1wALgBEs1wAAJYBAAAAAQAqAQEaAAAACwAAAE5ld0NoZWNrU3VtAA//////AAAA" +
+           "AAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public ModifyConnectionMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            PubSubConnectionDataType configuration = (PubSubConnectionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            bool modifyChildren = (bool)_inputArguments[1];
+            byte[] checkSum = (byte[])_inputArguments[2];
+            bool force = (bool)_inputArguments[3];
+
+            byte[] newCheckSum = (byte[])_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    modifyChildren,
+                    checkSum,
+                    force,
+                    ref newCheckSum);
+            }
+
+            _outputArguments[0] = newCheckSum;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult ModifyConnectionMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        PubSubConnectionDataType configuration,
+        bool modifyChildren,
+        byte[] checkSum,
+        bool force,
+        ref byte[] newCheckSum);
+    #endif
+    #endregion
+
     #region PubSubConnectionTypeAddWriterGroupMethodState Class
     #if (!OPCUA_EXCLUDE_PubSubConnectionTypeAddWriterGroupMethodState)
     /// <summary>
@@ -72226,8 +78477,8 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAALAAAAFB1YlN1YkNvbm5lY3Rpb25UeXBlQWRkV3JpdGVyR3JvdXBNZXRo" +
            "b2RUeXBlAQCZRAAvAQCZRJlEAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA" +
            "zUQALgBEzUQAAJYBAAAAAQAqAQEeAAAADQAAAENvbmZpZ3VyYXRpb24BAHg8/////wAAAAAAAQAoAQEA" +
-           "AAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAzkQALgBEzkQA" +
-           "AJYBAAAAAQAqAQEWAAAABwAAAEdyb3VwSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8A" +
+           "AAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAzkQALgBEzkQA" +
+           "AJYBAAAAAQAqAQEWAAAABwAAAEdyb3VwSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8A" +
            "AAAA";
         #endregion
         #endif
@@ -72348,8 +78599,8 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAALQAAAFB1YlN1YkNvbm5lY3Rpb25BZGRSZWFkZXJHcm91cEdyb3VwTWV0" +
            "aG9kVHlwZQEA3kQALwEA3kTeRAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMB" +
            "AN9EAC4ARN9EAACWAQAAAAEAKgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQCgPP////8AAAAAAAEAKAEB" +
-           "AAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBADhFAC4ARDhF" +
-           "AACWAQAAAAEAKgEBFgAAAAcAAABHcm91cElkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////" +
+           "AAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBADhFAC4ARDhF" +
+           "AACWAQAAAAEAKgEBFgAAAAcAAABHcm91cElkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////" +
            "AAAAAA==";
         #endregion
         #endif
@@ -72469,7 +78720,7 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAKQAAAFB1YlN1YkNvbm5lY3Rpb25UeXBlUmVtb3ZlR3JvdXBNZXRob2RU" +
            "eXBlAQAMOQAvAQAMOQw5AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEADTkA" +
-           "LgBEDTkAAJYBAAAAAQAqAQEWAAAABwAAAEdyb3VwSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAAB" +
+           "LgBEDTkAAJYBAAAAAQAqAQEWAAAABwAAAEdyb3VwSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
            "Af////8AAAAA";
         #endregion
         #endif
@@ -73160,14 +79411,14 @@ namespace Opc.Ua
         private const string AddDataSetWriter_InitializationString =
            "//////////8EYYIKBAAAAAAAEAAAAEFkZERhdGFTZXRXcml0ZXIBADFGAC8BADFGMUYAAAEB/////wIA" +
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQA4RgAuAEQ4RgAAlgEAAAABACoBAR4AAAANAAAA" +
-           "Q29uZmlndXJhdGlvbgEA7Tz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAA" +
+           "Q29uZmlndXJhdGlvbgEA7Tz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAA" +
            "AAAPAAAAT3V0cHV0QXJndW1lbnRzAQBDRgAuAERDRgAAlgEAAAABACoBASIAAAATAAAARGF0YVNldFdy" +
-           "aXRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "aXRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string RemoveDataSetWriter_InitializationString =
            "//////////8EYYIKBAAAAAAAEwAAAFJlbW92ZURhdGFTZXRXcml0ZXIBAEhGAC8BAEhGSEYAAAEB////" +
            "/wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBJRgAuAERJRgAAlgEAAAABACoBASIAAAAT" +
-           "AAAARGF0YVNldFdyaXRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AAAARGF0YVNldFdyaXRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAFwAAAFdyaXRlckdyb3VwVHlwZUluc3RhbmNlAQA9RQEAPUU9RQAA////" +
@@ -73238,11 +79489,11 @@ namespace Opc.Ua
            "TGV2ZWwBAA5GAC4ARA5GAAAGAAAAAAEAC03/////AQH/////AAAAAARhggoEAAAAAAAQAAAAQWRkRGF0" +
            "YVNldFdyaXRlcgEAMUYALwEAMUYxRgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVu" +
            "dHMBADhGAC4ARDhGAACWAQAAAAEAKgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQDtPP////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAENGAC4A" +
+           "KAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAENGAC4A" +
            "RENGAACWAQAAAAEAKgEBIgAAABMAAABEYXRhU2V0V3JpdGVyTm9kZUlkABH/////AAAAAAABACgBAQAA" +
-           "AAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAATAAAAUmVtb3ZlRGF0YVNldFdyaXRlcgEASEYALwEA" +
+           "AAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAATAAAAUmVtb3ZlRGF0YVNldFdyaXRlcgEASEYALwEA" +
            "SEZIRgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAElGAC4ARElGAACWAQAA" +
-           "AAEAKgEBIgAAABMAAABEYXRhU2V0V3JpdGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAA" +
+           "AAEAKgEBIgAAABMAAABEYXRhU2V0V3JpdGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAA" +
            "AQH/////AAAAAA==";
         #endregion
         #endif
@@ -73803,6 +80054,264 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region GetWriterGroupMethodState Class
+    #if (!OPCUA_EXCLUDE_GetWriterGroupMethodState)
+    /// <summary>
+    /// Stores an instance of the GetWriterGroupMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class GetWriterGroupMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public GetWriterGroupMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new GetWriterGroupMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAGAAAAEdldFdyaXRlckdyb3VwTWV0aG9kVHlwZQEAwVwALwEAwVzBXAAA" +
+           "AQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAMJcAC4ARMJcAACWAQAAAAEAKgEB" +
+           "HgAAAA8AAABJbmNsdWRlQ2hpbGRyZW4AAf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA" +
+           "F2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAMNcAC4ARMNcAACWAgAAAAEAKgEBHgAAAA0AAABD" +
+           "b25maWd1cmF0aW9uAQB4PP////8AAAAAAAEAKgEBFwAAAAgAAABDaGVja1N1bQAP/////wAAAAAAAQAo" +
+           "AQEAAAABAAAAAgAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public GetWriterGroupMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            bool includeChildren = (bool)_inputArguments[0];
+
+            WriterGroupDataType configuration = (WriterGroupDataType)_outputArguments[0];
+            byte[] checkSum = (byte[])_outputArguments[1];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    includeChildren,
+                    ref configuration,
+                    ref checkSum);
+            }
+
+            _outputArguments[0] = configuration;
+            _outputArguments[1] = checkSum;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult GetWriterGroupMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        bool includeChildren,
+        ref WriterGroupDataType configuration,
+        ref byte[] checkSum);
+    #endif
+    #endregion
+
+    #region ModifyWriterGroupMethodState Class
+    #if (!OPCUA_EXCLUDE_ModifyWriterGroupMethodState)
+    /// <summary>
+    /// Stores an instance of the ModifyWriterGroupMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class ModifyWriterGroupMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public ModifyWriterGroupMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new ModifyWriterGroupMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAGwAAAE1vZGlmeVdyaXRlckdyb3VwTWV0aG9kVHlwZQEAxFwALwEAxFzE" +
+           "XAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAMVcAC4ARMVcAACWBAAAAAEA" +
+           "KgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQB4PP////8AAAAAAAEAKgEBHQAAAA4AAABNb2RpZnlDaGls" +
+           "ZHJlbgAB/////wAAAAAAAQAqAQEXAAAACAAAAENoZWNrU3VtAA//////AAAAAAABACoBARQAAAAFAAAA" +
+           "Rm9yY2UAAf////8AAAAAAAEAKAEBAAAAAQAAAAQAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRw" +
+           "dXRBcmd1bWVudHMBAMZcAC4ARMZcAACWAQAAAAEAKgEBGgAAAAsAAABOZXdDaGVja1N1bQAP/////wAA" +
+           "AAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public ModifyWriterGroupMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            WriterGroupDataType configuration = (WriterGroupDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            bool modifyChildren = (bool)_inputArguments[1];
+            byte[] checkSum = (byte[])_inputArguments[2];
+            bool force = (bool)_inputArguments[3];
+
+            byte[] newCheckSum = (byte[])_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    modifyChildren,
+                    checkSum,
+                    force,
+                    ref newCheckSum);
+            }
+
+            _outputArguments[0] = newCheckSum;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult ModifyWriterGroupMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        WriterGroupDataType configuration,
+        bool modifyChildren,
+        byte[] checkSum,
+        bool force,
+        ref byte[] newCheckSum);
+    #endif
+    #endregion
+
     #region PubSubGroupTypeAddWriterMethodState Class
     #if (!OPCUA_EXCLUDE_PubSubGroupTypeAddWriterMethodState)
     /// <summary>
@@ -73853,9 +80362,9 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAIgAAAFB1YlN1Ykdyb3VwVHlwZUFkZFdyaXRlck1ldGhvZFR5cGUBAEpG" +
            "AC8BAEpGSkYAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBLRgAuAERLRgAA" +
-           "lgEAAAABACoBAR4AAAANAAAAQ29uZmlndXJhdGlvbgEA7Tz/////AAAAAAABACgBAQAAAAEAAAAAAAAA" +
+           "lgEAAAABACoBAR4AAAANAAAAQ29uZmlndXJhdGlvbgEA7Tz/////AAAAAAABACgBAQAAAAEAAAABAAAA" +
            "AQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBMRgAuAERMRgAAlgEAAAABACoB" +
-           "ASIAAAATAAAARGF0YVNldFdyaXRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "ASIAAAATAAAARGF0YVNldFdyaXRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB////" +
            "/wAAAAA=";
         #endregion
         #endif
@@ -73976,7 +80485,7 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAJQAAAFB1YlN1Ykdyb3VwVHlwZVJlbW92ZVdyaXRlck1ldGhvZFR5cGUB" +
            "AB85AC8BAB85HzkAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAgOQAuAEQg" +
            "OQAAlgEAAAABACoBASIAAAATAAAARGF0YVNldFdyaXRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAA=";
+           "AAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -74321,14 +80830,14 @@ namespace Opc.Ua
         private const string AddDataSetReader_InitializationString =
            "//////////8EYYIKBAAAAAAAEAAAAEFkZERhdGFTZXRSZWFkZXIBAFpSAC8BAFpSWlIAAAEB/////wIA" +
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBbUgAuAERbUgAAlgEAAAABACoBAR4AAAANAAAA" +
-           "Q29uZmlndXJhdGlvbgEABz3/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAA" +
+           "Q29uZmlndXJhdGlvbgEABz3/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAA" +
            "AAAPAAAAT3V0cHV0QXJndW1lbnRzAQBcUgAuAERcUgAAlgEAAAABACoBASIAAAATAAAARGF0YVNldFJl" +
-           "YWRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "YWRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string RemoveDataSetReader_InitializationString =
            "//////////8EYYIKBAAAAAAAEwAAAFJlbW92ZURhdGFTZXRSZWFkZXIBAF1SAC8BAF1SXVIAAAEB////" +
            "/wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBeUgAuAEReUgAAlgEAAAABACoBASIAAAAT" +
-           "AAAARGF0YVNldFJlYWRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AAAARGF0YVNldFJlYWRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAFwAAAFJlYWRlckdyb3VwVHlwZUluc3RhbmNlAQBPRgEAT0ZPRgAA////" +
@@ -74385,12 +80894,12 @@ namespace Opc.Ua
            "AQBiUlhSAAD/////AAAAAARggAoBAAAAAAAPAAAATWVzc2FnZVNldHRpbmdzAQBZUgAvAQBjUllSAAD/" +
            "////AAAAAARhggoEAAAAAAAQAAAAQWRkRGF0YVNldFJlYWRlcgEAWlIALwEAWlJaUgAAAQH/////AgAA" +
            "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAFtSAC4ARFtSAACWAQAAAAEAKgEBHgAAAA0AAABD" +
-           "b25maWd1cmF0aW9uAQAHPf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAA" +
+           "b25maWd1cmF0aW9uAQAHPf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAA" +
            "AA8AAABPdXRwdXRBcmd1bWVudHMBAFxSAC4ARFxSAACWAQAAAAEAKgEBIgAAABMAAABEYXRhU2V0UmVh" +
-           "ZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAATAAAA" +
+           "ZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAATAAAA" +
            "UmVtb3ZlRGF0YVNldFJlYWRlcgEAXVIALwEAXVJdUgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5w" +
            "dXRBcmd1bWVudHMBAF5SAC4ARF5SAACWAQAAAAEAKgEBIgAAABMAAABEYXRhU2V0UmVhZGVyTm9kZUlk" +
-           "ABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "ABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -74674,6 +81183,264 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region GetReaderGroupMethodState Class
+    #if (!OPCUA_EXCLUDE_GetReaderGroupMethodState)
+    /// <summary>
+    /// Stores an instance of the GetReaderGroupMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class GetReaderGroupMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public GetReaderGroupMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new GetReaderGroupMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAGAAAAEdldFJlYWRlckdyb3VwTWV0aG9kVHlwZQEA11wALwEA11zXXAAA" +
+           "AQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBANhcAC4ARNhcAACWAQAAAAEAKgEB" +
+           "HgAAAA8AAABJbmNsdWRlQ2hpbGRyZW4AAf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA" +
+           "F2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBANlcAC4ARNlcAACWAgAAAAEAKgEBHgAAAA0AAABD" +
+           "b25maWd1cmF0aW9uAQCgPP////8AAAAAAAEAKgEBFwAAAAgAAABDaGVja1N1bQAP/////wAAAAAAAQAo" +
+           "AQEAAAABAAAAAgAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public GetReaderGroupMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            bool includeChildren = (bool)_inputArguments[0];
+
+            ReaderGroupDataType configuration = (ReaderGroupDataType)_outputArguments[0];
+            byte[] checkSum = (byte[])_outputArguments[1];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    includeChildren,
+                    ref configuration,
+                    ref checkSum);
+            }
+
+            _outputArguments[0] = configuration;
+            _outputArguments[1] = checkSum;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult GetReaderGroupMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        bool includeChildren,
+        ref ReaderGroupDataType configuration,
+        ref byte[] checkSum);
+    #endif
+    #endregion
+
+    #region ModifyReaderGroupMethodState Class
+    #if (!OPCUA_EXCLUDE_ModifyReaderGroupMethodState)
+    /// <summary>
+    /// Stores an instance of the ModifyReaderGroupMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class ModifyReaderGroupMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public ModifyReaderGroupMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new ModifyReaderGroupMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAGwAAAE1vZGlmeVJlYWRlckdyb3VwTWV0aG9kVHlwZQEA2lwALwEA2lza" +
+           "XAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBANtcAC4ARNtcAACWBAAAAAEA" +
+           "KgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQCgPP////8AAAAAAAEAKgEBHQAAAA4AAABNb2RpZnlDaGls" +
+           "ZHJlbgAB/////wAAAAAAAQAqAQEXAAAACAAAAENoZWNrU3VtAA//////AAAAAAABACoBARQAAAAFAAAA" +
+           "Rm9yY2UAAf////8AAAAAAAEAKAEBAAAAAQAAAAQAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRw" +
+           "dXRBcmd1bWVudHMBANxcAC4ARNxcAACWAQAAAAEAKgEBGgAAAAsAAABOZXdDaGVja1N1bQAP/////wAA" +
+           "AAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public ModifyReaderGroupMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            ReaderGroupDataType configuration = (ReaderGroupDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            bool modifyChildren = (bool)_inputArguments[1];
+            byte[] checkSum = (byte[])_inputArguments[2];
+            bool force = (bool)_inputArguments[3];
+
+            byte[] newCheckSum = (byte[])_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    modifyChildren,
+                    checkSum,
+                    force,
+                    ref newCheckSum);
+            }
+
+            _outputArguments[0] = newCheckSum;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult ModifyReaderGroupMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ReaderGroupDataType configuration,
+        bool modifyChildren,
+        byte[] checkSum,
+        bool force,
+        ref byte[] newCheckSum);
+    #endif
+    #endregion
+
     #region PubSubGroupTypeAddReaderMethodState Class
     #if (!OPCUA_EXCLUDE_PubSubGroupTypeAddReaderMethodState)
     /// <summary>
@@ -74724,9 +81491,9 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAIgAAAFB1YlN1Ykdyb3VwVHlwZUFkZFJlYWRlck1ldGhvZFR5cGUBAF9S" +
            "AC8BAF9SX1IAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBgUgAuAERgUgAA" +
-           "lgEAAAABACoBAR4AAAANAAAAQ29uZmlndXJhdGlvbgEABz3/////AAAAAAABACgBAQAAAAEAAAAAAAAA" +
+           "lgEAAAABACoBAR4AAAANAAAAQ29uZmlndXJhdGlvbgEABz3/////AAAAAAABACgBAQAAAAEAAAABAAAA" +
            "AQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBhUgAuAERhUgAAlgEAAAABACoB" +
-           "ASIAAAATAAAARGF0YVNldFJlYWRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "ASIAAAATAAAARGF0YVNldFJlYWRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB////" +
            "/wAAAAA=";
         #endregion
         #endif
@@ -74847,7 +81614,7 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAJQAAAFB1YlN1Ykdyb3VwVHlwZVJlbW92ZVJlYWRlck1ldGhvZFR5cGUB" +
            "ACE5AC8BACE5ITkAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAiOQAuAEQi" +
            "OQAAlgEAAAABACoBASIAAAATAAAARGF0YVNldFJlYWRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAA=";
+           "AAAAAQAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -75655,6 +82422,254 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region GetDataSetWriterMethodState Class
+    #if (!OPCUA_EXCLUDE_GetDataSetWriterMethodState)
+    /// <summary>
+    /// Stores an instance of the GetDataSetWriterMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class GetDataSetWriterMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public GetDataSetWriterMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new GetDataSetWriterMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAGgAAAEdldERhdGFTZXRXcml0ZXJNZXRob2RUeXBlAQDjXAAvAQDjXONc" +
+           "AAABAf////8BAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAORcAC4ARORcAACWAgAAAAEA" +
+           "KgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQDtPP////8AAAAAAAEAKgEBFwAAAAgAAABDaGVja1N1bQAP" +
+           "/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public GetDataSetWriterMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            DataSetWriterDataType configuration = (DataSetWriterDataType)_outputArguments[0];
+            byte[] checkSum = (byte[])_outputArguments[1];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    ref configuration,
+                    ref checkSum);
+            }
+
+            _outputArguments[0] = configuration;
+            _outputArguments[1] = checkSum;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult GetDataSetWriterMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ref DataSetWriterDataType configuration,
+        ref byte[] checkSum);
+    #endif
+    #endregion
+
+    #region ModifyDataSetWriterMethodState Class
+    #if (!OPCUA_EXCLUDE_ModifyDataSetWriterMethodState)
+    /// <summary>
+    /// Stores an instance of the ModifyDataSetWriterMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class ModifyDataSetWriterMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public ModifyDataSetWriterMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new ModifyDataSetWriterMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAHQAAAE1vZGlmeURhdGFTZXRXcml0ZXJNZXRob2RUeXBlAQDlXAAvAQDl" +
+           "XOVcAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA5lwALgBE5lwAAJYDAAAA" +
+           "AQAqAQEeAAAADQAAAENvbmZpZ3VyYXRpb24BAO08/////wAAAAAAAQAqAQEXAAAACAAAAENoZWNrU3Vt" +
+           "AA//////AAAAAAABACoBARQAAAAFAAAARm9yY2UAAf////8AAAAAAAEAKAEBAAAAAQAAAAMAAAABAf//" +
+           "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAOdcAC4AROdcAACWAQAAAAEAKgEBGgAA" +
+           "AAsAAABOZXdDaGVja1N1bQAP/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public ModifyDataSetWriterMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            DataSetWriterDataType configuration = (DataSetWriterDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            byte[] checkSum = (byte[])_inputArguments[1];
+            bool force = (bool)_inputArguments[2];
+
+            byte[] newCheckSum = (byte[])_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    checkSum,
+                    force,
+                    ref newCheckSum);
+            }
+
+            _outputArguments[0] = newCheckSum;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult ModifyDataSetWriterMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        DataSetWriterDataType configuration,
+        byte[] checkSum,
+        bool force,
+        ref byte[] newCheckSum);
+    #endif
+    #endregion
+
     #region DataSetWriterTransportState Class
     #if (!OPCUA_EXCLUDE_DataSetWriterTransportState)
     /// <summary>
@@ -75961,17 +82976,17 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAFQAAAENyZWF0ZVRhcmdldFZhcmlhYmxlcwEA6kMALwEA6kPqQwAAAQH/" +
            "////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAOtDAC4AROtDAACWAgAAAAEAKgEBJQAA" +
            "ABQAAABDb25maWd1cmF0aW9uVmVyc2lvbgEAATn/////AAAAAAABACoBASkAAAAUAAAAVGFyZ2V0VmFy" +
-           "aWFibGVzVG9BZGQBAJg5AQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIA" +
+           "aWFibGVzVG9BZGQBAJg5AQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIA" +
            "AAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAOxDAC4AROxDAACWAQAAAAEAKgEBHQAAAAoAAABBZGRSZXN1" +
-           "bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string CreateDataSetMirror_InitializationString =
            "//////////8EYYIKBAAAAAAAEwAAAENyZWF0ZURhdGFTZXRNaXJyb3IBAO1DAC8BAO1D7UMAAAEB////" +
            "/wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDuQwAuAETuQwAAlgIAAAABACoBAR0AAAAO" +
            "AAAAUGFyZW50Tm9kZU5hbWUADP////8AAAAAAAEAKgEBIgAAAA8AAABSb2xlUGVybWlzc2lvbnMAYAEA" +
-           "AAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
+           "AAABAAAAAAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
            "dW1lbnRzAQDvQwAuAETvQwAAlgEAAAABACoBARsAAAAMAAAAUGFyZW50Tm9kZUlkABH/////AAAAAAAB" +
-           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "ACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAGQAAAERhdGFTZXRSZWFkZXJUeXBlSW5zdGFuY2UBAMo7AQDKO8o7AAD/" +
@@ -76035,14 +83050,14 @@ namespace Opc.Ua
            "cmdldFZhcmlhYmxlcwEA6kMALwEA6kPqQwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1" +
            "bWVudHMBAOtDAC4AROtDAACWAgAAAAEAKgEBJQAAABQAAABDb25maWd1cmF0aW9uVmVyc2lvbgEAATn/" +
            "////AAAAAAABACoBASkAAAAUAAAAVGFyZ2V0VmFyaWFibGVzVG9BZGQBAJg5AQAAAAEAAAAAAAAAAAEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAOxDAC4A" +
+           "KAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAOxDAC4A" +
            "ROxDAACWAQAAAAEAKgEBHQAAAAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAAEYYIKBAAAAAAAEwAAAENyZWF0ZURhdGFTZXRNaXJyb3IBAO1DAC8BAO1D7UMA" +
+           "AQAAAAEB/////wAAAAAEYYIKBAAAAAAAEwAAAENyZWF0ZURhdGFTZXRNaXJyb3IBAO1DAC8BAO1D7UMA" +
            "AAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDuQwAuAETuQwAAlgIAAAABACoB" +
            "AR0AAAAOAAAAUGFyZW50Tm9kZU5hbWUADP////8AAAAAAAEAKgEBIgAAAA8AAABSb2xlUGVybWlzc2lv" +
-           "bnMAYAEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
+           "bnMAYAEAAAABAAAAAAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
            "cHV0QXJndW1lbnRzAQDvQwAuAETvQwAAlgEAAAABACoBARsAAAAMAAAAUGFyZW50Tm9kZUlkABH/////" +
-           "AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -77116,6 +84131,254 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region GetDataSetReaderMethodState Class
+    #if (!OPCUA_EXCLUDE_GetDataSetReaderMethodState)
+    /// <summary>
+    /// Stores an instance of the GetDataSetReaderMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class GetDataSetReaderMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public GetDataSetReaderMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new GetDataSetReaderMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAGgAAAEdldERhdGFTZXRSZWFkZXJNZXRob2RUeXBlAQDuXAAvAQDuXO5c" +
+           "AAABAf////8BAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAO9cAC4ARO9cAACWAgAAAAEA" +
+           "KgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQAHPf////8AAAAAAAEAKgEBFwAAAAgAAABDaGVja1N1bQAP" +
+           "/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public GetDataSetReaderMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            DataSetReaderDataType configuration = (DataSetReaderDataType)_outputArguments[0];
+            byte[] checkSum = (byte[])_outputArguments[1];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    ref configuration,
+                    ref checkSum);
+            }
+
+            _outputArguments[0] = configuration;
+            _outputArguments[1] = checkSum;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult GetDataSetReaderMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ref DataSetReaderDataType configuration,
+        ref byte[] checkSum);
+    #endif
+    #endregion
+
+    #region ModifyDataSetReaderMethodState Class
+    #if (!OPCUA_EXCLUDE_ModifyDataSetReaderMethodState)
+    /// <summary>
+    /// Stores an instance of the ModifyDataSetReaderMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class ModifyDataSetReaderMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public ModifyDataSetReaderMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new ModifyDataSetReaderMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAHQAAAE1vZGlmeURhdGFTZXRSZWFkZXJNZXRob2RUeXBlAQDwXAAvAQDw" +
+           "XPBcAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA8VwALgBE8VwAAJYDAAAA" +
+           "AQAqAQEeAAAADQAAAENvbmZpZ3VyYXRpb24BAAc9/////wAAAAAAAQAqAQEXAAAACAAAAENoZWNrU3Vt" +
+           "AA//////AAAAAAABACoBARQAAAAFAAAARm9yY2UAAf////8AAAAAAAEAKAEBAAAAAQAAAAMAAAABAf//" +
+           "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAPJcAC4ARPJcAACWAQAAAAEAKgEBGgAA" +
+           "AAsAAABOZXdDaGVja1N1bQAP/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public ModifyDataSetReaderMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            DataSetReaderDataType configuration = (DataSetReaderDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            byte[] checkSum = (byte[])_inputArguments[1];
+            bool force = (bool)_inputArguments[2];
+
+            byte[] newCheckSum = (byte[])_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    checkSum,
+                    force,
+                    ref newCheckSum);
+            }
+
+            _outputArguments[0] = newCheckSum;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult ModifyDataSetReaderMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        DataSetReaderDataType configuration,
+        byte[] checkSum,
+        bool force,
+        ref byte[] newCheckSum);
+    #endif
+    #endregion
+
     #region DataSetReaderTypeCreateTargetVariablesMethodState Class
     #if (!OPCUA_EXCLUDE_DataSetReaderTypeCreateTargetVariablesMethodState)
     /// <summary>
@@ -77168,8 +84431,8 @@ namespace Opc.Ua
            "TWV0aG9kVHlwZQEA8EMALwEA8EPwQwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVu" +
            "dHMBAPFDAC4ARPFDAACWAgAAAAEAKgEBJQAAABQAAABDb25maWd1cmF0aW9uVmVyc2lvbgEAATn/////" +
            "AAAAAAABACoBASkAAAAUAAAAVGFyZ2V0VmFyaWFibGVzVG9BZGQBAJg5AQAAAAEAAAAAAAAAAAEAKAEB" +
-           "AAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAPJDAC4ARPJD" +
-           "AACWAQAAAAEAKgEBHQAAAAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAA" +
+           "AAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAPJDAC4ARPJD" +
+           "AACWAQAAAAEAKgEBHQAAAAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAA" +
            "AAEB/////wAAAAA=";
         #endregion
         #endif
@@ -77293,9 +84556,9 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAALgAAAERhdGFTZXRSZWFkZXJUeXBlQ3JlYXRlRGF0YVNldE1pcnJvck1l" +
            "dGhvZFR5cGUBAPNDAC8BAPND80MAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRz" +
            "AQD0QwAuAET0QwAAlgIAAAABACoBAR0AAAAOAAAAUGFyZW50Tm9kZU5hbWUADP////8AAAAAAAEAKgEB" +
-           "IgAAAA8AAABSb2xlUGVybWlzc2lvbnMAYAEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////" +
+           "IgAAAA8AAABSb2xlUGVybWlzc2lvbnMAYAEAAAABAAAAAAAAAAABACgBAQAAAAEAAAACAAAAAQH/////" +
            "AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQD1QwAuAET1QwAAlgEAAAABACoBARsAAAAM" +
-           "AAAAUGFyZW50Tm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "AAAAUGFyZW50Tm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -77508,17 +84771,17 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAEgAAAEFkZFRhcmdldFZhcmlhYmxlcwEACzsALwEACzsLOwAAAQH/////" +
            "AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAAw7AC4ARAw7AACWAgAAAAEAKgEBJQAAABQA" +
            "AABDb25maWd1cmF0aW9uVmVyc2lvbgEAATn/////AAAAAAABACoBASkAAAAUAAAAVGFyZ2V0VmFyaWFi" +
-           "bGVzVG9BZGQBAJg5AQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAA" +
+           "bGVzVG9BZGQBAJg5AQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAA" +
            "AA8AAABPdXRwdXRBcmd1bWVudHMBAA07AC4ARA07AACWAQAAAAEAKgEBHQAAAAoAAABBZGRSZXN1bHRz" +
-           "ABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "ABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
         private const string RemoveTargetVariables_InitializationString =
            "//////////8EYYIKBAAAAAAAFQAAAFJlbW92ZVRhcmdldFZhcmlhYmxlcwEADjsALwEADjsOOwAAAQH/" +
            "////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAA87AC4ARA87AACWAgAAAAEAKgEBJQAA" +
            "ABQAAABDb25maWd1cmF0aW9uVmVyc2lvbgEAATn/////AAAAAAABACoBASIAAAAPAAAAVGFyZ2V0c1Rv" +
-           "UmVtb3ZlAAcBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAA" +
+           "UmVtb3ZlAAcBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAXYKkKAgAAAAAADwAA" +
            "AE91dHB1dEFyZ3VtZW50cwEAEDsALgBEEDsAAJYBAAAAAQAqAQEgAAAADQAAAFJlbW92ZVJlc3VsdHMA" +
-           "EwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "EwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAGwAAAFRhcmdldFZhcmlhYmxlc1R5cGVJbnN0YW5jZQEABzsBAAc7BzsA" +
@@ -77526,15 +84789,15 @@ namespace Opc.Ua
            "AAAAAAAAAQH/////AAAAAARhggoEAAAAAAASAAAAQWRkVGFyZ2V0VmFyaWFibGVzAQALOwAvAQALOws7" +
            "AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEADDsALgBEDDsAAJYCAAAAAQAq" +
            "AQElAAAAFAAAAENvbmZpZ3VyYXRpb25WZXJzaW9uAQABOf////8AAAAAAAEAKgEBKQAAABQAAABUYXJn" +
-           "ZXRWYXJpYWJsZXNUb0FkZAEAmDkBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAX" +
+           "ZXRWYXJpYWJsZXNUb0FkZAEAmDkBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAX" +
            "YKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEADTsALgBEDTsAAJYBAAAAAQAqAQEdAAAACgAAAEFk" +
-           "ZFJlc3VsdHMAEwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAV" +
+           "ZFJlc3VsdHMAEwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAV" +
            "AAAAUmVtb3ZlVGFyZ2V0VmFyaWFibGVzAQAOOwAvAQAOOw47AAABAf////8CAAAAF2CpCgIAAAAAAA4A" +
            "AABJbnB1dEFyZ3VtZW50cwEADzsALgBEDzsAAJYCAAAAAQAqAQElAAAAFAAAAENvbmZpZ3VyYXRpb25W" +
            "ZXJzaW9uAQABOf////8AAAAAAAEAKgEBIgAAAA8AAABUYXJnZXRzVG9SZW1vdmUABwEAAAABAAAAAAAA" +
-           "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAQ" +
+           "AAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAQ" +
            "OwAuAEQQOwAAlgEAAAABACoBASAAAAANAAAAUmVtb3ZlUmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEB" +
-           "AAAAAQAAAAAAAAABAf////8AAAAA";
+           "AAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -77778,8 +85041,8 @@ namespace Opc.Ua
            "ZXRob2RUeXBlAQAROwAvAQAROxE7AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50" +
            "cwEAEjsALgBEEjsAAJYCAAAAAQAqAQElAAAAFAAAAENvbmZpZ3VyYXRpb25WZXJzaW9uAQABOf////8A" +
            "AAAAAAEAKgEBKQAAABQAAABUYXJnZXRWYXJpYWJsZXNUb0FkZAEAmDkBAAAAAQAAAAAAAAAAAQAoAQEA" +
-           "AAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAEzsALgBEEzsA" +
-           "AJYBAAAAAQAqAQEdAAAACgAAAEFkZFJlc3VsdHMAEwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAA" +
+           "AAABAAAAAgAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAEzsALgBEEzsA" +
+           "AJYBAAAAAQAqAQEdAAAACgAAAEFkZFJlc3VsdHMAEwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAABAAAA" +
            "AQH/////AAAAAA==";
         #endregion
         #endif
@@ -77904,8 +85167,8 @@ namespace Opc.Ua
            "ZXNNZXRob2RUeXBlAQAUOwAvAQAUOxQ7AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3Vt" +
            "ZW50cwEAFTsALgBEFTsAAJYCAAAAAQAqAQElAAAAFAAAAENvbmZpZ3VyYXRpb25WZXJzaW9uAQABOf//" +
            "//8AAAAAAAEAKgEBIgAAAA8AAABUYXJnZXRzVG9SZW1vdmUABwEAAAABAAAAAAAAAAABACgBAQAAAAEA" +
-           "AAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAWOwAuAEQWOwAAlgEA" +
-           "AAABACoBASAAAAANAAAAUmVtb3ZlUmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAAB" +
+           "AAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAWOwAuAEQWOwAAlgEA" +
+           "AAABACoBASAAAAANAAAAUmVtb3ZlUmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
            "Af////8AAAAA";
         #endregion
         #endif
@@ -78046,6 +85309,847 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region SubscribedDataSetFolderState Class
+    #if (!OPCUA_EXCLUDE_SubscribedDataSetFolderState)
+    /// <summary>
+    /// Stores an instance of the SubscribedDataSetFolderType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class SubscribedDataSetFolderState : FolderState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public SubscribedDataSetFolderState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SubscribedDataSetFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+
+            if (AddSubscribedDataSet != null)
+            {
+                AddSubscribedDataSet.Initialize(context, AddSubscribedDataSet_InitializationString);
+            }
+
+            if (RemoveSubscribedDataSet != null)
+            {
+                RemoveSubscribedDataSet.Initialize(context, RemoveSubscribedDataSet_InitializationString);
+            }
+
+            if (AddDataSetFolder != null)
+            {
+                AddDataSetFolder.Initialize(context, AddDataSetFolder_InitializationString);
+            }
+
+            if (RemoveDataSetFolder != null)
+            {
+                RemoveDataSetFolder.Initialize(context, RemoveDataSetFolder_InitializationString);
+            }
+        }
+
+        #region Initialization String
+        private const string AddSubscribedDataSet_InitializationString =
+           "//////////8EYYIKBAAAAAAAFAAAAEFkZFN1YnNjcmliZWREYXRhU2V0AQADXQAvAQADXQNdAAABAf//" +
+           "//8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEABF0ALgBEBF0AAJYBAAAAAQAqAQEiAAAA" +
+           "EQAAAFN1YnNjcmliZWREYXRhU2V0AQAwXP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA" +
+           "F2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAAVdAC4ARAVdAACWAQAAAAEAKgEBJgAAABcAAABT" +
+           "dWJzY3JpYmVkRGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
+
+        private const string RemoveSubscribedDataSet_InitializationString =
+           "//////////8EYYIKBAAAAAAAFwAAAFJlbW92ZVN1YnNjcmliZWREYXRhU2V0AQAGXQAvAQAGXQZdAAAB" +
+           "Af////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAB10ALgBEB10AAJYBAAAAAQAqAQEm" +
+           "AAAAFwAAAFN1YnNjcmliZWREYXRhU2V0Tm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/" +
+           "////AAAAAA==";
+
+        private const string AddDataSetFolder_InitializationString =
+           "//////////8EYYIKBAAAAAAAEAAAAEFkZERhdGFTZXRGb2xkZXIBAAhdAC8BAAhdCF0AAAEB/////wIA" +
+           "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAJXQAuAEQJXQAAlgEAAAABACoBARMAAAAEAAAA" +
+           "TmFtZQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1" +
+           "dEFyZ3VtZW50cwEACl0ALgBECl0AAJYBAAAAAQAqAQEiAAAAEwAAAERhdGFTZXRGb2xkZXJOb2RlSWQA" +
+           "Ef////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
+
+        private const string RemoveDataSetFolder_InitializationString =
+           "//////////8EYYIKBAAAAAAAEwAAAFJlbW92ZURhdGFTZXRGb2xkZXIBAAtdAC8BAAtdC10AAAEB////" +
+           "/wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAMXQAuAEQMXQAAlgEAAAABACoBASIAAAAT" +
+           "AAAARGF0YVNldEZvbGRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
+
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAAIwAAAFN1YnNjcmliZWREYXRhU2V0Rm9sZGVyVHlwZUluc3RhbmNlAQDz" +
+           "XAEA81zzXAAA/////wQAAAAEYYIKBAAAAAAAFAAAAEFkZFN1YnNjcmliZWREYXRhU2V0AQADXQAvAQAD" +
+           "XQNdAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEABF0ALgBEBF0AAJYBAAAA" +
+           "AQAqAQEiAAAAEQAAAFN1YnNjcmliZWREYXRhU2V0AQAwXP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
+           "Af////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAAVdAC4ARAVdAACWAQAAAAEAKgEB" +
+           "JgAAABcAAABTdWJzY3JpYmVkRGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB" +
+           "/////wAAAAAEYYIKBAAAAAAAFwAAAFJlbW92ZVN1YnNjcmliZWREYXRhU2V0AQAGXQAvAQAGXQZdAAAB" +
+           "Af////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAB10ALgBEB10AAJYBAAAAAQAqAQEm" +
+           "AAAAFwAAAFN1YnNjcmliZWREYXRhU2V0Tm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/" +
+           "////AAAAAARhggoEAAAAAAAQAAAAQWRkRGF0YVNldEZvbGRlcgEACF0ALwEACF0IXQAAAQH/////AgAA" +
+           "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAAldAC4ARAldAACWAQAAAAEAKgEBEwAAAAQAAABO" +
+           "YW1lAAz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0" +
+           "QXJndW1lbnRzAQAKXQAuAEQKXQAAlgEAAAABACoBASIAAAATAAAARGF0YVNldEZvbGRlck5vZGVJZAAR" +
+           "/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAAEwAAAFJlbW92ZURhdGFT" +
+           "ZXRGb2xkZXIBAAtdAC8BAAtdC10AAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRz" +
+           "AQAMXQAuAEQMXQAAlgEAAAABACoBASIAAAATAAAARGF0YVNldEZvbGRlck5vZGVJZAAR/////wAAAAAA" +
+           "AQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public AddSubscribedDataSetMethodState AddSubscribedDataSet
+        {
+            get
+            {
+                return m_addSubscribedDataSetMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_addSubscribedDataSetMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_addSubscribedDataSetMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public RemoveSubscribedDataSetMethodState RemoveSubscribedDataSet
+        {
+            get
+            {
+                return m_removeSubscribedDataSetMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_removeSubscribedDataSetMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_removeSubscribedDataSetMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public AddDataSetFolderMethodState AddDataSetFolder
+        {
+            get
+            {
+                return m_addDataSetFolderMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_addDataSetFolderMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_addDataSetFolderMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public RemoveDataSetFolderMethodState RemoveDataSetFolder
+        {
+            get
+            {
+                return m_removeDataSetFolderMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_removeDataSetFolderMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_removeDataSetFolderMethod = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_addSubscribedDataSetMethod != null)
+            {
+                children.Add(m_addSubscribedDataSetMethod);
+            }
+
+            if (m_removeSubscribedDataSetMethod != null)
+            {
+                children.Add(m_removeSubscribedDataSetMethod);
+            }
+
+            if (m_addDataSetFolderMethod != null)
+            {
+                children.Add(m_addDataSetFolderMethod);
+            }
+
+            if (m_removeDataSetFolderMethod != null)
+            {
+                children.Add(m_removeDataSetFolderMethod);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.AddSubscribedDataSet:
+                {
+                    if (createOrReplace)
+                    {
+                        if (AddSubscribedDataSet == null)
+                        {
+                            if (replacement == null)
+                            {
+                                AddSubscribedDataSet = new AddSubscribedDataSetMethodState(this);
+                            }
+                            else
+                            {
+                                AddSubscribedDataSet = (AddSubscribedDataSetMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = AddSubscribedDataSet;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.RemoveSubscribedDataSet:
+                {
+                    if (createOrReplace)
+                    {
+                        if (RemoveSubscribedDataSet == null)
+                        {
+                            if (replacement == null)
+                            {
+                                RemoveSubscribedDataSet = new RemoveSubscribedDataSetMethodState(this);
+                            }
+                            else
+                            {
+                                RemoveSubscribedDataSet = (RemoveSubscribedDataSetMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = RemoveSubscribedDataSet;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.AddDataSetFolder:
+                {
+                    if (createOrReplace)
+                    {
+                        if (AddDataSetFolder == null)
+                        {
+                            if (replacement == null)
+                            {
+                                AddDataSetFolder = new AddDataSetFolderMethodState(this);
+                            }
+                            else
+                            {
+                                AddDataSetFolder = (AddDataSetFolderMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = AddDataSetFolder;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.RemoveDataSetFolder:
+                {
+                    if (createOrReplace)
+                    {
+                        if (RemoveDataSetFolder == null)
+                        {
+                            if (replacement == null)
+                            {
+                                RemoveDataSetFolder = new RemoveDataSetFolderMethodState(this);
+                            }
+                            else
+                            {
+                                RemoveDataSetFolder = (RemoveDataSetFolderMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = RemoveDataSetFolder;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private AddSubscribedDataSetMethodState m_addSubscribedDataSetMethod;
+        private RemoveSubscribedDataSetMethodState m_removeSubscribedDataSetMethod;
+        private AddDataSetFolderMethodState m_addDataSetFolderMethod;
+        private RemoveDataSetFolderMethodState m_removeDataSetFolderMethod;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region AddSubscribedDataSetMethodState Class
+    #if (!OPCUA_EXCLUDE_AddSubscribedDataSetMethodState)
+    /// <summary>
+    /// Stores an instance of the AddSubscribedDataSetMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class AddSubscribedDataSetMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public AddSubscribedDataSetMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new AddSubscribedDataSetMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAHgAAAEFkZFN1YnNjcmliZWREYXRhU2V0TWV0aG9kVHlwZQEADV0ALwEA" +
+           "DV0NXQAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAA5dAC4ARA5dAACWAQAA" +
+           "AAEAKgEBIgAAABEAAABTdWJzY3JpYmVkRGF0YVNldAEAMFz/////AAAAAAABACgBAQAAAAEAAAABAAAA" +
+           "AQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAPXQAuAEQPXQAAlgEAAAABACoB" +
+           "ASYAAAAXAAAAU3Vic2NyaWJlZERhdGFTZXROb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
+           "Af////8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public AddSubscribedDataSetMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            StandaloneSubscribedDataSetDataType subscribedDataSet = (StandaloneSubscribedDataSetDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            NodeId subscribedDataSetNodeId = (NodeId)_outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    subscribedDataSet,
+                    ref subscribedDataSetNodeId);
+            }
+
+            _outputArguments[0] = subscribedDataSetNodeId;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult AddSubscribedDataSetMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        StandaloneSubscribedDataSetDataType subscribedDataSet,
+        ref NodeId subscribedDataSetNodeId);
+    #endif
+    #endregion
+
+    #region RemoveSubscribedDataSetMethodState Class
+    #if (!OPCUA_EXCLUDE_RemoveSubscribedDataSetMethodState)
+    /// <summary>
+    /// Stores an instance of the RemoveSubscribedDataSetMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class RemoveSubscribedDataSetMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public RemoveSubscribedDataSetMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new RemoveSubscribedDataSetMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAIQAAAFJlbW92ZVN1YnNjcmliZWREYXRhU2V0TWV0aG9kVHlwZQEAEF0A" +
+           "LwEAEF0QXQAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBABFdAC4ARBFdAACW" +
+           "AQAAAAEAKgEBJgAAABcAAABTdWJzY3JpYmVkRGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAAB" +
+           "AAAAAQAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public RemoveSubscribedDataSetMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            NodeId subscribedDataSetNodeId = (NodeId)_inputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    subscribedDataSetNodeId);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult RemoveSubscribedDataSetMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId subscribedDataSetNodeId);
+    #endif
+    #endregion
+
+    #region StandaloneSubscribedDataSetState Class
+    #if (!OPCUA_EXCLUDE_StandaloneSubscribedDataSetState)
+    /// <summary>
+    /// Stores an instance of the StandaloneSubscribedDataSetType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class StandaloneSubscribedDataSetState : BaseObjectState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public StandaloneSubscribedDataSetState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.StandaloneSubscribedDataSetType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAAJwAAAFN0YW5kYWxvbmVTdWJzY3JpYmVkRGF0YVNldFR5cGVJbnN0YW5j" +
+           "ZQEAFF0BABRdFF0AAP////8DAAAABGCACgEAAAAAABEAAABTdWJzY3JpYmVkRGF0YVNldAEAFV0ALwEA" +
+           "BDsVXQAA/////wAAAAAVYIkKAgAAAAAADwAAAERhdGFTZXRNZXRhRGF0YQEAFl0ALgBEFl0AAAEAuzj/" +
+           "////AQH/////AAAAABVgiQoCAAAAAAALAAAASXNDb25uZWN0ZWQBABddAC4ARBddAAAAAf////8BAf//" +
+           "//8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public SubscribedDataSetState SubscribedDataSet
+        {
+            get
+            {
+                return m_subscribedDataSet;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_subscribedDataSet, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_subscribedDataSet = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<DataSetMetaDataType> DataSetMetaData
+        {
+            get
+            {
+                return m_dataSetMetaData;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_dataSetMetaData, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_dataSetMetaData = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<bool> IsConnected
+        {
+            get
+            {
+                return m_isConnected;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_isConnected, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_isConnected = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_subscribedDataSet != null)
+            {
+                children.Add(m_subscribedDataSet);
+            }
+
+            if (m_dataSetMetaData != null)
+            {
+                children.Add(m_dataSetMetaData);
+            }
+
+            if (m_isConnected != null)
+            {
+                children.Add(m_isConnected);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.SubscribedDataSet:
+                {
+                    if (createOrReplace)
+                    {
+                        if (SubscribedDataSet == null)
+                        {
+                            if (replacement == null)
+                            {
+                                SubscribedDataSet = new SubscribedDataSetState(this);
+                            }
+                            else
+                            {
+                                SubscribedDataSet = (SubscribedDataSetState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = SubscribedDataSet;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.DataSetMetaData:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DataSetMetaData == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DataSetMetaData = new PropertyState<DataSetMetaDataType>(this);
+                            }
+                            else
+                            {
+                                DataSetMetaData = (PropertyState<DataSetMetaDataType>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DataSetMetaData;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.IsConnected:
+                {
+                    if (createOrReplace)
+                    {
+                        if (IsConnected == null)
+                        {
+                            if (replacement == null)
+                            {
+                                IsConnected = new PropertyState<bool>(this);
+                            }
+                            else
+                            {
+                                IsConnected = (PropertyState<bool>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = IsConnected;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private SubscribedDataSetState m_subscribedDataSet;
+        private PropertyState<DataSetMetaDataType> m_dataSetMetaData;
+        private PropertyState<bool> m_isConnected;
         #endregion
     }
     #endif
@@ -79831,6 +87935,398 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region PubSubCapabilitiesState Class
+    #if (!OPCUA_EXCLUDE_PubSubCapabilitiesState)
+    /// <summary>
+    /// Stores an instance of the PubSubCapabilitiesType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class PubSubCapabilitiesState : BaseObjectState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public PubSubCapabilitiesState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubCapabilitiesType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAAHgAAAFB1YlN1YkNhcGFiaWxpdGllc1R5cGVJbnN0YW5jZQEAGF0BABhd" +
+           "GF0AAP////8GAAAAFWCJCgIAAAAAABQAAABNYXhQdWJTdWJDb25uZWN0aW9ucwEAGV0ALgBEGV0AAAAH" +
+           "/////wEB/////wAAAAAVYIkKAgAAAAAADwAAAE1heFdyaXRlckdyb3VwcwEAGl0ALgBEGl0AAAAH////" +
+           "/wEB/////wAAAAAVYIkKAgAAAAAADwAAAE1heFJlYWRlckdyb3VwcwEAG10ALgBEG10AAAAH/////wEB" +
+           "/////wAAAAAVYIkKAgAAAAAAEQAAAE1heERhdGFTZXRXcml0ZXJzAQAcXQAuAEQcXQAAAAf/////AQH/" +
+           "////AAAAABVgiQoCAAAAAAARAAAATWF4RGF0YVNldFJlYWRlcnMBAB1dAC4ARB1dAAAAB/////8BAf//" +
+           "//8AAAAAFWCJCgIAAAAAABMAAABNYXhGaWVsZHNQZXJEYXRhU2V0AQAeXQAuAEQeXQAAAAf/////AQH/" +
+           "////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public PropertyState<uint> MaxPubSubConnections
+        {
+            get
+            {
+                return m_maxPubSubConnections;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxPubSubConnections, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxPubSubConnections = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> MaxWriterGroups
+        {
+            get
+            {
+                return m_maxWriterGroups;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxWriterGroups, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxWriterGroups = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> MaxReaderGroups
+        {
+            get
+            {
+                return m_maxReaderGroups;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxReaderGroups, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxReaderGroups = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> MaxDataSetWriters
+        {
+            get
+            {
+                return m_maxDataSetWriters;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxDataSetWriters, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxDataSetWriters = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> MaxDataSetReaders
+        {
+            get
+            {
+                return m_maxDataSetReaders;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxDataSetReaders, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxDataSetReaders = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> MaxFieldsPerDataSet
+        {
+            get
+            {
+                return m_maxFieldsPerDataSet;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxFieldsPerDataSet, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxFieldsPerDataSet = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_maxPubSubConnections != null)
+            {
+                children.Add(m_maxPubSubConnections);
+            }
+
+            if (m_maxWriterGroups != null)
+            {
+                children.Add(m_maxWriterGroups);
+            }
+
+            if (m_maxReaderGroups != null)
+            {
+                children.Add(m_maxReaderGroups);
+            }
+
+            if (m_maxDataSetWriters != null)
+            {
+                children.Add(m_maxDataSetWriters);
+            }
+
+            if (m_maxDataSetReaders != null)
+            {
+                children.Add(m_maxDataSetReaders);
+            }
+
+            if (m_maxFieldsPerDataSet != null)
+            {
+                children.Add(m_maxFieldsPerDataSet);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.MaxPubSubConnections:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxPubSubConnections == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxPubSubConnections = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxPubSubConnections = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxPubSubConnections;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MaxWriterGroups:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxWriterGroups == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxWriterGroups = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxWriterGroups = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxWriterGroups;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MaxReaderGroups:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxReaderGroups == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxReaderGroups = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxReaderGroups = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxReaderGroups;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MaxDataSetWriters:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxDataSetWriters == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxDataSetWriters = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxDataSetWriters = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxDataSetWriters;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MaxDataSetReaders:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxDataSetReaders == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxDataSetReaders = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxDataSetReaders = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxDataSetReaders;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MaxFieldsPerDataSet:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxFieldsPerDataSet == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxFieldsPerDataSet = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxFieldsPerDataSet = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxFieldsPerDataSet;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private PropertyState<uint> m_maxPubSubConnections;
+        private PropertyState<uint> m_maxWriterGroups;
+        private PropertyState<uint> m_maxReaderGroups;
+        private PropertyState<uint> m_maxDataSetWriters;
+        private PropertyState<uint> m_maxDataSetReaders;
+        private PropertyState<uint> m_maxFieldsPerDataSet;
         #endregion
     }
     #endif
@@ -82226,15 +90722,55 @@ namespace Opc.Ua
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
+
+            if (DiscoveryAnnounceRate != null)
+            {
+                DiscoveryAnnounceRate.Initialize(context, DiscoveryAnnounceRate_InitializationString);
+            }
+
+            if (DiscoveryMaxMessageSize != null)
+            {
+                DiscoveryMaxMessageSize.Initialize(context, DiscoveryMaxMessageSize_InitializationString);
+            }
+
+            if (QosCategory != null)
+            {
+                QosCategory.Initialize(context, QosCategory_InitializationString);
+            }
+
+            if (DatagramQos != null)
+            {
+                DatagramQos.Initialize(context, DatagramQos_InitializationString);
+            }
         }
 
         #region Initialization String
+        private const string DiscoveryAnnounceRate_InitializationString =
+           "//////////8VYIkKAgAAAAAAFQAAAERpc2NvdmVyeUFubm91bmNlUmF0ZQEAH10ALgBEH10AAAAH////" +
+           "/wEB/////wAAAAA=";
+
+        private const string DiscoveryMaxMessageSize_InitializationString =
+           "//////////8VYIkKAgAAAAAAFwAAAERpc2NvdmVyeU1heE1lc3NhZ2VTaXplAQAgXQAuAEQgXQAAAAf/" +
+           "////AQH/////AAAAAA==";
+
+        private const string QosCategory_InitializationString =
+           "//////////8VYIkKAgAAAAAACwAAAFFvc0NhdGVnb3J5AQC1YwAuAES1YwAAAAz/////AQH/////AAAA" +
+           "AA==";
+
+        private const string DatagramQos_InitializationString =
+           "//////////8XYIkKAgAAAAAACwAAAERhdGFncmFtUW9zAQC2YwAuAES2YwAAAQAzXAEAAAABAAAAAAAA" +
+           "AAEB/////wAAAAA=";
+
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAJwAAAERhdGFncmFtQ29ubmVjdGlvblRyYW5zcG9ydFR5cGVJbnN0YW5j" +
-           "ZQEA2DoBANg62DoAAP////8BAAAABGCACgEAAAAAABAAAABEaXNjb3ZlcnlBZGRyZXNzAQDgOgAvAQCZ" +
+           "ZQEA2DoBANg62DoAAP////8FAAAABGCACgEAAAAAABAAAABEaXNjb3ZlcnlBZGRyZXNzAQDgOgAvAQCZ" +
            "UuA6AAD/////AQAAABVgiQoCAAAAAAAQAAAATmV0d29ya0ludGVyZmFjZQEAMjsALwEAtT8yOwAAAAz/" +
            "////AQH/////AQAAABdgiQoCAAAAAAAKAAAAU2VsZWN0aW9ucwEAq0QALgBEq0QAAAAYAQAAAAEAAAAA" +
-           "AAAAAQH/////AAAAAA==";
+           "AAAAAQH/////AAAAABVgiQoCAAAAAAAVAAAARGlzY292ZXJ5QW5ub3VuY2VSYXRlAQAfXQAuAEQfXQAA" +
+           "AAf/////AQH/////AAAAABVgiQoCAAAAAAAXAAAARGlzY292ZXJ5TWF4TWVzc2FnZVNpemUBACBdAC4A" +
+           "RCBdAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABRb3NDYXRlZ29yeQEAtWMALgBEtWMAAAAM" +
+           "/////wEB/////wAAAAAXYIkKAgAAAAAACwAAAERhdGFncmFtUW9zAQC2YwAuAES2YwAAAQAzXAEAAAAB" +
+           "AAAAAAAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -82258,6 +90794,82 @@ namespace Opc.Ua
                 m_discoveryAddress = value;
             }
         }
+
+        /// <remarks />
+        public PropertyState<uint> DiscoveryAnnounceRate
+        {
+            get
+            {
+                return m_discoveryAnnounceRate;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_discoveryAnnounceRate, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_discoveryAnnounceRate = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> DiscoveryMaxMessageSize
+        {
+            get
+            {
+                return m_discoveryMaxMessageSize;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_discoveryMaxMessageSize, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_discoveryMaxMessageSize = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<string> QosCategory
+        {
+            get
+            {
+                return m_qosCategory;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_qosCategory, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_qosCategory = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<QosDataType[]> DatagramQos
+        {
+            get
+            {
+                return m_datagramQos;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_datagramQos, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_datagramQos = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -82273,6 +90885,26 @@ namespace Opc.Ua
             if (m_discoveryAddress != null)
             {
                 children.Add(m_discoveryAddress);
+            }
+
+            if (m_discoveryAnnounceRate != null)
+            {
+                children.Add(m_discoveryAnnounceRate);
+            }
+
+            if (m_discoveryMaxMessageSize != null)
+            {
+                children.Add(m_discoveryMaxMessageSize);
+            }
+
+            if (m_qosCategory != null)
+            {
+                children.Add(m_qosCategory);
+            }
+
+            if (m_datagramQos != null)
+            {
+                children.Add(m_datagramQos);
             }
 
             base.GetChildren(context, children);
@@ -82316,6 +90948,90 @@ namespace Opc.Ua
                     instance = DiscoveryAddress;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.DiscoveryAnnounceRate:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DiscoveryAnnounceRate == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DiscoveryAnnounceRate = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                DiscoveryAnnounceRate = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DiscoveryAnnounceRate;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.DiscoveryMaxMessageSize:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DiscoveryMaxMessageSize == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DiscoveryMaxMessageSize = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                DiscoveryMaxMessageSize = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DiscoveryMaxMessageSize;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.QosCategory:
+                {
+                    if (createOrReplace)
+                    {
+                        if (QosCategory == null)
+                        {
+                            if (replacement == null)
+                            {
+                                QosCategory = new PropertyState<string>(this);
+                            }
+                            else
+                            {
+                                QosCategory = (PropertyState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = QosCategory;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.DatagramQos:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DatagramQos == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DatagramQos = new PropertyState<QosDataType[]>(this);
+                            }
+                            else
+                            {
+                                DatagramQos = (PropertyState<QosDataType[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DatagramQos;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -82329,6 +91045,10 @@ namespace Opc.Ua
 
         #region Private Fields
         private NetworkAddressState m_discoveryAddress;
+        private PropertyState<uint> m_discoveryAnnounceRate;
+        private PropertyState<uint> m_discoveryMaxMessageSize;
+        private PropertyState<string> m_qosCategory;
+        private PropertyState<QosDataType[]> m_datagramQos;
         #endregion
     }
     #endif
@@ -82395,6 +91115,31 @@ namespace Opc.Ua
             {
                 MessageRepeatDelay.Initialize(context, MessageRepeatDelay_InitializationString);
             }
+
+            if (Address != null)
+            {
+                Address.Initialize(context, Address_InitializationString);
+            }
+
+            if (QosCategory != null)
+            {
+                QosCategory.Initialize(context, QosCategory_InitializationString);
+            }
+
+            if (DatagramQos != null)
+            {
+                DatagramQos.Initialize(context, DatagramQos_InitializationString);
+            }
+
+            if (DiscoveryAnnounceRate != null)
+            {
+                DiscoveryAnnounceRate.Initialize(context, DiscoveryAnnounceRate_InitializationString);
+            }
+
+            if (Topic != null)
+            {
+                Topic.Initialize(context, Topic_InitializationString);
+            }
         }
 
         #region Initialization String
@@ -82406,11 +91151,37 @@ namespace Opc.Ua
            "//////////8VYIkKAgAAAAAAEgAAAE1lc3NhZ2VSZXBlYXREZWxheQEAj1IALgBEj1IAAAEAIgH/////" +
            "AQH/////AAAAAA==";
 
+        private const string Address_InitializationString =
+           "//////////8EYIAKAQAAAAAABwAAAEFkZHJlc3MBACJdAC8BAJlSIl0AAP////8BAAAAFWCJCgIAAAAA" +
+           "ABAAAABOZXR3b3JrSW50ZXJmYWNlAQAjXQAvAQC1PyNdAAAADP////8BAf////8BAAAAF2CJCgIAAAAA" +
+           "AAoAAABTZWxlY3Rpb25zAQAkXQAuAEQkXQAAABgBAAAAAQAAAAAAAAABAf////8AAAAA";
+
+        private const string QosCategory_InitializationString =
+           "//////////8VYIkKAgAAAAAACwAAAFFvc0NhdGVnb3J5AQC3YwAuAES3YwAAAAz/////AQH/////AAAA" +
+           "AA==";
+
+        private const string DatagramQos_InitializationString =
+           "//////////8XYIkKAgAAAAAACwAAAERhdGFncmFtUW9zAQAnXQAuAEQnXQAAAQA0XAEAAAABAAAAAAAA" +
+           "AAEB/////wAAAAA=";
+
+        private const string DiscoveryAnnounceRate_InitializationString =
+           "//////////8VYIkKAgAAAAAAFQAAAERpc2NvdmVyeUFubm91bmNlUmF0ZQEAKF0ALgBEKF0AAAAH////" +
+           "/wEB/////wAAAAA=";
+
+        private const string Topic_InitializationString =
+           "//////////8VYIkKAgAAAAAABQAAAFRvcGljAQApXQAuAEQpXQAAAAz/////AQH/////AAAAAA==";
+
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAKAAAAERhdGFncmFtV3JpdGVyR3JvdXBUcmFuc3BvcnRUeXBlSW5zdGFu" +
-           "Y2UBAI1SAQCNUo1SAAD/////AgAAABVgiQoCAAAAAAASAAAATWVzc2FnZVJlcGVhdENvdW50AQCOUgAu" +
+           "Y2UBAI1SAQCNUo1SAAD/////BwAAABVgiQoCAAAAAAASAAAATWVzc2FnZVJlcGVhdENvdW50AQCOUgAu" +
            "AESOUgAAAAP/////AQH/////AAAAABVgiQoCAAAAAAASAAAATWVzc2FnZVJlcGVhdERlbGF5AQCPUgAu" +
-           "AESPUgAAAQAiAf////8BAf////8AAAAA";
+           "AESPUgAAAQAiAf////8BAf////8AAAAABGCACgEAAAAAAAcAAABBZGRyZXNzAQAiXQAvAQCZUiJdAAD/" +
+           "////AQAAABVgiQoCAAAAAAAQAAAATmV0d29ya0ludGVyZmFjZQEAI10ALwEAtT8jXQAAAAz/////AQH/" +
+           "////AQAAABdgiQoCAAAAAAAKAAAAU2VsZWN0aW9ucwEAJF0ALgBEJF0AAAAYAQAAAAEAAAAAAAAAAQH/" +
+           "////AAAAABVgiQoCAAAAAAALAAAAUW9zQ2F0ZWdvcnkBALdjAC4ARLdjAAAADP////8BAf////8AAAAA" +
+           "F2CJCgIAAAAAAAsAAABEYXRhZ3JhbVFvcwEAJ10ALgBEJ10AAAEANFwBAAAAAQAAAAAAAAABAf////8A" +
+           "AAAAFWCJCgIAAAAAABUAAABEaXNjb3ZlcnlBbm5vdW5jZVJhdGUBAChdAC4ARChdAAAAB/////8BAf//" +
+           "//8AAAAAFWCJCgIAAAAAAAUAAABUb3BpYwEAKV0ALgBEKV0AAAAM/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -82453,6 +91224,101 @@ namespace Opc.Ua
                 m_messageRepeatDelay = value;
             }
         }
+
+        /// <remarks />
+        public NetworkAddressState Address
+        {
+            get
+            {
+                return m_address;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_address, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_address = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<string> QosCategory
+        {
+            get
+            {
+                return m_qosCategory;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_qosCategory, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_qosCategory = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<TransmitQosDataType[]> DatagramQos
+        {
+            get
+            {
+                return m_datagramQos;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_datagramQos, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_datagramQos = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> DiscoveryAnnounceRate
+        {
+            get
+            {
+                return m_discoveryAnnounceRate;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_discoveryAnnounceRate, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_discoveryAnnounceRate = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<string> Topic
+        {
+            get
+            {
+                return m_topic;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_topic, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_topic = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -82473,6 +91339,31 @@ namespace Opc.Ua
             if (m_messageRepeatDelay != null)
             {
                 children.Add(m_messageRepeatDelay);
+            }
+
+            if (m_address != null)
+            {
+                children.Add(m_address);
+            }
+
+            if (m_qosCategory != null)
+            {
+                children.Add(m_qosCategory);
+            }
+
+            if (m_datagramQos != null)
+            {
+                children.Add(m_datagramQos);
+            }
+
+            if (m_discoveryAnnounceRate != null)
+            {
+                children.Add(m_discoveryAnnounceRate);
+            }
+
+            if (m_topic != null)
+            {
+                children.Add(m_topic);
             }
 
             base.GetChildren(context, children);
@@ -82537,6 +91428,111 @@ namespace Opc.Ua
                     instance = MessageRepeatDelay;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.Address:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Address == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Address = new NetworkAddressState(this);
+                            }
+                            else
+                            {
+                                Address = (NetworkAddressState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Address;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.QosCategory:
+                {
+                    if (createOrReplace)
+                    {
+                        if (QosCategory == null)
+                        {
+                            if (replacement == null)
+                            {
+                                QosCategory = new PropertyState<string>(this);
+                            }
+                            else
+                            {
+                                QosCategory = (PropertyState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = QosCategory;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.DatagramQos:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DatagramQos == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DatagramQos = new PropertyState<TransmitQosDataType[]>(this);
+                            }
+                            else
+                            {
+                                DatagramQos = (PropertyState<TransmitQosDataType[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DatagramQos;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.DiscoveryAnnounceRate:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DiscoveryAnnounceRate == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DiscoveryAnnounceRate = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                DiscoveryAnnounceRate = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DiscoveryAnnounceRate;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.Topic:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Topic == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Topic = new PropertyState<string>(this);
+                            }
+                            else
+                            {
+                                Topic = (PropertyState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Topic;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -82551,6 +91547,346 @@ namespace Opc.Ua
         #region Private Fields
         private PropertyState<byte> m_messageRepeatCount;
         private PropertyState<double> m_messageRepeatDelay;
+        private NetworkAddressState m_address;
+        private PropertyState<string> m_qosCategory;
+        private PropertyState<TransmitQosDataType[]> m_datagramQos;
+        private PropertyState<uint> m_discoveryAnnounceRate;
+        private PropertyState<string> m_topic;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region DatagramDataSetReaderTransportState Class
+    #if (!OPCUA_EXCLUDE_DatagramDataSetReaderTransportState)
+    /// <summary>
+    /// Stores an instance of the DatagramDataSetReaderTransportType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class DatagramDataSetReaderTransportState : WriterGroupTransportState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public DatagramDataSetReaderTransportState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DatagramDataSetReaderTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+
+            if (Address != null)
+            {
+                Address.Initialize(context, Address_InitializationString);
+            }
+
+            if (QosCategory != null)
+            {
+                QosCategory.Initialize(context, QosCategory_InitializationString);
+            }
+
+            if (DatagramQos != null)
+            {
+                DatagramQos.Initialize(context, DatagramQos_InitializationString);
+            }
+
+            if (Topic != null)
+            {
+                Topic.Initialize(context, Topic_InitializationString);
+            }
+        }
+
+        #region Initialization String
+        private const string Address_InitializationString =
+           "//////////8EYIAKAQAAAAAABwAAAEFkZHJlc3MBANFdAC8BAJlS0V0AAP////8BAAAAFWCJCgIAAAAA" +
+           "ABAAAABOZXR3b3JrSW50ZXJmYWNlAQDSXQAvAQC1P9JdAAAADP////8BAf////8BAAAAF2CJCgIAAAAA" +
+           "AAoAAABTZWxlY3Rpb25zAQDTXQAuAETTXQAAABgBAAAAAQAAAAAAAAABAf////8AAAAA";
+
+        private const string QosCategory_InitializationString =
+           "//////////8VYIkKAgAAAAAACwAAAFFvc0NhdGVnb3J5AQC4YwAuAES4YwAAAAz/////AQH/////AAAA" +
+           "AA==";
+
+        private const string DatagramQos_InitializationString =
+           "//////////8XYIkKAgAAAAAACwAAAERhdGFncmFtUW9zAQDWXQAuAETWXQAAAQA4XAEAAAABAAAAAAAA" +
+           "AAEB/////wAAAAA=";
+
+        private const string Topic_InitializationString =
+           "//////////8VYIkKAgAAAAAABQAAAFRvcGljAQDXXQAuAETXXQAAAAz/////AQH/////AAAAAA==";
+
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAAKgAAAERhdGFncmFtRGF0YVNldFJlYWRlclRyYW5zcG9ydFR5cGVJbnN0" +
+           "YW5jZQEA0F0BANBd0F0AAP////8EAAAABGCACgEAAAAAAAcAAABBZGRyZXNzAQDRXQAvAQCZUtFdAAD/" +
+           "////AQAAABVgiQoCAAAAAAAQAAAATmV0d29ya0ludGVyZmFjZQEA0l0ALwEAtT/SXQAAAAz/////AQH/" +
+           "////AQAAABdgiQoCAAAAAAAKAAAAU2VsZWN0aW9ucwEA010ALgBE010AAAAYAQAAAAEAAAAAAAAAAQH/" +
+           "////AAAAABVgiQoCAAAAAAALAAAAUW9zQ2F0ZWdvcnkBALhjAC4ARLhjAAAADP////8BAf////8AAAAA" +
+           "F2CJCgIAAAAAAAsAAABEYXRhZ3JhbVFvcwEA1l0ALgBE1l0AAAEAOFwBAAAAAQAAAAAAAAABAf////8A" +
+           "AAAAFWCJCgIAAAAAAAUAAABUb3BpYwEA110ALgBE110AAAAM/////wEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public NetworkAddressState Address
+        {
+            get
+            {
+                return m_address;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_address, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_address = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<string> QosCategory
+        {
+            get
+            {
+                return m_qosCategory;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_qosCategory, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_qosCategory = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<ReceiveQosDataType[]> DatagramQos
+        {
+            get
+            {
+                return m_datagramQos;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_datagramQos, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_datagramQos = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<string> Topic
+        {
+            get
+            {
+                return m_topic;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_topic, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_topic = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_address != null)
+            {
+                children.Add(m_address);
+            }
+
+            if (m_qosCategory != null)
+            {
+                children.Add(m_qosCategory);
+            }
+
+            if (m_datagramQos != null)
+            {
+                children.Add(m_datagramQos);
+            }
+
+            if (m_topic != null)
+            {
+                children.Add(m_topic);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.Address:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Address == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Address = new NetworkAddressState(this);
+                            }
+                            else
+                            {
+                                Address = (NetworkAddressState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Address;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.QosCategory:
+                {
+                    if (createOrReplace)
+                    {
+                        if (QosCategory == null)
+                        {
+                            if (replacement == null)
+                            {
+                                QosCategory = new PropertyState<string>(this);
+                            }
+                            else
+                            {
+                                QosCategory = (PropertyState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = QosCategory;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.DatagramQos:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DatagramQos == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DatagramQos = new PropertyState<ReceiveQosDataType[]>(this);
+                            }
+                            else
+                            {
+                                DatagramQos = (PropertyState<ReceiveQosDataType[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DatagramQos;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.Topic:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Topic == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Topic = new PropertyState<string>(this);
+                            }
+                            else
+                            {
+                                Topic = (PropertyState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Topic;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private NetworkAddressState m_address;
+        private PropertyState<string> m_qosCategory;
+        private PropertyState<ReceiveQosDataType[]> m_datagramQos;
+        private PropertyState<string> m_topic;
         #endregion
     }
     #endif
@@ -84243,9 +93579,9 @@ namespace Opc.Ua
            "WwAA/////wEAAAAEYYIKBAAAAAAACQAAAEZpbmRBbGlhcwEAplsALwEAplumWwAAAQH/////AgAAABdg" +
            "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAKdbAC4ARKdbAACWAgAAAAEAKgEBJQAAABYAAABBbGlh" +
            "c05hbWVTZWFyY2hQYXR0ZXJuAAz/////AAAAAAABACoBASIAAAATAAAAUmVmZXJlbmNlVHlwZUZpbHRl" +
-           "cgAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFy" +
+           "cgAR/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFy" +
            "Z3VtZW50cwEAqFsALgBEqFsAAJYBAAAAAQAqAQEiAAAADQAAAEFsaWFzTm9kZUxpc3QBAKxbAQAAAAEA" +
-           "AAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AAAAAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -84396,9 +93732,9 @@ namespace Opc.Ua
            "//////////8EYYIKBAAAAAAAEwAAAEZpbmRBbGlhc01ldGhvZFR5cGUBAKlbAC8BAKlbqVsAAAEB////" +
            "/wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCqWwAuAESqWwAAlgIAAAABACoBASUAAAAW" +
            "AAAAQWxpYXNOYW1lU2VhcmNoUGF0dGVybgAM/////wAAAAAAAQAqAQEiAAAAEwAAAFJlZmVyZW5jZVR5" +
-           "cGVGaWx0ZXIAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABP" +
+           "cGVGaWx0ZXIAEf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABP" +
            "dXRwdXRBcmd1bWVudHMBAKtbAC4ARKtbAACWAQAAAAEAKgEBIgAAAA0AAABBbGlhc05vZGVMaXN0AQCs" +
-           "WwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "WwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -84470,6 +93806,1003 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region UserManagementState Class
+    #if (!OPCUA_EXCLUDE_UserManagementState)
+    /// <summary>
+    /// Stores an instance of the UserManagementType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class UserManagementState : BaseObjectState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public UserManagementState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.UserManagementType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+
+            if (PasswordRestrictions != null)
+            {
+                PasswordRestrictions.Initialize(context, PasswordRestrictions_InitializationString);
+            }
+        }
+
+        #region Initialization String
+        private const string PasswordRestrictions_InitializationString =
+           "//////////8VYIkKAgAAAAAAFAAAAFBhc3N3b3JkUmVzdHJpY3Rpb25zAQDMXgAuAETMXgAAABX/////" +
+           "AQH/////AAAAAA==";
+
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAAGgAAAFVzZXJNYW5hZ2VtZW50VHlwZUluc3RhbmNlAQDIXgEAyF7IXgAA" +
+           "/////wgAAAAXYIkKAgAAAAAABQAAAFVzZXJzAQDJXgAuAETJXgAAAQDZXgEAAAABAAAAAAAAAAEB////" +
+           "/wAAAAAVYIkKAgAAAAAADgAAAFBhc3N3b3JkTGVuZ3RoAQDKXgAuAETKXgAAAQB0A/////8BAf////8A" +
+           "AAAAFWCJCgIAAAAAAA8AAABQYXNzd29yZE9wdGlvbnMBAMteAC4ARMteAAABANVe/////wEB/////wAA" +
+           "AAAVYIkKAgAAAAAAFAAAAFBhc3N3b3JkUmVzdHJpY3Rpb25zAQDMXgAuAETMXgAAABX/////AQH/////" +
+           "AAAAAARhggoEAAAAAAAHAAAAQWRkVXNlcgEAzV4ALwEAzV7NXgAAAQH/////AQAAABdgqQoCAAAAAAAO" +
+           "AAAASW5wdXRBcmd1bWVudHMBAM5eAC4ARM5eAACWBAAAAAEAKgEBFwAAAAgAAABVc2VyTmFtZQAM////" +
+           "/wAAAAAAAQAqAQEXAAAACAAAAFBhc3N3b3JkAAz/////AAAAAAABACoBASIAAAARAAAAVXNlckNvbmZp" +
+           "Z3VyYXRpb24BANde/////wAAAAAAAQAqAQEaAAAACwAAAERlc2NyaXB0aW9uAAz/////AAAAAAABACgB" +
+           "AQAAAAEAAAAEAAAAAQH/////AAAAAARhggoEAAAAAAAKAAAATW9kaWZ5VXNlcgEAz14ALwEAz17PXgAA" +
+           "AQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBANBeAC4ARNBeAACWBAAAAAEAKgEB" +
+           "FwAAAAgAAABVc2VyTmFtZQAM/////wAAAAAAAQAqAQEXAAAACAAAAFBhc3N3b3JkAAz/////AAAAAAAB" +
+           "ACoBASIAAAARAAAAVXNlckNvbmZpZ3VyYXRpb24BANde/////wAAAAAAAQAqAQEaAAAACwAAAERlc2Ny" +
+           "aXB0aW9uAAz/////AAAAAAABACgBAQAAAAEAAAAEAAAAAQH/////AAAAAARhggoEAAAAAAAKAAAAUmVt" +
+           "b3ZlVXNlcgEA0V4ALwEA0V7RXgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMB" +
+           "ANJeAC4ARNJeAACWBAAAAAEAKgEBFwAAAAgAAABVc2VyTmFtZQAM/////wAAAAAAAQAqAQEXAAAACAAA" +
+           "AFBhc3N3b3JkAAz/////AAAAAAABACoBASIAAAARAAAAVXNlckNvbmZpZ3VyYXRpb24BANde/////wAA" +
+           "AAAAAQAqAQEaAAAACwAAAERlc2NyaXB0aW9uAAz/////AAAAAAABACgBAQAAAAEAAAAEAAAAAQH/////" +
+           "AAAAAARhggoEAAAAAAAOAAAAQ2hhbmdlUGFzc3dvcmQBANNeAC8BANNe014AAAEB/////wEAAAAXYKkK" +
+           "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDUXgAuAETUXgAAlgQAAAABACoBARcAAAAIAAAAVXNlck5h" +
+           "bWUADP////8AAAAAAAEAKgEBFwAAAAgAAABQYXNzd29yZAAM/////wAAAAAAAQAqAQEiAAAAEQAAAFVz" +
+           "ZXJDb25maWd1cmF0aW9uAQDXXv////8AAAAAAAEAKgEBGgAAAAsAAABEZXNjcmlwdGlvbgAM/////wAA" +
+           "AAAAAQAoAQEAAAABAAAABAAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public PropertyState<UserManagementDataType[]> Users
+        {
+            get
+            {
+                return m_users;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_users, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_users = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<Range> PasswordLength
+        {
+            get
+            {
+                return m_passwordLength;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_passwordLength, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_passwordLength = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> PasswordOptions
+        {
+            get
+            {
+                return m_passwordOptions;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_passwordOptions, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_passwordOptions = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<LocalizedText> PasswordRestrictions
+        {
+            get
+            {
+                return m_passwordRestrictions;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_passwordRestrictions, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_passwordRestrictions = value;
+            }
+        }
+
+        /// <remarks />
+        public AddUserMethodState AddUser
+        {
+            get
+            {
+                return m_addUserMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_addUserMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_addUserMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public AddUserMethodState ModifyUser
+        {
+            get
+            {
+                return m_modifyUserMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_modifyUserMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_modifyUserMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public AddUserMethodState RemoveUser
+        {
+            get
+            {
+                return m_removeUserMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_removeUserMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_removeUserMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public AddUserMethodState ChangePassword
+        {
+            get
+            {
+                return m_changePasswordMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_changePasswordMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_changePasswordMethod = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_users != null)
+            {
+                children.Add(m_users);
+            }
+
+            if (m_passwordLength != null)
+            {
+                children.Add(m_passwordLength);
+            }
+
+            if (m_passwordOptions != null)
+            {
+                children.Add(m_passwordOptions);
+            }
+
+            if (m_passwordRestrictions != null)
+            {
+                children.Add(m_passwordRestrictions);
+            }
+
+            if (m_addUserMethod != null)
+            {
+                children.Add(m_addUserMethod);
+            }
+
+            if (m_modifyUserMethod != null)
+            {
+                children.Add(m_modifyUserMethod);
+            }
+
+            if (m_removeUserMethod != null)
+            {
+                children.Add(m_removeUserMethod);
+            }
+
+            if (m_changePasswordMethod != null)
+            {
+                children.Add(m_changePasswordMethod);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.Users:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Users == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Users = new PropertyState<UserManagementDataType[]>(this);
+                            }
+                            else
+                            {
+                                Users = (PropertyState<UserManagementDataType[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Users;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.PasswordLength:
+                {
+                    if (createOrReplace)
+                    {
+                        if (PasswordLength == null)
+                        {
+                            if (replacement == null)
+                            {
+                                PasswordLength = new PropertyState<Range>(this);
+                            }
+                            else
+                            {
+                                PasswordLength = (PropertyState<Range>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = PasswordLength;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.PasswordOptions:
+                {
+                    if (createOrReplace)
+                    {
+                        if (PasswordOptions == null)
+                        {
+                            if (replacement == null)
+                            {
+                                PasswordOptions = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                PasswordOptions = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = PasswordOptions;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.PasswordRestrictions:
+                {
+                    if (createOrReplace)
+                    {
+                        if (PasswordRestrictions == null)
+                        {
+                            if (replacement == null)
+                            {
+                                PasswordRestrictions = new PropertyState<LocalizedText>(this);
+                            }
+                            else
+                            {
+                                PasswordRestrictions = (PropertyState<LocalizedText>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = PasswordRestrictions;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.AddUser:
+                {
+                    if (createOrReplace)
+                    {
+                        if (AddUser == null)
+                        {
+                            if (replacement == null)
+                            {
+                                AddUser = new AddUserMethodState(this);
+                            }
+                            else
+                            {
+                                AddUser = (AddUserMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = AddUser;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.ModifyUser:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ModifyUser == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ModifyUser = new AddUserMethodState(this);
+                            }
+                            else
+                            {
+                                ModifyUser = (AddUserMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ModifyUser;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.RemoveUser:
+                {
+                    if (createOrReplace)
+                    {
+                        if (RemoveUser == null)
+                        {
+                            if (replacement == null)
+                            {
+                                RemoveUser = new AddUserMethodState(this);
+                            }
+                            else
+                            {
+                                RemoveUser = (AddUserMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = RemoveUser;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.ChangePassword:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ChangePassword == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ChangePassword = new AddUserMethodState(this);
+                            }
+                            else
+                            {
+                                ChangePassword = (AddUserMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ChangePassword;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private PropertyState<UserManagementDataType[]> m_users;
+        private PropertyState<Range> m_passwordLength;
+        private PropertyState<uint> m_passwordOptions;
+        private PropertyState<LocalizedText> m_passwordRestrictions;
+        private AddUserMethodState m_addUserMethod;
+        private AddUserMethodState m_modifyUserMethod;
+        private AddUserMethodState m_removeUserMethod;
+        private AddUserMethodState m_changePasswordMethod;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region AddUserMethodState Class
+    #if (!OPCUA_EXCLUDE_AddUserMethodState)
+    /// <summary>
+    /// Stores an instance of the AddUserMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class AddUserMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public AddUserMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new AddUserMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAEQAAAEFkZFVzZXJNZXRob2RUeXBlAQDaXgAvAQDaXtpeAAABAf////8B" +
+           "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA214ALgBE214AAJYEAAAAAQAqAQEXAAAACAAA" +
+           "AFVzZXJOYW1lAAz/////AAAAAAABACoBARcAAAAIAAAAUGFzc3dvcmQADP////8AAAAAAAEAKgEBIgAA" +
+           "ABEAAABVc2VyQ29uZmlndXJhdGlvbgEA117/////AAAAAAABACoBARoAAAALAAAARGVzY3JpcHRpb24A" +
+           "DP////8AAAAAAAEAKAEBAAAAAQAAAAQAAAABAf////8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public AddUserMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            string userName = (string)_inputArguments[0];
+            string password = (string)_inputArguments[1];
+            uint userConfiguration = (uint)_inputArguments[2];
+            string description = (string)_inputArguments[3];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    userName,
+                    password,
+                    userConfiguration,
+                    description);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult AddUserMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string userName,
+        string password,
+        uint userConfiguration,
+        string description);
+    #endif
+    #endregion
+
+    #region ModifyUserMethodState Class
+    #if (!OPCUA_EXCLUDE_ModifyUserMethodState)
+    /// <summary>
+    /// Stores an instance of the ModifyUserMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class ModifyUserMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public ModifyUserMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new ModifyUserMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAFAAAAE1vZGlmeVVzZXJNZXRob2RUeXBlAQDcXgAvAQDcXtxeAAABAf//" +
+           "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA3V4ALgBE3V4AAJYHAAAAAQAqAQEXAAAA" +
+           "CAAAAFVzZXJOYW1lAAz/////AAAAAAABACoBAR0AAAAOAAAATW9kaWZ5UGFzc3dvcmQAAf////8AAAAA" +
+           "AAEAKgEBFwAAAAgAAABQYXNzd29yZAAM/////wAAAAAAAQAqAQEmAAAAFwAAAE1vZGlmeVVzZXJDb25m" +
+           "aWd1cmF0aW9uAAH/////AAAAAAABACoBASIAAAARAAAAVXNlckNvbmZpZ3VyYXRpb24BANde/////wAA" +
+           "AAAAAQAqAQEgAAAAEQAAAE1vZGlmeURlc2NyaXB0aW9uAAH/////AAAAAAABACoBARoAAAALAAAARGVz" +
+           "Y3JpcHRpb24ADP////8AAAAAAAEAKAEBAAAAAQAAAAcAAAABAf////8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public ModifyUserMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            string userName = (string)_inputArguments[0];
+            bool modifyPassword = (bool)_inputArguments[1];
+            string password = (string)_inputArguments[2];
+            bool modifyUserConfiguration = (bool)_inputArguments[3];
+            uint userConfiguration = (uint)_inputArguments[4];
+            bool modifyDescription = (bool)_inputArguments[5];
+            string description = (string)_inputArguments[6];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    userName,
+                    modifyPassword,
+                    password,
+                    modifyUserConfiguration,
+                    userConfiguration,
+                    modifyDescription,
+                    description);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult ModifyUserMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string userName,
+        bool modifyPassword,
+        string password,
+        bool modifyUserConfiguration,
+        uint userConfiguration,
+        bool modifyDescription,
+        string description);
+    #endif
+    #endregion
+
+    #region RemoveUserMethodState Class
+    #if (!OPCUA_EXCLUDE_RemoveUserMethodState)
+    /// <summary>
+    /// Stores an instance of the RemoveUserMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class RemoveUserMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public RemoveUserMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new RemoveUserMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAFAAAAFJlbW92ZVVzZXJNZXRob2RUeXBlAQDeXgAvAQDeXt5eAAABAf//" +
+           "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA314ALgBE314AAJYBAAAAAQAqAQEXAAAA" +
+           "CAAAAFVzZXJOYW1lAAz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public RemoveUserMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            string userName = (string)_inputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    userName);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult RemoveUserMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string userName);
+    #endif
+    #endregion
+
+    #region ChangePasswordMethodState Class
+    #if (!OPCUA_EXCLUDE_ChangePasswordMethodState)
+    /// <summary>
+    /// Stores an instance of the ChangePasswordMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class ChangePasswordMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public ChangePasswordMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new ChangePasswordMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAGAAAAENoYW5nZVBhc3N3b3JkTWV0aG9kVHlwZQEA4F4ALwEA4F7gXgAA" +
+           "AQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAOFeAC4AROFeAACWAgAAAAEAKgEB" +
+           "GgAAAAsAAABPbGRQYXNzd29yZAAM/////wAAAAAAAQAqAQEaAAAACwAAAE5ld1Bhc3N3b3JkAAz/////" +
+           "AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public ChangePasswordMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            string oldPassword = (string)_inputArguments[0];
+            string newPassword = (string)_inputArguments[1];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    oldPassword,
+                    newPassword);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult ChangePasswordMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string oldPassword,
+        string newPassword);
+    #endif
+    #endregion
+
     #region MultiStateDictionaryEntryDiscreteBaseState Class
     #if (!OPCUA_EXCLUDE_MultiStateDictionaryEntryDiscreteBaseState)
     /// <summary>
@@ -84508,7 +94841,7 @@ namespace Opc.Ua
         /// </summary>
         protected override int GetDefaultValueRank()
         {
-            return ValueRanks.Any;
+            return ValueRanks.Scalar;
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -84550,12 +94883,13 @@ namespace Opc.Ua
            "AQAAAAEAAAAAAAAAAQH/////AAAAAA==";
 
         private const string InitializationString =
-           "//////////8VYIECAgAAAAAAMQAAAE11bHRpU3RhdGVEaWN0aW9uYXJ5RW50cnlEaXNjcmV0ZUJhc2VU" +
-           "eXBlSW5zdGFuY2UBAIVKAQCFSoVKAAAAGgEB/////wQAAAAXYIkKAgAAAAAACgAAAEVudW1WYWx1ZXMB" +
-           "AIhKAC4ARIhKAAABAKodAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAALAAAAVmFsdWVBc1Rl" +
-           "eHQBAIlKAC4ARIlKAAAAFf////8BAf////8AAAAAF2CJCgIAAAAAABUAAABFbnVtRGljdGlvbmFyeUVu" +
-           "dHJpZXMBAIpKAC4ARIpKAAAAEQIAAAACAAAAAAAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAABgAAABW" +
-           "YWx1ZUFzRGljdGlvbmFyeUVudHJpZXMBAItKAC4ARItKAAAAEQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "//////////8VYIkCAgAAAAAAMQAAAE11bHRpU3RhdGVEaWN0aW9uYXJ5RW50cnlEaXNjcmV0ZUJhc2VU" +
+           "eXBlSW5zdGFuY2UBAIVKAQCFSoVKAAAAGv////8BAf////8EAAAAF2CJCgIAAAAAAAoAAABFbnVtVmFs" +
+           "dWVzAQCISgAuAESISgAAAQCqHQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAFZhbHVl" +
+           "QXNUZXh0AQCJSgAuAESJSgAAABX/////AQH/////AAAAABdgiQoCAAAAAAAVAAAARW51bURpY3Rpb25h" +
+           "cnlFbnRyaWVzAQCKSgAuAESKSgAAABECAAAAAgAAAAAAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAY" +
+           "AAAAVmFsdWVBc0RpY3Rpb25hcnlFbnRyaWVzAQCLSgAuAESLSgAAABEBAAAAAQAAAAAAAAABAf////8A" +
+           "AAAA";
         #endregion
         #endif
         #endregion
@@ -84798,7 +95132,7 @@ namespace Opc.Ua
         /// </summary>
         protected override int GetDefaultValueRank()
         {
-            return ValueRanks.Any;
+            return ValueRanks.Scalar;
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -84831,12 +95165,12 @@ namespace Opc.Ua
 
         #region Initialization String
         private const string InitializationString =
-           "//////////8VYIECAgAAAAAALQAAAE11bHRpU3RhdGVEaWN0aW9uYXJ5RW50cnlEaXNjcmV0ZVR5cGVJ" +
-           "bnN0YW5jZQEAjEoBAIxKjEoAAAAaAQH/////BAAAABdgiQoCAAAAAAAKAAAARW51bVZhbHVlcwEAj0oA" +
-           "LgBEj0oAAAEAqh0BAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABWYWx1ZUFzVGV4dAEA" +
-           "kEoALgBEkEoAAAAV/////wEB/////wAAAAAXYIkKAgAAAAAAFQAAAEVudW1EaWN0aW9uYXJ5RW50cmll" +
-           "cwEAkUoALgBEkUoAAAARAgAAAAIAAAAAAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAAAGAAAAFZhbHVl" +
-           "QXNEaWN0aW9uYXJ5RW50cmllcwEAkkoALgBEkkoAAAARAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "//////////8VYIkCAgAAAAAALQAAAE11bHRpU3RhdGVEaWN0aW9uYXJ5RW50cnlEaXNjcmV0ZVR5cGVJ" +
+           "bnN0YW5jZQEAjEoBAIxKjEoAAAAa/////wEB/////wQAAAAXYIkKAgAAAAAACgAAAEVudW1WYWx1ZXMB" +
+           "AI9KAC4ARI9KAAABAKodAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAALAAAAVmFsdWVBc1Rl" +
+           "eHQBAJBKAC4ARJBKAAAAFf////8BAf////8AAAAAF2CJCgIAAAAAABUAAABFbnVtRGljdGlvbmFyeUVu" +
+           "dHJpZXMBAJFKAC4ARJFKAAAAEQIAAAACAAAAAAAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAABgAAABW" +
+           "YWx1ZUFzRGljdGlvbmFyeUVudHJpZXMBAJJKAC4ARJJKAAAAEQEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -85783,6 +96117,162 @@ namespace Opc.Ua
 
         #region Private Fields
         private BaseDataVariableState<bool> m_vlanTagCapable;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region IVlanIdState Class
+    #if (!OPCUA_EXCLUDE_IVlanIdState)
+    /// <summary>
+    /// Stores an instance of the IVlanIdType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class IVlanIdState : BaseInterfaceState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public IVlanIdState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IVlanIdType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAAEwAAAElWbGFuSWRUeXBlSW5zdGFuY2UBAIJiAQCCYoJiAAD/////AQAA" +
+           "ABVgiQoCAAAAAAAGAAAAVmxhbklkAQCDYgAvAD+DYgAAAAX/////AQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public BaseDataVariableState<ushort> VlanId
+        {
+            get
+            {
+                return m_vlanId;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_vlanId, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_vlanId = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_vlanId != null)
+            {
+                children.Add(m_vlanId);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.VlanId:
+                {
+                    if (createOrReplace)
+                    {
+                        if (VlanId == null)
+                        {
+                            if (replacement == null)
+                            {
+                                VlanId = new BaseDataVariableState<ushort>(this);
+                            }
+                            else
+                            {
+                                VlanId = (BaseDataVariableState<ushort>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = VlanId;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private BaseDataVariableState<ushort> m_vlanId;
         #endregion
     }
     #endif
@@ -88242,6 +98732,837 @@ namespace Opc.Ua
         private BaseDataVariableState<uint> m_priorityValue_DSCP;
         #endregion
     }
+    #endif
+    #endregion
+
+    #region IetfBaseNetworkInterfaceState Class
+    #if (!OPCUA_EXCLUDE_IetfBaseNetworkInterfaceState)
+    /// <summary>
+    /// Stores an instance of the IetfBaseNetworkInterfaceType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class IetfBaseNetworkInterfaceState : BaseObjectState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public IetfBaseNetworkInterfaceState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IetfBaseNetworkInterfaceType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+
+            if (PhysAddress != null)
+            {
+                PhysAddress.Initialize(context, PhysAddress_InitializationString);
+            }
+        }
+
+        #region Initialization String
+        private const string PhysAddress_InitializationString =
+           "//////////8VYIkKAgAAAAAACwAAAFBoeXNBZGRyZXNzAQCIYgAvAD+IYgAAAAz/////AQH/////AAAA" +
+           "AA==";
+
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAAJAAAAElldGZCYXNlTmV0d29ya0ludGVyZmFjZVR5cGVJbnN0YW5jZQEA" +
+           "hWIBAIVihWIAAAEAAAABAMNEAAEAVF4EAAAAFWCJCgIAAAAAAAsAAABBZG1pblN0YXR1cwEAhmIALwA/" +
+           "hmIAAAEAlF7/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAT3BlclN0YXR1cwEAh2IALwA/h2IAAAEA" +
+           "ll7/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUGh5c0FkZHJlc3MBAIhiAC8AP4hiAAAADP////8B" +
+           "Af////8AAAAAFWCJCgIAAAAAAAUAAABTcGVlZAEAiWIALwEAWUSJYgAAAAn/////AQH/////AQAAABVg" +
+           "qQoCAAAAAAAQAAAARW5naW5lZXJpbmdVbml0cwEApGIALgBEpGIAABYBAHkDAWAAAAAvAAAAaHR0cDov" +
+           "L3d3dy5vcGNmb3VuZGF0aW9uLm9yZy9VQS91bml0cy91bi9jZWZhY3QwMUIAAwIAAABlbgUAAABiaXQv" +
+           "cwMCAAAAZW4OAAAAYml0IHBlciBzZWNvbmQBAHcD/////wEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public BaseDataVariableState<InterfaceAdminStatus> AdminStatus
+        {
+            get
+            {
+                return m_adminStatus;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_adminStatus, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_adminStatus = value;
+            }
+        }
+
+        /// <remarks />
+        public BaseDataVariableState<InterfaceOperStatus> OperStatus
+        {
+            get
+            {
+                return m_operStatus;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_operStatus, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_operStatus = value;
+            }
+        }
+
+        /// <remarks />
+        public BaseDataVariableState<string> PhysAddress
+        {
+            get
+            {
+                return m_physAddress;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_physAddress, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_physAddress = value;
+            }
+        }
+
+        /// <remarks />
+        public AnalogUnitState<ulong> Speed
+        {
+            get
+            {
+                return m_speed;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_speed, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_speed = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_adminStatus != null)
+            {
+                children.Add(m_adminStatus);
+            }
+
+            if (m_operStatus != null)
+            {
+                children.Add(m_operStatus);
+            }
+
+            if (m_physAddress != null)
+            {
+                children.Add(m_physAddress);
+            }
+
+            if (m_speed != null)
+            {
+                children.Add(m_speed);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.AdminStatus:
+                {
+                    if (createOrReplace)
+                    {
+                        if (AdminStatus == null)
+                        {
+                            if (replacement == null)
+                            {
+                                AdminStatus = new BaseDataVariableState<InterfaceAdminStatus>(this);
+                            }
+                            else
+                            {
+                                AdminStatus = (BaseDataVariableState<InterfaceAdminStatus>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = AdminStatus;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.OperStatus:
+                {
+                    if (createOrReplace)
+                    {
+                        if (OperStatus == null)
+                        {
+                            if (replacement == null)
+                            {
+                                OperStatus = new BaseDataVariableState<InterfaceOperStatus>(this);
+                            }
+                            else
+                            {
+                                OperStatus = (BaseDataVariableState<InterfaceOperStatus>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = OperStatus;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.PhysAddress:
+                {
+                    if (createOrReplace)
+                    {
+                        if (PhysAddress == null)
+                        {
+                            if (replacement == null)
+                            {
+                                PhysAddress = new BaseDataVariableState<string>(this);
+                            }
+                            else
+                            {
+                                PhysAddress = (BaseDataVariableState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = PhysAddress;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.Speed:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Speed == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Speed = new AnalogUnitState<ulong>(this);
+                            }
+                            else
+                            {
+                                Speed = (AnalogUnitState<ulong>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Speed;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private BaseDataVariableState<InterfaceAdminStatus> m_adminStatus;
+        private BaseDataVariableState<InterfaceOperStatus> m_operStatus;
+        private BaseDataVariableState<string> m_physAddress;
+        private AnalogUnitState<ulong> m_speed;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region PriorityMappingTableState Class
+    #if (!OPCUA_EXCLUDE_PriorityMappingTableState)
+    /// <summary>
+    /// Stores an instance of the PriorityMappingTableType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class PriorityMappingTableState : BaseObjectState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public PriorityMappingTableState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PriorityMappingTableType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+
+            if (AddPriorityMappingEntry != null)
+            {
+                AddPriorityMappingEntry.Initialize(context, AddPriorityMappingEntry_InitializationString);
+            }
+
+            if (DeletePriorityMappingEntry != null)
+            {
+                DeletePriorityMappingEntry.Initialize(context, DeletePriorityMappingEntry_InitializationString);
+            }
+        }
+
+        #region Initialization String
+        private const string AddPriorityMappingEntry_InitializationString =
+           "//////////8EYYIKBAAAAAAAFwAAAEFkZFByaW9yaXR5TWFwcGluZ0VudHJ5AQCNYgAvAQCNYo1iAAAB" +
+           "Af////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAjmIALgBEjmIAAJYEAAAAAQAqAQEZ" +
+           "AAAACgAAAE1hcHBpbmdVcmkADP////8AAAAAAAEAKgEBHAAAAA0AAABQcmlvcml0eUxhYmVsAAz/////" +
+           "AAAAAAABACoBASAAAAARAAAAUHJpb3JpdHlWYWx1ZV9QQ1AAA/////8AAAAAAAEAKgEBIQAAABIAAABQ" +
+           "cmlvcml0eVZhbHVlX0RTQ1AAB/////8AAAAAAAEAKAEBAAAAAQAAAAQAAAABAf////8AAAAA";
+
+        private const string DeletePriorityMappingEntry_InitializationString =
+           "//////////8EYYIKBAAAAAAAGgAAAERlbGV0ZVByaW9yaXR5TWFwcGluZ0VudHJ5AQCPYgAvAQCPYo9i" +
+           "AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAkGIALgBEkGIAAJYCAAAAAQAq" +
+           "AQEZAAAACgAAAE1hcHBpbmdVcmkADP////8AAAAAAAEAKgEBHAAAAA0AAABQcmlvcml0eUxhYmVsAAz/" +
+           "////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
+
+        private const string InitializationString =
+           "//////////8EYIACAQAAAAAAIAAAAFByaW9yaXR5TWFwcGluZ1RhYmxlVHlwZUluc3RhbmNlAQCLYgEA" +
+           "i2KLYgAA/////wMAAAAXYIkKAgAAAAAAFwAAAFByaW9yaXR5TWFwcHBpbmdFbnRyaWVzAQCMYgAuAESM" +
+           "YgAAAQCEYgEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAAFwAAAEFkZFByaW9yaXR5TWFwcGlu" +
+           "Z0VudHJ5AQCNYgAvAQCNYo1iAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA" +
+           "jmIALgBEjmIAAJYEAAAAAQAqAQEZAAAACgAAAE1hcHBpbmdVcmkADP////8AAAAAAAEAKgEBHAAAAA0A" +
+           "AABQcmlvcml0eUxhYmVsAAz/////AAAAAAABACoBASAAAAARAAAAUHJpb3JpdHlWYWx1ZV9QQ1AAA///" +
+           "//8AAAAAAAEAKgEBIQAAABIAAABQcmlvcml0eVZhbHVlX0RTQ1AAB/////8AAAAAAAEAKAEBAAAAAQAA" +
+           "AAQAAAABAf////8AAAAABGGCCgQAAAAAABoAAABEZWxldGVQcmlvcml0eU1hcHBpbmdFbnRyeQEAj2IA" +
+           "LwEAj2KPYgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAJBiAC4ARJBiAACW" +
+           "AgAAAAEAKgEBGQAAAAoAAABNYXBwaW5nVXJpAAz/////AAAAAAABACoBARwAAAANAAAAUHJpb3JpdHlM" +
+           "YWJlbAAM/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public PropertyState<PriorityMappingEntryType[]> PriorityMapppingEntries
+        {
+            get
+            {
+                return m_priorityMapppingEntries;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_priorityMapppingEntries, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_priorityMapppingEntries = value;
+            }
+        }
+
+        /// <remarks />
+        public AddPriorityMappingEntryMethodState AddPriorityMappingEntry
+        {
+            get
+            {
+                return m_addPriorityMappingEntryMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_addPriorityMappingEntryMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_addPriorityMappingEntryMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public DeletePriorityMappingEntryMethodState DeletePriorityMappingEntry
+        {
+            get
+            {
+                return m_deletePriorityMappingEntryMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_deletePriorityMappingEntryMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_deletePriorityMappingEntryMethod = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_priorityMapppingEntries != null)
+            {
+                children.Add(m_priorityMapppingEntries);
+            }
+
+            if (m_addPriorityMappingEntryMethod != null)
+            {
+                children.Add(m_addPriorityMappingEntryMethod);
+            }
+
+            if (m_deletePriorityMappingEntryMethod != null)
+            {
+                children.Add(m_deletePriorityMappingEntryMethod);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.PriorityMapppingEntries:
+                {
+                    if (createOrReplace)
+                    {
+                        if (PriorityMapppingEntries == null)
+                        {
+                            if (replacement == null)
+                            {
+                                PriorityMapppingEntries = new PropertyState<PriorityMappingEntryType[]>(this);
+                            }
+                            else
+                            {
+                                PriorityMapppingEntries = (PropertyState<PriorityMappingEntryType[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = PriorityMapppingEntries;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.AddPriorityMappingEntry:
+                {
+                    if (createOrReplace)
+                    {
+                        if (AddPriorityMappingEntry == null)
+                        {
+                            if (replacement == null)
+                            {
+                                AddPriorityMappingEntry = new AddPriorityMappingEntryMethodState(this);
+                            }
+                            else
+                            {
+                                AddPriorityMappingEntry = (AddPriorityMappingEntryMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = AddPriorityMappingEntry;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.DeletePriorityMappingEntry:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DeletePriorityMappingEntry == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DeletePriorityMappingEntry = new DeletePriorityMappingEntryMethodState(this);
+                            }
+                            else
+                            {
+                                DeletePriorityMappingEntry = (DeletePriorityMappingEntryMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DeletePriorityMappingEntry;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private PropertyState<PriorityMappingEntryType[]> m_priorityMapppingEntries;
+        private AddPriorityMappingEntryMethodState m_addPriorityMappingEntryMethod;
+        private DeletePriorityMappingEntryMethodState m_deletePriorityMappingEntryMethod;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region AddPriorityMappingEntryMethodState Class
+    #if (!OPCUA_EXCLUDE_AddPriorityMappingEntryMethodState)
+    /// <summary>
+    /// Stores an instance of the AddPriorityMappingEntryMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class AddPriorityMappingEntryMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public AddPriorityMappingEntryMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new AddPriorityMappingEntryMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAIQAAAEFkZFByaW9yaXR5TWFwcGluZ0VudHJ5TWV0aG9kVHlwZQEAkWIA" +
+           "LwEAkWKRYgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAJJiAC4ARJJiAACW" +
+           "BAAAAAEAKgEBGQAAAAoAAABNYXBwaW5nVXJpAAz/////AAAAAAABACoBARwAAAANAAAAUHJpb3JpdHlM" +
+           "YWJlbAAM/////wAAAAAAAQAqAQEgAAAAEQAAAFByaW9yaXR5VmFsdWVfUENQAAP/////AAAAAAABACoB" +
+           "ASEAAAASAAAAUHJpb3JpdHlWYWx1ZV9EU0NQAAf/////AAAAAAABACgBAQAAAAEAAAAEAAAAAQH/////" +
+           "AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public AddPriorityMappingEntryMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            string mappingUri = (string)_inputArguments[0];
+            string priorityLabel = (string)_inputArguments[1];
+            byte priorityValue_PCP = (byte)_inputArguments[2];
+            uint priorityValue_DSCP = (uint)_inputArguments[3];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    mappingUri,
+                    priorityLabel,
+                    priorityValue_PCP,
+                    priorityValue_DSCP);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult AddPriorityMappingEntryMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string mappingUri,
+        string priorityLabel,
+        byte priorityValue_PCP,
+        uint priorityValue_DSCP);
+    #endif
+    #endregion
+
+    #region DeletePriorityMappingEntryMethodState Class
+    #if (!OPCUA_EXCLUDE_DeletePriorityMappingEntryMethodState)
+    /// <summary>
+    /// Stores an instance of the DeletePriorityMappingEntryMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class DeletePriorityMappingEntryMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public DeletePriorityMappingEntryMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new DeletePriorityMappingEntryMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAJAAAAERlbGV0ZVByaW9yaXR5TWFwcGluZ0VudHJ5TWV0aG9kVHlwZQEA" +
+           "k2IALwEAk2KTYgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAJRiAC4ARJRi" +
+           "AACWAgAAAAEAKgEBGQAAAAoAAABNYXBwaW5nVXJpAAz/////AAAAAAABACoBARwAAAANAAAAUHJpb3Jp" +
+           "dHlMYWJlbAAM/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public DeletePriorityMappingEntryMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected override ServiceResult Call(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            string mappingUri = (string)_inputArguments[0];
+            string priorityLabel = (string)_inputArguments[1];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    _context,
+                    this,
+                    _objectId,
+                    mappingUri,
+                    priorityLabel);
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult DeletePriorityMappingEntryMethodStateMethodCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string mappingUri,
+        string priorityLabel);
     #endif
     #endregion
 }

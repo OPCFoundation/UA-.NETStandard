@@ -17,7 +17,7 @@ BadServiceUnsupported,0x800B0000,"The server does not support the requested serv
 BadShutdown,0x800C0000,"The operation was cancelled because the application is shutting down."
 BadServerNotConnected,0x800D0000,"The operation could not complete because the client is not connected to the server."
 BadServerHalted,0x800E0000,"The server has stopped and cannot process any requests."
-BadNothingToDo,0x800F0000,"There was nothing to do because the client passed a list of operations with no elements."
+BadNothingToDo,0x800F0000,"No processing could be done because there was nothing to do."
 BadTooManyOperations,0x80100000,"The request could not be processed because it specified too many operations."
 BadTooManyMonitoredItems,0x80DB0000,"The request could not be processed because there are too many monitored items in the subscription."
 BadDataTypeIdUnknown,0x80110000,"The extension object cannot be (de)serialized because the data type id is not recognized."
@@ -259,3 +259,4 @@ GoodCascadeNotSelected,0x04040000,"The value source supports cascade handshaking
 GoodFaultStateActive,0x04070000,"There is a fault state condition active in the value source."
 GoodInitiateFaultState,0x04080000,"A fault state condition is being requested of the destination."
 GoodCascade,0x04090000,"The value is accurate, and the signal source supports cascade handshaking."
+BadDataSetIdInvalid,0x80E70000,"The DataSet specified for the DataSetWriter creation is invalid."
