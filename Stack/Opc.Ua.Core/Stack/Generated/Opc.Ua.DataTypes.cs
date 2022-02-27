@@ -7846,7 +7846,7 @@ namespace Opc.Ua
             m_dataSetFolder = new StringCollection();
             m_dataSetMetaData = new DataSetMetaDataType();
             m_extensionFields = new KeyValuePairCollection();
-            m_dataSetSource = new PublishedDataSetSourceDataType();
+            m_dataSetSource = null;
         }
         #endregion
 
@@ -7927,7 +7927,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "DataSetSource", IsRequired = false, Order = 5)]
-        public PublishedDataSetSourceDataType DataSetSource
+        public ExtensionObject DataSetSource
         {
             get { return m_dataSetSource;  }
             set { m_dataSetSource = value; }
@@ -7962,7 +7962,7 @@ namespace Opc.Ua
             encoder.WriteStringArray("DataSetFolder", DataSetFolder);
             encoder.WriteEncodeable("DataSetMetaData", DataSetMetaData, typeof(DataSetMetaDataType));
             encoder.WriteEncodeableArray("ExtensionFields", ExtensionFields.ToArray(), typeof(KeyValuePair));
-            encoder.WriteExtensionObject("DataSetSource", new ExtensionObject(DataSetSource));
+            encoder.WriteExtensionObject("DataSetSource", DataSetSource);
 
             encoder.PopNamespace();
         }
@@ -7976,7 +7976,7 @@ namespace Opc.Ua
             DataSetFolder = decoder.ReadStringArray("DataSetFolder");
             DataSetMetaData = (DataSetMetaDataType)decoder.ReadEncodeable("DataSetMetaData", typeof(DataSetMetaDataType));
             ExtensionFields = (KeyValuePairCollection)decoder.ReadEncodeableArray("ExtensionFields", typeof(KeyValuePair));
-            DataSetSource = (PublishedDataSetSourceDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("DataSetSource"));
+            DataSetSource = decoder.ReadExtensionObject("DataSetSource");
 
             decoder.PopNamespace();
         }
@@ -8022,7 +8022,7 @@ namespace Opc.Ua
             clone.m_dataSetFolder = (StringCollection)Utils.Clone(this.m_dataSetFolder);
             clone.m_dataSetMetaData = (DataSetMetaDataType)Utils.Clone(this.m_dataSetMetaData);
             clone.m_extensionFields = (KeyValuePairCollection)Utils.Clone(this.m_extensionFields);
-            clone.m_dataSetSource = (PublishedDataSetSourceDataType)Utils.Clone(this.m_dataSetSource);
+            clone.m_dataSetSource = (ExtensionObject)Utils.Clone(this.m_dataSetSource);
 
             return clone;
         }
@@ -8033,7 +8033,7 @@ namespace Opc.Ua
         private StringCollection m_dataSetFolder;
         private DataSetMetaDataType m_dataSetMetaData;
         private KeyValuePairCollection m_extensionFields;
-        private PublishedDataSetSourceDataType m_dataSetSource;
+        private ExtensionObject m_dataSetSource;
         #endregion
     }
 
@@ -9559,8 +9559,8 @@ namespace Opc.Ua
             m_keyFrameCount = (uint)0;
             m_dataSetName = null;
             m_dataSetWriterProperties = new KeyValuePairCollection();
-            m_transportSettings = new DataSetWriterTransportDataType();
-            m_messageSettings = new DataSetWriterMessageDataType();
+            m_transportSettings = null;
+            m_messageSettings = null;
         }
         #endregion
 
@@ -9637,7 +9637,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 8)]
-        public DataSetWriterTransportDataType TransportSettings
+        public ExtensionObject TransportSettings
         {
             get { return m_transportSettings;  }
             set { m_transportSettings = value; }
@@ -9645,7 +9645,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "MessageSettings", IsRequired = false, Order = 9)]
-        public DataSetWriterMessageDataType MessageSettings
+        public ExtensionObject MessageSettings
         {
             get { return m_messageSettings;  }
             set { m_messageSettings = value; }
@@ -9683,8 +9683,8 @@ namespace Opc.Ua
             encoder.WriteUInt32("KeyFrameCount", KeyFrameCount);
             encoder.WriteString("DataSetName", DataSetName);
             encoder.WriteEncodeableArray("DataSetWriterProperties", DataSetWriterProperties.ToArray(), typeof(KeyValuePair));
-            encoder.WriteExtensionObject("TransportSettings", new ExtensionObject(TransportSettings));
-            encoder.WriteExtensionObject("MessageSettings", new ExtensionObject(MessageSettings));
+            encoder.WriteExtensionObject("TransportSettings", TransportSettings);
+            encoder.WriteExtensionObject("MessageSettings", MessageSettings);
 
             encoder.PopNamespace();
         }
@@ -9701,8 +9701,8 @@ namespace Opc.Ua
             KeyFrameCount = decoder.ReadUInt32("KeyFrameCount");
             DataSetName = decoder.ReadString("DataSetName");
             DataSetWriterProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("DataSetWriterProperties", typeof(KeyValuePair));
-            TransportSettings = (DataSetWriterTransportDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("TransportSettings"));
-            MessageSettings = (DataSetWriterMessageDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("MessageSettings"));
+            TransportSettings = decoder.ReadExtensionObject("TransportSettings");
+            MessageSettings = decoder.ReadExtensionObject("MessageSettings");
 
             decoder.PopNamespace();
         }
@@ -9755,8 +9755,8 @@ namespace Opc.Ua
             clone.m_keyFrameCount = (uint)Utils.Clone(this.m_keyFrameCount);
             clone.m_dataSetName = (string)Utils.Clone(this.m_dataSetName);
             clone.m_dataSetWriterProperties = (KeyValuePairCollection)Utils.Clone(this.m_dataSetWriterProperties);
-            clone.m_transportSettings = (DataSetWriterTransportDataType)Utils.Clone(this.m_transportSettings);
-            clone.m_messageSettings = (DataSetWriterMessageDataType)Utils.Clone(this.m_messageSettings);
+            clone.m_transportSettings = (ExtensionObject)Utils.Clone(this.m_transportSettings);
+            clone.m_messageSettings = (ExtensionObject)Utils.Clone(this.m_messageSettings);
 
             return clone;
         }
@@ -9770,8 +9770,8 @@ namespace Opc.Ua
         private uint m_keyFrameCount;
         private string m_dataSetName;
         private KeyValuePairCollection m_dataSetWriterProperties;
-        private DataSetWriterTransportDataType m_transportSettings;
-        private DataSetWriterMessageDataType m_messageSettings;
+        private ExtensionObject m_transportSettings;
+        private ExtensionObject m_messageSettings;
         #endregion
     }
 
@@ -10638,8 +10638,8 @@ namespace Opc.Ua
             m_priority = (byte)0;
             m_localeIds = new StringCollection();
             m_headerLayoutUri = null;
-            m_transportSettings = new WriterGroupTransportDataType();
-            m_messageSettings = new WriterGroupMessageDataType();
+            m_transportSettings = null;
+            m_messageSettings = null;
             m_dataSetWriters = new DataSetWriterDataTypeCollection();
         }
         #endregion
@@ -10709,7 +10709,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 7)]
-        public WriterGroupTransportDataType TransportSettings
+        public ExtensionObject TransportSettings
         {
             get { return m_transportSettings;  }
             set { m_transportSettings = value; }
@@ -10717,7 +10717,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "MessageSettings", IsRequired = false, Order = 8)]
-        public WriterGroupMessageDataType MessageSettings
+        public ExtensionObject MessageSettings
         {
             get { return m_messageSettings;  }
             set { m_messageSettings = value; }
@@ -10778,8 +10778,8 @@ namespace Opc.Ua
             encoder.WriteByte("Priority", Priority);
             encoder.WriteStringArray("LocaleIds", LocaleIds);
             encoder.WriteString("HeaderLayoutUri", HeaderLayoutUri);
-            encoder.WriteExtensionObject("TransportSettings", new ExtensionObject(TransportSettings));
-            encoder.WriteExtensionObject("MessageSettings", new ExtensionObject(MessageSettings));
+            encoder.WriteExtensionObject("TransportSettings", TransportSettings);
+            encoder.WriteExtensionObject("MessageSettings", MessageSettings);
             encoder.WriteEncodeableArray("DataSetWriters", DataSetWriters.ToArray(), typeof(DataSetWriterDataType));
 
             encoder.PopNamespace();
@@ -10798,8 +10798,8 @@ namespace Opc.Ua
             Priority = decoder.ReadByte("Priority");
             LocaleIds = decoder.ReadStringArray("LocaleIds");
             HeaderLayoutUri = decoder.ReadString("HeaderLayoutUri");
-            TransportSettings = (WriterGroupTransportDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("TransportSettings"));
-            MessageSettings = (WriterGroupMessageDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("MessageSettings"));
+            TransportSettings = decoder.ReadExtensionObject("TransportSettings");
+            MessageSettings = decoder.ReadExtensionObject("MessageSettings");
             DataSetWriters = (DataSetWriterDataTypeCollection)decoder.ReadEncodeableArray("DataSetWriters", typeof(DataSetWriterDataType));
 
             decoder.PopNamespace();
@@ -10853,8 +10853,8 @@ namespace Opc.Ua
             clone.m_priority = (byte)Utils.Clone(this.m_priority);
             clone.m_localeIds = (StringCollection)Utils.Clone(this.m_localeIds);
             clone.m_headerLayoutUri = (string)Utils.Clone(this.m_headerLayoutUri);
-            clone.m_transportSettings = (WriterGroupTransportDataType)Utils.Clone(this.m_transportSettings);
-            clone.m_messageSettings = (WriterGroupMessageDataType)Utils.Clone(this.m_messageSettings);
+            clone.m_transportSettings = (ExtensionObject)Utils.Clone(this.m_transportSettings);
+            clone.m_messageSettings = (ExtensionObject)Utils.Clone(this.m_messageSettings);
             clone.m_dataSetWriters = (DataSetWriterDataTypeCollection)Utils.Clone(this.m_dataSetWriters);
 
             return clone;
@@ -10868,8 +10868,8 @@ namespace Opc.Ua
         private byte m_priority;
         private StringCollection m_localeIds;
         private string m_headerLayoutUri;
-        private WriterGroupTransportDataType m_transportSettings;
-        private WriterGroupMessageDataType m_messageSettings;
+        private ExtensionObject m_transportSettings;
+        private ExtensionObject m_messageSettings;
         private DataSetWriterDataTypeCollection m_dataSetWriters;
         #endregion
     }
@@ -11406,9 +11406,9 @@ namespace Opc.Ua
             m_enabled = true;
             m_publisherId = Variant.Null;
             m_transportProfileUri = null;
-            m_address = new NetworkAddressDataType();
+            m_address = null;
             m_connectionProperties = new KeyValuePairCollection();
-            m_transportSettings = new ConnectionTransportDataType();
+            m_transportSettings = null;
             m_writerGroups = new WriterGroupDataTypeCollection();
             m_readerGroups = new ReaderGroupDataTypeCollection();
         }
@@ -11449,7 +11449,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "Address", IsRequired = false, Order = 5)]
-        public NetworkAddressDataType Address
+        public ExtensionObject Address
         {
             get { return m_address;  }
             set { m_address = value; }
@@ -11479,7 +11479,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 7)]
-        public ConnectionTransportDataType TransportSettings
+        public ExtensionObject TransportSettings
         {
             get { return m_transportSettings;  }
             set { m_transportSettings = value; }
@@ -11558,9 +11558,9 @@ namespace Opc.Ua
             encoder.WriteBoolean("Enabled", Enabled);
             encoder.WriteVariant("PublisherId", PublisherId);
             encoder.WriteString("TransportProfileUri", TransportProfileUri);
-            encoder.WriteExtensionObject("Address", new ExtensionObject(Address));
+            encoder.WriteExtensionObject("Address", Address);
             encoder.WriteEncodeableArray("ConnectionProperties", ConnectionProperties.ToArray(), typeof(KeyValuePair));
-            encoder.WriteExtensionObject("TransportSettings", new ExtensionObject(TransportSettings));
+            encoder.WriteExtensionObject("TransportSettings", TransportSettings);
             encoder.WriteEncodeableArray("WriterGroups", WriterGroups.ToArray(), typeof(WriterGroupDataType));
             encoder.WriteEncodeableArray("ReaderGroups", ReaderGroups.ToArray(), typeof(ReaderGroupDataType));
 
@@ -11576,9 +11576,9 @@ namespace Opc.Ua
             Enabled = decoder.ReadBoolean("Enabled");
             PublisherId = decoder.ReadVariant("PublisherId");
             TransportProfileUri = decoder.ReadString("TransportProfileUri");
-            Address = (NetworkAddressDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("Address"));
+            Address = decoder.ReadExtensionObject("Address");
             ConnectionProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("ConnectionProperties", typeof(KeyValuePair));
-            TransportSettings = (ConnectionTransportDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("TransportSettings"));
+            TransportSettings = decoder.ReadExtensionObject("TransportSettings");
             WriterGroups = (WriterGroupDataTypeCollection)decoder.ReadEncodeableArray("WriterGroups", typeof(WriterGroupDataType));
             ReaderGroups = (ReaderGroupDataTypeCollection)decoder.ReadEncodeableArray("ReaderGroups", typeof(ReaderGroupDataType));
 
@@ -11630,9 +11630,9 @@ namespace Opc.Ua
             clone.m_enabled = (bool)Utils.Clone(this.m_enabled);
             clone.m_publisherId = (Variant)Utils.Clone(this.m_publisherId);
             clone.m_transportProfileUri = (string)Utils.Clone(this.m_transportProfileUri);
-            clone.m_address = (NetworkAddressDataType)Utils.Clone(this.m_address);
+            clone.m_address = (ExtensionObject)Utils.Clone(this.m_address);
             clone.m_connectionProperties = (KeyValuePairCollection)Utils.Clone(this.m_connectionProperties);
-            clone.m_transportSettings = (ConnectionTransportDataType)Utils.Clone(this.m_transportSettings);
+            clone.m_transportSettings = (ExtensionObject)Utils.Clone(this.m_transportSettings);
             clone.m_writerGroups = (WriterGroupDataTypeCollection)Utils.Clone(this.m_writerGroups);
             clone.m_readerGroups = (ReaderGroupDataTypeCollection)Utils.Clone(this.m_readerGroups);
 
@@ -11645,9 +11645,9 @@ namespace Opc.Ua
         private bool m_enabled;
         private Variant m_publisherId;
         private string m_transportProfileUri;
-        private NetworkAddressDataType m_address;
+        private ExtensionObject m_address;
         private KeyValuePairCollection m_connectionProperties;
-        private ConnectionTransportDataType m_transportSettings;
+        private ExtensionObject m_transportSettings;
         private WriterGroupDataTypeCollection m_writerGroups;
         private ReaderGroupDataTypeCollection m_readerGroups;
         #endregion
@@ -12416,8 +12416,8 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_transportSettings = new ReaderGroupTransportDataType();
-            m_messageSettings = new ReaderGroupMessageDataType();
+            m_transportSettings = null;
+            m_messageSettings = null;
             m_dataSetReaders = new DataSetReaderDataTypeCollection();
         }
         #endregion
@@ -12425,7 +12425,7 @@ namespace Opc.Ua
         #region Public Properties
         /// <remarks />
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 1)]
-        public ReaderGroupTransportDataType TransportSettings
+        public ExtensionObject TransportSettings
         {
             get { return m_transportSettings;  }
             set { m_transportSettings = value; }
@@ -12433,7 +12433,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "MessageSettings", IsRequired = false, Order = 2)]
-        public ReaderGroupMessageDataType MessageSettings
+        public ExtensionObject MessageSettings
         {
             get { return m_messageSettings;  }
             set { m_messageSettings = value; }
@@ -12488,8 +12488,8 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteExtensionObject("TransportSettings", new ExtensionObject(TransportSettings));
-            encoder.WriteExtensionObject("MessageSettings", new ExtensionObject(MessageSettings));
+            encoder.WriteExtensionObject("TransportSettings", TransportSettings);
+            encoder.WriteExtensionObject("MessageSettings", MessageSettings);
             encoder.WriteEncodeableArray("DataSetReaders", DataSetReaders.ToArray(), typeof(DataSetReaderDataType));
 
             encoder.PopNamespace();
@@ -12502,8 +12502,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            TransportSettings = (ReaderGroupTransportDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("TransportSettings"));
-            MessageSettings = (ReaderGroupMessageDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("MessageSettings"));
+            TransportSettings = decoder.ReadExtensionObject("TransportSettings");
+            MessageSettings = decoder.ReadExtensionObject("MessageSettings");
             DataSetReaders = (DataSetReaderDataTypeCollection)decoder.ReadEncodeableArray("DataSetReaders", typeof(DataSetReaderDataType));
 
             decoder.PopNamespace();
@@ -12545,8 +12545,8 @@ namespace Opc.Ua
         {
             ReaderGroupDataType clone = (ReaderGroupDataType)base.MemberwiseClone();
 
-            clone.m_transportSettings = (ReaderGroupTransportDataType)Utils.Clone(this.m_transportSettings);
-            clone.m_messageSettings = (ReaderGroupMessageDataType)Utils.Clone(this.m_messageSettings);
+            clone.m_transportSettings = (ExtensionObject)Utils.Clone(this.m_transportSettings);
+            clone.m_messageSettings = (ExtensionObject)Utils.Clone(this.m_messageSettings);
             clone.m_dataSetReaders = (DataSetReaderDataTypeCollection)Utils.Clone(this.m_dataSetReaders);
 
             return clone;
@@ -12554,8 +12554,8 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private ReaderGroupTransportDataType m_transportSettings;
-        private ReaderGroupMessageDataType m_messageSettings;
+        private ExtensionObject m_transportSettings;
+        private ExtensionObject m_messageSettings;
         private DataSetReaderDataTypeCollection m_dataSetReaders;
         #endregion
     }
@@ -13102,9 +13102,9 @@ namespace Opc.Ua
             m_securityGroupId = null;
             m_securityKeyServices = new EndpointDescriptionCollection();
             m_dataSetReaderProperties = new KeyValuePairCollection();
-            m_transportSettings = new DataSetReaderTransportDataType();
-            m_messageSettings = new DataSetReaderMessageDataType();
-            m_subscribedDataSet = new SubscribedDataSetDataType();
+            m_transportSettings = null;
+            m_messageSettings = null;
+            m_subscribedDataSet = null;
         }
         #endregion
 
@@ -13265,7 +13265,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 15)]
-        public DataSetReaderTransportDataType TransportSettings
+        public ExtensionObject TransportSettings
         {
             get { return m_transportSettings;  }
             set { m_transportSettings = value; }
@@ -13273,7 +13273,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "MessageSettings", IsRequired = false, Order = 16)]
-        public DataSetReaderMessageDataType MessageSettings
+        public ExtensionObject MessageSettings
         {
             get { return m_messageSettings;  }
             set { m_messageSettings = value; }
@@ -13281,7 +13281,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "SubscribedDataSet", IsRequired = false, Order = 17)]
-        public SubscribedDataSetDataType SubscribedDataSet
+        public ExtensionObject SubscribedDataSet
         {
             get { return m_subscribedDataSet;  }
             set { m_subscribedDataSet = value; }
@@ -13326,9 +13326,9 @@ namespace Opc.Ua
             encoder.WriteString("SecurityGroupId", SecurityGroupId);
             encoder.WriteEncodeableArray("SecurityKeyServices", SecurityKeyServices.ToArray(), typeof(EndpointDescription));
             encoder.WriteEncodeableArray("DataSetReaderProperties", DataSetReaderProperties.ToArray(), typeof(KeyValuePair));
-            encoder.WriteExtensionObject("TransportSettings", new ExtensionObject(TransportSettings));
-            encoder.WriteExtensionObject("MessageSettings", new ExtensionObject(MessageSettings));
-            encoder.WriteExtensionObject("SubscribedDataSet", new ExtensionObject(SubscribedDataSet));
+            encoder.WriteExtensionObject("TransportSettings", TransportSettings);
+            encoder.WriteExtensionObject("MessageSettings", MessageSettings);
+            encoder.WriteExtensionObject("SubscribedDataSet", SubscribedDataSet);
 
             encoder.PopNamespace();
         }
@@ -13352,9 +13352,9 @@ namespace Opc.Ua
             SecurityGroupId = decoder.ReadString("SecurityGroupId");
             SecurityKeyServices = (EndpointDescriptionCollection)decoder.ReadEncodeableArray("SecurityKeyServices", typeof(EndpointDescription));
             DataSetReaderProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("DataSetReaderProperties", typeof(KeyValuePair));
-            TransportSettings = (DataSetReaderTransportDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("TransportSettings"));
-            MessageSettings = (DataSetReaderMessageDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("MessageSettings"));
-            SubscribedDataSet = (SubscribedDataSetDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("SubscribedDataSet"));
+            TransportSettings = decoder.ReadExtensionObject("TransportSettings");
+            MessageSettings = decoder.ReadExtensionObject("MessageSettings");
+            SubscribedDataSet = decoder.ReadExtensionObject("SubscribedDataSet");
 
             decoder.PopNamespace();
         }
@@ -13422,9 +13422,9 @@ namespace Opc.Ua
             clone.m_securityGroupId = (string)Utils.Clone(this.m_securityGroupId);
             clone.m_securityKeyServices = (EndpointDescriptionCollection)Utils.Clone(this.m_securityKeyServices);
             clone.m_dataSetReaderProperties = (KeyValuePairCollection)Utils.Clone(this.m_dataSetReaderProperties);
-            clone.m_transportSettings = (DataSetReaderTransportDataType)Utils.Clone(this.m_transportSettings);
-            clone.m_messageSettings = (DataSetReaderMessageDataType)Utils.Clone(this.m_messageSettings);
-            clone.m_subscribedDataSet = (SubscribedDataSetDataType)Utils.Clone(this.m_subscribedDataSet);
+            clone.m_transportSettings = (ExtensionObject)Utils.Clone(this.m_transportSettings);
+            clone.m_messageSettings = (ExtensionObject)Utils.Clone(this.m_messageSettings);
+            clone.m_subscribedDataSet = (ExtensionObject)Utils.Clone(this.m_subscribedDataSet);
 
             return clone;
         }
@@ -13445,9 +13445,9 @@ namespace Opc.Ua
         private string m_securityGroupId;
         private EndpointDescriptionCollection m_securityKeyServices;
         private KeyValuePairCollection m_dataSetReaderProperties;
-        private DataSetReaderTransportDataType m_transportSettings;
-        private DataSetReaderMessageDataType m_messageSettings;
-        private SubscribedDataSetDataType m_subscribedDataSet;
+        private ExtensionObject m_transportSettings;
+        private ExtensionObject m_messageSettings;
+        private ExtensionObject m_subscribedDataSet;
         #endregion
     }
 
@@ -15578,7 +15578,7 @@ namespace Opc.Ua
             m_name = null;
             m_dataSetFolder = new StringCollection();
             m_dataSetMetaData = new DataSetMetaDataType();
-            m_subscribedDataSet = new SubscribedDataSetDataType();
+            m_subscribedDataSet = null;
         }
         #endregion
 
@@ -15637,7 +15637,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "SubscribedDataSet", IsRequired = false, Order = 4)]
-        public SubscribedDataSetDataType SubscribedDataSet
+        public ExtensionObject SubscribedDataSet
         {
             get { return m_subscribedDataSet;  }
             set { m_subscribedDataSet = value; }
@@ -15673,7 +15673,7 @@ namespace Opc.Ua
             encoder.WriteString("Name", Name);
             encoder.WriteStringArray("DataSetFolder", DataSetFolder);
             encoder.WriteEncodeable("DataSetMetaData", DataSetMetaData, typeof(DataSetMetaDataType));
-            encoder.WriteExtensionObject("SubscribedDataSet", new ExtensionObject(SubscribedDataSet));
+            encoder.WriteExtensionObject("SubscribedDataSet", SubscribedDataSet);
 
             encoder.PopNamespace();
         }
@@ -15688,7 +15688,7 @@ namespace Opc.Ua
             Name = decoder.ReadString("Name");
             DataSetFolder = decoder.ReadStringArray("DataSetFolder");
             DataSetMetaData = (DataSetMetaDataType)decoder.ReadEncodeable("DataSetMetaData", typeof(DataSetMetaDataType));
-            SubscribedDataSet = (SubscribedDataSetDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("SubscribedDataSet"));
+            SubscribedDataSet = decoder.ReadExtensionObject("SubscribedDataSet");
 
             decoder.PopNamespace();
         }
@@ -15733,7 +15733,7 @@ namespace Opc.Ua
             clone.m_name = (string)Utils.Clone(this.m_name);
             clone.m_dataSetFolder = (StringCollection)Utils.Clone(this.m_dataSetFolder);
             clone.m_dataSetMetaData = (DataSetMetaDataType)Utils.Clone(this.m_dataSetMetaData);
-            clone.m_subscribedDataSet = (SubscribedDataSetDataType)Utils.Clone(this.m_subscribedDataSet);
+            clone.m_subscribedDataSet = (ExtensionObject)Utils.Clone(this.m_subscribedDataSet);
 
             return clone;
         }
@@ -15743,7 +15743,7 @@ namespace Opc.Ua
         private string m_name;
         private StringCollection m_dataSetFolder;
         private DataSetMetaDataType m_dataSetMetaData;
-        private SubscribedDataSetDataType m_subscribedDataSet;
+        private ExtensionObject m_subscribedDataSet;
         #endregion
     }
 
@@ -20289,14 +20289,14 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_discoveryAddress = new NetworkAddressDataType();
+            m_discoveryAddress = null;
         }
         #endregion
 
         #region Public Properties
         /// <remarks />
         [DataMember(Name = "DiscoveryAddress", IsRequired = false, Order = 1)]
-        public NetworkAddressDataType DiscoveryAddress
+        public ExtensionObject DiscoveryAddress
         {
             get { return m_discoveryAddress;  }
             set { m_discoveryAddress = value; }
@@ -20329,7 +20329,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteExtensionObject("DiscoveryAddress", new ExtensionObject(DiscoveryAddress));
+            encoder.WriteExtensionObject("DiscoveryAddress", DiscoveryAddress);
 
             encoder.PopNamespace();
         }
@@ -20341,7 +20341,7 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            DiscoveryAddress = (NetworkAddressDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("DiscoveryAddress"));
+            DiscoveryAddress = decoder.ReadExtensionObject("DiscoveryAddress");
 
             decoder.PopNamespace();
         }
@@ -20380,14 +20380,14 @@ namespace Opc.Ua
         {
             DatagramConnectionTransportDataType clone = (DatagramConnectionTransportDataType)base.MemberwiseClone();
 
-            clone.m_discoveryAddress = (NetworkAddressDataType)Utils.Clone(this.m_discoveryAddress);
+            clone.m_discoveryAddress = (ExtensionObject)Utils.Clone(this.m_discoveryAddress);
 
             return clone;
         }
         #endregion
 
         #region Private Fields
-        private NetworkAddressDataType m_discoveryAddress;
+        private ExtensionObject m_discoveryAddress;
         #endregion
     }
 
@@ -20514,7 +20514,7 @@ namespace Opc.Ua
             m_discoveryAnnounceRate = (uint)0;
             m_discoveryMaxMessageSize = (uint)0;
             m_qosCategory = null;
-            m_datagramQos = new QosDataTypeCollection();
+            m_datagramQos = new ExtensionObjectCollection();
         }
         #endregion
 
@@ -20545,7 +20545,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "DatagramQos", IsRequired = false, Order = 4)]
-        public QosDataTypeCollection DatagramQos
+        public ExtensionObjectCollection DatagramQos
         {
             get { return m_datagramQos;  }
             set { m_datagramQos = value; }
@@ -20581,7 +20581,7 @@ namespace Opc.Ua
             encoder.WriteUInt32("DiscoveryAnnounceRate", DiscoveryAnnounceRate);
             encoder.WriteUInt32("DiscoveryMaxMessageSize", DiscoveryMaxMessageSize);
             encoder.WriteString("QosCategory", QosCategory);
-            encoder.WriteExtensionObjectArray("DatagramQos", ExtensionObjectCollection.ToExtensionObjects(DatagramQos));
+            encoder.WriteExtensionObjectArray("DatagramQos", DatagramQos);
 
             encoder.PopNamespace();
         }
@@ -20596,7 +20596,7 @@ namespace Opc.Ua
             DiscoveryAnnounceRate = decoder.ReadUInt32("DiscoveryAnnounceRate");
             DiscoveryMaxMessageSize = decoder.ReadUInt32("DiscoveryMaxMessageSize");
             QosCategory = decoder.ReadString("QosCategory");
-            DatagramQos = (QosDataType[])ExtensionObject.ToArray(decoder.ReadExtensionObjectArray("DatagramQos"), typeof(QosDataType));
+            DatagramQos = decoder.ReadExtensionObjectArray("DatagramQos");
 
             decoder.PopNamespace();
         }
@@ -20641,7 +20641,7 @@ namespace Opc.Ua
             clone.m_discoveryAnnounceRate = (uint)Utils.Clone(this.m_discoveryAnnounceRate);
             clone.m_discoveryMaxMessageSize = (uint)Utils.Clone(this.m_discoveryMaxMessageSize);
             clone.m_qosCategory = (string)Utils.Clone(this.m_qosCategory);
-            clone.m_datagramQos = (QosDataTypeCollection)Utils.Clone(this.m_datagramQos);
+            clone.m_datagramQos = (ExtensionObjectCollection)Utils.Clone(this.m_datagramQos);
 
             return clone;
         }
@@ -20651,7 +20651,7 @@ namespace Opc.Ua
         private uint m_discoveryAnnounceRate;
         private uint m_discoveryMaxMessageSize;
         private string m_qosCategory;
-        private QosDataTypeCollection m_datagramQos;
+        private ExtensionObjectCollection m_datagramQos;
         #endregion
     }
 
@@ -21011,9 +21011,9 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_address = new NetworkAddressDataType();
+            m_address = null;
             m_qosCategory = null;
-            m_datagramQos = new TransmitQosDataTypeCollection();
+            m_datagramQos = new ExtensionObjectCollection();
             m_discoveryAnnounceRate = (uint)0;
             m_topic = null;
         }
@@ -21022,7 +21022,7 @@ namespace Opc.Ua
         #region Public Properties
         /// <remarks />
         [DataMember(Name = "Address", IsRequired = false, Order = 1)]
-        public NetworkAddressDataType Address
+        public ExtensionObject Address
         {
             get { return m_address;  }
             set { m_address = value; }
@@ -21038,7 +21038,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "DatagramQos", IsRequired = false, Order = 3)]
-        public TransmitQosDataTypeCollection DatagramQos
+        public ExtensionObjectCollection DatagramQos
         {
             get { return m_datagramQos;  }
             set { m_datagramQos = value; }
@@ -21087,9 +21087,9 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteExtensionObject("Address", new ExtensionObject(Address));
+            encoder.WriteExtensionObject("Address", Address);
             encoder.WriteString("QosCategory", QosCategory);
-            encoder.WriteExtensionObjectArray("DatagramQos", ExtensionObjectCollection.ToExtensionObjects(DatagramQos));
+            encoder.WriteExtensionObjectArray("DatagramQos", DatagramQos);
             encoder.WriteUInt32("DiscoveryAnnounceRate", DiscoveryAnnounceRate);
             encoder.WriteString("Topic", Topic);
 
@@ -21103,9 +21103,9 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            Address = (NetworkAddressDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("Address"));
+            Address = decoder.ReadExtensionObject("Address");
             QosCategory = decoder.ReadString("QosCategory");
-            DatagramQos = (TransmitQosDataType[])ExtensionObject.ToArray(decoder.ReadExtensionObjectArray("DatagramQos"), typeof(TransmitQosDataType));
+            DatagramQos = decoder.ReadExtensionObjectArray("DatagramQos");
             DiscoveryAnnounceRate = decoder.ReadUInt32("DiscoveryAnnounceRate");
             Topic = decoder.ReadString("Topic");
 
@@ -21150,9 +21150,9 @@ namespace Opc.Ua
         {
             DatagramWriterGroupTransport2DataType clone = (DatagramWriterGroupTransport2DataType)base.MemberwiseClone();
 
-            clone.m_address = (NetworkAddressDataType)Utils.Clone(this.m_address);
+            clone.m_address = (ExtensionObject)Utils.Clone(this.m_address);
             clone.m_qosCategory = (string)Utils.Clone(this.m_qosCategory);
-            clone.m_datagramQos = (TransmitQosDataTypeCollection)Utils.Clone(this.m_datagramQos);
+            clone.m_datagramQos = (ExtensionObjectCollection)Utils.Clone(this.m_datagramQos);
             clone.m_discoveryAnnounceRate = (uint)Utils.Clone(this.m_discoveryAnnounceRate);
             clone.m_topic = (string)Utils.Clone(this.m_topic);
 
@@ -21161,9 +21161,9 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private NetworkAddressDataType m_address;
+        private ExtensionObject m_address;
         private string m_qosCategory;
-        private TransmitQosDataTypeCollection m_datagramQos;
+        private ExtensionObjectCollection m_datagramQos;
         private uint m_discoveryAnnounceRate;
         private string m_topic;
         #endregion
@@ -21289,9 +21289,9 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_address = new NetworkAddressDataType();
+            m_address = null;
             m_qosCategory = null;
-            m_datagramQos = new ReceiveQosDataTypeCollection();
+            m_datagramQos = new ExtensionObjectCollection();
             m_topic = null;
         }
         #endregion
@@ -21299,7 +21299,7 @@ namespace Opc.Ua
         #region Public Properties
         /// <remarks />
         [DataMember(Name = "Address", IsRequired = false, Order = 1)]
-        public NetworkAddressDataType Address
+        public ExtensionObject Address
         {
             get { return m_address;  }
             set { m_address = value; }
@@ -21315,7 +21315,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "DatagramQos", IsRequired = false, Order = 3)]
-        public ReceiveQosDataTypeCollection DatagramQos
+        public ExtensionObjectCollection DatagramQos
         {
             get { return m_datagramQos;  }
             set { m_datagramQos = value; }
@@ -21356,9 +21356,9 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteExtensionObject("Address", new ExtensionObject(Address));
+            encoder.WriteExtensionObject("Address", Address);
             encoder.WriteString("QosCategory", QosCategory);
-            encoder.WriteExtensionObjectArray("DatagramQos", ExtensionObjectCollection.ToExtensionObjects(DatagramQos));
+            encoder.WriteExtensionObjectArray("DatagramQos", DatagramQos);
             encoder.WriteString("Topic", Topic);
 
             encoder.PopNamespace();
@@ -21371,9 +21371,9 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            Address = (NetworkAddressDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("Address"));
+            Address = decoder.ReadExtensionObject("Address");
             QosCategory = decoder.ReadString("QosCategory");
-            DatagramQos = (ReceiveQosDataType[])ExtensionObject.ToArray(decoder.ReadExtensionObjectArray("DatagramQos"), typeof(ReceiveQosDataType));
+            DatagramQos = decoder.ReadExtensionObjectArray("DatagramQos");
             Topic = decoder.ReadString("Topic");
 
             decoder.PopNamespace();
@@ -21416,9 +21416,9 @@ namespace Opc.Ua
         {
             DatagramDataSetReaderTransportDataType clone = (DatagramDataSetReaderTransportDataType)base.MemberwiseClone();
 
-            clone.m_address = (NetworkAddressDataType)Utils.Clone(this.m_address);
+            clone.m_address = (ExtensionObject)Utils.Clone(this.m_address);
             clone.m_qosCategory = (string)Utils.Clone(this.m_qosCategory);
-            clone.m_datagramQos = (ReceiveQosDataTypeCollection)Utils.Clone(this.m_datagramQos);
+            clone.m_datagramQos = (ExtensionObjectCollection)Utils.Clone(this.m_datagramQos);
             clone.m_topic = (string)Utils.Clone(this.m_topic);
 
             return clone;
@@ -21426,9 +21426,9 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private NetworkAddressDataType m_address;
+        private ExtensionObject m_address;
         private string m_qosCategory;
-        private ReceiveQosDataTypeCollection m_datagramQos;
+        private ExtensionObjectCollection m_datagramQos;
         private string m_topic;
         #endregion
     }
