@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected error disposing a Node object.");
+                    Utils.LogError(e, "Unexpected error disposing a Node object.");
                 }
             }
         }
@@ -1258,28 +1258,25 @@ namespace Opc.Ua.Server
                         itemToCreate,
                         range,
                         minimumSamplingInterval);
-                    
+
+                    // final check for initial value
+                    ServiceResult error = ReadInitialValue(context, node, monitoredItem);
+                    if (ServiceResult.IsBad(error))
+                    {
+                        if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                            error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                            error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
+                        {
+                            errors[ii] = error;
+                            continue;
+                        }
+                    }
+
                     // save monitored item.
                     m_monitoredItems.Add(monitoredItem.Id, monitoredItem);
 
                     // update monitored item list.
                     monitoredItems[ii] = monitoredItem;
-                    
-                    // read the initial value.
-                    DataValue initialValue = new DataValue();
-
-                    initialValue.ServerTimestamp = DateTime.UtcNow;
-                    initialValue.StatusCode      = StatusCodes.BadWaitingForInitialData;
-                    
-                    ServiceResult error = node.Read(context, itemToCreate.ItemToMonitor.AttributeId, initialValue);
-
-                    if (ServiceResult.IsBad(error))
-                    {
-                        initialValue.Value = null;
-                        initialValue.StatusCode = error.StatusCode;
-                    }
-                        
-                    monitoredItem.QueueValue(initialValue, error);
 
                     // errors updating the monitoring groups will be reported in notifications.
                     errors[ii] = StatusCodes.Good;
@@ -1288,6 +1285,37 @@ namespace Opc.Ua.Server
  
             // update all groups with any new items.
             m_samplingGroupManager.ApplyChanges();
+        }
+
+        /// <summary>
+        /// Reads the initial value for a monitored item.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="node">The node to read.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        protected virtual ServiceResult ReadInitialValue(
+            OperationContext context,
+            ILocalNode node,
+            IDataChangeMonitoredItem2 monitoredItem)
+        {
+            DataValue initialValue = new DataValue {
+                Value = null,
+                ServerTimestamp = DateTime.UtcNow,
+                SourceTimestamp = DateTime.MinValue,
+                StatusCode = StatusCodes.BadWaitingForInitialData
+            };
+
+            ServiceResult error = node.Read(context, monitoredItem.AttributeId, initialValue);
+
+            if (ServiceResult.IsBad(error))
+            {
+                initialValue.Value = null;
+                initialValue.StatusCode = error.StatusCode;
+            }
+
+            monitoredItem.QueueValue(initialValue, error, true);
+
+            return error;
         }
 
         /// <summary>
@@ -1466,6 +1494,69 @@ namespace Opc.Ua.Server
  
             // remove all items from groups.
             m_samplingGroupManager.ApplyChanges();
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
+        /// <param name="monitoredItems">The set of monitoring items to update.</param>
+        /// <param name="processedItems">The set of processed items.</param>
+        /// <param name="errors">Any errors.</param>
+        public virtual void TransferMonitoredItems(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors)
+        {
+            if (context == null)        throw new ArgumentNullException(nameof(context));
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+            if (processedItems == null) throw new ArgumentNullException(nameof(processedItems));
+
+            lock (m_lock)
+            {
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    // skip items that have already been processed.
+                    if (processedItems[ii] || monitoredItems[ii] == null)
+                    {
+                        continue;
+                    }
+                    
+                    // check if the node manager created the item.
+                    if (!Object.ReferenceEquals(this, monitoredItems[ii].NodeManager))
+                    {
+                        continue;
+                    }
+
+                    // owned by this node manager.
+                    processedItems[ii]  = true;
+
+                    // validate monitored item.
+                    IMonitoredItem monitoredItem = monitoredItems[ii];
+
+                    // find the node being monitored.
+                    ILocalNode node = monitoredItem.ManagerHandle as ILocalNode;
+                    if (node == null)
+                    {
+                        continue;
+                    }
+
+                    if (sendInitialValues && !monitoredItem.IsReadyToPublish)
+                    {
+                        if (monitoredItem is IDataChangeMonitoredItem2 dataChangeMonitoredItem)
+                        {
+                            errors[ii] = ReadInitialValue(context, node, dataChangeMonitoredItem);
+                        }
+                    }
+                    else
+                    {
+                        errors[ii] = StatusCodes.Good;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -2455,7 +2546,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Error deleting node: {0}", nodeId);
+                    Utils.LogError(e, "Error deleting node: {0}", nodeId);
                 }
             }
             else
@@ -2559,7 +2650,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Error deleting references for node: {0}", current.Key);
+                    Utils.LogError(e, "Error deleting references for node: {0}", current.Key);
                 }
             }            
         }
@@ -3178,8 +3269,8 @@ namespace Opc.Ua.Server
         #endregion
         
         #region Private Fields
-        private IServerInternal m_server;
         private object m_lock = new object();
+        private IServerInternal m_server;
         private NodeTable m_nodes;
         private long m_lastId;
         private SamplingGroupManager m_samplingGroupManager;

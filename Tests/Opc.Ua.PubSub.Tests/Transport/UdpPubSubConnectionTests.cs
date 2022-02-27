@@ -28,10 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
@@ -71,7 +73,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
         private string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
         private string SubscriberConfigurationFileName = Path.Combine("Configuration", "SubscriberConfiguration.xml");
-        
+
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_uaPublisherApplication;
         private UdpPubSubConnection m_udpPublisherConnection;
@@ -207,7 +209,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
                 UadpNetworkMessage networkMessage = networkMessagesNetworkType as UadpNetworkMessage;
                 Assert.IsNotNull(networkMessage, "networkMessageEncode should not be null");
-                
+
                 //Assert
                 Assert.IsNotNull(networkMessage, "CreateNetworkMessage did not return an UadpNetworkMessage.");
                 Assert.AreEqual(networkMessage.SequenceNumber, i + 1, "UadpNetworkMessage.SequenceNumber for message {0} is not {0}.", i + 1);
@@ -313,18 +315,43 @@ namespace Opc.Ua.PubSub.Tests.Transport
         }
 
         /// <summary>
+        /// Get list of active IPv4 addresses.
+        /// </summary>
+        public static IPAddress[] GetLocalIpAddresses()
+        {
+            var addresses = new List<IPAddress>();
+            foreach (var netI in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (netI.NetworkInterfaceType != NetworkInterfaceType.Wireless80211 &&
+                   (netI.NetworkInterfaceType != NetworkInterfaceType.Ethernet ||
+                    netI.OperationalStatus != OperationalStatus.Up))
+                {
+                    continue;
+                }
+                foreach (var uniIpAddrInfo in netI.GetIPProperties().UnicastAddresses.Where(x => netI.GetIPProperties().GatewayAddresses.Count > 0))
+                {
+                    if ((uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetwork ||
+                        uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetworkV6) &&
+                        uniIpAddrInfo.AddressPreferredLifetime != uint.MaxValue)
+                    {
+                        addresses.Add(uniIpAddrInfo.Address);
+                    }
+                }
+            }
+            return addresses.ToArray();
+        }
+
+        /// <summary>
         /// Get first active nic on local computer
         /// </summary>
         /// <returns></returns>
         private static IPAddress GetFirstActiveNic()
         {
-            IPAddress firstActiveIPAddr = null;
-            string localComputerName = Dns.GetHostName();
             try
-            { // get host IP addresses
-                IPAddress[] hostIPs = Dns.GetHostAddresses(localComputerName);
+            {   // get host IP addresses
+                IPAddress[] hostIPs = Dns.GetHostAddresses(Dns.GetHostName());
                 // get local IP addresses
-                IPAddress[] localIPs = Dns.GetHostAddresses(Dns.GetHostName());
+                IPAddress[] localIPs = GetLocalIpAddresses();
 
                 // test if any host IP equals to any local IP or to localhost
                 foreach (IPAddress hostIP in hostIPs)
@@ -337,9 +364,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     // ip address available
                     foreach (IPAddress localIP in localIPs)
                     {
-                        if (hostIP.Equals(localIP))
+                        if (localIP.AddressFamily == AddressFamily.InterNetwork &&
+                            hostIP.Equals(localIP))
                         {
-                            firstActiveIPAddr = localIP;
+                            return localIP;
                         }
                     }
                 }
@@ -347,8 +375,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             catch
             {
             }
+            Assert.Inconclusive("First active NIC was not found.");
 
-            return firstActiveIPAddr;
+            return null;
         }
         #endregion
     }

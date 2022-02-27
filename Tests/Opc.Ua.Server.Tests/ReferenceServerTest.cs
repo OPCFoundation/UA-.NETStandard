@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -62,8 +63,10 @@ namespace Opc.Ua.Server.Tests
         public async Task OneTimeSetUp()
         {
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer>();
-            m_fixture.OperationLimits = true;
+            m_fixture = new ServerFixture<ReferenceServer>() {
+                AllNodeManagers = true,
+                OperationLimits = true
+            };
             m_server = await m_fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
         }
 
@@ -73,7 +76,7 @@ namespace Opc.Ua.Server.Tests
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
-            await m_fixture.StopAsync();
+            await m_fixture.StopAsync().ConfigureAwait(false);
             Thread.Sleep(1000);
         }
 
@@ -109,7 +112,7 @@ namespace Opc.Ua.Server.Tests
         public void GlobalSetup()
         {
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer>();
+            m_fixture = new ServerFixture<ReferenceServer>() { AllNodeManagers = true };
             m_server = m_fixture.StartAsync(null).GetAwaiter().GetResult();
             m_requestHeader = m_server.CreateAndActivateSession("Bench");
         }
@@ -218,6 +221,46 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Read all nodes.
+        /// </summary>
+        [Test]
+        public void ReadAllNodes()
+        {
+            var serverTestServices = new ServerTestServices(m_server);
+            if (m_operationLimits == null)
+            {
+                GetOperationLimits();
+            }
+            if (m_referenceDescriptions == null)
+            {
+                m_referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(serverTestServices, m_requestHeader, m_operationLimits);
+            }
+
+            // Read all variables
+            var requestHeader = m_requestHeader;
+            foreach (var reference in m_referenceDescriptions)
+            {
+                requestHeader.Timestamp = DateTime.UtcNow;
+                var nodesToRead = new ReadValueIdCollection();
+                var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_server.CurrentInstance.NamespaceUris);
+                foreach (var attributeId in ServerFixtureUtils.AttributesIds.Keys)
+                {
+                    nodesToRead.Add(new ReadValueId() { NodeId = nodeId, AttributeId = attributeId });
+                }
+                TestContext.Out.WriteLine("NodeId {0} {1}", reference.NodeId, reference.BrowseName);
+                var response = m_server.Read(requestHeader, MaxAge, TimestampsToReturn.Both, nodesToRead,
+                    out var dataValues, out var diagnosticInfos);
+                ServerFixtureUtils.ValidateResponse(response);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, dataValues);
+
+                foreach (var dataValue in dataValues)
+                {
+                    TestContext.Out.WriteLine(" {0}", dataValue.ToString());
+                }
+            }
+        }
+
+        /// <summary>
         /// Write Node.
         /// </summary>
         [Test]
@@ -280,7 +323,92 @@ namespace Opc.Ua.Server.Tests
         {
             var serverTestServices = new ServerTestServices(m_server);
             CommonTestWorkers.SubscriptionTest(serverTestServices, m_requestHeader);
+        }
 
+        /// <summary>
+        /// Create a secondary Session.
+        /// Create a subscription with a monitored item.
+        /// Close session, but do not delete subscriptions.
+        /// Transfer subscription from closed session to the other.
+        /// </summary>
+        [Theory]
+        public void TransferSubscriptionSessionClosed(bool sendInitialData, bool useSecurity)
+        {
+            var serverTestServices = new ServerTestServices(m_server);
+            // save old security context, test fixture can only work with one session
+            var securityContext = SecureChannelContext.Current;
+            try
+            {
+                RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("ClosedSession", useSecurity);
+                var transferSecurityContext = SecureChannelContext.Current;
+                var namespaceUris = m_server.CurrentInstance.NamespaceUris;
+                NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+                transferRequestHeader.Timestamp = DateTime.UtcNow;
+                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, transferRequestHeader,
+                    testSet, out var subscriptionIds);
+
+                transferRequestHeader.Timestamp = DateTime.UtcNow;
+                m_server.CloseSession(transferRequestHeader, false);
+
+                //restore security context, transfer abandoned subscription
+                SecureChannelContext.Current = securityContext;
+                CommonTestWorkers.TransferSubscriptionTest(serverTestServices, m_requestHeader, subscriptionIds, sendInitialData, !useSecurity);
+
+                if (useSecurity)
+                {
+                    // subscription was deleted, expect 'BadNoSubscription'
+                    var sre = Assert.Throws<ServiceResultException>(() => {
+                        m_requestHeader.Timestamp = DateTime.UtcNow;
+                        CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
+                    });
+                    Assert.AreEqual(StatusCodes.BadNoSubscription, sre.StatusCode);
+                }
+            }
+            finally
+            {
+                //restore security context, that close connection can work
+                SecureChannelContext.Current = securityContext;
+            }
+        }
+
+        /// <summary>
+        /// Create a subscription with a monitored item.
+        /// Create a secondary Session.
+        /// Transfer subscription with a monitored item from one session to the other.
+        /// </summary>
+        [Theory]
+        public void TransferSubscription(bool sendInitialData, bool useSecurity)
+        {
+            var serverTestServices = new ServerTestServices(m_server);
+            // save old security context, test fixture can only work with one session
+            var securityContext = SecureChannelContext.Current;
+            try
+            {
+                var namespaceUris = m_server.CurrentInstance.NamespaceUris;
+                NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader,
+                    testSet, out var subscriptionIds);
+
+                RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("TransferSession", useSecurity);
+                var transferSecurityContext = SecureChannelContext.Current;
+                CommonTestWorkers.TransferSubscriptionTest(serverTestServices, transferRequestHeader, subscriptionIds, sendInitialData, !useSecurity);
+
+                if (useSecurity)
+                {
+                    //restore security context
+                    SecureChannelContext.Current = securityContext;
+                    CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
+                }
+
+                transferRequestHeader.Timestamp = DateTime.UtcNow;
+                SecureChannelContext.Current = transferSecurityContext;
+                m_server.CloseSession(transferRequestHeader);
+            }
+            finally
+            {
+                //restore security context, that close connection can work
+                SecureChannelContext.Current = securityContext;
+            }
         }
         #endregion
     }

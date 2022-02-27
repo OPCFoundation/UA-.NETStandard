@@ -42,6 +42,7 @@ namespace Opc.Ua
             m_listeners = new List<ITransportListener>();
             m_endpoints = null;
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
+            m_userTokenPolicyId = 0;
         }
         #endregion
 
@@ -172,6 +173,8 @@ namespace Opc.Ua
         {
             ITransportListener listener = null;
 
+            Utils.LogInfo("Create Reverse Connection to Client at {0}.", url);
+
             if (TransportListeners != null)
             {
                 foreach (var ii in TransportListeners)
@@ -186,15 +189,14 @@ namespace Opc.Ua
 
             if (listener == null)
             {
-                throw new ArgumentException(nameof(url), "No suitable listener found.");
+                throw new ArgumentException("No suitable listener found.", nameof(url));
             }
 
-            Utils.Trace((int)Utils.TraceMasks.Information, "Connecting to Client at {0}.", url);
             listener.CreateReverseConnection(url, timeout);
         }
 
         /// <summary>
-        /// Starts the server (called from a IIS host process).
+        /// Starts the server.
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information 
         /// for a UA application</param>
@@ -437,7 +439,6 @@ namespace Opc.Ua
                 maxRequestThreadCount = configuration.ServerConfiguration.MaxRequestThreadCount;
                 maxQueuedRequestCount = configuration.ServerConfiguration.MaxQueuedRequestCount;
             }
-
             else if (configuration.DiscoveryServerConfiguration != null)
             {
                 minRequestThreadCount = configuration.DiscoveryServerConfiguration.MinRequestThreadCount;
@@ -503,7 +504,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Unexpected error closing a listener. {0}", listeners[ii].GetType().FullName);
+                        Utils.LogError(e, "Unexpected error closing a listener. {0}", listeners[ii].GetType().FullName);
                     }
                 }
 
@@ -522,6 +523,14 @@ namespace Opc.Ua
                     host.Close();
                 }
             }
+        }
+
+        /// <summary>
+        /// Creates an instance of the service host.
+        /// </summary>
+        public virtual ServiceHost CreateServiceHost(ServerBase server, params Uri[] addresses)
+        {
+            return null;
         }
         #endregion
 
@@ -688,14 +697,6 @@ namespace Opc.Ua
 
         #region Protected Methods
         /// <summary>
-        /// Creates an instance of the service host.
-        /// </summary>
-        public virtual ServiceHost CreateServiceHost(ServerBase server, params Uri[] addresses)
-        {
-            return null;
-        }
-
-        /// <summary>
         /// Returns the service contract to use.
         /// </summary>
         protected virtual Type GetServiceContract()
@@ -792,7 +793,7 @@ namespace Opc.Ua
                     message.Append(' ')
                         .Append(e.InnerException.Message);
                 }
-                Utils.Trace(e, message.ToString());
+                Utils.LogError(e, message.ToString());
                 throw;
             }
         }
@@ -802,10 +803,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="description">The description.</param>
-        /// <returns>Returns a collection of UserTokenPolicy objects, the return type is <seealso cref="UserTokenPolicyCollection"/> . </returns>
+        /// <returns>
+        /// Returns a collection of UserTokenPolicy objects,
+        /// the return type is <seealso cref="UserTokenPolicyCollection"/> .
+        /// </returns>
         public virtual UserTokenPolicyCollection GetUserTokenPolicies(ApplicationConfiguration configuration, EndpointDescription description)
         {
-            int policyId = 0;
             UserTokenPolicyCollection policies = new UserTokenPolicyCollection();
 
             if (configuration.ServerConfiguration == null || configuration.ServerConfiguration.UserTokenPolicies == null)
@@ -819,25 +822,15 @@ namespace Opc.Ua
 
                 if (String.IsNullOrEmpty(policy.SecurityPolicyUri))
                 {
-                    // ensure each policy has a unique id.
                     if (description.SecurityMode == MessageSecurityMode.None)
                     {
                         // ensure a security policy is specified for user tokens.
-                        clone.SecurityPolicyUri = SecurityPolicies.Basic256;
-                        clone.PolicyId = Utils.Format("{0}", ++policyId);
+                        clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
                     }
-                    else
-                    {
-                        clone.PolicyId = Utils.Format("{0}", policyId++);
-                    }
-
-                    policyId++;
                 }
-                else
-                {
-                    clone.PolicyId = Utils.Format("{0}", policyId++);
-                }
-
+                // ensure each policy has a unique id within the context of the Server
+                clone.PolicyId = Utils.Format("{0}", ++m_userTokenPolicyId);
+                
                 policies.Add(clone);
             }
 
@@ -885,13 +878,25 @@ namespace Opc.Ua
             }
 
             // check for aliases.
-            System.Net.IPHostEntry entry = System.Net.Dns.GetHostEntry(computerName);
+            IPHostEntry entry = null;
 
-            for (int ii = 0; ii < entry.Aliases.Length; ii++)
+            try
             {
-                if (Utils.AreDomainsEqual(hostname, entry.Aliases[ii]))
+                entry = Dns.GetHostEntry(computerName);
+            }
+            catch (System.Net.Sockets.SocketException e)
+            {
+                Utils.LogError(e, "Unable to check aliases for hostname {0}.", computerName);
+            }
+
+            if (entry != null)
+            {
+                for (int ii = 0; ii < entry.Aliases.Length; ii++)
                 {
-                    return computerName.ToUpper();
+                    if (Utils.AreDomainsEqual(hostname, entry.Aliases[ii]))
+                    {
+                        return computerName.ToUpper();
+                    }
                 }
             }
 
@@ -1073,11 +1078,17 @@ namespace Opc.Ua
                         continue;
                     }
 
+                    if (endpointUrl.Port != baseAddress.Url.Port)
+                    {
+                        continue;
+                    }
+
                     EndpointDescription translation = new EndpointDescription();
 
                     translation.EndpointUrl = baseAddress.Url.ToString();
 
-                    if (endpointUrl.Path.StartsWith(baseAddress.Url.PathAndQuery) && endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length)
+                    if (endpointUrl.Path.StartsWith(baseAddress.Url.PathAndQuery, StringComparison.Ordinal) &&
+                        endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length)
                     {
                         string suffix = endpointUrl.Path.Substring(baseAddress.Url.PathAndQuery.Length);
                         translation.EndpointUrl += suffix;
@@ -1092,22 +1103,7 @@ namespace Opc.Ua
                     translation.UserIdentityTokens = endpoint.UserIdentityTokens;
                     translation.Server = application;
 
-                    // skip duplicates.
-                    bool duplicateFound = false;
-
-                    foreach (EndpointDescription existingTranslation in translations)
-                    {
-                        if (existingTranslation.IsEqual(translation))
-                        {
-                            duplicateFound = true;
-                            break;
-                        }
-                    }
-
-                    if (!duplicateFound)
-                    {
-                        translations.Add(translation);
-                    }
+                    translations.Add(translation);
                 }
             }
 
@@ -1428,15 +1424,27 @@ namespace Opc.Ua
             public void ScheduleIncomingRequest(IEndpointIncomingRequest request)
             {
 #if THREAD_SCHEDULER
-                bool tooManyOperations = false;
+                int totalThreadCount;
+                int activeThreadCount;
 
-                // queue the request.
-                lock (m_lock)   // i.e. Monitor.Enter(m_lock)
+                // Queue the request. Call logger only outside lock.
+                Monitor.Enter(m_lock);
+                bool monitorExit = true;
+                try
                 {
                     // check able to schedule requests.
                     if (m_stopped || m_queue.Count >= m_maxRequestCount)
                     {
-                        tooManyOperations = true;
+                        // too many operations
+                        totalThreadCount = m_totalThreadCount;
+                        activeThreadCount = m_activeThreadCount;
+                        monitorExit = false;
+                        Monitor.Exit(m_lock);
+
+                        request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
+
+                        Utils.LogTrace("Too many operations. Total: {0} Active: {1}",
+                            totalThreadCount, activeThreadCount);
                     }
                     else
                     {
@@ -1450,20 +1458,29 @@ namespace Opc.Ua
                         // start a new thread to handle the request if none are idle and the pool is not full.
                         else if (m_totalThreadCount < m_maxThreadCount)
                         {
+                            totalThreadCount = ++m_totalThreadCount;
+                            activeThreadCount = ++m_activeThreadCount;
+                            monitorExit = false;
+                            Monitor.Exit(m_lock);
+
+                            // new threads start in an active state
                             Thread thread = new Thread(OnProcessRequestQueue);
                             thread.IsBackground = true;
                             thread.Start(null);
-                            m_totalThreadCount++;
-                            m_activeThreadCount++;  // new threads start in an active state
 
-                            Utils.Trace(Utils.TraceMasks.Error, "Thread created: " + thread.ManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count: " + m_activeThreadCount);
+                            Utils.LogTrace("Thread created: {0:X8}. Total: {1} Active: {2}",
+                                thread.ManagedThreadId, totalThreadCount, activeThreadCount);
+
+                            return;
                         }
                     }
                 }
-
-                if (tooManyOperations)
+                finally
                 {
-                    request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
+                    if (monitorExit)
+                    {
+                        Monitor.Exit(m_lock);
+                    }
                 }
 #else
                 if (m_stopped)
@@ -1477,7 +1494,7 @@ namespace Opc.Ua
                 {
                     Interlocked.Decrement(ref m_activeThreadCount);
                     request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
-                    Utils.Trace(Utils.TraceMasks.Error, "Too many operations. Active thread count: {0}", m_activeThreadCount);
+                    Utils.LogWarning("Too many operations. Active thread count: {0}", m_activeThreadCount);
                     return;
                 }
 
@@ -1515,9 +1532,8 @@ namespace Opc.Ua
                             if (m_stopped || (!Monitor.Wait(m_lock, 30000) && m_totalThreadCount > m_minThreadCount))
                             {
                                 m_totalThreadCount--;
-
-                                Utils.Trace(Utils.TraceMasks.Error, "Thread ended: " + Environment.CurrentManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count" + m_activeThreadCount);
-
+                                Utils.LogTrace("Thread ended: {0:X8}. Total: {1} Active: {2}",
+                                    Environment.CurrentManagedThreadId, m_totalThreadCount, m_activeThreadCount);
                                 return;
                             }
 
@@ -1535,7 +1551,7 @@ namespace Opc.Ua
                         }
                         catch (Exception e)
                         {
-                            Utils.Trace(e, "Unexpected error processing incoming request.");
+                            Utils.LogError(e, "Unexpected error processing incoming request.");
                         }
                         finally
                         {
@@ -1577,6 +1593,8 @@ namespace Opc.Ua
         private List<ITransportListener> m_listeners;
         private ReadOnlyList<EndpointDescription> m_endpoints;
         private RequestQueue m_requestQueue;
+        // identifier for the UserTokenPolicy should be unique within the context of a single Server
+        private int m_userTokenPolicyId = 0;
         #endregion
     }
 }

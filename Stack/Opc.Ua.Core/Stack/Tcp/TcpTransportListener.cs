@@ -188,7 +188,7 @@ namespace Opc.Ua.Bindings
 
             channel.Reconnect(socket, requestId, sequenceNumber, clientCertificate, token, request);
 
-            Utils.Trace("Channel {0} reconnected", channelId);
+            Utils.LogInfo("ChannelId {0}: reconnected", channelId);
             return true;
         }
 
@@ -205,7 +205,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            Utils.Trace("Channel {0} closed", channelId);
+            Utils.LogInfo("ChannelId {0}: closed", channelId);
         }
 
         /// <summary>
@@ -285,10 +285,23 @@ namespace Opc.Ua.Bindings
                     port = Utils.UaTcpDefaultPort;
                 }
 
-                // create IPv4 socket.
+                bool bindToSpecifiedAddress = true;
+                UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
+                if (hostType == UriHostNameType.Dns || hostType == UriHostNameType.Unknown || hostType == UriHostNameType.Basic)
+                {
+                    bindToSpecifiedAddress = false;
+                }
+
+                IPAddress ipAddress = IPAddress.Any;
+                if (bindToSpecifiedAddress)
+                {
+                    ipAddress = IPAddress.Parse(m_uri.Host);
+                }
+             
+                // create IPv4 or IPv6 socket.
                 try
                 {
-                    IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, port);
+                    IPEndPoint endpoint = new IPEndPoint(ipAddress, port);
                     m_listeningSocket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                     SocketAsyncEventArgs args = new SocketAsyncEventArgs();
                     args.Completed += OnAccept;
@@ -308,35 +321,37 @@ namespace Opc.Ua.Bindings
                         m_listeningSocket.Dispose();
                         m_listeningSocket = null;
                     }
-                    Utils.Trace("failed to create IPv4 listening socket: " + ex.Message);
+                    Utils.LogWarning("Failed to create IPv4 listening socket: {0}", ex.Message);
                 }
 
-                // create IPv6 socket
-                try
+                if (ipAddress == IPAddress.Any)
                 {
-                    IPEndPoint endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
-                    m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                    SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-                    args.Completed += OnAccept;
-                    args.UserToken = m_listeningSocketIPv6;
-                    m_listeningSocketIPv6.Bind(endpointIPv6);
-                    m_listeningSocketIPv6.Listen(Int32.MaxValue);
-                    if (!m_listeningSocketIPv6.AcceptAsync(args))
+                    // create IPv6 socket
+                    try
                     {
-                        OnAccept(null, args);
+                        IPEndPoint endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
+                        m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                        SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+                        args.Completed += OnAccept;
+                        args.UserToken = m_listeningSocketIPv6;
+                        m_listeningSocketIPv6.Bind(endpointIPv6);
+                        m_listeningSocketIPv6.Listen(Int32.MaxValue);
+                        if (!m_listeningSocketIPv6.AcceptAsync(args))
+                        {
+                            OnAccept(null, args);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // no IPv6 support
+                        if (m_listeningSocketIPv6 != null)
+                        {
+                            m_listeningSocketIPv6.Dispose();
+                            m_listeningSocketIPv6 = null;
+                        }
+                        Utils.LogWarning("Failed to create IPv6 listening socket: {0}", ex.Message);
                     }
                 }
-                catch (Exception ex)
-                {
-                    // no IPv6 support
-                    if (m_listeningSocketIPv6 != null)
-                    {
-                        m_listeningSocketIPv6.Dispose();
-                        m_listeningSocketIPv6 = null;
-                    }
-                    Utils.Trace("failed to create IPv6 listening socket: " + ex.Message);
-                }
-
                 if (m_listeningSocketIPv6 == null && m_listeningSocket == null)
                 {
                     throw ServiceResultException.Create(
@@ -447,7 +462,7 @@ namespace Opc.Ua.Bindings
 
                     if (listeningSocket == null)
                     {
-                        Utils.Trace("OnAccept: Listensocket was null.");
+                        Utils.LogError("OnAccept: Listensocket was null.");
                         e.Dispose();
                         return;
                     }
@@ -493,11 +508,10 @@ namespace Opc.Ua.Bindings
 
                             // save the channel for shutdown and reconnects.
                             m_channels.Add(channelId, channel);
-
                         }
                         catch (Exception ex)
                         {
-                            Utils.Trace(ex, "Unexpected error accepting a new connection.");
+                            Utils.LogError(ex, "Unexpected error accepting a new connection.");
                         }
                     }
 
@@ -518,7 +532,7 @@ namespace Opc.Ua.Bindings
                         }
                         catch (Exception ex)
                         {
-                            Utils.Trace(ex, "Unexpected error listening for a new connection.");
+                            Utils.LogError(ex, "Unexpected error listening for a new connection.");
                         }
                     }
                 }
@@ -546,7 +560,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "TCPLISTENER - Unexpected error processing request.");
+                Utils.LogError(e, "TCPLISTENER - Unexpected error processing request.");
             }
         }
 
@@ -565,7 +579,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "TCPLISTENER - Unexpected error sending result.");
+                Utils.LogError(e, "TCPLISTENER - Unexpected error sending result.");
             }
         }
 

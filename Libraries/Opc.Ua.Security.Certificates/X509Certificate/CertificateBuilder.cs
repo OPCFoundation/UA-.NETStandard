@@ -296,7 +296,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
 #if NET472_OR_GREATER
-            throw new NotSupportedException("Import a ECDsaPublicKey is not supported on this platform.");
+            throw new NotSupportedException("Import a RSAPublicKey is not supported on this platform.");
 #else
             int bytes = 0;
             try
@@ -356,9 +356,8 @@ namespace Opc.Ua.Security.Certificates
                 ? X509Extensions.BuildAuthorityKeyIdentifier(IssuerCAKeyCert)
                 : new X509AuthorityKeyIdentifierExtension(
                     ski.SubjectKeyIdentifier.FromHexString(),
-                    SubjectName,
-                    m_serialNumber
-                    );
+                    IssuerName,
+                    m_serialNumber);
             request.CertificateExtensions.Add(authorityKeyIdentifier);
 
             X509KeyUsageFlags keyUsageFlags;

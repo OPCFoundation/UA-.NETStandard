@@ -40,6 +40,32 @@ namespace Opc.Ua
     {
         #region Public Methods
         /// <summary>
+        /// Returns an object to access the store containing the certificate of the trustlist.
+        /// </summary>
+        /// <remarks>
+        /// Opens a cached instance of the store which contains public keys.
+        /// To take advantage of the certificate cache use <see cref="ICertificateStore.Close"/>
+        /// and let the CertificateTrustList handle the dispose.
+        /// Disposing the store has no functional impact but may
+        /// enforce unnecessary refresh of the cached certificate store.
+        /// </remarks>
+        /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
+        public override ICertificateStore OpenStore()
+        {
+            lock (m_lock)
+            {
+                if (m_store == null ||
+                    m_store.StoreType != this.StoreType ||
+                    m_store.StorePath != this.StorePath)
+                {
+                    m_store = CreateStore(this.StoreType);
+                }
+                m_store.Open(this.StorePath, true);
+                return m_store;
+            }
+        }
+
+        /// <summary>
         /// Returns the certificates in the trust list.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
@@ -47,30 +73,23 @@ namespace Opc.Ua
         {
             X509Certificate2Collection collection = new X509Certificate2Collection();
 
-            CertificateStoreIdentifier id = new CertificateStoreIdentifier();
-
-            id.StoreType = this.StoreType;
-            id.StorePath = this.StorePath;
-
-            if (!String.IsNullOrEmpty(id.StorePath))
+            if (!String.IsNullOrEmpty(this.StorePath))
             {
+                ICertificateStore store = null;
                 try
                 {
-                    ICertificateStore store = id.OpenStore();
-
-                    try
-                    {
-                        collection = await store.Enumerate().ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        store.Close();
-                    }
+                    store = OpenStore();
+                    collection = await store.Enumerate().ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
-                    Utils.Trace("Could not load certificates from store: {0}.", this.StorePath);
+                    Utils.LogError("Could not load certificates from store: {0}.", this.StorePath);
                 }
+                finally
+                {
+                    store?.Close();
+                }
+
             }
 
             foreach (CertificateIdentifier trustedCertificate in TrustedCertificates)
@@ -85,6 +104,11 @@ namespace Opc.Ua
 
             return collection;
         }
+        #endregion
+
+        #region Private Members
+        private object m_lock;
+        private ICertificateStore m_store;
         #endregion
     }
     #endregion

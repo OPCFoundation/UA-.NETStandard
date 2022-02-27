@@ -72,10 +72,10 @@ namespace Opc.Ua.Gds.Tests
                 }
 
                 // always start with clean cert store
-                TestUtils.CleanupTrustList(Config.SecurityConfiguration.ApplicationCertificate.OpenStore());
-                TestUtils.CleanupTrustList(Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore());
-                TestUtils.CleanupTrustList(Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore());
-                TestUtils.CleanupTrustList(Config.SecurityConfiguration.RejectedCertificateStore.OpenStore());
+                await TestUtils.CleanupTrustList(Config.SecurityConfiguration.ApplicationCertificate.OpenStore());
+                await TestUtils.CleanupTrustList(Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore());
+                await TestUtils.CleanupTrustList(Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore());
+                await TestUtils.CleanupTrustList(Config.SecurityConfiguration.RejectedCertificateStore.OpenStore());
 
                 Config = await Load(Application, basePort).ConfigureAwait(false);
             }
@@ -181,23 +181,23 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
+        private static async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
         {
 #if !USE_FILE_CONFIG
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(true).ConfigureAwait(false);
 #else
-            string gdsRoot = Path.Combine("%LocalApplicationData%", "OPC", "GDS");
+            string root = Path.Combine("%LocalApplicationData%", "OPC");
+            string gdsRoot = Path.Combine(root, "GDS");
             var gdsConfig = new GlobalDiscoveryServerConfiguration() {
                 AuthoritiesStorePath = Path.Combine(gdsRoot, "authorities"),
                 ApplicationCertificatesStorePath = Path.Combine(gdsRoot, "applications"),
                 DefaultSubjectNameContext = "O=OPC Foundation",
                 CertificateGroups = new CertificateGroupConfigurationCollection()
                 {
-                    new CertificateGroupConfiguration()
-                    {
+                    new CertificateGroupConfiguration() {
                         Id = "Default",
-                        CertificateType ="RsaSha256ApplicationCertificateType",
+                        CertificateType = "RsaSha256ApplicationCertificateType",
                         SubjectName = "CN=GDS Test CA, O=OPC Foundation",
                         BaseStorePath = Path.Combine(gdsRoot, "CA", "default"),
                         DefaultCertificateHashSize = 256,
@@ -208,7 +208,7 @@ namespace Opc.Ua.Gds.Tests
                         CACertificateLifetime = 60
                     }
                 },
-                DatabaseStorePath = gdsRoot + "/gdsdb.json"
+                DatabaseStorePath = Path.Combine(gdsRoot, "gdsdb.json")
             };
 
             // build the application configuration.
@@ -228,10 +228,11 @@ namespace Opc.Ua.Gds.Tests
                     gdsRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
+                .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig)
                 .SetDeleteOnLoad(true)
-                .SetOutputFilePath(gdsRoot + "/Logs/Opc.Ua.Gds.Tests.log.txt")
+                .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(519)
                 .Create().ConfigureAwait(false);
 #endif

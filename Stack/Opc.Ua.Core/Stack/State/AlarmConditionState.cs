@@ -280,7 +280,7 @@ namespace Opc.Ua
 
                 // Unshelve time is still valid even for OneShotShelved -  See Mantis 6462
 
-                double maxTimeShelved = (double)int.MaxValue;
+                double maxTimeShelved = double.MaxValue;
                 if ( this.MaxTimeShelved != null && this.MaxTimeShelved.Value > 0 )
                 {
                     maxTimeShelved = this.MaxTimeShelved.Value;
@@ -309,6 +309,61 @@ namespace Opc.Ua
 
             UpdateEffectiveState(context);
         }
+
+        /// <summary>
+        /// Determines the desired Retain state based off of the values of AckedState and
+        /// ConfirmedState if ConfirmedState is supported
+        /// </summary>
+        /// <remarks>
+        /// All implementations of this method should check the enabled state
+        /// </remarks>
+        protected override bool GetRetainState()
+        {
+            bool retainState = false;
+
+            if (this.EnabledState.Id.Value)
+            {
+                retainState = base.GetRetainState();
+
+                if (!IsBranch())
+                {
+                    if (this.ActiveState.Id.Value)
+                    {
+                        retainState = true;
+                    }
+                }
+            }
+
+            return retainState;
+        }
+
+        /// <summary>
+        /// Returns the method with the specified NodeId or MethodDeclarationId.  Looks specifically for
+        /// Shelving State Methods
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="methodId">The identifier for the method to find.</param>
+        /// <returns>Returns the method. Null if no method found.</returns>
+        /// <remarks>
+        /// It is possible to call ShelvingState Methods by using only the ConditionId (1.04 Part 9 5.8.10.4).
+        /// Look to the Shelving State object for the method if it cannot be found by the normal mechanism.
+        /// </remarks>
+
+        public override MethodState FindMethod(ISystemContext context, NodeId methodId)
+        {
+            MethodState method = base.FindMethod(context, methodId);
+
+            if ( method == null )
+            {
+                if ( this.ShelvingState != null )
+                {
+                    method = this.ShelvingState.FindMethod(context, methodId);
+                }
+            }
+
+            return method;
+        }
+
         #endregion
 
         #region Event Handlers
@@ -711,7 +766,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error unshelving alarm.");
+                Utils.LogError(e, "Unexpected error unshelving alarm.");
             }
         }
 
@@ -734,7 +789,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error updating UnshelveTime.");
+                Utils.LogError(e, "Unexpected error updating UnshelveTime.");
             }
         }
 
@@ -782,5 +837,4 @@ namespace Opc.Ua
     public delegate ServiceResult AlarmConditionUnshelveTimeValueEventHandler(
         ISystemContext context,
         AlarmConditionState alarm);
-
 }

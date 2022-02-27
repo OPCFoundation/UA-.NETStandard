@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -72,7 +73,7 @@ namespace Opc.Ua.Configuration.Tests
             try
             {
                 // pki directory root for test runs. 
-                Directory.Delete(m_pkiRoot);
+                Directory.Delete(m_pkiRoot, true);
             }
             catch
             { }
@@ -125,6 +126,7 @@ namespace Opc.Ua.Configuration.Tests
                    .AsServer(new string[] { EndpointUrl })
                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                    .Create()
+                   .ConfigureAwait(false)
             );
             // discoveryserver can not be combined with client/server
             applicationInstance = new ApplicationInstance() {
@@ -136,12 +138,14 @@ namespace Opc.Ua.Configuration.Tests
                    .AsClient()
                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                    .Create()
+                   .ConfigureAwait(false)
             );
             Assert.ThrowsAsync<ArgumentException>(async () =>
                await applicationInstance.Build(ApplicationUri, ProductUri)
                    .AsServer(new string[] { EndpointUrl })
                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                    .Create()
+                   .ConfigureAwait(false)
             );
             // server overrides client settings
             applicationInstance = new ApplicationInstance() {
@@ -152,7 +156,8 @@ namespace Opc.Ua.Configuration.Tests
             var config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsServer(new string[] { EndpointUrl })
                 .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .Create();
+                .Create()
+                .ConfigureAwait(false);
             Assert.AreEqual(ApplicationType.Server, applicationInstance.ApplicationType);
 
             // client overrides server setting
@@ -164,7 +169,8 @@ namespace Opc.Ua.Configuration.Tests
             await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
                 .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .Create();
+                .Create()
+                .ConfigureAwait(false);
             Assert.AreEqual(ApplicationType.Client, applicationInstance.ApplicationType);
 
             // invalid sec policy testing
@@ -178,6 +184,7 @@ namespace Opc.Ua.Configuration.Tests
                    .AddPolicy(MessageSecurityMode.None, SecurityPolicies.None)
                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                    .Create()
+                   .ConfigureAwait(false)
             );
             // invalid mix sign / none
             Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -186,6 +193,7 @@ namespace Opc.Ua.Configuration.Tests
                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.None)
                    .AddSecurityConfiguration(SubjectName)
                    .Create()
+                   .ConfigureAwait(false)
             );
             // invalid policy
             Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -194,6 +202,7 @@ namespace Opc.Ua.Configuration.Tests
                    .AddPolicy(MessageSecurityMode.Sign, "123")
                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                    .Create()
+                   .ConfigureAwait(false)
             );
             // invalid user token policy
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -202,6 +211,7 @@ namespace Opc.Ua.Configuration.Tests
                    .AddUserTokenPolicy(null)
                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                    .Create()
+                   .ConfigureAwait(false)
             );
         }
 
@@ -281,7 +291,11 @@ namespace Opc.Ua.Configuration.Tests
             Assert.True(certOK);
         }
 
-        [Test]
+        /// <summary>
+        /// Test case when app cert already exists or when new
+        /// cert is created in X509Store.
+        /// </summary>
+        [Test, Repeat(2)]
         public async Task TestNoFileConfigAsServerX509Store()
         {
 #if NETCOREAPP2_1_OR_GREATER
@@ -305,12 +319,32 @@ namespace Opc.Ua.Configuration.Tests
                 .AddSecurityConfiguration(SubjectName, CertificateStoreType.X509Store)
                 .Create().ConfigureAwait(false);
             Assert.NotNull(config);
+            var applicationCertificate = applicationInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate;
+            bool deleteAfterUse = applicationCertificate.Certificate != null;
+
             bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+            Assert.True(certOK);
             using (ICertificateStore store = applicationInstance.ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
             {
-                await store.Add(applicationInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Certificate);
+                // store public key in trusted store
+                var rawData = applicationCertificate.Certificate.RawData;
+                await store.Add(new X509Certificate2(rawData)).ConfigureAwait(false);
             }
-            Assert.True(certOK);
+
+            if (deleteAfterUse)
+            {
+                var thumbprint = applicationCertificate.Certificate.Thumbprint;
+                using (ICertificateStore store = applicationCertificate.OpenStore())
+                {
+                    bool success = await store.Delete(thumbprint).ConfigureAwait(false);
+                    Assert.IsTrue(success);
+                }
+                using (ICertificateStore store = applicationInstance.ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                {
+                    bool success = await store.Delete(thumbprint).ConfigureAwait(false);
+                    Assert.IsTrue(success);
+                }
+            }
         }
 
         [Test]
@@ -358,13 +392,13 @@ namespace Opc.Ua.Configuration.Tests
             // pki directory root for test runs. 
             var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
 
-            var applicationInstance = new ApplicationInstance() {ApplicationName = ApplicationName};
+            var applicationInstance = new ApplicationInstance() { ApplicationName = ApplicationName };
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config;
             if (server)
             {
                 config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                    .AsServer(new string[] {"opc.tcp://localhost:12345/Configuration"})
+                    .AsServer(new string[] { "opc.tcp://localhost:12345/Configuration" })
                     .AddSecurityConfiguration(SubjectName, pkiRoot)
                     .Create().ConfigureAwait(false);
             }
@@ -591,12 +625,12 @@ namespace Opc.Ua.Configuration.Tests
                 .SetRSAKeySize(keySize)
                 .CreateForRSA();
 
-            var result = new X509Certificate2Collection();
-            result.Add(appCert);
-            result.Add(new X509Certificate2(rootCA.RawData));
+            var result = new X509Certificate2Collection {
+                appCert,
+                new X509Certificate2(rootCA.RawData)
+            };
             return result;
         }
-
         #endregion
 
         #region Private Fields

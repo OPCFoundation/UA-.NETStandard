@@ -22,6 +22,7 @@
   <ItemGroup>
     <None Remove="Schema\Opc.Ua.NodeSet2.xml" />
     <None Remove="Schema\Opc.Ua.Types.bsd" />
+    <None Remove="Schema\Opc.Ua.Types.xsd" />
     <None Remove="Types\Schemas\BuiltInTypes.bsd" />
     <None Remove="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
@@ -29,6 +30,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
+    <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
     <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes" />
     <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
     <EmbeddedResource Include="Schema\ServerCapabilities.csv" />
@@ -37,8 +39,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="System.Buffers" Version="4.5.1" />
   </ItemGroup>
 
   <ItemGroup>

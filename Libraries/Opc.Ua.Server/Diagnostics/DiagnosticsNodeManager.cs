@@ -141,9 +141,9 @@ namespace Opc.Ua.Server
                 Server.CoreNodeManager.ImportNodes(SystemContext, PredefinedNodes.Values, true);
 
                 // hook up the server GetMonitoredItems method.
-                MethodState getMonitoredItems = (MethodState)FindPredefinedNode(
+                GetMonitoredItemsMethodState getMonitoredItems = (GetMonitoredItemsMethodState)FindPredefinedNode(
                     MethodIds.Server_GetMonitoredItems,
-                    typeof(MethodState));
+                    typeof(GetMonitoredItemsMethodState));
 
                 if (getMonitoredItems != null)
                 {
@@ -169,11 +169,75 @@ namespace Opc.Ua.Server
                         getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
                     }
                 }
+
+#if SUPPORT_DURABLE_SUBSCRIPTION
+                // hook up the server SetSubscriptionDurable method.
+                SetSubscriptionDurableMethodState setSubscriptionDurable= (SetSubscriptionDurableMethodState)FindPredefinedNode(
+                    MethodIds.Server_SetSubscriptionDurable,
+                    typeof(SetSubscriptionDurableMethodState));
+
+                if (setSubscriptionDurable != null)
+                {
+                    setSubscriptionDurable.OnCall = OnSetSubscriptionDurable;
+                }
+#else
+                // Subscription Durable mode not supported by the server.
+                ServerObjectState serverObject = (ServerObjectState)FindPredefinedNode(
+                    ObjectIds.Server,
+                    typeof(ServerObjectState));
+
+                if (serverObject != null)
+                {
+                    NodeState setSubscriptionDurableNode = serverObject.FindChild(
+                        SystemContext,
+                        BrowseNames.SetSubscriptionDurable);
+
+                    if (setSubscriptionDurableNode != null)
+                    {
+                        DeleteNode(SystemContext, MethodIds.Server_SetSubscriptionDurable);
+                        serverObject.SetSubscriptionDurable = null;
+                    }
+                }
+#endif
             }
         }
 
         /// <summary>
-        /// Called when a client locks the server.
+        /// Called when a client sets a subscription as durable.
+        /// </summary>
+
+        public ServiceResult OnSetSubscriptionDurable(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint subscriptionId,
+            uint lifetimeInHours,
+            ref uint revisedLifetimeInHours)
+        {
+            revisedLifetimeInHours = 0;
+
+            foreach (Subscription subscription in Server.SubscriptionManager.GetSubscriptions())
+            {
+                if (subscription.Id == subscriptionId)
+                {
+                    if (subscription.SessionId != context.SessionId)
+                    {
+                        // user tries to access subscription of different session
+                        return StatusCodes.BadUserAccessDenied;
+                    }
+
+                    ServiceResult result = subscription.SetSubscriptionDurable(lifetimeInHours, out uint revisedLifeTimeHours);
+
+                    revisedLifetimeInHours = revisedLifeTimeHours;
+                    return result;
+                }
+            }
+
+            return StatusCodes.BadSubscriptionIdInvalid;
+        }
+
+        /// <summary>
+        /// Called when a client gets the monitored items of a subscription.
         /// </summary>
         public ServiceResult OnGetMonitoredItems(
             ISystemContext context,
@@ -1424,7 +1488,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error during diagnostics scan.");
+                Utils.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
 
@@ -1841,7 +1905,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error during diagnostics scan.");
+                Utils.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
         #endregion

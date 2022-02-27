@@ -36,7 +36,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Defines numerous re-useable utility functions for clients.
     /// </summary>
-    public static class CoreClientUtils
+    public static partial class CoreClientUtils
     {
         /// <summary>
         /// The default discover operation timeout.

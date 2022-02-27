@@ -996,11 +996,11 @@ namespace Opc.Ua.Export
             if (source.Field != null)
             {
                 // check if definition is for enumeration or structure.
-                bool isStructure = Array.Exists<DataTypeField>(source.Field, delegate (DataTypeField fieldLookup) {
-                    return fieldLookup.Value == -1;
+                bool isEnumeration = Array.Exists<DataTypeField>(source.Field, delegate (DataTypeField fieldLookup) {
+                    return fieldLookup.Value != -1;
                 });
 
-                if (isStructure)
+                if (!isEnumeration)
                 {
                     StructureDefinition sd = new StructureDefinition();
                     sd.BaseDataType = ImportNodeId(source.BaseType, namespaceUris, true);

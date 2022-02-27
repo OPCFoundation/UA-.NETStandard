@@ -388,6 +388,16 @@ namespace Opc.Ua.Client
                 m_discardOldest = value;
             }
         }
+
+        /// <summary>
+        /// Server-assigned id for the MonitoredItem.
+        /// </summary>
+        [DataMember(Order = 13)]
+        public uint ServerId
+        {
+            get { return m_status.Id; }
+            set { m_status.Id = value; }
+        }
         #endregion
 
         #region Dynamic Properties
@@ -598,21 +608,25 @@ namespace Opc.Ua.Client
 
                     if (datachange != null)
                     {
+                        var now = DateTime.UtcNow;
                         // validate the ServerTimestamp of the notification.
-                        if (datachange.Value != null && datachange.Value.ServerTimestamp > DateTime.UtcNow)
+                        if (datachange.Value != null && datachange.Value.ServerTimestamp > now)
                         {
-                            Utils.Trace("Received ServerTimestamp {0} is in the future for MonitoredItemId {1}", datachange.Value.ServerTimestamp.ToLocalTime(), ClientHandle);
+                            Utils.LogWarning("Received ServerTimestamp {0} is in the future for MonitoredItemId {1}",
+                                datachange.Value.ServerTimestamp.ToLocalTime(), ClientHandle);
                         }
 
                         // validate SourceTimestamp of the notification.
-                        if (datachange.Value != null && datachange.Value.SourceTimestamp > DateTime.UtcNow)
+                        if (datachange.Value != null && datachange.Value.SourceTimestamp > now)
                         {
-                            Utils.Trace("Received SourceTimestamp {0} is in the future for MonitoredItemId {1}", datachange.Value.SourceTimestamp.ToLocalTime(), ClientHandle);
+                            Utils.LogWarning("Received SourceTimestamp {0} is in the future for MonitoredItemId {1}",
+                                datachange.Value.SourceTimestamp.ToLocalTime(), ClientHandle);
                         }
 
                         if (datachange.Value != null && datachange.Value.StatusCode.Overflow)
                         {
-                            Utils.Trace("Overflow bit set for data change with ServerTimestamp {0} and value {1} for MonitoredItemId {2}", datachange.Value.ServerTimestamp.ToLocalTime(), datachange.Value.Value, ClientHandle);
+                            Utils.LogWarning("Overflow bit set for data change with ServerTimestamp {0} and value {1} for MonitoredItemId {2}",
+                                datachange.Value.ServerTimestamp.ToLocalTime(), datachange.Value.Value, ClientHandle);
                         }
 
                         m_dataCache.OnNotification(datachange);
@@ -728,7 +742,19 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Updates the object with the results of a modify monitored item request.
+        /// Updates the object with the results of a transfer subscription request.
+        /// </summary>
+        public void SetTransferResult(uint clientHandle)
+        {
+            // ensure the global counter is not duplicating future handle ids
+            Utils.LowerLimitIdentifier(ref s_GlobalClientHandle, clientHandle);
+            m_clientHandle = clientHandle;  
+            m_status.SetTransferResult(this);
+            m_attributesModified = false;
+        }
+
+        /// <summary>
+        /// Updates the object with the results of a delete monitored item request.
         /// </summary>
         public void SetDeleteResult(
             StatusCode result,
@@ -1088,7 +1114,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private IEncodeable m_notificationValue;
+        private readonly IEncodeable m_notificationValue;
         #endregion
     }
 
@@ -1148,10 +1174,7 @@ namespace Opc.Ua.Client
             m_values.Enqueue(notification.Value);
             m_lastValue = notification.Value;
 
-            Utils.Trace(
-                "NotificationReceived: ClientHandle={0}, Value={1}",
-                notification.ClientHandle,
-                m_lastValue.Value);
+            CoreClientUtils.EventLog.NotificationValue(notification.ClientHandle, m_lastValue.WrappedValue);
 
             while (m_values.Count > m_queueSize)
             {
@@ -1186,7 +1209,7 @@ namespace Opc.Ua.Client
         #region Private Fields
         private int m_queueSize;
         private DataValue m_lastValue;
-        private Queue<DataValue> m_values;
+        private readonly Queue<DataValue> m_values;
         #endregion
     }
 
@@ -1273,7 +1296,7 @@ namespace Opc.Ua.Client
         #region Private Fields
         private int m_queueSize;
         private EventFieldList m_lastEvent;
-        private Queue<EventFieldList> m_events;
+        private readonly Queue<EventFieldList> m_events;
         #endregion
     }
 }

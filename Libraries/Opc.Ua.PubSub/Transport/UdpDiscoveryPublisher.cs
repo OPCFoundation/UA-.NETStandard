@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <returns></returns>
         public override async Task StartAsync(IServiceMessageContext messageContext)
         {
-            await base.StartAsync(messageContext);
+            await base.StartAsync(messageContext).ConfigureAwait(false);
 
             if (m_discoveryUdpClients != null)
             {
@@ -181,7 +181,7 @@ namespace Opc.Ua.PubSub.Transport
 
         private async Task SendResponseDataSetMetaData()
         {
-            await Task.Delay(m_responseInterval);
+            await Task.Delay(m_responseInterval).ConfigureAwait(false);
 
             lock (m_lock)
             {

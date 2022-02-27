@@ -127,6 +127,10 @@ namespace Opc.Ua.Client.ComplexTypes
         }
         #endregion Public Properties
 
+        #region Internal Properties
+        internal TypeBuilder StructureTypeBuilder { get => this.m_structureBuilder; }
+        #endregion
+
         #region Private Member
         private TypeBuilder m_structureBuilder;
         private StructureType m_structureType;

@@ -38,18 +38,18 @@ namespace Opc.Ua
     /// LocalizedText welcomeGB = new LocalizedText( "Hello Everyone", "EN-GB" );
     /// LocalizedText welcomeNoLocale = new LocalizedText( "Welcome" );
     /// 
-    /// Utils.Trace( welcomeUS.ToString() );
-    /// Utils.Trace( welcomeGB.ToString() );
-    /// Utils.Trace( welcomeNoLocale.ToString() );
+    /// Utils.LogInfo( welcomeUS.ToString() );
+    /// Utils.LogInfo( welcomeGB.ToString() );
+    /// Utils.LogInfo( welcomeNoLocale.ToString() );
     /// </code>
     /// <code lang="Visual Basic">
     /// Dim welcomeUS As LocalizedText = New LocalizedText( "Hi Everyone", "EN-GB" )
     /// Dim welcomeGB As LocalizedText = New LocalizedText( "Hello Everyone", "EN-GB" )
     /// Dim welcomeNoLocale As LocalizedText = New LocalizedText( "Welcome" )
     /// 
-    /// Utils.Trace( welcomeUS.ToString() )
-    /// Utils.Trace( welcomeGB.ToString() )
-    /// Utils.Trace( welcomeNoLocale.ToString() )
+    /// Utils.LogInfo( welcomeUS.ToString() )
+    /// Utils.LogInfo( welcomeGB.ToString() )
+    /// Utils.LogInfo( welcomeNoLocale.ToString() )
     /// </code>
     /// <para>
     /// This produces the following output:<br/>

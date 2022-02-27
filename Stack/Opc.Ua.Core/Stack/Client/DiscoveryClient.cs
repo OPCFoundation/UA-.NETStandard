@@ -12,6 +12,7 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua
@@ -75,7 +76,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static DiscoveryClient Create(Uri discoveryUrl)
         {
-            return DiscoveryClient.Create(discoveryUrl, null);
+            return DiscoveryClient.Create(discoveryUrl, null, null);
         }
 
         /// <summary>
@@ -129,12 +130,7 @@ namespace Opc.Ua
 
             try
             {
-                if (applicationConfiguration != null &&
-                    applicationConfiguration.SecurityConfiguration != null &&
-                    applicationConfiguration.SecurityConfiguration.ApplicationCertificate != null)
-                {
-                    clientCertificate = applicationConfiguration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
-                }
+                clientCertificate = applicationConfiguration?.SecurityConfiguration?.ApplicationCertificate?.Find(true).Result;
             }
             catch
             {
@@ -197,6 +193,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Invokes the FindServers service async.
+        /// </summary>
+        /// <param name="serverUris">The collection of server URIs.</param>
+        /// <returns></returns>
+        public virtual async Task<ApplicationDescriptionCollection> FindServersAsync(StringCollection serverUris)
+        {
+            var response = await FindServersAsync(
+                null,
+                this.Endpoint.EndpointUrl,
+                null,
+                serverUris,
+                CancellationToken.None).ConfigureAwait(false);
+            return response.Servers;
+        }
+
+        /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
         /// <param name="startingRecordId"></param>
@@ -223,6 +235,7 @@ namespace Opc.Ua
             return servers;
         }
         #endregion
+
         #region Private Methods
         /// <summary>
         /// Helper to get endpoints async.

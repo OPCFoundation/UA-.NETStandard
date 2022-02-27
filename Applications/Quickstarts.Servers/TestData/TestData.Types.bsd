@@ -31,7 +31,7 @@
     <opc:Field Name="LocalizedTextValue" TypeName="ua:LocalizedText" />
     <opc:Field Name="StatusCodeValue" TypeName="ua:StatusCode" />
     <opc:Field Name="VariantValue" TypeName="ua:Variant" />
-    <opc:Field Name="EnumerationValue" TypeName="ua:Int32" />
+    <opc:Field Name="EnumerationValue" TypeName="opc:Int32" />
     <opc:Field Name="StructureValue" TypeName="ua:ExtensionObject" />
     <opc:Field Name="Number" TypeName="ua:Variant" />
     <opc:Field Name="Integer" TypeName="ua:Variant" />
@@ -84,7 +84,7 @@
     <opc:Field Name="NoOfVariantValue" TypeName="opc:Int32" />
     <opc:Field Name="VariantValue" TypeName="ua:Variant" LengthField="NoOfVariantValue" />
     <opc:Field Name="NoOfEnumerationValue" TypeName="opc:Int32" />
-    <opc:Field Name="EnumerationValue" TypeName="ua:Int32" LengthField="NoOfEnumerationValue" />
+    <opc:Field Name="EnumerationValue" TypeName="opc:Int32" LengthField="NoOfEnumerationValue" />
     <opc:Field Name="NoOfStructureValue" TypeName="opc:Int32" />
     <opc:Field Name="StructureValue" TypeName="ua:ExtensionObject" LengthField="NoOfStructureValue" />
     <opc:Field Name="NoOfNumber" TypeName="opc:Int32" />

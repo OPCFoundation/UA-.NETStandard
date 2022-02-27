@@ -28,6 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
@@ -40,6 +44,7 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ClientFixture
     {
+        private NUnitTraceLogger m_traceLogger;
         public ApplicationConfiguration Config { get; private set; }
         public ConfiguredEndpoint Endpoint { get; private set; }
         public string EndpointUrl { get; private set; }
@@ -47,19 +52,19 @@ namespace Opc.Ua.Client.Tests
         public ReverseConnectManager ReverseConnectManager { get; private set; }
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
-        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
+        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
 
         #region Public Methods
         /// <summary>
         /// Load the default client configuration.
         /// </summary>
-        public async Task LoadClientConfiguration(string clientName = "TestClient")
+        public async Task LoadClientConfiguration(string pkiRoot = null, string clientName = "TestClient")
         {
             ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = clientName
             };
 
-            string pkiRoot = "%LocalApplicationData%/OPC/pki";
+            pkiRoot = pkiRoot ?? Path.Combine("%LocalApplicationData%", "OPC", "pki");
 
             // build the application configuration.
             Config = await application
@@ -73,7 +78,7 @@ namespace Opc.Ua.Client.Tests
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetMinimumCertificateKeySize(1024)
-                .SetOutputFilePath(pkiRoot + "/Logs/Opc.Ua.Client.Tests.log.txt")
+                .SetOutputFilePath(Path.Combine(pkiRoot, "Logs", "Opc.Ua.Client.Tests.log.txt"))
                 .SetTraceMasks(TraceMasks)
                 .Create().ConfigureAwait(false);
 
@@ -142,7 +147,7 @@ namespace Opc.Ua.Client.Tests
                 serverHalted = false;
                 try
                 {
-                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
+                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(Config, endpointUrl, true);
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Config);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
@@ -217,7 +222,7 @@ namespace Opc.Ua.Client.Tests
             {
                 endpoints = await GetEndpoints(url).ConfigureAwait(false);
             }
-            var endpointDescription = SelectEndpoint(endpoints, url, securityPolicy);
+            var endpointDescription = SelectEndpoint(Config, endpoints, url, securityPolicy);
             if (endpointDescription == null)
             {
                 Assert.Ignore("The endpoint is not supported by the server.");
@@ -231,6 +236,7 @@ namespace Opc.Ua.Client.Tests
         /// Select a security endpoint from description.
         /// </summary>
         public static EndpointDescription SelectEndpoint(
+            ApplicationConfiguration configuration,
             EndpointDescriptionCollection endpoints,
             Uri url,
             string securityPolicy)
@@ -280,6 +286,21 @@ namespace Opc.Ua.Client.Tests
             using (var client = DiscoveryClient.Create(url, endpointConfiguration))
             {
                 return await client.GetEndpointsAsync(null).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Connect the nunit writer with the logger.
+        /// </summary>
+        public void SetTraceOutput(TextWriter writer)
+        {
+            if (m_traceLogger == null)
+            {
+                m_traceLogger = NUnitTraceLogger.Create(writer, Config, TraceMasks);
+            }
+            else
+            {
+                m_traceLogger.SetWriter(writer);
             }
         }
         #endregion

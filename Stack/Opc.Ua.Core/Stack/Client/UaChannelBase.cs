@@ -672,7 +672,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error sending outgoing request.");
+                Utils.LogError(e, "Unexpected error sending outgoing request.");
             }
         }
 #endif
@@ -785,7 +785,6 @@ namespace Opc.Ua
                     uriScheme = Utils.UriSchemeOpcWss;
                     break;
                 }
-
             }
 
             // initialize the channel which will be created with the server.
@@ -909,7 +908,7 @@ namespace Opc.Ua
                 return;
             }
 
-            Utils.Trace("RECONNECT: Reconnecting to {0}.", m_settings.Description.EndpointUrl);
+            Utils.LogInfo("RECONNECT: Reconnecting to {0}.", m_settings.Description.EndpointUrl);
         }
 
         /// <inheritdoc/>
@@ -968,7 +967,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected exception invoking UaChannelAsyncResult callback function.");
+                    Utils.LogError(e, "Unexpected exception invoking UaChannelAsyncResult callback function.");
                 }
             }
 

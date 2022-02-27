@@ -208,7 +208,7 @@ namespace Opc.Ua
             // verify the input data is the correct block size.
             if (dataToEncrypt.Count % inputBlockSize != 0)
             {
-                Utils.Trace("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToEncrypt.Count, inputBlockSize);
+                Utils.LogError("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToEncrypt.Count, inputBlockSize);
             }
 
             byte[] encryptedBuffer = outputBuffer.Array;
@@ -219,7 +219,6 @@ namespace Opc.Ua
                 outputBuffer.Offset,
                 outputBuffer.Count))
             {
-
                 // encrypt body.
                 byte[] input = new byte[inputBlockSize];
 
@@ -295,7 +294,7 @@ namespace Opc.Ua
             // verify the input data is the correct block size.
             if (dataToDecrypt.Count % inputBlockSize != 0)
             {
-                Utils.Trace("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToDecrypt.Count, inputBlockSize);
+                Utils.LogError("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToDecrypt.Count, inputBlockSize);
             }
 
             byte[] decryptedBuffer = outputBuffer.Array;
@@ -306,7 +305,6 @@ namespace Opc.Ua
                 outputBuffer.Offset,
                 outputBuffer.Count))
             {
-
                 // decrypt body.
                 byte[] input = new byte[inputBlockSize];
                 for (int ii = dataToDecrypt.Offset; ii < dataToDecrypt.Offset + dataToDecrypt.Count; ii += inputBlockSize)
