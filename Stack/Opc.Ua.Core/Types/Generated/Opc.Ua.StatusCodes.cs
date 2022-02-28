@@ -120,7 +120,7 @@ namespace Opc.Ua
         public const uint BadServerHalted = 0x800E0000;
 
         /// <summary>
-        /// There was nothing to do because the client passed a list of operations with no elements.
+        /// No processing could be done because there was nothing to do.
         /// </summary>
         public const uint BadNothingToDo = 0x800F0000;
 
@@ -1328,5 +1328,10 @@ namespace Opc.Ua
         /// The value is accurate, and the signal source supports cascade handshaking.
         /// </summary>
         public const uint GoodCascade = 0x04090000;
+
+        /// <summary>
+        /// The DataSet specified for the DataSetWriter creation is invalid.
+        /// </summary>
+        public const uint BadDataSetIdInvalid = 0x80E70000;
     }
 }

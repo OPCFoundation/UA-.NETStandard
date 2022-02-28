@@ -254,7 +254,7 @@ namespace Opc.Ua
             {
                 attributesToSave |= AttributesToSave.UserExecutable;
             }
-            
+
             return attributesToSave;
         }
 

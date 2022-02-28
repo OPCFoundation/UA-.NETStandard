@@ -532,7 +532,11 @@
   </xs:complexType>
   <xs:element name="ListOfUnion" type="tns:ListOfUnion" nillable="true"></xs:element>
 
+  <xs:element name="UriString" type="xs:string" />
+
   <xs:element name="BitFieldMaskDataType" type="xs:unsignedLong" />
+
+  <xs:element name="SemanticVersionString" type="xs:string" />
 
   <xs:complexType name="KeyValuePair">
     <xs:sequence>
@@ -753,6 +757,7 @@
       <xs:enumeration value="Anonymous_5" />
       <xs:enumeration value="AuthenticatedUser_6" />
       <xs:enumeration value="Application_7" />
+      <xs:enumeration value="X509Subject_8" />
     </xs:restriction>
   </xs:simpleType>
   <xs:element name="IdentityCriteriaType" type="tns:IdentityCriteriaType" />
@@ -942,6 +947,51 @@
   </xs:complexType>
   <xs:element name="ListOfUABinaryFileDataType" type="tns:ListOfUABinaryFileDataType" nillable="true"></xs:element>
 
+  <xs:complexType name="PortableQualifiedName">
+    <xs:sequence>
+      <xs:element name="NamespaceUri" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Name" type="xs:string" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="PortableQualifiedName" type="tns:PortableQualifiedName" />
+
+  <xs:complexType name="ListOfPortableQualifiedName">
+    <xs:sequence>
+      <xs:element name="PortableQualifiedName" type="tns:PortableQualifiedName" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfPortableQualifiedName" type="tns:ListOfPortableQualifiedName" nillable="true"></xs:element>
+
+  <xs:complexType name="PortableNodeId">
+    <xs:sequence>
+      <xs:element name="NamespaceUri" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Identifier" type="ua:NodeId" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="PortableNodeId" type="tns:PortableNodeId" />
+
+  <xs:complexType name="ListOfPortableNodeId">
+    <xs:sequence>
+      <xs:element name="PortableNodeId" type="tns:PortableNodeId" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfPortableNodeId" type="tns:ListOfPortableNodeId" nillable="true"></xs:element>
+
+  <xs:complexType name="UnsignedRationalNumber">
+    <xs:sequence>
+      <xs:element name="Numerator" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="Denominator" type="xs:unsignedInt" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="UnsignedRationalNumber" type="tns:UnsignedRationalNumber" />
+
+  <xs:complexType name="ListOfUnsignedRationalNumber">
+    <xs:sequence>
+      <xs:element name="UnsignedRationalNumber" type="tns:UnsignedRationalNumber" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfUnsignedRationalNumber" type="tns:ListOfUnsignedRationalNumber" nillable="true"></xs:element>
+
   <xs:simpleType  name="PubSubState">
     <xs:restriction base="xs:string">
       <xs:enumeration value="Disabled_0" />
@@ -1115,6 +1165,24 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfPublishedEventsDataType" type="tns:ListOfPublishedEventsDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="PublishedDataSetCustomSourceDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:PublishedDataSetSourceDataType">
+        <xs:sequence>
+          <xs:element name="CyclicDataSet" type="xs:boolean" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="PublishedDataSetCustomSourceDataType" type="tns:PublishedDataSetCustomSourceDataType" />
+
+  <xs:complexType name="ListOfPublishedDataSetCustomSourceDataType">
+    <xs:sequence>
+      <xs:element name="PublishedDataSetCustomSourceDataType" type="tns:PublishedDataSetCustomSourceDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfPublishedDataSetCustomSourceDataType" type="tns:ListOfPublishedDataSetCustomSourceDataType" nillable="true"></xs:element>
 
   <xs:simpleType  name="DataSetFieldContentMask">
     <xs:restriction base="xs:unsignedInt">
@@ -1520,6 +1588,113 @@
   </xs:complexType>
   <xs:element name="ListOfPubSubConfigurationDataType" type="tns:ListOfPubSubConfigurationDataType" nillable="true"></xs:element>
 
+  <xs:complexType name="StandaloneSubscribedDataSetRefDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:SubscribedDataSetDataType">
+        <xs:sequence>
+          <xs:element name="DataSetName" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="StandaloneSubscribedDataSetRefDataType" type="tns:StandaloneSubscribedDataSetRefDataType" />
+
+  <xs:complexType name="ListOfStandaloneSubscribedDataSetRefDataType">
+    <xs:sequence>
+      <xs:element name="StandaloneSubscribedDataSetRefDataType" type="tns:StandaloneSubscribedDataSetRefDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfStandaloneSubscribedDataSetRefDataType" type="tns:ListOfStandaloneSubscribedDataSetRefDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="StandaloneSubscribedDataSetDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:SubscribedDataSetDataType">
+        <xs:sequence>
+          <xs:element name="Name" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="DataSetFolder" type="ua:ListOfString" minOccurs="0" nillable="true" />
+          <xs:element name="DataSetMetaData" type="tns:DataSetMetaDataType" minOccurs="0" nillable="true" />
+          <xs:element name="SubscribedDataSet" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="StandaloneSubscribedDataSetDataType" type="tns:StandaloneSubscribedDataSetDataType" />
+
+  <xs:complexType name="ListOfStandaloneSubscribedDataSetDataType">
+    <xs:sequence>
+      <xs:element name="StandaloneSubscribedDataSetDataType" type="tns:StandaloneSubscribedDataSetDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfStandaloneSubscribedDataSetDataType" type="tns:ListOfStandaloneSubscribedDataSetDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="SecurityGroupDataType">
+    <xs:sequence>
+      <xs:element name="Name" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="SecurityGroupFolder" type="ua:ListOfString" minOccurs="0" nillable="true" />
+      <xs:element name="KeyLifetime" type="xs:double" minOccurs="0" />
+      <xs:element name="SecurityPolicyUri" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MaxFutureKeyCount" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="MaxPastKeyCount" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="SecurityGroupId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="RolePermissions" type="tns:ListOfRolePermissionType" minOccurs="0" nillable="true" />
+      <xs:element name="GroupProperties" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="SecurityGroupDataType" type="tns:SecurityGroupDataType" />
+
+  <xs:complexType name="ListOfSecurityGroupDataType">
+    <xs:sequence>
+      <xs:element name="SecurityGroupDataType" type="tns:SecurityGroupDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfSecurityGroupDataType" type="tns:ListOfSecurityGroupDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="PubSubKeyPushTargetDataType">
+    <xs:sequence>
+      <xs:element name="ApplicationUri" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PushTargetFolder" type="ua:ListOfString" minOccurs="0" nillable="true" />
+      <xs:element name="EndpointUrl" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="SecurityPolicyUri" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="UserTokenType" type="tns:UserTokenPolicy" minOccurs="0" nillable="true" />
+      <xs:element name="RequestedKeyCount" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="RetryInterval" type="xs:double" minOccurs="0" />
+      <xs:element name="PushTargetProperties" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
+      <xs:element name="SecurityGroups" type="ua:ListOfString" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="PubSubKeyPushTargetDataType" type="tns:PubSubKeyPushTargetDataType" />
+
+  <xs:complexType name="ListOfPubSubKeyPushTargetDataType">
+    <xs:sequence>
+      <xs:element name="PubSubKeyPushTargetDataType" type="tns:PubSubKeyPushTargetDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfPubSubKeyPushTargetDataType" type="tns:ListOfPubSubKeyPushTargetDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="PubSubConfiguration2DataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:PubSubConfigurationDataType">
+        <xs:sequence>
+          <xs:element name="SubscribedDataSets" type="tns:ListOfStandaloneSubscribedDataSetDataType" minOccurs="0" nillable="true" />
+          <xs:element name="DataSetClasses" type="tns:ListOfDataSetMetaDataType" minOccurs="0" nillable="true" />
+          <xs:element name="DefaultSecurityKeyServices" type="tns:ListOfEndpointDescription" minOccurs="0" nillable="true" />
+          <xs:element name="SecurityGroups" type="tns:ListOfSecurityGroupDataType" minOccurs="0" nillable="true" />
+          <xs:element name="PubSubKeyPushTargets" type="tns:ListOfPubSubKeyPushTargetDataType" minOccurs="0" nillable="true" />
+          <xs:element name="ConfigurationVersion" type="xs:unsignedInt" minOccurs="0" />
+          <xs:element name="ConfigurationProperties" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="PubSubConfiguration2DataType" type="tns:PubSubConfiguration2DataType" />
+
+  <xs:complexType name="ListOfPubSubConfiguration2DataType">
+    <xs:sequence>
+      <xs:element name="PubSubConfiguration2DataType" type="tns:PubSubConfiguration2DataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfPubSubConfiguration2DataType" type="tns:ListOfPubSubConfiguration2DataType" nillable="true"></xs:element>
+
   <xs:simpleType  name="DataSetOrderingType">
     <xs:restriction base="xs:string">
       <xs:enumeration value="Undefined_0" />
@@ -1712,6 +1887,89 @@
   </xs:complexType>
   <xs:element name="ListOfJsonDataSetReaderMessageDataType" type="tns:ListOfJsonDataSetReaderMessageDataType" nillable="true"></xs:element>
 
+  <xs:complexType name="QosDataType">
+    <xs:sequence>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="QosDataType" type="tns:QosDataType" />
+
+  <xs:complexType name="ListOfQosDataType">
+    <xs:sequence>
+      <xs:element name="QosDataType" type="tns:QosDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfQosDataType" type="tns:ListOfQosDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="TransmitQosDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:QosDataType">
+        <xs:sequence>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="TransmitQosDataType" type="tns:TransmitQosDataType" />
+
+  <xs:complexType name="ListOfTransmitQosDataType">
+    <xs:sequence>
+      <xs:element name="TransmitQosDataType" type="tns:TransmitQosDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTransmitQosDataType" type="tns:ListOfTransmitQosDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="TransmitQosPriorityDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:TransmitQosDataType">
+        <xs:sequence>
+          <xs:element name="PriorityLabel" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="TransmitQosPriorityDataType" type="tns:TransmitQosPriorityDataType" />
+
+  <xs:complexType name="ListOfTransmitQosPriorityDataType">
+    <xs:sequence>
+      <xs:element name="TransmitQosPriorityDataType" type="tns:TransmitQosPriorityDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTransmitQosPriorityDataType" type="tns:ListOfTransmitQosPriorityDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="ReceiveQosDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:QosDataType">
+        <xs:sequence>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="ReceiveQosDataType" type="tns:ReceiveQosDataType" />
+
+  <xs:complexType name="ListOfReceiveQosDataType">
+    <xs:sequence>
+      <xs:element name="ReceiveQosDataType" type="tns:ReceiveQosDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfReceiveQosDataType" type="tns:ListOfReceiveQosDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="ReceiveQosPriorityDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:ReceiveQosDataType">
+        <xs:sequence>
+          <xs:element name="PriorityLabel" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="ReceiveQosPriorityDataType" type="tns:ReceiveQosPriorityDataType" />
+
+  <xs:complexType name="ListOfReceiveQosPriorityDataType">
+    <xs:sequence>
+      <xs:element name="ReceiveQosPriorityDataType" type="tns:ReceiveQosPriorityDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfReceiveQosPriorityDataType" type="tns:ListOfReceiveQosPriorityDataType" nillable="true"></xs:element>
+
   <xs:complexType name="DatagramConnectionTransportDataType">
     <xs:complexContent mixed="false">
       <xs:extension base="tns:ConnectionTransportDataType">
@@ -1729,6 +1987,27 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfDatagramConnectionTransportDataType" type="tns:ListOfDatagramConnectionTransportDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="DatagramConnectionTransport2DataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:DatagramConnectionTransportDataType">
+        <xs:sequence>
+          <xs:element name="DiscoveryAnnounceRate" type="xs:unsignedInt" minOccurs="0" />
+          <xs:element name="DiscoveryMaxMessageSize" type="xs:unsignedInt" minOccurs="0" />
+          <xs:element name="QosCategory" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="DatagramQos" type="ua:ListOfExtensionObject" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="DatagramConnectionTransport2DataType" type="tns:DatagramConnectionTransport2DataType" />
+
+  <xs:complexType name="ListOfDatagramConnectionTransport2DataType">
+    <xs:sequence>
+      <xs:element name="DatagramConnectionTransport2DataType" type="tns:DatagramConnectionTransport2DataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDatagramConnectionTransport2DataType" type="tns:ListOfDatagramConnectionTransport2DataType" nillable="true"></xs:element>
 
   <xs:complexType name="DatagramWriterGroupTransportDataType">
     <xs:complexContent mixed="false">
@@ -1748,6 +2027,49 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfDatagramWriterGroupTransportDataType" type="tns:ListOfDatagramWriterGroupTransportDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="DatagramWriterGroupTransport2DataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:DatagramWriterGroupTransportDataType">
+        <xs:sequence>
+          <xs:element name="Address" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+          <xs:element name="QosCategory" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="DatagramQos" type="ua:ListOfExtensionObject" minOccurs="0" nillable="true" />
+          <xs:element name="DiscoveryAnnounceRate" type="xs:unsignedInt" minOccurs="0" />
+          <xs:element name="Topic" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="DatagramWriterGroupTransport2DataType" type="tns:DatagramWriterGroupTransport2DataType" />
+
+  <xs:complexType name="ListOfDatagramWriterGroupTransport2DataType">
+    <xs:sequence>
+      <xs:element name="DatagramWriterGroupTransport2DataType" type="tns:DatagramWriterGroupTransport2DataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDatagramWriterGroupTransport2DataType" type="tns:ListOfDatagramWriterGroupTransport2DataType" nillable="true"></xs:element>
+
+  <xs:complexType name="DatagramDataSetReaderTransportDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:DataSetReaderTransportDataType">
+        <xs:sequence>
+          <xs:element name="Address" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+          <xs:element name="QosCategory" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="DatagramQos" type="ua:ListOfExtensionObject" minOccurs="0" nillable="true" />
+          <xs:element name="Topic" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="DatagramDataSetReaderTransportDataType" type="tns:DatagramDataSetReaderTransportDataType" />
+
+  <xs:complexType name="ListOfDatagramDataSetReaderTransportDataType">
+    <xs:sequence>
+      <xs:element name="DatagramDataSetReaderTransportDataType" type="tns:DatagramDataSetReaderTransportDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDatagramDataSetReaderTransportDataType" type="tns:ListOfDatagramDataSetReaderTransportDataType" nillable="true"></xs:element>
 
   <xs:complexType name="BrokerConnectionTransportDataType">
     <xs:complexContent mixed="false">
@@ -1852,6 +2174,52 @@
   </xs:complexType>
   <xs:element name="ListOfBrokerDataSetReaderTransportDataType" type="tns:ListOfBrokerDataSetReaderTransportDataType" nillable="true"></xs:element>
 
+  <xs:simpleType  name="PubSubConfigurationRefMask">
+    <xs:restriction base="xs:unsignedInt">
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="PubSubConfigurationRefMask" type="tns:PubSubConfigurationRefMask" />
+
+  <xs:complexType name="ListOfPubSubConfigurationRefMask">
+    <xs:sequence>
+      <xs:element name="PubSubConfigurationRefMask" type="tns:PubSubConfigurationRefMask" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfPubSubConfigurationRefMask" type="tns:ListOfPubSubConfigurationRefMask" nillable="true"></xs:element>
+
+  <xs:complexType name="PubSubConfigurationRefDataType">
+    <xs:sequence>
+      <xs:element name="ConfigurationMask" type="tns:PubSubConfigurationRefMask" minOccurs="0" />
+      <xs:element name="ElementIndex" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="ConnectionIndex" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="GroupIndex" type="xs:unsignedShort" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="PubSubConfigurationRefDataType" type="tns:PubSubConfigurationRefDataType" />
+
+  <xs:complexType name="ListOfPubSubConfigurationRefDataType">
+    <xs:sequence>
+      <xs:element name="PubSubConfigurationRefDataType" type="tns:PubSubConfigurationRefDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfPubSubConfigurationRefDataType" type="tns:ListOfPubSubConfigurationRefDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="PubSubConfigurationValueDataType">
+    <xs:sequence>
+      <xs:element name="ConfigurationElement" type="tns:PubSubConfigurationRefDataType" minOccurs="0" nillable="true" />
+      <xs:element name="Name" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Identifier" type="ua:Variant" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="PubSubConfigurationValueDataType" type="tns:PubSubConfigurationValueDataType" />
+
+  <xs:complexType name="ListOfPubSubConfigurationValueDataType">
+    <xs:sequence>
+      <xs:element name="PubSubConfigurationValueDataType" type="tns:PubSubConfigurationValueDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfPubSubConfigurationValueDataType" type="tns:ListOfPubSubConfigurationValueDataType" nillable="true"></xs:element>
+
   <xs:simpleType  name="DiagnosticsLevel">
     <xs:restriction base="xs:string">
       <xs:enumeration value="Basic_0" />
@@ -1899,6 +2267,48 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfAliasNameDataType" type="tns:ListOfAliasNameDataType" nillable="true"></xs:element>
+
+  <xs:simpleType  name="PasswordOptionsMask">
+    <xs:restriction base="xs:unsignedInt">
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="PasswordOptionsMask" type="tns:PasswordOptionsMask" />
+
+  <xs:complexType name="ListOfPasswordOptionsMask">
+    <xs:sequence>
+      <xs:element name="PasswordOptionsMask" type="tns:PasswordOptionsMask" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfPasswordOptionsMask" type="tns:ListOfPasswordOptionsMask" nillable="true"></xs:element>
+
+  <xs:simpleType  name="UserConfigurationMask">
+    <xs:restriction base="xs:unsignedInt">
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="UserConfigurationMask" type="tns:UserConfigurationMask" />
+
+  <xs:complexType name="ListOfUserConfigurationMask">
+    <xs:sequence>
+      <xs:element name="UserConfigurationMask" type="tns:UserConfigurationMask" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfUserConfigurationMask" type="tns:ListOfUserConfigurationMask" nillable="true"></xs:element>
+
+  <xs:complexType name="UserManagementDataType">
+    <xs:sequence>
+      <xs:element name="UserName" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="UserConfiguration" type="tns:UserConfigurationMask" minOccurs="0" />
+      <xs:element name="Description" type="xs:string" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="UserManagementDataType" type="tns:UserManagementDataType" />
+
+  <xs:complexType name="ListOfUserManagementDataType">
+    <xs:sequence>
+      <xs:element name="UserManagementDataType" type="tns:UserManagementDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfUserManagementDataType" type="tns:ListOfUserManagementDataType" nillable="true"></xs:element>
 
   <xs:simpleType  name="Duplex">
     <xs:restriction base="xs:string">
@@ -2060,20 +2470,22 @@
   </xs:complexType>
   <xs:element name="ListOfTsnListenerStatus" type="tns:ListOfTsnListenerStatus" nillable="true"></xs:element>
 
-  <xs:complexType name="UnsignedRationalNumber">
+  <xs:complexType name="PriorityMappingEntryType">
     <xs:sequence>
-      <xs:element name="Numerator" type="xs:unsignedInt" minOccurs="0" />
-      <xs:element name="Denominator" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="MappingUri" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PriorityLabel" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PriorityValue_PCP" type="xs:unsignedByte" minOccurs="0" />
+      <xs:element name="PriorityValue_DSCP" type="xs:unsignedInt" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
-  <xs:element name="UnsignedRationalNumber" type="tns:UnsignedRationalNumber" />
+  <xs:element name="PriorityMappingEntryType" type="tns:PriorityMappingEntryType" />
 
-  <xs:complexType name="ListOfUnsignedRationalNumber">
+  <xs:complexType name="ListOfPriorityMappingEntryType">
     <xs:sequence>
-      <xs:element name="UnsignedRationalNumber" type="tns:UnsignedRationalNumber" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+      <xs:element name="PriorityMappingEntryType" type="tns:PriorityMappingEntryType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
     </xs:sequence>
   </xs:complexType>
-  <xs:element name="ListOfUnsignedRationalNumber" type="tns:ListOfUnsignedRationalNumber" nillable="true"></xs:element>
+  <xs:element name="ListOfPriorityMappingEntryType" type="tns:ListOfPriorityMappingEntryType" nillable="true"></xs:element>
 
   <xs:simpleType  name="IdType">
     <xs:restriction base="xs:string">
@@ -2474,10 +2886,6 @@
   <xs:element name="Duration" type="xs:double" />
 
   <xs:element name="UtcTime" type="xs:dateTime" />
-
-  <xs:element name="Time" type="xs:string" />
-
-  <xs:element name="Date" type="xs:dateTime" />
 
   <xs:element name="LocaleId" type="xs:string" />
 
