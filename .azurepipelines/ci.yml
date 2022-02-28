@@ -39,11 +39,17 @@ jobs:
       targetType: filePath
       filePath: ./.azurepipelines/set-version.ps1
   - task: DotNetCoreCLI@2
+    displayName: Release Restore
+    inputs:
+      command: restore
+      projects: '**/@(Console|NetCore)*.csproj'
+      arguments: '--framework ${{ parameters.framework }} --configuration Release ${{ parameters.buildoption }}'
+  - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
       command: build
       projects: '**/@(Console|NetCore)*.csproj'
-      arguments: '--framework ${{ parameters.framework }} --configuration Release ${{ parameters.buildoption }} /p:RCS=true'
+      arguments: '--framework ${{ parameters.framework }} --configuration Release ${{ parameters.buildoption }} --no-restore'
   - task: DotNetCoreCLI@2
     displayName: Release Pack 
     condition: eq(variables['poolImage'], 'windows-2022')
@@ -52,17 +58,17 @@ jobs:
       packagesToPack:  '**/Opc.Ua.*.csproj'
       configuration: Release
       configurationToPack: Release
-  - task: DotNetCoreCLI@2
-    displayName: Debug Build
-    inputs:
-      command: build
-      projects: '**/@(Console|NetCore)*.csproj'
-      arguments: '--framework ${{ parameters.framework }} --configuration Debug ${{ parameters.buildoption }} /p:RCS=true'
-  - task: DotNetCoreCLI@2
-    displayName: Debug Pack 
-    condition: eq(variables['poolImage'], 'windows-2022')
-    inputs:
-      command: pack
-      packagesToPack:  '**/Opc.Ua.*.csproj'
-      configuration: Debug
-      configurationToPack: Debug
+  #- task: DotNetCoreCLI@2
+  #  displayName: Debug Build
+  #  inputs:
+  #    command: build
+  #    projects: '**/@(Console|NetCore)*.csproj'
+  #    arguments: '--framework ${{ parameters.framework }} --configuration Debug ${{ parameters.buildoption }} /p:RCS=true'
+  #- task: DotNetCoreCLI@2
+  #  displayName: Debug Pack 
+  #  condition: eq(variables['poolImage'], 'windows-2022')
+  #  inputs:
+  #    command: pack
+  #    packagesToPack:  '**/Opc.Ua.*.csproj'
+  #    configuration: Debug
+  #    configurationToPack: Debug
