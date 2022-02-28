@@ -38,14 +38,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public class SessionReconnectHandler : IDisposable
     {
-        /// <summary>
-        /// Ctor
-        /// </summary>
-        /// <param name="sessionFactory">The object that will help with creating/recreating a session object</param>
-        public SessionReconnectHandler(ISessionFactory sessionFactory)
-        {
-            m_sessionFactory = sessionFactory;
-        }
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -224,11 +216,11 @@ namespace Opc.Ua.Client
                             m_session.Endpoint.Server.ApplicationUri
                         ).ConfigureAwait(false);
 
-                    session = m_sessionFactory.Recreate(m_session, connection);
+                    session = await m_session.SessionFactory.Recreate(m_session, connection).ConfigureAwait(false);
                 }
                 else
                 {
-                    session = m_sessionFactory.Recreate(m_session);
+                    session = await m_session.SessionFactory.Recreate(m_session).ConfigureAwait(false);
                 }
                 m_session.Close();
                 m_session = session;
@@ -250,7 +242,6 @@ namespace Opc.Ua.Client
         private Timer m_reconnectTimer;
         private EventHandler m_callback;
         private ReverseConnectManager m_reverseConnectManager;
-        private readonly ISessionFactory m_sessionFactory;
         #endregion
     }
 }

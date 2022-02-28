@@ -92,7 +92,7 @@ namespace Quickstarts
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
                     // Create the session
-                    Session session = await Session.Create(
+                    ISession session = await Session.Create(
                         m_configuration,
                         endpoint,
                         false,
@@ -101,7 +101,7 @@ namespace Quickstarts
                         30 * 60 * 1000,
                         new UserIdentity(),
                         null
-                    );
+                    ).ConfigureAwait(false);
 
                     // Assign the created session
                     if (session != null && session.Connected)
@@ -493,7 +493,7 @@ namespace Quickstarts
 
         #region Private Fields
         private ApplicationConfiguration m_configuration;
-        private Session m_session;
+        private ISession m_session;
         private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;
         #endregion

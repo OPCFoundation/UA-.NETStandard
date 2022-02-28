@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Object that creates instances of an ISessions object
+    /// Object that creates instances of an ISessions object.
     /// </summary>
     public interface ISessionFactory
     {
@@ -136,15 +136,15 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="template">The Session object to use as template</param>
         /// <returns>The new session object.</returns>
-        ISession Recreate(ISession template);
+        Task<ISession> Recreate(ISession template);
 
         /// <summary>
         /// Recreates a session based on a specified template.
         /// </summary>
-        /// <param name="template">The Session object to use as template</param>
+        /// <param name="template">The ISession object to use as template</param>
         /// <param name="connection">The waiting reverse connection.</param>
         /// <returns>The new session object.</returns>
-        ISession Recreate(ISession template, ITransportWaitingConnection connection);
+        Task<ISession> Recreate(ISession template, ITransportWaitingConnection connection);
         #endregion
     }
 }

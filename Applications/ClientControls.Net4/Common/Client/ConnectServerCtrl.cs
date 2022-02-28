@@ -641,7 +641,7 @@ namespace Opc.Ua.Client.Controls
                             m_ReconnectStarting(this, e);
                         }
 
-                        m_reconnectHandler = new SessionReconnectHandler(new DefaultSessionFactory());
+                        m_reconnectHandler = new SessionReconnectHandler();
                         m_reconnectHandler.BeginReconnect(m_session, ReconnectPeriod * 1000, Server_ReconnectComplete);
                     }
 
@@ -707,7 +707,7 @@ namespace Opc.Ua.Client.Controls
                     return;
                 }
 
-                m_session = m_reconnectHandler.Session();
+                m_session = m_reconnectHandler.Session as Session;
                 m_reconnectHandler.Dispose();
                 m_reconnectHandler = null;
 

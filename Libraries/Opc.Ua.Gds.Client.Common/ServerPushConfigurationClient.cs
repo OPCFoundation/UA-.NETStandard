@@ -49,11 +49,11 @@ namespace Opc.Ua.Gds.Client
         /// Initializes a new instance of the <see cref="ServerPushConfigurationClient"/> class.
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
-        /// <param name="sessionFactory">The that assists with the creation of a session to the server</param>
-        public ServerPushConfigurationClient(ApplicationConfiguration configuration, ISessionFactory sessionFactory)
+        /// <param name="sessionFactory">Used to create session to the server.</param>
+        public ServerPushConfigurationClient(ApplicationConfiguration configuration, ISessionFactory sessionFactory = null)
         {
             m_configuration = configuration;
-            m_sessionFactory = sessionFactory;
+            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory();
         }
         #endregion
 

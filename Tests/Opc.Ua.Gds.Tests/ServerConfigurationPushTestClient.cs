@@ -31,7 +31,6 @@ using System;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
-using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 
@@ -116,7 +115,7 @@ namespace Opc.Ua.Gds.Tests
             Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration = application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
-            _client = new ServerPushConfigurationClient(application.ApplicationConfiguration, new DefaultSessionFactory()) {
+            _client = new ServerPushConfigurationClient(application.ApplicationConfiguration) {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(clientConfiguration.ServerUrl, port)
             };
             if (String.IsNullOrEmpty(clientConfiguration.AppUserName))

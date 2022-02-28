@@ -211,7 +211,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(session);
 
             ManualResetEvent quitEvent = new ManualResetEvent(false);
-            var reconnectHandler = new SessionReconnectHandler(new DefaultSessionFactory());
+            var reconnectHandler = new SessionReconnectHandler();
             reconnectHandler.BeginReconnect(session, Timeout / 5,
                 (object sender, EventArgs e) => {
                     // ignore callbacks from discarded objects.

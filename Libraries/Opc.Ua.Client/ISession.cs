@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -30,15 +30,34 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
+    /// Used to handle renews of user identity tokens before reconnect.
+    /// </summary>
+    public delegate IUserIdentity RenewUserIdentityEventHandler(ISession session, IUserIdentity identity);
+
+    /// <summary>
+    /// The delegate used to receive keep alive notifications.
+    /// </summary>
+    public delegate void KeepAliveEventHandler(ISession session, KeepAliveEventArgs e);
+
+    /// <summary>
+    /// The delegate used to receive publish notifications.
+    /// </summary>
+    public delegate void NotificationEventHandler(ISession session, NotificationEventArgs e);
+
+    /// <summary>
+    /// The delegate used to receive pubish error notifications.
+    /// </summary>
+    public delegate void PublishErrorEventHandler(ISession session, PublishErrorEventArgs e);
+
+    /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public interface ISession : ISessionClient, IDisposable
+    public interface ISession : ISessionClientBase, IDisposable
     {
         #region Events
         /// <summary>
@@ -86,27 +105,10 @@ namespace Opc.Ua.Client
 
         #region Public Properties
         /// <summary>
-        /// 
+        /// The factory which was used to create the session.
         /// </summary>
-        bool CheckDomain { get; }
-        /// <summary>
-        /// 
-        /// </summary>
-        uint MaxRequestMessageSize { get; }
-        /// <summary>
-        /// 
-        /// </summary>
-        public X509Certificate2 InstanceCertificate { get; }
+        ISessionFactory SessionFactory { get; }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public X509Certificate2Collection InstanceCertificateChain { get; }
-
-        /// <summary>
-        /// The configuration for the client application.
-        /// </summary>
-        ApplicationConfiguration Configuration { get; }
         /// <summary>
         /// Gets the endpoint used to connect to the server.
         /// </summary>
@@ -246,7 +248,6 @@ namespace Opc.Ua.Client
         /// Raised before a reconnect operation completes.
         /// </summary>
         event RenewUserIdentityEventHandler RenewUserIdentity;
-
         #endregion
 
         #region Public Methods
@@ -473,7 +474,6 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Browse Methods
-
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
@@ -587,7 +587,6 @@ namespace Opc.Ua.Client
         /// Sends a republish request.
         /// </summary>
         bool Republish(uint subscriptionId, uint sequenceNumber);
-
         #endregion
     }
 }

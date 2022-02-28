@@ -48,17 +48,17 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="endpointUrl">The endpoint Url.</param>
-        /// <param name="sessionFactory">The that assists with the creation of a session to the server</param>
+        /// <param name="sessionFactory">Used to create session to the server</param>
         /// <param name="adminUserIdentity">The user identity for the administrator.</param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             string endpointUrl,
-            ISessionFactory sessionFactory,
-            IUserIdentity adminUserIdentity = null)
+            IUserIdentity adminUserIdentity = null,
+            ISessionFactory sessionFactory = null)
         {
             Configuration = configuration;
             EndpointUrl = endpointUrl;
-            m_sessionFactory = sessionFactory;
+            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory();
             // preset admin 
             AdminCredentials = adminUserIdentity;
         }
