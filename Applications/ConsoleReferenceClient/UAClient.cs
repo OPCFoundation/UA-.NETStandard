@@ -59,7 +59,7 @@ namespace Quickstarts
         /// <summary>
         /// Gets the client session.
         /// </summary>
-        public Session Session => m_session;
+        public ISession Session => m_session;
 
         /// <summary>
         /// Auto accept untrusted certificates.
@@ -92,7 +92,7 @@ namespace Quickstarts
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
                     // Create the session
-                    ISession session = await Session.Create(
+                    ISession session = await Opc.Ua.Client.Session.Create(
                         m_configuration,
                         endpoint,
                         false,

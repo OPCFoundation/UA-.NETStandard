@@ -134,7 +134,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Recreates a session based on a specified template.
         /// </summary>
-        /// <param name="template">The Session object to use as template</param>
+        /// <param name="template">The ISession object to use as template</param>
         /// <returns>The new session object.</returns>
         Task<ISession> Recreate(ISession template);
 
