@@ -34,6 +34,32 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// The constructor from a template.
+        /// </summary>
+        public ApplicationConfiguration(ApplicationConfiguration template)
+        {
+            Initialize();
+
+            m_applicationName = template.m_applicationName;
+            m_applicationType = template.m_applicationType;
+            m_applicationUri = template.m_applicationUri;
+            m_discoveryServerConfiguration = template.m_discoveryServerConfiguration;
+            m_securityConfiguration = template.m_securityConfiguration;
+            m_transportConfigurations = template.m_transportConfigurations;
+            m_serverConfiguration = template.m_serverConfiguration;
+            m_clientConfiguration = template.m_clientConfiguration;
+            m_disableHiResClock = template.m_disableHiResClock;
+            m_certificateValidator = template.m_certificateValidator;
+            m_transportQuotas = template.m_transportQuotas;
+            m_traceConfiguration = template.m_traceConfiguration;
+            m_extensions = template.m_extensions;
+            m_extensionObjects = template.m_extensionObjects;
+            m_sourceFilePath = template.m_sourceFilePath;
+            m_messageContext = template.m_messageContext;
+            m_properties = template.m_properties;
+        }
+
+        /// <summary>
         /// Sets private members to default values.
         /// </summary>
         private void Initialize()

@@ -1638,7 +1638,7 @@ namespace Opc.Ua.Server
 
             if (details == null)
             {
-                throw new ServiceResultException(StatusCodes.BadHistoryOperationUnsupported);
+                throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
 
             // create result lists.
