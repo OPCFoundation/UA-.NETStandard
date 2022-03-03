@@ -83,6 +83,11 @@ namespace Opc.Ua.PubSub
         bool PublishNetworkMessage(UaNetworkMessage networkMessage);
 
         /// <summary>
+        /// Get flag that indicates if all the network connections are active and connected
+        /// </summary>
+        bool AreClientsConnected();
+
+        /// <summary>
         /// Get current list of dataset readers available in this UaSubscriber component
         /// </summary>
         List<DataSetReaderDataType> GetOperationalDataSetReaders();

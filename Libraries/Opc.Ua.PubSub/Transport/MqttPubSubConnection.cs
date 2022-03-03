@@ -272,6 +272,16 @@ namespace Opc.Ua.PubSub.Transport
 
             return false;
         }
+
+        /// <summary>
+        /// Create the network messages built from the provided writerGroupConfiguration
+        /// </summary>
+        public override bool AreClientsConnected()
+        {
+            // Check if existing clients are connected
+            return (m_publisherMqttClient == null || m_publisherMqttClient.IsConnected)
+                && (m_subscriberMqttClient == null || m_subscriberMqttClient.IsConnected);
+        }
         #endregion Public Methods
 
         #region Protected Methods

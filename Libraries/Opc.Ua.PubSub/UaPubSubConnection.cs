@@ -56,7 +56,8 @@ namespace Opc.Ua.PubSub
         internal UaPubSubConnection(UaPubSubApplication parentUaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
             // set the default message context that uses the GlobalContext
-            MessageContext = new ServiceMessageContext {
+            MessageContext = new ServiceMessageContext
+            {
                 NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
                 ServerUris = ServiceMessageContext.GlobalContext.ServerUris
             };
@@ -129,6 +130,7 @@ namespace Opc.Ua.PubSub
         {
             get { return m_publishers.AsReadOnly(); }
         }
+
         #endregion
 
         #region IDisposable Implementation
@@ -248,6 +250,11 @@ namespace Opc.Ua.PubSub
         public abstract bool PublishNetworkMessage(UaNetworkMessage networkMessage);
 
         /// <summary>
+        /// Get flag that indicates if all the network connections are active and connected
+        /// </summary>
+        public abstract bool AreClientsConnected();
+
+        /// <summary>
         /// Get current list of Operational DataSetReaders available in this UaSubscriber component
         /// </summary>
         public List<DataSetReaderDataType> GetOperationalDataSetReaders()
@@ -285,7 +292,7 @@ namespace Opc.Ua.PubSub
         /// Perform specific Stop tasks
         /// </summary>
         protected abstract Task InternalStop();
-        
+
         /// <summary>
         /// Processes the decoded <see cref="UaNetworkMessage"/> and
         /// raises the <see cref="UaPubSubApplication.DataReceived"/> or <see cref="UaPubSubApplication.MetaDataReceived"/> event.
@@ -294,7 +301,7 @@ namespace Opc.Ua.PubSub
         /// <param name="source">The source of the received event.</param>
         protected void ProcessDecodedNetworkMessage(UaNetworkMessage networkMessage, string source)
         {
-            if (networkMessage.IsMetaDataMessage) 
+            if (networkMessage.IsMetaDataMessage)
             {
                 // update configuration of the corresponding reader objects found in this connection configuration
                 List<DataSetReaderDataType> allReaders = GetAllDataSetReaders();
@@ -315,9 +322,10 @@ namespace Opc.Ua.PubSub
                     }
 
                     if (raiseChangedEvent)
-                    { 
+                    {
                         // raise event
-                        ConfigurationUpdatingEventArgs metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs() {
+                        ConfigurationUpdatingEventArgs metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs()
+                        {
                             ChangedProperty = ConfigurationProperty.DataSetMetaData,
                             Parent = reader,
                             NewValue = networkMessage.DataSetMetaData,
@@ -341,7 +349,8 @@ namespace Opc.Ua.PubSub
                     }
                 }
 
-                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
+                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs()
+                {
                     NetworkMessage = networkMessage,
                     Source = source
                 };
@@ -356,7 +365,8 @@ namespace Opc.Ua.PubSub
             }
             else if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
             {
-                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
+                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs()
+                {
                     NetworkMessage = networkMessage,
                     Source = source
                 };
@@ -380,7 +390,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         protected List<DataSetReaderDataType> GetAllDataSetReaders()
         {
-            List<DataSetReaderDataType> readersList = new List<DataSetReaderDataType>();            
+            List<DataSetReaderDataType> readersList = new List<DataSetReaderDataType>();
             foreach (ReaderGroupDataType readerGroup in m_pubSubConnectionDataType.ReaderGroups)
             {
                 foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
@@ -397,7 +407,7 @@ namespace Opc.Ua.PubSub
         protected List<DataSetWriterDataType> GetAllDataSetWriters()
         {
             List<DataSetWriterDataType> writerList = new List<DataSetWriterDataType>();
-            
+
             foreach (WriterGroupDataType writerGroup in m_pubSubConnectionDataType.WriterGroups)
             {
                 foreach (DataSetWriterDataType writer in writerGroup.DataSetWriters)

@@ -85,7 +85,6 @@ namespace Opc.Ua.PubSub.Transport
         /// Get the port from configured <see cref="PubSubConnectionDataType"/>.Address
         /// </summary>
         public int Port { get; private set; }
-       
         #endregion
 
         #region UaPubSubConnection - Overrides
@@ -346,6 +345,25 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Create the network messages built from the provided writerGroupConfiguration
+        /// </summary>
+        public override bool AreClientsConnected()
+        {
+            foreach (UdpClient client in m_publisherUdpClients)
+            {
+                if (!client.Client.Connected)
+                    return false;
+            }
+            foreach (UdpClient client in m_subscriberUdpClients)
+            {
+                if (!client.Client.Connected)
+                    return false;
+            }
+
+            return true;
         }
         #endregion
 
