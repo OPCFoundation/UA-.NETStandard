@@ -80,12 +80,18 @@ namespace Alarms
                 bool boolValue = false;
                 GetValue(ref value, ref boolValue);
 
+                Debug.WriteLine("Update value " + value.ToString());
+
                 if (m_isBoolean)
                 {
                     m_variable.Value = boolValue;
                 }
                 else
                 {
+                    if (value < 0)
+                    {
+                        bool waiting = true;
+                    }
                     m_variable.Value = value;
                 }
                 m_variable.Timestamp = DateTime.UtcNow;
@@ -178,7 +184,7 @@ namespace Alarms
             if (m_increment)
             {
                 m_value += incrementValue;
-                if (m_value == maxValue)
+                if (m_value >= maxValue)
                 {
                     if ( m_validLastMaxValue )
                     {
@@ -193,7 +199,7 @@ namespace Alarms
             else
             {
                 m_value -= incrementValue;
-                if (m_value == minValue)
+                if (m_value <= minValue)
                 {
                     m_increment = true;
                 }

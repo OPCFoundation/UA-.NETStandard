@@ -946,9 +946,6 @@ namespace Alarms
         Dictionary<string, SourceController> m_triggerMap =
             new Dictionary<string, SourceController>();
 
-        //Dictionary<string, Dictionary<string, SourceController>> m_triggerMap =
-        //    new Dictionary<string, Dictionary<string, SourceController>>();
-
         private bool m_allowEntry = false;
         private uint m_success = 0;
         private uint m_missed = 0;
