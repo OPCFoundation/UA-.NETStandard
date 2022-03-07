@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -408,6 +409,58 @@ namespace Opc.Ua.Server.Tests
                 SecureChannelContext.Current = securityContext;
             }
         }
+
+        /// <summary>
+        /// Call Method.
+        /// </summary>
+        [Test]
+        [Benchmark]
+        public void CallMethodFromTypeOnTypeInstance()
+        {
+            // Create an instance of FileDirectoryType under the Server node
+            NodeId objectId = m_server.CurrentInstance.DiagnosticsNodeManager.CreateNode(m_server.CurrentInstance.DefaultSystemContext,
+                ObjectIds.Server,
+                ReferenceTypeIds.HasComponent,
+                "fileDirectoryInstance",
+                new FileDirectoryState(null));
+
+            NodeId methodId = MethodIds.FileDirectoryType_CreateDirectory;
+
+            // Implement the CreateDirectory method belonging to the FileDirectoryType type instance
+            MethodState methodStateInstance = (MethodState)m_server.CurrentInstance.DiagnosticsNodeManager.FindPredefinedNode(methodId,
+                typeof(MethodState));
+
+            // Flag a successfull call of the implemented method
+            bool methodCalled = false;
+            methodStateInstance.OnCallMethod += (
+                                ISystemContext context,
+                                MethodState method,
+                                IList<object> inputArguments,
+                                IList<object> outputArguments) => {
+                                    methodCalled = true;
+                                    return ServiceResult.Good; };
+
+            // Call the implemented type method on the object instance 
+            var requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTime.UtcNow;
+            var nodesToCall = new CallMethodRequestCollection();
+
+            nodesToCall.Add(new CallMethodRequest() { ObjectId = objectId,
+                MethodId = methodId,
+                InputArguments = new VariantCollection() { new Variant("testString") }});
+            var response = m_server.Call(requestHeader,
+                nodesToCall,
+                out var results,
+                out var diagnosticInfos);
+
+            Assert.IsTrue(methodCalled);
+
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, results);
+        }
+
+
+
         #endregion
     }
 }
