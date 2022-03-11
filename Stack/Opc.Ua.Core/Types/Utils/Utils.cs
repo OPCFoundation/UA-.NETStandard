@@ -137,7 +137,7 @@ namespace Opc.Ua
         /// <summary>
         /// List of known default bindings hosted in other assemblies.
         /// </summary>
-        public static ReadOnlyDictionary<string, string> DefaultBindings = new ReadOnlyDictionary<string, string>(
+        public static readonly ReadOnlyDictionary<string, string> DefaultBindings = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>() {
                 { Utils.UriSchemeHttps, "Opc.Ua.Bindings.Https"}
             });

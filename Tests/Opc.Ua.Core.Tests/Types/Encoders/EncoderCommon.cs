@@ -111,7 +111,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         #region DataPointSources
         [DatapointSource]
-        public static BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
+        public static readonly BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
             .ToList().Where(b =>
                 (b != BuiltInType.Variant) &&
                 (b != BuiltInType.DiagnosticInfo) &&

@@ -336,7 +336,11 @@ namespace Opc.Ua.Bindings
             try
             {
                 // Get DNS host information
+#if NET6_0_OR_GREATER
+                hostAdresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost, cts).ConfigureAwait(false);
+#else
                 hostAdresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost).ConfigureAwait(false);
+#endif
             }
             catch (SocketException e)
             {
@@ -465,9 +469,9 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        #endregion
+#endregion
 
-        #region Read Handling
+#region Read Handling
         /// <summary>
         /// Starts reading messages from the socket.
         /// </summary>
@@ -809,9 +813,9 @@ namespace Opc.Ua.Bindings
             }
             args.Dispose();
         }
-        #endregion
+#endregion
 
-        #region Write Handling
+#region Write Handling
         /// <summary>
         /// Sends a buffer.
         /// </summary>
@@ -829,9 +833,9 @@ namespace Opc.Ua.Bindings
             eventArgs.Args.SocketError = SocketError.NotConnected;
             return m_socket.SendAsync(eventArgs.Args);
         }
-        #endregion
+#endregion
 
-        #region Event factory
+#region Event factory
         /// <summary>
         /// Create event args for TcpMessageSocket.
         /// </summary>
@@ -839,9 +843,9 @@ namespace Opc.Ua.Bindings
         {
             return new TcpMessageSocketAsyncEventArgs();
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private IMessageSink m_sink;
         private BufferManager m_bufferManager;
         private readonly int m_receiveBufferSize;
@@ -872,6 +876,6 @@ namespace Opc.Ua.Bindings
         private int m_bytesToReceive;
         private int m_incomingMessageSize;
         private ReadState m_readState;
-        #endregion
+#endregion
     }
 }

@@ -347,7 +347,11 @@ namespace Opc.Ua.Bindings
                 content.Headers.ContentType = s_mediaTypeHeaderValue;
                 var result = await m_client.PostAsync(m_url, content, ct).ConfigureAwait(false);
                 result.EnsureSuccessStatusCode();
+#if NET6_0_OR_GREATER
+                Stream responseContent = await result.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+#else
                 Stream responseContent = await result.Content.ReadAsStreamAsync().ConfigureAwait(false);
+#endif
                 return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
             }
             catch (Exception ex)
