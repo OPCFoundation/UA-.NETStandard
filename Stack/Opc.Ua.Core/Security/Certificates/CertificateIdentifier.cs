@@ -496,7 +496,7 @@ namespace Opc.Ua
 
         #region Private Methods
         /// <summary>
-        /// Checks if the certificate data represents a valid X509v3 certificate.
+        /// Checks if the certificate data represents a valid X509v3 certificate header.
         /// </summary>
         /// <param name="rawData">The raw data of a <see cref="X509Certificate2"/> object.</param>
         /// <returns>
@@ -517,7 +517,7 @@ namespace Opc.Ua
             }
 
             // extract length.
-            int length = 0;
+            int length;
             byte octet = rawData[1];
 
             // check for short for encoding.

@@ -49,7 +49,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// <summary>
         /// On MacOS allow higher margin due to flaky tests in CI builds.
         /// </summary>
-        public readonly int Percent = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? 5 : 2;
+        public int Percent { get => RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? 10 : 2; }
 
 
         #region Test Setup
