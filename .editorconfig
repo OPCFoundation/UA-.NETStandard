@@ -265,9 +265,9 @@ dotnet_naming_symbols.all_members.applicable_kinds                            = 
 dotnet_naming_style.pascal_case_style.capitalization                          = pascal_case
 
 # Diagnostic settings (windows only)
-dotnet_analyzer_diagnostic.category-style.severity                            = silent
+dotnet_analyzer_diagnostic.category-style.severity                            = suggestion
 dotnet_analyzer_diagnostic.category-globalization.severity                    = silent
-dotnet_analyzer_diagnostic.category-design.severity                           = silent
+dotnet_analyzer_diagnostic.category-design.severity                           = suggestion
 dotnet_analyzer_diagnostic.category-reliability.severity                      = warning
 dotnet_analyzer_diagnostic.category-performance.severity                      = warning
 dotnet_analyzer_diagnostic.category-security.severity                         = warning

@@ -11,16 +11,21 @@
     <NeutralLanguage>en-US</NeutralLanguage>
     <HighEntropyVA>true</HighEntropyVA>
     <IsPackable>false</IsPackable>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
-    <AnalysisMode>Recommended</AnalysisMode>
-    <AnalysisLevel>latest</AnalysisLevel>
-    <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Highest language version supported by .NET Standard 2.0 and .NET framework -->
     <LangVersion>7.3</LangVersion>
     <!--TODO <GenerateDocumentationFile>true</GenerateDocumentationFile>-->
   </PropertyGroup>
 
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisModeSecurity>preview-all</AnalysisModeSecurity>
+    <AnalysisLevelGlobalization>latest-recommended</AnalysisLevelGlobalization>
+    <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
+  </PropertyGroup>
+    
   <PropertyGroup>
     <PackageIcon>images/logo.jpg</PackageIcon>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>

@@ -129,14 +129,14 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public override bool IsEqual(IEncodeable equalValue)
+        public override bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, equalValue))
+            if (Object.ReferenceEquals(this, encodeable))
             {
                 return true;
             }
 
-            if (!(equalValue is OptionalFieldsComplexType valueBaseType))
+            if (!(encodeable is OptionalFieldsComplexType valueBaseType))
             {
                 return false;
             }

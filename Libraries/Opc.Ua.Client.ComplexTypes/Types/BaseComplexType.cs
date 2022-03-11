@@ -149,14 +149,14 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public virtual bool IsEqual(IEncodeable equalValue)
+        public virtual bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, equalValue))
+            if (Object.ReferenceEquals(this, encodeable))
             {
                 return true;
             }
 
-            if (!(equalValue is BaseComplexType valueBaseType))
+            if (!(encodeable is BaseComplexType valueBaseType))
             {
                 return false;
             }

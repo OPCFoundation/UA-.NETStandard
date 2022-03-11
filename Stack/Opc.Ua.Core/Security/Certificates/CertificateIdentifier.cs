@@ -598,6 +598,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>

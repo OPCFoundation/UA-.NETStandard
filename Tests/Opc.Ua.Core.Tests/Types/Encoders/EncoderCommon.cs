@@ -120,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
              ).ToArray();
 
         [DatapointSource]
-        public static EncodingType[] EncoderTypes = (EncodingType[])Enum.GetValues(typeof(EncodingType));
+        public static readonly EncodingType[] EncoderTypes = (EncodingType[])Enum.GetValues(typeof(EncodingType));
         #endregion
 
         #region Protected Methods

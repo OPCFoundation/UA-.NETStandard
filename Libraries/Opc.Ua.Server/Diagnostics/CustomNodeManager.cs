@@ -117,6 +117,7 @@ namespace Opc.Ua.Server
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -3902,7 +3903,7 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterResults)
+            IList<MonitoringFilterResult> filterErrors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             List<IMonitoredItem> modifiedItems = new List<IMonitoredItem>();
@@ -3943,7 +3944,7 @@ namespace Opc.Ua.Server
                         out filterResult);
 
                     // save any filter error details.
-                    filterResults[ii] = filterResult;
+                    filterErrors[ii] = filterResult;
 
                     // save the modified item.
                     if (ServiceResult.IsGood(errors[ii]))
