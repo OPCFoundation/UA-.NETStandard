@@ -103,13 +103,12 @@ namespace Opc.Ua.Security.Certificates
                     throw;
                 }
             }
-            finally
+
+            if (!result && throwOnError)
             {
-                if (!result && throwOnError)
-                {
-                    throw new CryptographicException("The public/private key pair in the certficates do not match.");
-                }
+                throw new CryptographicException("The public/private key pair in the certficates do not match.");
             }
+
             return result;
         }
 

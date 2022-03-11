@@ -111,12 +111,16 @@ csharp_style_expression_bodied_accessors                                      = 
 csharp_style_expression_bodied_constructors                                   = false : suggestion
 csharp_style_expression_bodied_methods                                        = false : suggestion
 csharp_style_expression_bodied_properties                                     = true : silent
+csharp_style_expression_bodied_lambdas                                        = true : silent
+csharp_style_expression_bodied_local_functions                                = false : silent
+
 
 #Style - expression level options
 csharp_prefer_braces                                                          = true : silent
 csharp_style_deconstructed_variable_declaration                               = true : suggestion
 csharp_prefer_simple_default_expression                                       = true : suggestion
 csharp_style_inlined_variable_declaration                                     = false : suggestion
+csharp_prefer_simple_using_statement                                          = false : suggestion
 
 #Style - implicit and explicit types
 csharp_style_var_for_built_in_types                                           = false : silent
@@ -161,6 +165,7 @@ dotnet_style_prefer_conditional_expression_over_return                        = 
 
 # 'using' directive preferences
 csharp_using_directive_placement                                              = outside_namespace : silent
+csharp_style_namespace_declarations                                           = block_scoped : silent
 
 # Naming rules
 
@@ -281,3 +286,8 @@ dotnet_code_quality.CA1822.api_surface                                        = 
 dotnet_diagnostic.CA3075.severity                                             = error
 dotnet_diagnostic.CA3077.severity                                             = error
 
+# IDE0049: Simplify Names
+dotnet_diagnostic.IDE0049.severity                                            = silent
+
+# CA1507: Use nameof in place of string
+dotnet_diagnostic.CA1507.severity                                             = warning
