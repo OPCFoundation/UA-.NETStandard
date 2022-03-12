@@ -3137,7 +3137,7 @@ namespace Opc.Ua
         /// <summary>
         /// Lazy helper to allow runtime check for Mono.
         /// </summary>
-        private static readonly Lazy<bool> IsRunningOnMonoValue = new Lazy<bool>(() => {
+        private static readonly Lazy<bool> s_isRunningOnMonoValue = new Lazy<bool>(() => {
             return Type.GetType("Mono.Runtime") != null;
         });
 
@@ -3147,7 +3147,7 @@ namespace Opc.Ua
         /// <returns>true if running on Mono runtime</returns>
         public static bool IsRunningOnMono()
         {
-            return IsRunningOnMonoValue.Value;
+            return s_isRunningOnMonoValue.Value;
         }
         #endregion 
     }

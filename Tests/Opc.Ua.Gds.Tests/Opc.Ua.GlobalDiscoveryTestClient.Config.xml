@@ -82,7 +82,7 @@
   <Extensions>
     <ua:XmlElement>
       <GlobalDiscoveryTestClientConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
-        <GlobalDiscoveryServerUrl>opc.tcp://localhost:58810/GlobalDiscoveryTestServer</GlobalDiscoveryServerUrl>
+        <GlobalDiscoveryServerUrl>opc.tcp://mregen10:58810/GlobalDiscoveryServer</GlobalDiscoveryServerUrl>
         <AppUserName>appuser</AppUserName>
         <AppPassword>demo</AppPassword>
         <AdminUserName>appadmin</AdminUserName>

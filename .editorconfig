@@ -231,11 +231,22 @@ dotnet_naming_rule.instance_fields_should_be_camel_case.severity              = 
 dotnet_naming_rule.instance_fields_should_be_camel_case.symbols               = instance_fields
 dotnet_naming_rule.instance_fields_should_be_camel_case.style                 = instance_field_style
 
-dotnet_naming_symbols.instance_fields.applicable_kinds                        = field, event
+dotnet_naming_symbols.instance_fields.applicable_kinds                        = field
 dotnet_naming_symbols.instance_fields.applicable_accessibilities              = private, protected, private_protected, protected_friend
 
 dotnet_naming_style.instance_field_style.capitalization                       = camel_case
 dotnet_naming_style.instance_field_style.required_prefix                      = m_
+
+# Private event fields are PascalCase and start with m_
+dotnet_naming_rule.instance_events_should_be_pascal_case.severity             = error
+dotnet_naming_rule.instance_events_should_be_pascal_case.symbols              = instance_events
+dotnet_naming_rule.instance_events_should_be_pascal_case.style                = instance_events_style
+
+dotnet_naming_symbols.instance_events.applicable_kinds                        = event
+dotnet_naming_symbols.instance_events.applicable_accessibilities              = private, protected, private_protected, protected_friend
+
+dotnet_naming_style.instance_events_style.capitalization                      = pascal_case
+dotnet_naming_style.instance_events_style.required_prefix                     = m_
 
 # Locals and parameters are camelCase
 dotnet_naming_rule.locals_should_be_camel_case.severity                       = suggestion
