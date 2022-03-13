@@ -25,6 +25,8 @@ pr:
 
 variables:
   FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsFork'], 'False')) }}
+  ScheduledBuild: ${{ eq(variables['Build.Reason'], 'Schedule') }}
+
 
 stages:
 - stage: build
@@ -34,7 +36,7 @@ stages:
 - stage: buildnohttps
   dependsOn: []
   displayName: 'Build NoHttps .NET Core Samples'
-  condition: ne(variables.FullBuild, 'False')
+  condition: ne(variables.ScheduledBuild, 'False')
   jobs:
   - template: .azurepipelines/ci.yml
     parameters:
@@ -49,6 +51,7 @@ stages:
       poolImage: 'windows-2022'
       jobnamesuffix: win2022
   - template: .azurepipelines/sln.yml
+    condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
     parameters:
       poolImage: 'windows-2019'
       jobnamesuffix: win2019
@@ -69,6 +72,7 @@ stages:
       framework: netcoreapp3.1
       jobnamesuffix: core3
   - template: .azurepipelines/test.yml
+    condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
     parameters:
       configuration: Release
       framework: net6.0
@@ -82,13 +86,13 @@ stages:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      framework: net6.0
+      framework: netcoreapp3.1
       agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"}'
-      jobnamesuffix: net60pr
+      jobnamesuffix: net31pr
 - stage: testdebug
   dependsOn: [build]
   displayName: 'Test Core and SDK Debug'
-  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -97,7 +101,7 @@ stages:
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
-  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/testcc.yml
     parameters:
