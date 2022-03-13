@@ -55,6 +55,7 @@ namespace Quickstarts.ReferenceServer
             bool logConsole = false;
             bool appLog = false;
             bool renewCertificate = false;
+            bool shadowConfig = false;
             string password = null;
             int timeout = -1;
 
@@ -68,6 +69,7 @@ namespace Quickstarts.ReferenceServer
                 { "p|password=", "optional password for private key", (string p) => password = p },
                 { "r|renew", "renew application certificate", r => renewCertificate = r != null },
                 { "t|timeout=", "timeout in seconds to exit application", (int t) => timeout = t * 1000 },
+                { "s|shadowconfig", "create configuration in pki root", s => shadowConfig = s != null },
             };
 
             try
@@ -90,12 +92,31 @@ namespace Quickstarts.ReferenceServer
                 output.WriteLine("Loading configuration from {0}.", configSectionName);
                 await server.LoadAsync(applicationName, configSectionName).ConfigureAwait(false);
 
+                // use the shadow config to map the config to an externally accessible location
+                if (shadowConfig)
+                {
+                    output.WriteLine("Using shadow configuration.");
+                    var shadowPath = Directory.GetParent(Path.GetDirectoryName(
+                        Utils.ReplaceSpecialFolderNames(server.Configuration.TraceConfiguration.OutputFilePath))).FullName;
+                    var shadowFilePath = Path.Combine(shadowPath, Path.GetFileName(server.Configuration.SourceFilePath));
+                    if (!File.Exists(shadowFilePath))
+                    {
+                        output.WriteLine("Create a copy of the config in the shadow location.");
+                        File.Copy(server.Configuration.SourceFilePath, shadowFilePath, true);
+                    }
+                    output.WriteLine("Reloading configuration from {0}.", shadowFilePath);
+                    await server.LoadAsync(applicationName, Path.Combine(shadowPath, configSectionName)).ConfigureAwait(false);
+                }
+
                 // setup the logging
                 ConsoleUtils.ConfigureLogging(server.Configuration, applicationName, logConsole, LogLevel.Information);
 
                 // check or renew the certificate
                 output.WriteLine("Check the certificate.");
                 await server.CheckCertificateAsync(renewCertificate).ConfigureAwait(false);
+
+                // Create and add the node managers
+                server.Create(Servers.Utils.NodeManagerFactories);
 
                 // start the server
                 output.WriteLine("Start the server.");

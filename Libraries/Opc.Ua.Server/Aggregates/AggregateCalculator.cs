@@ -225,7 +225,7 @@ namespace Opc.Ua.Server
                     value.StatusCode = value.StatusCode.SetAggregateBits(value.StatusCode.AggregateBits | AggregateBits.Partial);
                 }
 
-                if (!UsingExtrapolation)
+                if (!UsingExtrapolation && !TimeFlowsBackward)
                 {
                     if (m_endOfData >= earlyTime && m_endOfData < lateTime)
                     {
@@ -281,7 +281,7 @@ namespace Opc.Ua.Server
             if (Complete)
             {
                 // check if overlapping the end of data.
-                if (SetPartialBit && !UsingExtrapolation)
+                if (SetPartialBit && !UsingExtrapolation && !TimeFlowsBackward)
                 {
                     if (m_endOfData >= earlyTime && m_endOfData < lateTime)
                     {

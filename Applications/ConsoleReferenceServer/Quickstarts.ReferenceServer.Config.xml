@@ -41,8 +41,8 @@
     <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
 
     <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. 
-    The setting below to allow them is only required for UACTT (1.02.336.244) which uses SHA-1 signed certs. -->
-    <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
+       only nano and embedded profiles are allowed to use sha1 signed certificates. -->
+    <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
     <RejectUnknownRevocationStatus>true</RejectUnknownRevocationStatus>
     <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
     <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
@@ -63,7 +63,7 @@
 
   <TransportConfigurations></TransportConfigurations>
   <TransportQuotas>
-    <OperationTimeout>600000</OperationTimeout>
+    <OperationTimeout>120000</OperationTimeout>
     <MaxStringLength>1048576</MaxStringLength>
     <MaxByteStringLength>1048576</MaxByteStringLength>
     <MaxArrayLength>65535</MaxArrayLength>
@@ -141,32 +141,35 @@
       <!-- Allows anonymous users -->
       <ua:UserTokenPolicy>
         <ua:TokenType>Anonymous_0</ua:TokenType>
-        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</ua:SecurityPolicyUri>
+        <!-- passwords must be encrypted - no setting lets the stack select a secure profile -->
       </ua:UserTokenPolicy>
 
       <!-- Allows username/password -->
       <ua:UserTokenPolicy>
         <ua:TokenType>UserName_1</ua:TokenType>
         <!-- passwords must be encrypted - this specifies what algorithm to use -->
-        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri>
+        <!-- if no algorithm is specified, the active security policy is used -->
+        <!-- <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri> -->
       </ua:UserTokenPolicy>
 
       <!-- Allows user certificates -->
       <ua:UserTokenPolicy>
         <ua:TokenType>Certificate_2</ua:TokenType>
         <!-- certificate possession must be proven with a digital signature - this specifies what algorithm to use -->
-        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri>
+        <!-- if no algorithm is specified, the active security policy is used -->
+        <!-- <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri> -->
       </ua:UserTokenPolicy>
     </UserTokenPolicies>
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
-    <MaxSessionCount>100</MaxSessionCount>
+    <!-- Settings for CTT testing -->
+    <MaxSessionCount>75</MaxSessionCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
     <MaxSessionTimeout>3600000</MaxSessionTimeout>
     <MaxBrowseContinuationPoints>10</MaxBrowseContinuationPoints>
     <MaxQueryContinuationPoints>10</MaxQueryContinuationPoints>
     <MaxHistoryContinuationPoints>100</MaxHistoryContinuationPoints>
     <MaxRequestAge>600000</MaxRequestAge>
-    <MinPublishingInterval>100</MinPublishingInterval>
+    <MinPublishingInterval>50</MinPublishingInterval>
     <MaxPublishingInterval>3600000</MaxPublishingInterval>
     <PublishingResolution>50</PublishingResolution>
     <MaxSubscriptionLifetime>3600000</MaxSubscriptionLifetime>
@@ -224,6 +227,7 @@
       <ua:String>http://opcfoundation.org/UA-Profile/Server/DataAccess</ua:String>
       <ua:String>http://opcfoundation.org/UA-Profile/Server/Methods</ua:String>
       <ua:String>http://opcfoundation.org/UA-Profile/Server/ReverseConnect</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/ClientRedundancy</ua:String>
     </ServerProfileArray>
     <ShutdownDelay>5</ShutdownDelay>
     <ServerCapabilities>
@@ -235,6 +239,7 @@
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
+    
     <!--  Reverse connection parameters for aggregation server sample -->
     <!--
     <ReverseConnect>
@@ -250,13 +255,20 @@
       <RejectTimeout>60000</RejectTimeout>
     </ReverseConnect>
     -->
+
     <OperationLimits>
-      <MaxNodesPerRead>1000</MaxNodesPerRead>
-      <MaxNodesPerWrite>1000</MaxNodesPerWrite>
-      <MaxNodesPerMethodCall>250</MaxNodesPerMethodCall>
+      <MaxNodesPerRead>2500</MaxNodesPerRead>
+      <MaxNodesPerHistoryReadData>1000</MaxNodesPerHistoryReadData>
+      <MaxNodesPerHistoryReadEvents>1000</MaxNodesPerHistoryReadEvents>
+      <MaxNodesPerWrite>2500</MaxNodesPerWrite>
+      <MaxNodesPerHistoryUpdateData>1000</MaxNodesPerHistoryUpdateData>
+      <MaxNodesPerHistoryUpdateEvents>1000</MaxNodesPerHistoryUpdateEvents>
+      <MaxNodesPerMethodCall>2500</MaxNodesPerMethodCall>
       <MaxNodesPerBrowse>2500</MaxNodesPerBrowse>
-      <MaxNodesPerTranslateBrowsePathsToNodeIds>1000</MaxNodesPerTranslateBrowsePathsToNodeIds>
-      <MaxMonitoredItemsPerCall>1000</MaxMonitoredItemsPerCall>
+      <MaxNodesPerRegisterNodes>2500</MaxNodesPerRegisterNodes>
+      <MaxNodesPerTranslateBrowsePathsToNodeIds>2500</MaxNodesPerTranslateBrowsePathsToNodeIds>
+      <MaxNodesPerNodeManagement>2500</MaxNodesPerNodeManagement>
+      <MaxMonitoredItemsPerCall>2500</MaxMonitoredItemsPerCall>
     </OperationLimits>
 
   </ServerConfiguration>
@@ -294,7 +306,7 @@
     <!-- Show Only Security, Service Calls, Errors and Trace -->
     <!-- <TraceMasks>523</TraceMasks> -->
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
-    <!-- <TraceMasks>519</TraceMasks> -->
+    <TraceMasks>519</TraceMasks>
   </TraceConfiguration>
 
 </ApplicationConfiguration>
