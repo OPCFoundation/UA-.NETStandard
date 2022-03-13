@@ -42,7 +42,7 @@ jobs:
       
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministc builds
-      run: dotnet test --no-build --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory "TestResults-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}" "UA Core Library.sln"
+      run: dotnet test --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory "TestResults-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}" "UA Core Library.sln"
 
     - name: Upload test results
       uses: actions/upload-artifact@v3
