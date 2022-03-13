@@ -95,9 +95,8 @@ namespace Opc.Ua.Client.Tests
         [TearDown]
         public void TearDownAsync()
         {
-            m_session.Close(100);
-            m_session.Dispose();
-            m_session = null;
+            Session.Close(100);
+            Session.Dispose();
         }
         #endregion
 
