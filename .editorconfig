@@ -238,7 +238,7 @@ dotnet_naming_style.instance_field_style.capitalization                       = 
 dotnet_naming_style.instance_field_style.required_prefix                      = m_
 
 # Private event fields are PascalCase and start with m_
-dotnet_naming_rule.instance_events_should_be_pascal_case.severity             = error
+dotnet_naming_rule.instance_events_should_be_pascal_case.severity             = suggestion
 dotnet_naming_rule.instance_events_should_be_pascal_case.symbols              = instance_events
 dotnet_naming_rule.instance_events_should_be_pascal_case.style                = instance_events_style
 
