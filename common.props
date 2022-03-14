@@ -22,7 +22,6 @@
     <AnalysisMode>Recommended</AnalysisMode>
     <AnalysisLevel>latest</AnalysisLevel>
     <AnalysisModeSecurity>preview-all</AnalysisModeSecurity>
-    <AnalysisLevelGlobalization>latest-recommended</AnalysisLevelGlobalization>
     <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
   </PropertyGroup>
     
