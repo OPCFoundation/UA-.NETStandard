@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task StartReverseConnectHost()
         {
-            Random m_random = new Random();
+            Random random = new Random();
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
             bool retryStartServer = false;
             int serverStartRetries = 25;
@@ -118,10 +118,10 @@ namespace Opc.Ua.Client.Tests
                     {
                         throw;
                     }
-                    testPort = m_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
+                    testPort = random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
-                await Task.Delay(m_random.Next(100, 1000)).ConfigureAwait(false);
+                await Task.Delay(random.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
         }
 

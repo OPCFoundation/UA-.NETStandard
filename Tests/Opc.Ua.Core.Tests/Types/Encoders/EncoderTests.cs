@@ -83,7 +83,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode and decode of a random built in type.
         /// </summary>
         [Theory]
-        [Category("BuiltInType"), Repeat(RandomRepeats)]
+        [Category("BuiltInType"), Repeat(kRandomRepeats)]
         public void ReEncodeBuiltInType(
             EncodingType encoderType,
             BuiltInType builtInType
@@ -199,7 +199,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// as Variant in a DataValue.
         /// </summary>
         [Theory]
-        [Category("BuiltInType"), Repeat(RandomRepeats)]
+        [Category("BuiltInType"), Repeat(kRandomRepeats)]
         public void ReEncodeBuiltInTypeRandomVariantInDataValue(
             EncodingType encoderType
             )
@@ -291,7 +291,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode and decode of a Matrix in a Variant.
         /// </summary>
         [Theory]
-        [Category("Array"), Repeat(ArrayRepeats)]
+        [Category("Array"), Repeat(kArrayRepeats)]
         public void ReEncodeVariantArrayInDataValue(
             EncodingType encoderType,
             BuiltInType builtInType
@@ -309,7 +309,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode and decode of a one dimensional Array.
         /// </summary>
         [Theory]
-        [Category("Array"), Repeat(ArrayRepeats)]
+        [Category("Array"), Repeat(kArrayRepeats)]
         public void EncodeArray(
             EncodingType encoderType,
             BuiltInType builtInType
@@ -354,7 +354,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode and decode of a Matrix in a Variant.
         /// </summary>
         [Theory]
-        [Category("Matrix"), Repeat(ArrayRepeats)]
+        [Category("Matrix"), Repeat(kArrayRepeats)]
         public void ReEncodeVariantMatrixInDataValue(
             EncodingType encoderType,
             BuiltInType builtInType
@@ -375,7 +375,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode of a Matrix in a Variant to non reversible JSON.
         /// </summary>
         [Theory]
-        [Category("Matrix"), Repeat(ArrayRepeats)]
+        [Category("Matrix"), Repeat(kArrayRepeats)]
         public void EncodeBuiltInTypeMatrixAsVariantInDataValueToNonReversibleJson(
             BuiltInType builtInType
             )
@@ -398,7 +398,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode of a Matrix in a multi dimensional array.
         /// </summary>
         [Theory]
-        [Category("Matrix"), Repeat(ArrayRepeats)]
+        [Category("Matrix"), Repeat(kArrayRepeats)]
         public void EncodeMatrixInArray(
         EncodingType encoderType,
         BuiltInType builtInType

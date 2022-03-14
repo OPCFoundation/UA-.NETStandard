@@ -77,6 +77,7 @@ namespace Quickstarts.ReferenceServer
             {
                 // TBD
             }
+            base.Dispose(disposing);
         }
         #endregion
 

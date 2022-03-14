@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
     [TestFixture(Description = "Tests for DataCollector class")]
     public class DataCollectorTests
     {
-        private string ConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+        private string m_configurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
 
         public const int NamespaceIndex = 2;
 
@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void ValidateAddPublishedDataSet()
         {
             //Arrange
-            string configurationFile = Utils.GetAbsoluteFilePath(ConfigurationFileName, true, true, false);
+            string configurationFile = Utils.GetAbsoluteFilePath(m_configurationFileName, true, true, false);
             var pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
 
             DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());

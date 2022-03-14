@@ -498,7 +498,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 catch (DataTypeNotFoundException dtnfex)
                 {
                     // add missing type to list
-                    var dataTypeNode = m_complexTypeResolver.Find(dtnfex.nodeId);
+                    var dataTypeNode = m_complexTypeResolver.Find(dtnfex.NodeId);
                     if (dataTypeNode != null)
                     {
                         AddEnumerationOrStructureType(dataTypeNode, serverEnumTypes, serverStructTypes);
@@ -620,7 +620,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                 }
                                 catch (DataTypeNotFoundException dtnfex)
                                 {
-                                    var typeMatch = structTypesWorkList.FirstOrDefault(n => n.NodeId == dtnfex.nodeId);
+                                    var typeMatch = structTypesWorkList.FirstOrDefault(n => n.NodeId == dtnfex.NodeId);
                                     if (typeMatch == null)
                                     {
                                         throw;
@@ -923,7 +923,7 @@ namespace Opc.Ua.Client.ComplexTypes
             foreach (StructureField field in structureDefinition.Fields)
             {
                 var newType = GetFieldType(field);
-                var isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_session.NamespaceUris), field.DataType);
+                var isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris), field.DataType);
                 if (newType == null && !isRecursiveDataType)
                 {
                     throw new DataTypeNotFoundException(field.DataType);
@@ -946,7 +946,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 // check for recursive data type:
                 //    field has the same data type as the parent structure
-                var isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_session.NamespaceUris), field.DataType);
+                var isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris), field.DataType);
                 if (isRecursiveDataType)
                 {
                     if (field.ValueRank < 0) // scalar
