@@ -46,7 +46,7 @@ namespace Opc.Ua.Client.Tests
     [SetCulture("en-us"), SetUICulture("en-us")]
     public class SubscriptionTest : ClientTestFramework
     {
-        private readonly string SubscriptionTestXml = Path.Combine(Path.GetTempPath(), "SubscriptionTest.xml");
+        private readonly string m_subscriptionTestXml = Path.Combine(Path.GetTempPath(), "SubscriptionTest.xml");
 
         #region Test Setup
         /// <summary>
@@ -161,7 +161,7 @@ namespace Opc.Ua.Client.Tests
             subscription.Modify();
 
             // save
-            Session.Save(SubscriptionTestXml);
+            Session.Save(m_subscriptionTestXml);
 
             Thread.Sleep(5000);
             OutputSubscriptionInfo(TestContext.Out, subscription);
@@ -251,7 +251,7 @@ namespace Opc.Ua.Client.Tests
             await subscription.ModifyAsync().ConfigureAwait(false);
 
             // save
-            Session.Save(SubscriptionTestXml);
+            Session.Save(m_subscriptionTestXml);
 
             await Task.Delay(5000).ConfigureAwait(false);
             OutputSubscriptionInfo(TestContext.Out, subscription);
@@ -273,10 +273,10 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(200)]
         public void LoadSubscription()
         {
-            if (!File.Exists(SubscriptionTestXml)) Assert.Ignore("Save file {0} does not exist yet", SubscriptionTestXml);
+            if (!File.Exists(m_subscriptionTestXml)) Assert.Ignore("Save file {0} does not exist yet", m_subscriptionTestXml);
 
             // load
-            var subscriptions = Session.Load(SubscriptionTestXml);
+            var subscriptions = Session.Load(m_subscriptionTestXml);
             Assert.NotNull(subscriptions);
             Assert.IsNotEmpty(subscriptions);
 
@@ -311,12 +311,12 @@ namespace Opc.Ua.Client.Tests
             var subscriptionIds = new UInt32Collection();
             var sequenceBroken = new AutoResetEvent(false);
             var numOfNotifications = 0L;
-            const int TestWaitTime = 10000;
-            const int MonitoredItemsPerSubscription = 500;
-            const int Subscriptions = 10;
+            const int testWaitTime = 10000;
+            const int monitoredItemsPerSubscription = 500;
+            const int subscriptions = 10;
 
             // multiple Subscriptions to enforce multiple queued publish requests
-            for (int i = 0; i < Subscriptions; i++)
+            for (int i = 0; i < subscriptions; i++)
             {
                 var s = new Subscription(Session.DefaultSubscription) {
                     SequentialPublishing = enabled,
@@ -331,7 +331,7 @@ namespace Opc.Ua.Client.Tests
 
             // Create monitored items on the server
             // and track the last reported source timestamp
-            var list = Enumerable.Range(1, MonitoredItemsPerSubscription).Select(_ => new MonitoredItem(subscription.DefaultItem) {
+            var list = Enumerable.Range(1, monitoredItemsPerSubscription).Select(_ => new MonitoredItem(subscription.DefaultItem) {
                 StartNodeId = new NodeId("Scalar_Simulation_Int32", 2),
                 SamplingInterval = 0,
             }).ToList();
@@ -369,7 +369,7 @@ namespace Opc.Ua.Client.Tests
             Session.SetPublishingMode(null, true, subscriptionIds, out var results, out var diagnosticInfos);
 
             // Wait for out-of-order to occur
-            var failed = sequenceBroken.WaitOne(TestWaitTime);
+            var failed = sequenceBroken.WaitOne(testWaitTime);
 
             // stop
             Session.SetPublishingMode(null, false, subscriptionIds, out results, out diagnosticInfos);
@@ -410,12 +410,12 @@ namespace Opc.Ua.Client.Tests
         {
             var subscriptionList = new List<Subscription>();
             var numOfNotifications = 0L;
-            const int TestWaitTime = 10000;
-            const int MonitoredItemsPerSubscription = 50;
-            const int Subscriptions = 50;
-            const int MaxServerPublishRequest = 20;
+            const int testWaitTime = 10000;
+            const int monitoredItemsPerSubscription = 50;
+            const int subscriptions = 50;
+            const int maxServerPublishRequest = 20;
 
-            for (int i = 0; i < Subscriptions; i++)
+            for (int i = 0; i < subscriptions; i++)
             {
                 var subscription = new Subscription(Session.DefaultSubscription) {
                     PublishingInterval = 0,
@@ -433,7 +433,7 @@ namespace Opc.Ua.Client.Tests
                 var simulatedNodes = GetTestSetSimulation(Session.NamespaceUris);
                 var list = new List<MonitoredItem>();
                 var nodeSet = simulatedNodes;
-                for (int ii = 0; ii < MonitoredItemsPerSubscription; ii++)
+                for (int ii = 0; ii < monitoredItemsPerSubscription; ii++)
                 {
                     var nextNode = nodeSet[ii % nodeSet.Count];
                     list.Add(new MonitoredItem(subscription.DefaultItem) {
@@ -458,10 +458,10 @@ namespace Opc.Ua.Client.Tests
             await Task.Delay(1000).ConfigureAwait(false);
 
             // verify that number of active publishrequests is never exceeded
-            while (stopwatch.ElapsedMilliseconds < TestWaitTime)
+            while (stopwatch.ElapsedMilliseconds < testWaitTime)
             {
                 // use the sample server default for max publish request count
-                Assert.GreaterOrEqual(MaxServerPublishRequest, Session.GoodPublishRequestCount);
+                Assert.GreaterOrEqual(maxServerPublishRequest, Session.GoodPublishRequestCount);
                 await Task.Delay(100).ConfigureAwait(false);
             }
 

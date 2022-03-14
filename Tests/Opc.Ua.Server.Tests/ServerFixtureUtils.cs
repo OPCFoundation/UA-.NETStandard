@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -68,12 +69,12 @@ namespace Opc.Ua.Server.Tests
             // Find TCP endpoint
             var endpoints = server.GetEndpoints();
             var endpoint = endpoints.FirstOrDefault(e =>
-                e.TransportProfileUri.Equals(Profiles.UaTcpTransport) ||
-                e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport));
+                e.TransportProfileUri.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
+                e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal));
 
             if (endpoint == null)
             {
-                throw new System.Exception("Unsupported transport profile.");
+                throw new Exception("Unsupported transport profile.");
             }
 
             // fake profiles
