@@ -110,6 +110,7 @@ namespace Opc.Ua.Bindings
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -237,10 +238,12 @@ namespace Opc.Ua.Bindings
             // note: if there is not a specific Https cert defined, the first App cert is used
             httpsOptions.ServerCertificate = m_serverCertProvider.GetInstanceCertificate(SecurityPolicies.Https);
 
+#if NET462
             // note: although security tools recommend 'None' here,
             // it only works on .NET 4.6.2 if Tls12 is used
-#if NET462
+#pragma warning disable CA5398 // Avoid hardcoded SslProtocols values
             httpsOptions.SslProtocols = SslProtocols.Tls12;
+#pragma warning restore CA5398 // Avoid hardcoded SslProtocols values
 #else
             httpsOptions.SslProtocols = SslProtocols.None;
 #endif
@@ -337,7 +340,7 @@ namespace Opc.Ua.Bindings
                     {
                         foreach (string value in context.Request.Headers["Authorization"])
                         {
-                            if (value.StartsWith("Bearer"))
+                            if (value.StartsWith("Bearer", StringComparison.OrdinalIgnoreCase))
                             {
                                 // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
                                 input.RequestHeader.AuthenticationToken = new NodeId(value.Substring("Bearer ".Length).Trim(), 0);
@@ -354,11 +357,11 @@ namespace Opc.Ua.Bindings
                 EndpointDescription endpoint = null;
                 foreach (var ep in m_descriptions)
                 {
-                    if (ep.EndpointUrl.StartsWith(Utils.UriSchemeHttps))
+                    if (ep.EndpointUrl.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal))
                     {
                         if (!string.IsNullOrEmpty(header))
                         {
-                            if (string.Compare(ep.SecurityPolicyUri, header) != 0)
+                            if (!string.Equals(ep.SecurityPolicyUri, header, StringComparison.Ordinal))
                             {
                                 continue;
                             }

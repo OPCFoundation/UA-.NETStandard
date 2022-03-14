@@ -31,14 +31,14 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -53,10 +53,10 @@ namespace Opc.Ua
 
         #region Overridden Methods
         /// <summary>
-        /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// Returns a <see cref="String"/> that represents the current <see cref="Object"/>.
         /// </summary>
         /// <returns>
-        /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// A <see cref="String"/> that represents the current <see cref="Object"/>.
         /// </returns>
         public override string ToString()
         {
@@ -644,7 +644,7 @@ namespace Opc.Ua
 
         #region Private Methods
         /// <summary>
-        /// Checks if the certificate data represents a valid X509v3 certificate.
+        /// Checks if the certificate data represents a valid X509v3 certificate header.
         /// </summary>
         /// <param name="rawData">The raw data of a <see cref="X509Certificate2"/> object.</param>
         /// <returns>
@@ -665,7 +665,7 @@ namespace Opc.Ua
             }
 
             // extract length.
-            int length = 0;
+            int length;
             byte octet = rawData[1];
 
             // check for short for encoding.
@@ -746,6 +746,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>

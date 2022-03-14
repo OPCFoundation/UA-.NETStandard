@@ -66,8 +66,8 @@ namespace Opc.Ua.Bindings
             m_requests = new Dictionary<uint, WriteOperation>();
             m_lastRequestId = 0;
             m_ConnectCallback = new EventHandler<IMessageSocketAsyncEventArgs>(OnConnectComplete);
-            m_StartHandshake = new TimerCallback(OnScheduledHandshake);
-            m_HandshakeComplete = new AsyncCallback(OnHandshakeComplete);
+            m_startHandshake = new TimerCallback(OnScheduledHandshake);
+            m_handshakeComplete = new AsyncCallback(OnHandshakeComplete);
             m_socketFactory = socketFactory;
 
             // save the endpoint.
@@ -811,7 +811,7 @@ namespace Opc.Ua.Bindings
                         }
 
                         // begin the operation.
-                        m_handshakeOperation = BeginOperation(Int32.MaxValue, m_HandshakeComplete, token);
+                        m_handshakeOperation = BeginOperation(Int32.MaxValue, m_handshakeComplete, token);
 
                         // send the request.
                         SendOpenSecureChannelRequest(true);
@@ -846,7 +846,7 @@ namespace Opc.Ua.Bindings
                     if (!ReverseSocket)
                     {
                         // create an operation.
-                        m_handshakeOperation = BeginOperation(Int32.MaxValue, m_HandshakeComplete, null);
+                        m_handshakeOperation = BeginOperation(Int32.MaxValue, m_handshakeComplete, null);
 
                         State = TcpChannelState.Connecting;
                         Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
@@ -1095,7 +1095,7 @@ namespace Opc.Ua.Bindings
 
                 // schedule a reconnect.
                 Utils.LogInfo("ChannelId {0}: Attempting Reconnect in {1} ms. Reason: {2}", ChannelId, m_waitBetweenReconnects, reason.ToLongString());
-                m_handshakeTimer = new Timer(m_StartHandshake, null, m_waitBetweenReconnects, Timeout.Infinite);
+                m_handshakeTimer = new Timer(m_startHandshake, null, m_waitBetweenReconnects, Timeout.Infinite);
 
                 // set next reconnect period.
                 m_waitBetweenReconnects *= 2;
@@ -1144,7 +1144,7 @@ namespace Opc.Ua.Bindings
 
             Utils.LogInfo("ChannelId {0}: Token Expiry {1}, renewal scheduled in {2} ms.", ChannelId, expiryTime, (int)timeToRenewal);
 
-            m_handshakeTimer = new Timer(m_StartHandshake, token, (int)timeToRenewal, Timeout.Infinite);
+            m_handshakeTimer = new Timer(m_startHandshake, token, (int)timeToRenewal, Timeout.Infinite);
         }
 
         /// <summary>
@@ -1439,8 +1439,8 @@ namespace Opc.Ua.Bindings
         private int m_waitBetweenReconnects;
         private EventHandler<IMessageSocketAsyncEventArgs> m_ConnectCallback;
         private IMessageSocketFactory m_socketFactory;
-        private TimerCallback m_StartHandshake;
-        private AsyncCallback m_HandshakeComplete;
+        private TimerCallback m_startHandshake;
+        private AsyncCallback m_handshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
         private readonly string g_ImplementationString = ".NET Standard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
         #endregion

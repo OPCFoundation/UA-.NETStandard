@@ -2786,7 +2786,7 @@ namespace Opc.Ua
         /// <param name="format">(Unused) Always pass a NULL value</param>
         /// <param name="formatProvider">The format-provider to use. If unsure, pass an empty string or null</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <remarks>
         /// Returns the string representation of the object.

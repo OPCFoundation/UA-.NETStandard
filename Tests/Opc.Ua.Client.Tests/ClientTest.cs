@@ -206,13 +206,13 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(210)]
         public async Task ConnectAndReconnectAsync()
         {
-            const int Timeout = MaxTimeout;
+            const int connectTimeout = MaxTimeout;
             var session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
             Assert.NotNull(session);
 
             ManualResetEvent quitEvent = new ManualResetEvent(false);
             var reconnectHandler = new SessionReconnectHandler();
-            reconnectHandler.BeginReconnect(session, Timeout / 5,
+            reconnectHandler.BeginReconnect(session, connectTimeout / 5,
                 (object sender, EventArgs e) => {
                     // ignore callbacks from discarded objects.
                     if (!Object.ReferenceEquals(sender, reconnectHandler))
@@ -225,7 +225,7 @@ namespace Opc.Ua.Client.Tests
                     quitEvent.Set();
                 });
 
-            var timeout = quitEvent.WaitOne(Timeout);
+            var timeout = quitEvent.WaitOne(connectTimeout);
             Assert.True(timeout);
 
             var result = session.Close();

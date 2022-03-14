@@ -231,7 +231,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// </summary>
         [Test]
         public void BuiltInTypeOfSimpleDataTypes()
-            
+
         {
             Assert.AreEqual(BuiltInType.DateTime, TypeInfo.GetBuiltInType(DataTypeIds.UtcTime));
 
@@ -267,7 +267,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 Assert.AreEqual(BuiltInType.String, TypeInfo.GetBuiltInType((NodeId)staticValue));
             }
         }
-      
+
         #endregion
     }
 

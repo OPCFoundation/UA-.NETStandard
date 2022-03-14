@@ -15,6 +15,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -53,6 +54,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -833,7 +835,7 @@ namespace Opc.Ua
             // substitute the computer name for localhost if localhost used by client.
             if (Utils.AreDomainsEqual(hostname, "localhost"))
             {
-                return computerName.ToUpper();
+                return computerName.ToUpper(CultureInfo.InvariantCulture);
             }
 
             // check if client is using an ip address.
@@ -843,7 +845,7 @@ namespace Opc.Ua
             {
                 if (IPAddress.IsLoopback(address))
                 {
-                    return computerName.ToUpper();
+                    return computerName.ToUpper(CultureInfo.InvariantCulture);
                 }
 
                 // substitute the computer name for any local IP if an IP is used by client.
@@ -853,12 +855,12 @@ namespace Opc.Ua
                 {
                     if (addresses[ii].Equals(address))
                     {
-                        return computerName.ToUpper();
+                        return computerName.ToUpper(CultureInfo.InvariantCulture);
                     }
                 }
 
                 // not a localhost IP address.
-                return hostname.ToUpper();
+                return hostname.ToUpper(CultureInfo.InvariantCulture);
             }
 
             // check for aliases.
@@ -879,13 +881,13 @@ namespace Opc.Ua
                 {
                     if (Utils.AreDomainsEqual(hostname, entry.Aliases[ii]))
                     {
-                        return computerName.ToUpper();
+                        return computerName.ToUpper(CultureInfo.InvariantCulture);
                     }
                 }
             }
 
             // return normalized hostname.
-            return hostname.ToUpper();
+            return hostname.ToUpper(CultureInfo.InvariantCulture);
         }
 
         /// <summary>
