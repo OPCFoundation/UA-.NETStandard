@@ -40,12 +40,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The nodeId of the data type.
         /// </summary>
-        public ExpandedNodeId nodeId;
+        public ExpandedNodeId NodeId { get; }
 
         /// <summary>
         /// The name of the data type.
         /// </summary>
-        public string typeName;
+        public string TypeName { get; }
 
         /// <summary>
         /// Create the exception.
@@ -53,7 +53,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="nodeId">The nodeId of the data type.</param>
         public DataTypeNotFoundException(ExpandedNodeId nodeId)
         {
-            this.nodeId = nodeId;
+            this.NodeId = nodeId;
         }
 
         /// <summary>
@@ -64,8 +64,8 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataTypeNotFoundException(string typeName, string message)
             : base(message)
         {
-            this.nodeId = NodeId.Null;
-            this.typeName = typeName;
+            this.NodeId = Ua.NodeId.Null;
+            this.TypeName = typeName;
         }
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataTypeNotFoundException(ExpandedNodeId nodeId, string message)
             : base(message)
         {
-            this.nodeId = nodeId;
+            this.NodeId = nodeId;
         }
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataTypeNotFoundException(ExpandedNodeId nodeId, string message, Exception inner)
             : base(message, inner)
         {
-            this.nodeId = nodeId;
+            this.NodeId = nodeId;
         }
     }
 
@@ -101,12 +101,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The nodeId of the data type.
         /// </summary>
-        public ExpandedNodeId nodeId;
+        public ExpandedNodeId NodeId { get; }
 
         /// <summary>
         /// The name of the data type.
         /// </summary>
-        public string typeName;
+        public string TypeName { get; }
 
         /// <summary>
         /// Create the exception.
@@ -114,7 +114,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="nodeId">The nodeId of the data type.</param>
         public DataTypeNotSupportedException(ExpandedNodeId nodeId)
         {
-            this.nodeId = nodeId;
+            this.NodeId = nodeId;
         }
 
         /// <summary>
@@ -125,8 +125,8 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataTypeNotSupportedException(string typeName, string message)
             : base(message)
         {
-            this.nodeId = NodeId.Null;
-            this.typeName = typeName;
+            this.NodeId = Ua.NodeId.Null;
+            this.TypeName = typeName;
         }
 
         /// <summary>
@@ -137,7 +137,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataTypeNotSupportedException(ExpandedNodeId nodeId, string message)
             : base(message)
         {
-            this.nodeId = nodeId;
+            this.NodeId = nodeId;
         }
 
         /// <summary>
@@ -149,7 +149,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataTypeNotSupportedException(ExpandedNodeId nodeId, string message, Exception inner)
             : base(message, inner)
         {
-            this.nodeId = nodeId;
+            this.NodeId = nodeId;
         }
     }
 }//namespace

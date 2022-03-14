@@ -43,8 +43,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
     [Parallelizable]
     public class BuiltInTests
     {
-        protected const int RandomStart = 4840;
-        protected const int RandomRepeats = 100;
+        protected const int kRandomStart = 4840;
+        protected const int kRandomRepeats = 100;
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
 
@@ -63,7 +63,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         protected void SetUp()
         {
             // ensure tests are reproducible, reset for every test
-            RandomSource = new RandomSource(RandomStart);
+            RandomSource = new RandomSource(kRandomStart);
             DataGenerator = new DataGenerator(RandomSource);
         }
 
@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         protected void SetRepeatedRandomSeed()
         {
-            int randomSeed = TestContext.CurrentContext.Random.Next() + RandomStart;
+            int randomSeed = TestContext.CurrentContext.Random.Next() + kRandomStart;
             RandomSource = new RandomSource(randomSeed);
             DataGenerator = new DataGenerator(RandomSource);
         }
@@ -87,14 +87,14 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         protected void SetRandomSeed(int randomSeed)
         {
-            RandomSource = new RandomSource(randomSeed + RandomStart);
+            RandomSource = new RandomSource(randomSeed + kRandomStart);
             DataGenerator = new DataGenerator(RandomSource);
         }
         #endregion
 
         #region DataPointSources
         [DatapointSource]
-        public static BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
+        public static readonly BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
             .ToList().Where(b => (b > BuiltInType.Null) && (b < BuiltInType.DataValue)).ToArray();
         #endregion
 
@@ -103,7 +103,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// Initialize Variant with BuiltInType Scalar.
         /// </summary>
         [Theory]
-        [Category("BuiltInType"), Repeat(RandomRepeats)]
+        [Category("BuiltInType"), Repeat(kRandomRepeats)]
         public void VariantScalarFromBuiltInType(BuiltInType builtInType)
         {
             SetRepeatedRandomSeed();
@@ -116,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// Initialize Variant with BuiltInType Array.
         /// </summary>
         [Theory]
-        [Category("BuiltInType"), Repeat(RandomRepeats)]
+        [Category("BuiltInType"), Repeat(kRandomRepeats)]
         public void VariantArrayFromBuiltInType(BuiltInType builtInType, bool useBoundaryValues)
         {
             SetRepeatedRandomSeed();

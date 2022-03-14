@@ -96,12 +96,12 @@ namespace Opc.Ua.Bindings
         {
             add
             {
-                m_internalComplete += value;
+                m_InternalComplete += value;
                 m_args.Completed += OnComplete;
             }
             remove
             {
-                m_internalComplete -= value;
+                m_InternalComplete -= value;
                 m_args.Completed -= OnComplete;
             }
         }
@@ -114,7 +114,7 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            m_internalComplete(this, e.UserToken as IMessageSocketAsyncEventArgs);
+            m_InternalComplete(this, e.UserToken as IMessageSocketAsyncEventArgs);
         }
 
         /// <inheritdoc/>
@@ -136,7 +136,7 @@ namespace Opc.Ua.Bindings
         public SocketAsyncEventArgs Args => m_args;
 
         private SocketAsyncEventArgs m_args;
-        private event EventHandler<IMessageSocketAsyncEventArgs> m_internalComplete;
+        private event EventHandler<IMessageSocketAsyncEventArgs> m_InternalComplete;
     }
 
     /// <summary>
@@ -241,7 +241,7 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpMessageSocket : IMessageSocket
     {
-        private static readonly int DefaultRetryNextAddressTimeout = 1000;
+        private static readonly int s_defaultRetryNextAddressTimeout = 1000;
 
         #region Constructors
         /// <summary>
@@ -291,6 +291,7 @@ namespace Opc.Ua.Bindings
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -336,7 +337,11 @@ namespace Opc.Ua.Bindings
             try
             {
                 // Get DNS host information
+#if NET6_0_OR_GREATER
+                hostAdresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost, cts).ConfigureAwait(false);
+#else
                 hostAdresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost).ConfigureAwait(false);
+#endif
             }
             catch (SocketException e)
             {
@@ -405,7 +410,7 @@ namespace Opc.Ua.Bindings
                 moreAddresses = addressesV6.Length > arrayV6Index || addressesV4.Length > arrayV4Index;
                 if (moreAddresses && !m_tcs.Task.IsCompleted)
                 {
-                    await Task.Delay(DefaultRetryNextAddressTimeout, cts).ContinueWith(tsk => {
+                    await Task.Delay(s_defaultRetryNextAddressTimeout, cts).ContinueWith(tsk => {
                         if (tsk.IsCanceled)
                         {
                             moreAddresses = false;
