@@ -88,16 +88,6 @@ namespace Opc.Ua.Client.Tests
         {
             return base.TearDown();
         }
-
-        /// <summary>
-        /// Tear down the Server and the Client.
-        /// </summary>
-        [TearDown]
-        public void TearDownAsync()
-        {
-            Session.Close(100);
-            Session.Dispose();
-        }
         #endregion
 
         #region Test Methods
