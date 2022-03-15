@@ -1,4 +1,4 @@
-name: Build and Test
+name: Build and Test .NET 6.0
 
 on:
   push:
@@ -9,9 +9,6 @@ on:
     - '**.csproj'
 
 env:
-  # DOTNET_VERSION: '6.0.x' # The .NET SDK version to use
-  CONFIGURATION: 'Release'
-  # FRAMEWORK: 'net6.0'
   ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
 
 jobs:
@@ -58,7 +55,7 @@ jobs:
         name: codecov-umbrella
         #token: ${{ secrets.CODECOV_TOKEN }}
         directory: "TestResults-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
-        env_vars: OS,DOTNET_VERSION
+        env_vars: matrix.os,matrix.dotnet-version,matrix.configuration
         fail_ci_if_error: false
         path_to_write_report: "./coverage/codecov_report-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}/"
         verbose: true      
