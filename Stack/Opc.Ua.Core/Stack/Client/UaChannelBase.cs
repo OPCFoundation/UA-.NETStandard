@@ -130,7 +130,7 @@ namespace Opc.Ua
                     return m_uaBypassChannel.SupportedFeatures;
                 }
 
-                return TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest | 
+                return TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest |
                     TransportChannelFeatures.BeginClose | TransportChannelFeatures.SendRequestAsync;
             }
         }

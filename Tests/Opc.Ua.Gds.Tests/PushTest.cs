@@ -393,7 +393,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.IsNotNull(csr);
             TestContext.Out.WriteLine("Start Signing Request");
             NodeId requestId = m_gdsClient.GDSClient.StartSigningRequest(
-                _applicationRecord.ApplicationId,
+                m_applicationRecord.ApplicationId,
                 null,
                 null,
                 csr);
@@ -408,7 +408,7 @@ namespace Opc.Ua.Gds.Tests
                 {
                     TestContext.Out.WriteLine("Finish Signing Request");
                     certificate = m_gdsClient.GDSClient.FinishRequest(
-                        _applicationRecord.ApplicationId,
+                        m_applicationRecord.ApplicationId,
                         requestId,
                         out privateKey,
                         out issuerCertificates);
@@ -470,8 +470,8 @@ namespace Opc.Ua.Gds.Tests
             }
 
             X509Certificate2 newCert = CertificateFactory.CreateCertificate(
-                _applicationRecord.ApplicationUri,
-                _applicationRecord.ApplicationNames[0].Text,
+                m_applicationRecord.ApplicationUri,
+                m_applicationRecord.ApplicationNames[0].Text,
                 m_selfSignedServerCert.Subject,
                 null).CreateForRSA();
 
@@ -528,7 +528,7 @@ namespace Opc.Ua.Gds.Tests
             }
 
             NodeId requestId = m_gdsClient.GDSClient.StartNewKeyPairRequest(
-                _applicationRecord.ApplicationId,
+                m_applicationRecord.ApplicationId,
                 null,
                 null,
                 m_selfSignedServerCert.Subject,
@@ -547,7 +547,7 @@ namespace Opc.Ua.Gds.Tests
                 {
                     Thread.Sleep(500);
                     certificate = m_gdsClient.GDSClient.FinishRequest(
-                        _applicationRecord.ApplicationId,
+                        m_applicationRecord.ApplicationId,
                         requestId,
                         out privateKey,
                         out issuerCertificates);
@@ -652,11 +652,11 @@ namespace Opc.Ua.Gds.Tests
 
         private void RegisterPushServerApplication(string discoveryUrl)
         {
-            if (_applicationRecord == null && discoveryUrl != null)
+            if (m_applicationRecord == null && discoveryUrl != null)
             {
                 EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_gdsClient.Configuration, discoveryUrl, true);
                 ApplicationDescription description = endpointDescription.Server;
-                _applicationRecord = new ApplicationRecordDataType {
+                m_applicationRecord = new ApplicationRecordDataType {
                     ApplicationNames = new LocalizedTextCollection { description.ApplicationName },
                     ApplicationUri = description.ApplicationUri,
                     ApplicationType = description.ApplicationType,
@@ -665,11 +665,11 @@ namespace Opc.Ua.Gds.Tests
                     ServerCapabilities = new StringCollection { "NA" },
                 };
             }
-            Assert.IsNotNull(_applicationRecord);
-            Assert.IsNull(_applicationRecord.ApplicationId);
-            NodeId id = m_gdsClient.GDSClient.RegisterApplication(_applicationRecord);
+            Assert.IsNotNull(m_applicationRecord);
+            Assert.IsNull(m_applicationRecord.ApplicationId);
+            NodeId id = m_gdsClient.GDSClient.RegisterApplication(m_applicationRecord);
             Assert.IsNotNull(id);
-            _applicationRecord.ApplicationId = id;
+            m_applicationRecord.ApplicationId = id;
 
             // add issuer and trusted certs to client stores
             NodeId trustListId = m_gdsClient.GDSClient.GetTrustList(id, null);
@@ -682,8 +682,8 @@ namespace Opc.Ua.Gds.Tests
 
         private void UnRegisterPushServerApplication()
         {
-            m_gdsClient.GDSClient.UnregisterApplication(_applicationRecord.ApplicationId);
-            _applicationRecord.ApplicationId = null;
+            m_gdsClient.GDSClient.UnregisterApplication(m_applicationRecord.ApplicationId);
+            m_applicationRecord.ApplicationId = null;
         }
 
         private void VerifyNewPushServerCert(byte[] certificate)
@@ -919,7 +919,7 @@ namespace Opc.Ua.Gds.Tests
         private GlobalDiscoveryTestClient m_gdsClient;
         private ServerConfigurationPushTestClient m_pushClient;
         private ServerCapabilities m_serverCapabilities;
-        private ApplicationRecordDataType _applicationRecord;
+        private ApplicationRecordDataType m_applicationRecord;
         private X509Certificate2 m_selfSignedServerCert;
         private string[] m_domainNames;
         private X509Certificate2 m_caCert;

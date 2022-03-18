@@ -156,8 +156,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteBoolean("Boolean", true);
                 encoder.WriteUInt64("UInt64", 1234566890);
                 encoder.WriteString("String", "The quick brown fox...");
-                encoder.WriteNodeId("NodeId", m_nodeId);
-                encoder.WriteInt32Array("Array", m_list);
+                encoder.WriteNodeId("NodeId", s_nodeId);
+                encoder.WriteInt32Array("Array", s_list);
             }
         }
         #endregion
@@ -208,8 +208,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #endregion
 
         #region Private Fields
-        private static NodeId m_nodeId = new NodeId(1234);
-        private static IList<Int32> m_list = new List<Int32>() { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+        private static NodeId s_nodeId = new NodeId(1234);
+        private static IList<Int32> s_list = new List<Int32>() { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
         private IServiceMessageContext m_context;
         private MemoryStream m_memoryStream;
         private Microsoft.IO.RecyclableMemoryStreamManager m_memoryManager;

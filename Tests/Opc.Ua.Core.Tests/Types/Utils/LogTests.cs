@@ -98,6 +98,7 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                     Utils.Tracing.TraceEventHandler -= this.TraceEventHandler;
                     m_disposed = true;
                 }
+                GC.SuppressFinalize(this);
             }
 
             /// <summary>
