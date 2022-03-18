@@ -49,8 +49,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
     [NonParallelizable]
     public class TypeSystemClientTest
     {
-        const int MaxReferences = 100;
-        const int MaxTimeout = 10000;
+        const int kMaxReferences = 100;
+        const int kMaxTimeout = 10000;
         ServerFixture<ReferenceServer> m_serverFixture;
         ClientFixture m_clientFixture;
         ReferenceServer m_server;
@@ -92,7 +92,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_serverFixture = new ServerFixture<ReferenceServer> {
                 UriScheme = m_uriScheme,
                 SecurityNone = true,
-                AutoAccept = true
+                AutoAccept = true,
+                AllNodeManagers = true,
             };
             if (writer != null)
             {

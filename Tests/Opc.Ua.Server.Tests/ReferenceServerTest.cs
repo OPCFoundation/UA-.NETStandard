@@ -47,8 +47,8 @@ namespace Opc.Ua.Server.Tests
     [DisassemblyDiagnoser]
     public class ReferenceServerTests
     {
-        const double MaxAge = 10000;
-        const uint TimeoutHint = 10000;
+        const double kMaxAge = 10000;
+        const uint kTimeoutHint = 10000;
         ServerFixture<ReferenceServer> m_fixture;
         ReferenceServer m_server;
         RequestHeader m_requestHeader;
@@ -63,8 +63,10 @@ namespace Opc.Ua.Server.Tests
         public async Task OneTimeSetUp()
         {
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer>();
-            m_fixture.OperationLimits = true;
+            m_fixture = new ServerFixture<ReferenceServer>() {
+                AllNodeManagers = true,
+                OperationLimits = true
+            };
             m_server = await m_fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
         }
 
@@ -87,7 +89,7 @@ namespace Opc.Ua.Server.Tests
             m_fixture.SetTraceOutput(TestContext.Out);
             m_requestHeader = m_server.CreateAndActivateSession(TestContext.CurrentContext.Test.Name);
             m_requestHeader.Timestamp = DateTime.UtcNow;
-            m_requestHeader.TimeoutHint = TimeoutHint;
+            m_requestHeader.TimeoutHint = kTimeoutHint;
         }
 
         /// <summary>
@@ -110,7 +112,7 @@ namespace Opc.Ua.Server.Tests
         public void GlobalSetup()
         {
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer>();
+            m_fixture = new ServerFixture<ReferenceServer>() { AllNodeManagers = true };
             m_server = m_fixture.StartAsync(null).GetAwaiter().GetResult();
             m_requestHeader = m_server.CreateAndActivateSession("Bench");
         }
@@ -173,7 +175,7 @@ namespace Opc.Ua.Server.Tests
 
             var requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTime.UtcNow;
-            var response = m_server.Read(requestHeader, MaxAge, TimestampsToReturn.Neither, readIdCollection, out var results, out var diagnosticInfos);
+            var response = m_server.Read(requestHeader, kMaxAge, TimestampsToReturn.Neither, readIdCollection, out var results, out var diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, results);
 
@@ -212,7 +214,7 @@ namespace Opc.Ua.Server.Tests
             {
                 nodesToRead.Add(new ReadValueId() { NodeId = nodeId, AttributeId = attributeId });
             }
-            var response = m_server.Read(requestHeader, MaxAge, TimestampsToReturn.Neither, nodesToRead,
+            var response = m_server.Read(requestHeader, kMaxAge, TimestampsToReturn.Neither, nodesToRead,
                 out var dataValues, out var diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, dataValues);
@@ -246,7 +248,7 @@ namespace Opc.Ua.Server.Tests
                     nodesToRead.Add(new ReadValueId() { NodeId = nodeId, AttributeId = attributeId });
                 }
                 TestContext.Out.WriteLine("NodeId {0} {1}", reference.NodeId, reference.BrowseName);
-                var response = m_server.Read(requestHeader, MaxAge, TimestampsToReturn.Both, nodesToRead,
+                var response = m_server.Read(requestHeader, kMaxAge, TimestampsToReturn.Both, nodesToRead,
                     out var dataValues, out var diagnosticInfos);
                 ServerFixtureUtils.ValidateResponse(response);
                 ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, dataValues);

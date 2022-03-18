@@ -105,8 +105,7 @@ namespace Opc.Ua.Gds.Client
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
-            FindServersData data = new FindServersData(callback, callbackData, client.OperationTimeout)
-            {
+            FindServersData data = new FindServersData(callback, callbackData, client.OperationTimeout) {
                 DiscoveryClient = client
             };
 
@@ -127,7 +126,7 @@ namespace Opc.Ua.Gds.Client
 
             if (data == null)
             {
-                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", "success");
+                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
 
             try
@@ -201,8 +200,7 @@ namespace Opc.Ua.Gds.Client
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
-            GetEndpointsData data = new GetEndpointsData(callback, callbackData, client.OperationTimeout)
-            {
+            GetEndpointsData data = new GetEndpointsData(callback, callbackData, client.OperationTimeout) {
                 DiscoveryClient = client
             };
 
@@ -223,7 +221,7 @@ namespace Opc.Ua.Gds.Client
 
             if (data == null)
             {
-                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", "success");
+                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
 
             try
@@ -318,8 +316,7 @@ namespace Opc.Ua.Gds.Client
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
-            FindServersOnNetworkData data = new FindServersOnNetworkData(callback, callbackData, client.OperationTimeout)
-            {
+            FindServersOnNetworkData data = new FindServersOnNetworkData(callback, callbackData, client.OperationTimeout) {
                 DiscoveryClient = client
             };
 
@@ -340,7 +337,7 @@ namespace Opc.Ua.Gds.Client
 
             if (data == null)
             {
-                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", "success");
+                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
 
             try
@@ -404,7 +401,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (String.IsNullOrEmpty(endpointUrl))
             {
-                endpointUrl = DefaultUrl;
+                endpointUrl = kDefaultUrl;
             }
 
             if (!Uri.IsWellFormedUriString(endpointUrl, UriKind.Absolute))
@@ -433,7 +430,7 @@ namespace Opc.Ua.Gds.Client
         #endregion
 
         #region Private Fields
-        private const string DefaultUrl = "opc.tcp://localhost:4840";
+        private const string kDefaultUrl = "opc.tcp://localhost:4840";
         #endregion
     }
 }

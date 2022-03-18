@@ -174,7 +174,7 @@ namespace Opc.Ua.Client
             NodeClass = NodeClass.Variable;
 
             // assign a unique handle.
-            m_clientHandle = Utils.IncrementIdentifier(ref s_GlobalClientHandle);
+            m_clientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
         }
         #endregion
 
@@ -746,13 +746,15 @@ namespace Opc.Ua.Client
         /// </summary>
         public void SetTransferResult(uint clientHandle)
         {
+            // ensure the global counter is not duplicating future handle ids
+            Utils.LowerLimitIdentifier(ref s_globalClientHandle, clientHandle);
             m_clientHandle = clientHandle;  
             m_status.SetTransferResult(this);
             m_attributesModified = false;
         }
 
         /// <summary>
-        /// Updates the object with the results of a modify monitored item request.
+        /// Updates the object with the results of a delete monitored item request.
         /// </summary>
         public void SetDeleteResult(
             StatusCode result,
@@ -1078,7 +1080,7 @@ namespace Opc.Ua.Client
         private uint m_clientHandle;
         private MonitoredItemStatus m_status;
         private bool m_attributesModified;
-        private static long s_GlobalClientHandle;
+        private static long s_globalClientHandle;
 
         private object m_cache = new object();
         private MonitoredItemDataCache m_dataCache;

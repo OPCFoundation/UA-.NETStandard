@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.Xml;
 using System.Threading;
@@ -35,6 +36,7 @@ using System.Numerics;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Range = Opc.Ua.Range;
+using Opc.Ua.Test;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -75,6 +77,7 @@ namespace Quickstarts.ReferenceServer
             {
                 // TBD
             }
+            base.Dispose(disposing);
         }
         #endregion
 
@@ -193,6 +196,7 @@ namespace Quickstarts.ReferenceServer
                 try
                 {
                     #region Scalar_Static
+                    ResetRandomGenerator(1);
                     FolderState scalarFolder = CreateFolder(root, "Scalar", "Scalar");
                     BaseDataVariableState scalarInstructions = CreateVariable(scalarFolder, "Scalar_Instructions", "Scalar_Instructions", DataTypeIds.String, ValueRanks.Scalar);
                     scalarInstructions.Value = "A library of Read/Write Variables of all supported data-types.";
@@ -206,7 +210,7 @@ namespace Quickstarts.ReferenceServer
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "DateTime", "DateTime", DataTypeIds.DateTime, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "Double", "Double", DataTypeIds.Double, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "Duration", "Duration", DataTypeIds.Duration, ValueRanks.Scalar));
-                    variables.Add(CreateVariable(staticFolder, scalarStatic + "Float", "Float", DataTypeIds.Float, ValueRanks.Scalar));
+                    variables.Add(CreateVariable(staticFolder, scalarStatic + "Float", "Float", DataTypeIds.Float, ValueRanks.Scalar).MinimumSamplingInterval(100));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "Guid", "Guid", DataTypeIds.Guid, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "Int16", "Int16", DataTypeIds.Int16, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "Int32", "Int32", DataTypeIds.Int32, ValueRanks.Scalar));
@@ -225,7 +229,7 @@ namespace Quickstarts.ReferenceServer
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "UInteger", "UInteger", DataTypeIds.UInteger, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "UtcTime", "UtcTime", DataTypeIds.UtcTime, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "Variant", "Variant", BuiltInType.Variant, ValueRanks.Scalar));
-                    variables.Add(CreateVariable(staticFolder, scalarStatic + "XmlElement", "XmlElement", DataTypeIds.XmlElement, ValueRanks.Scalar));
+                    variables.Add(CreateVariable(staticFolder, scalarStatic + "XmlElement", "XmlElement", DataTypeIds.XmlElement, ValueRanks.Scalar).MinimumSamplingInterval(1000));
 
                     BaseDataVariableState decimalVariable = CreateVariable(staticFolder, scalarStatic + "Decimal", "Decimal", DataTypeIds.DecimalDataType, ValueRanks.Scalar);
                     // Set an arbitrary precision decimal value.
@@ -239,6 +243,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region Scalar_Static_Arrays
+                    ResetRandomGenerator(2);
                     FolderState arraysFolder = CreateFolder(staticFolder, "Scalar_Static_Arrays", "Arrays");
                     const string staticArrays = "Scalar_Static_Arrays_";
 
@@ -303,6 +308,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region Scalar_Static_Arrays2D
+                    ResetRandomGenerator(3);
                     FolderState arrays2DFolder = CreateFolder(staticFolder, "Scalar_Static_Arrays2D", "Arrays2D");
                     const string staticArrays2D = "Scalar_Static_Arrays2D_";
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "Boolean", "Boolean", DataTypeIds.Boolean, ValueRanks.TwoDimensions));
@@ -318,7 +324,7 @@ namespace Quickstarts.ReferenceServer
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "Int64", "Int64", DataTypeIds.Int64, ValueRanks.TwoDimensions));
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "Integer", "Integer", DataTypeIds.Integer, ValueRanks.TwoDimensions));
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "LocaleId", "LocaleId", DataTypeIds.LocaleId, ValueRanks.TwoDimensions));
-                    variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "LocalizedText", "LocalizedText", DataTypeIds.LocalizedText, ValueRanks.TwoDimensions));
+                    variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "LocalizedText", "LocalizedText", DataTypeIds.LocalizedText, ValueRanks.TwoDimensions).MinimumSamplingInterval(1000));
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "NodeId", "NodeId", DataTypeIds.NodeId, ValueRanks.TwoDimensions));
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "Number", "Number", DataTypeIds.Number, ValueRanks.TwoDimensions));
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "QualifiedName", "QualifiedName", DataTypeIds.QualifiedName, ValueRanks.TwoDimensions));
@@ -330,10 +336,11 @@ namespace Quickstarts.ReferenceServer
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "UInteger", "UInteger", DataTypeIds.UInteger, ValueRanks.TwoDimensions));
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "UtcTime", "UtcTime", DataTypeIds.UtcTime, ValueRanks.TwoDimensions));
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "Variant", "Variant", BuiltInType.Variant, ValueRanks.TwoDimensions));
-                    variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "XmlElement", "XmlElement", DataTypeIds.XmlElement, ValueRanks.TwoDimensions));
+                    variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "XmlElement", "XmlElement", DataTypeIds.XmlElement, ValueRanks.TwoDimensions).MinimumSamplingInterval(1000));
                     #endregion
 
                     #region Scalar_Static_ArrayDynamic
+                    ResetRandomGenerator(4);
                     FolderState arrayDynamicFolder = CreateFolder(staticFolder, "Scalar_Static_ArrayDynamic", "ArrayDynamic");
                     const string staticArraysDynamic = "Scalar_Static_ArrayDynamic_";
                     variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "Boolean", "Boolean", DataTypeIds.Boolean, ValueRanks.OneOrMoreDimensions));
@@ -349,10 +356,10 @@ namespace Quickstarts.ReferenceServer
                     variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "Int64", "Int64", DataTypeIds.Int64, ValueRanks.OneOrMoreDimensions));
                     variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "Integer", "Integer", DataTypeIds.Integer, ValueRanks.OneOrMoreDimensions));
                     variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "LocaleId", "LocaleId", DataTypeIds.LocaleId, ValueRanks.OneOrMoreDimensions));
-                    variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "LocalizedText", "LocalizedText", DataTypeIds.LocalizedText, ValueRanks.OneOrMoreDimensions));
+                    variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "LocalizedText", "LocalizedText", DataTypeIds.LocalizedText, ValueRanks.OneOrMoreDimensions).MinimumSamplingInterval(1000));
                     variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "NodeId", "NodeId", DataTypeIds.NodeId, ValueRanks.OneOrMoreDimensions));
                     variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "Number", "Number", DataTypeIds.Number, ValueRanks.OneOrMoreDimensions));
-                    variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "QualifiedName", "QualifiedName", DataTypeIds.QualifiedName, ValueRanks.OneOrMoreDimensions));
+                    variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "QualifiedName", "QualifiedName", DataTypeIds.QualifiedName, ValueRanks.OneOrMoreDimensions).MinimumSamplingInterval(1000));
                     variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "SByte", "SByte", DataTypeIds.SByte, ValueRanks.OneOrMoreDimensions));
                     variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "String", "String", DataTypeIds.String, ValueRanks.OneOrMoreDimensions));
                     variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "UInt16", "UInt16", DataTypeIds.UInt16, ValueRanks.OneOrMoreDimensions));
@@ -361,10 +368,11 @@ namespace Quickstarts.ReferenceServer
                     variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "UInteger", "UInteger", DataTypeIds.UInteger, ValueRanks.OneOrMoreDimensions));
                     variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "UtcTime", "UtcTime", DataTypeIds.UtcTime, ValueRanks.OneOrMoreDimensions));
                     variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "Variant", "Variant", BuiltInType.Variant, ValueRanks.OneOrMoreDimensions));
-                    variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "XmlElement", "XmlElement", DataTypeIds.XmlElement, ValueRanks.OneOrMoreDimensions));
+                    variables.Add(CreateVariable(arrayDynamicFolder, staticArraysDynamic + "XmlElement", "XmlElement", DataTypeIds.XmlElement, ValueRanks.OneOrMoreDimensions).MinimumSamplingInterval(1000));
                     #endregion
 
                     #region Scalar_Static_Mass
+                    ResetRandomGenerator(5);
                     // create 100 instances of each static scalar type
                     FolderState massFolder = CreateFolder(staticFolder, "Scalar_Static_Mass", "Mass");
                     const string staticMass = "Scalar_Static_Mass_";
@@ -395,6 +403,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region Scalar_Simulation
+                    ResetRandomGenerator(6);
                     FolderState simulationFolder = CreateFolder(scalarFolder, "Scalar_Simulation", "Simulation");
                     const string scalarSimulation = "Scalar_Simulation_";
                     CreateDynamicVariable(simulationFolder, scalarSimulation + "Boolean", "Boolean", DataTypeIds.Boolean, ValueRanks.Scalar);
@@ -434,6 +443,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region Scalar_Simulation_Arrays
+                    ResetRandomGenerator(7);
                     FolderState arraysSimulationFolder = CreateFolder(simulationFolder, "Scalar_Simulation_Arrays", "Arrays");
                     const string simulationArrays = "Scalar_Simulation_Arrays_";
                     CreateDynamicVariable(arraysSimulationFolder, simulationArrays + "Boolean", "Boolean", DataTypeIds.Boolean, ValueRanks.OneDimension);
@@ -465,6 +475,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region Scalar_Simulation_Mass
+                    ResetRandomGenerator(8);
                     FolderState massSimulationFolder = CreateFolder(simulationFolder, "Scalar_Simulation_Mass", "Mass");
                     const string massSimulation = "Scalar_Simulation_Mass_";
                     CreateDynamicVariables(massSimulationFolder, massSimulation + "Boolean", "Boolean", DataTypeIds.Boolean, ValueRanks.Scalar, 100);
@@ -496,6 +507,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region DataAccess_DataItem
+                    ResetRandomGenerator(9);
                     FolderState daFolder = CreateFolder(root, "DataAccess", "DataAccess");
                     BaseDataVariableState daInstructions = CreateVariable(daFolder, "DataAccess_Instructions", "Instructions", DataTypeIds.String, ValueRanks.Scalar);
                     daInstructions.Value = "A library of Read/Write Variables of all supported data-types.";
@@ -517,6 +529,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region DataAccess_AnalogType
+                    ResetRandomGenerator(10);
                     FolderState analogItemFolder = CreateFolder(daFolder, "DataAccess_AnalogType", "AnalogType");
                     const string daAnalogItem = "DataAccess_AnalogType_";
 
@@ -550,6 +563,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region DataAccess_AnalogType_Array
+                    ResetRandomGenerator(11);
                     FolderState analogArrayFolder = CreateFolder(analogItemFolder, "DataAccess_AnalogType_Array", "Array");
                     const string daAnalogArray = "DataAccess_AnalogType_Array_";
 
@@ -583,6 +597,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region DataAccess_DiscreteType
+                    ResetRandomGenerator(12);
                     FolderState discreteTypeFolder = CreateFolder(daFolder, "DataAccess_DiscreteType", "DiscreteType");
                     FolderState twoStateDiscreteFolder = CreateFolder(discreteTypeFolder, "DataAccess_TwoStateDiscreteType", "TwoStateDiscreteType");
                     const string daTwoStateDiscrete = "DataAccess_TwoStateDiscreteType_";
@@ -606,6 +621,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region DataAccess_MultiStateValueDiscreteType
+                    ResetRandomGenerator(13);
                     FolderState multiStateValueDiscreteFolder = CreateFolder(discreteTypeFolder, "DataAccess_MultiStateValueDiscreteType", "MultiStateValueDiscreteType");
                     const string daMultiStateValueDiscrete = "DataAccess_MultiStateValueDiscreteType_";
 
@@ -629,6 +645,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region References
+                    ResetRandomGenerator(14);
                     FolderState referencesFolder = CreateFolder(root, "References", "References");
                     const string referencesPrefix = "References_";
 
@@ -675,6 +692,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region AccessRights
+                    ResetRandomGenerator(15);
                     FolderState folderAccessRights = CreateFolder(root, "AccessRights", "AccessRights");
                     const string accessRights = "AccessRights_";
 
@@ -827,6 +845,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region NodeIds
+                    ResetRandomGenerator(16);
                     FolderState nodeIdsFolder = CreateFolder(root, "NodeIds", "NodeIds");
                     const string nodeIds = "NodeIds_";
 
@@ -850,6 +869,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region Methods
+                    ResetRandomGenerator(17);
                     FolderState methodsFolder = CreateFolder(root, "Methods", "Methods");
                     const string methods = "Methods_";
 
@@ -1082,14 +1102,20 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region Views
+                    ResetRandomGenerator(18);
                     FolderState viewsFolder = CreateFolder(root, "Views", "Views");
                     const string views = "Views_";
-
                     ViewState viewStateOperations = CreateView(viewsFolder, externalReferences, views + "Operations", "Operations");
+                    viewStateOperations.AddReference(ReferenceTypes.Organizes, false, massFolder.NodeId);
+                    massFolder.AddReference(ReferenceTypes.Organizes, true, viewStateOperations.NodeId);
+
                     ViewState viewStateEngineering = CreateView(viewsFolder, externalReferences, views + "Engineering", "Engineering");
+                    viewStateEngineering.AddReference(ReferenceTypes.Organizes, false, simulationFolder.NodeId);
+                    simulationFolder.AddReference(ReferenceTypes.Organizes, true, viewStateEngineering.NodeId);
                     #endregion
 
                     #region Locales
+                    ResetRandomGenerator(19);
                     FolderState localesFolder = CreateFolder(root, "Locales", "Locales");
                     const string locales = "Locales_";
 
@@ -1176,6 +1202,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region Attributes
+                    ResetRandomGenerator(20);
                     FolderState folderAttributes = CreateFolder(root, "Attributes", "Attributes");
 
                     #region AccessAll
@@ -1412,6 +1439,7 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region MyCompany
+                    ResetRandomGenerator(21);
                     FolderState myCompanyFolder = CreateFolder(root, "MyCompany", "MyCompany");
                     const string myCompany = "MyCompany_";
 
@@ -1426,6 +1454,9 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 AddPredefinedNode(SystemContext, root);
+
+                // reset random generator and generate boundary values
+                ResetRandomGenerator(100, 1);
                 m_simulationTimer = new Timer(DoSimulation, null, 1000, 1000);
             }
         }
@@ -2164,7 +2195,6 @@ namespace Quickstarts.ReferenceServer
         private BaseDataVariableState CreateVariable(NodeState parent, string path, string name, NodeId dataType, int valueRank)
         {
             BaseDataVariableState variable = new BaseDataVariableState(parent);
-
             variable.SymbolicName = name;
             variable.ReferenceTypeId = ReferenceTypes.Organizes;
             variable.TypeDefinitionId = VariableTypeIds.BaseDataVariableType;
@@ -2613,13 +2643,16 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
+        private void ResetRandomGenerator(int seed, int boundaryValueFrequency = 0)
+        {
+            m_randomSource = new RandomSource(seed);
+            m_generator = new DataGenerator(m_randomSource);
+            m_generator.BoundaryValueFrequency = boundaryValueFrequency;
+        }
+
         private object GetNewValue(BaseVariableState variable)
         {
-            if (m_generator == null)
-            {
-                m_generator = new Opc.Ua.Test.DataGenerator(null);
-                m_generator.BoundaryValueFrequency = 0;
-            }
+            Debug.Assert(m_generator != null, "Need a random generator!");
 
             object value = null;
             int retryCount = 0;
@@ -2627,6 +2660,14 @@ namespace Quickstarts.ReferenceServer
             while (value == null && retryCount < 10)
             {
                 value = m_generator.GetRandom(variable.DataType, variable.ValueRank, new uint[] { 10 }, Server.TypeTree);
+                // skip Variant Null
+                if (value is Variant variant)
+                {
+                    if (variant.Value == null)
+                    {
+                        value = null;
+                    }
+                }
                 retryCount++;
             }
 
@@ -2639,10 +2680,11 @@ namespace Quickstarts.ReferenceServer
             {
                 lock (Lock)
                 {
+                    var timeStamp = DateTime.UtcNow;
                     foreach (BaseDataVariableState variable in m_dynamicNodes)
                     {
                         variable.Value = GetNewValue(variable);
-                        variable.Timestamp = DateTime.UtcNow;
+                        variable.Timestamp = timeStamp;
                         variable.ClearChangeMasks(SystemContext, false);
                     }
                 }
@@ -2725,11 +2767,21 @@ namespace Quickstarts.ReferenceServer
 
         #region Private Fields
         private ReferenceServerConfiguration m_configuration;
-        private Opc.Ua.Test.DataGenerator m_generator;
+        private RandomSource m_randomSource;
+        private DataGenerator m_generator;
         private Timer m_simulationTimer;
         private UInt16 m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
         private List<BaseDataVariableState> m_dynamicNodes;
         #endregion
+    }
+
+    public static class VariableExtensions
+    {
+        public static BaseDataVariableState MinimumSamplingInterval(this BaseDataVariableState variable, int minimumSamplingInterval)
+        {
+            variable.MinimumSamplingInterval = minimumSamplingInterval;
+            return variable;
+        }
     }
 }

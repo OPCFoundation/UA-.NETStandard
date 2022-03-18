@@ -15,6 +15,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -53,6 +54,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -524,6 +526,14 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <summary>
+        /// Creates an instance of the service host.
+        /// </summary>
+        public virtual ServiceHost CreateServiceHost(ServerBase server, params Uri[] addresses)
+        {
+            return null;
+        }
         #endregion
 
         #region BaseAddress Class
@@ -689,14 +699,6 @@ namespace Opc.Ua
 
         #region Protected Methods
         /// <summary>
-        /// Creates an instance of the service host.
-        /// </summary>
-        public virtual ServiceHost CreateServiceHost(ServerBase server, params Uri[] addresses)
-        {
-            return null;
-        }
-
-        /// <summary>
         /// Returns the service contract to use.
         /// </summary>
         protected virtual Type GetServiceContract()
@@ -849,7 +851,7 @@ namespace Opc.Ua
             // substitute the computer name for localhost if localhost used by client.
             if (Utils.AreDomainsEqual(hostname, "localhost"))
             {
-                return computerName.ToUpper();
+                return computerName.ToUpper(CultureInfo.InvariantCulture);
             }
 
             // check if client is using an ip address.
@@ -859,7 +861,7 @@ namespace Opc.Ua
             {
                 if (IPAddress.IsLoopback(address))
                 {
-                    return computerName.ToUpper();
+                    return computerName.ToUpper(CultureInfo.InvariantCulture);
                 }
 
                 // substitute the computer name for any local IP if an IP is used by client.
@@ -869,12 +871,12 @@ namespace Opc.Ua
                 {
                     if (addresses[ii].Equals(address))
                     {
-                        return computerName.ToUpper();
+                        return computerName.ToUpper(CultureInfo.InvariantCulture);
                     }
                 }
 
                 // not a localhost IP address.
-                return hostname.ToUpper();
+                return hostname.ToUpper(CultureInfo.InvariantCulture);
             }
 
             // check for aliases.
@@ -895,13 +897,13 @@ namespace Opc.Ua
                 {
                     if (Utils.AreDomainsEqual(hostname, entry.Aliases[ii]))
                     {
-                        return computerName.ToUpper();
+                        return computerName.ToUpper(CultureInfo.InvariantCulture);
                     }
                 }
             }
 
             // return normalized hostname.
-            return hostname.ToUpper();
+            return hostname.ToUpper(CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -1078,11 +1080,17 @@ namespace Opc.Ua
                         continue;
                     }
 
+                    if (endpointUrl.Port != baseAddress.Url.Port)
+                    {
+                        continue;
+                    }
+
                     EndpointDescription translation = new EndpointDescription();
 
                     translation.EndpointUrl = baseAddress.Url.ToString();
 
-                    if (endpointUrl.Path.StartsWith(baseAddress.Url.PathAndQuery) && endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length)
+                    if (endpointUrl.Path.StartsWith(baseAddress.Url.PathAndQuery, StringComparison.Ordinal) &&
+                        endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length)
                     {
                         string suffix = endpointUrl.Path.Substring(baseAddress.Url.PathAndQuery.Length);
                         translation.EndpointUrl += suffix;
@@ -1097,22 +1105,7 @@ namespace Opc.Ua
                     translation.UserIdentityTokens = endpoint.UserIdentityTokens;
                     translation.Server = application;
 
-                    // skip duplicates.
-                    bool duplicateFound = false;
-
-                    foreach (EndpointDescription existingTranslation in translations)
-                    {
-                        if (existingTranslation.IsEqual(translation))
-                        {
-                            duplicateFound = true;
-                            break;
-                        }
-                    }
-
-                    if (!duplicateFound)
-                    {
-                        translations.Add(translation);
-                    }
+                    translations.Add(translation);
                 }
             }
 

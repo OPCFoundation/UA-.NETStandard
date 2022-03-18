@@ -117,6 +117,7 @@ namespace Opc.Ua.Server
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -583,6 +584,17 @@ namespace Opc.Ua.Server
                 m_predefinedNodes = new NodeIdDictionary<NodeState>();
             }
 
+            // assign a default value to any variable in namespace 0
+            if (node is BaseVariableState nodeStateVar)
+            {
+                if (nodeStateVar.NodeId.NamespaceIndex == 0 && nodeStateVar.Value == null)
+                {
+                    nodeStateVar.Value = TypeInfo.GetDefaultValue(nodeStateVar.DataType,
+                        nodeStateVar.ValueRank,
+                        Server.TypeTree);
+                }
+            }
+
             NodeState activeNode = AddBehaviourToPredefinedNode(context, node);
             m_predefinedNodes[activeNode.NodeId] = activeNode;
 
@@ -991,7 +1003,7 @@ namespace Opc.Ua.Server
             NodeId referenceTypeId,
             bool isInverse,
             ExpandedNodeId targetId,
-            bool deleteBiDirectional)
+            bool deleteBidirectional)
         {
             lock (Lock)
             {
@@ -1012,7 +1024,7 @@ namespace Opc.Ua.Server
                 // only support references to Source Areas.
                 source.Node.RemoveReference(referenceTypeId, isInverse, targetId);
 
-                if (deleteBiDirectional)
+                if (deleteBidirectional)
                 {
                     // check if the target is also managed by this node manager.
                     if (!targetId.IsAbsolute)
@@ -3390,7 +3402,7 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             IList<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterResults,
+            IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
             ref long globalIdCounter)
         {
@@ -3473,7 +3485,7 @@ namespace Opc.Ua.Server
                 }
 
                 // save any filter error details.
-                filterResults[handle.Index] = filterResult;
+                filterErrors[handle.Index] = filterResult;
 
                 if (ServiceResult.IsBad(errors[handle.Index]))
                 {
@@ -3618,7 +3630,17 @@ namespace Opc.Ua.Server
                 0);
 
             // report the initial value.
-            ReadInitialValue(context, handle, datachangeItem);
+            error = ReadInitialValue(context, handle, datachangeItem);
+            if (ServiceResult.IsBad(error))
+            {
+                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
+                {
+                    return error;
+                }
+                error = StatusCodes.Good;
+            }
 
             // update monitored item list.
             monitoredItem = datachangeItem;
@@ -3881,7 +3903,7 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterResults)
+            IList<MonitoringFilterResult> filterErrors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             List<IMonitoredItem> modifiedItems = new List<IMonitoredItem>();
@@ -3922,7 +3944,7 @@ namespace Opc.Ua.Server
                         out filterResult);
 
                     // save any filter error details.
-                    filterResults[ii] = filterResult;
+                    filterErrors[ii] = filterResult;
 
                     // save the modified item.
                     if (ServiceResult.IsGood(errors[ii]))
@@ -4181,6 +4203,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
+            IList<IMonitoredItem> transferredItems = new List<IMonitoredItem>();
             lock (Lock)
             {
                 for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -4201,6 +4224,7 @@ namespace Opc.Ua.Server
                     // owned by this node manager.
                     processedItems[ii] = true;
                     var monitoredItem = monitoredItems[ii];
+                    transferredItems.Add(monitoredItem);
 
                     if (sendInitialValues && !monitoredItem.IsReadyToPublish)
                     {
@@ -4215,6 +4239,22 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+
+            // do any post processing.
+            OnMonitoredItemsTransferred(systemContext, transferredItems);
+        }
+
+        /// <summary>
+        /// Called after transfer of MonitoredItems.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="monitoredItems">The transferred monitored items.</param>
+        protected virtual void OnMonitoredItemsTransferred(
+            ServerSystemContext context,
+            IList<IMonitoredItem> monitoredItems
+            )
+        {
+            // defined by the sub-class
         }
 
         /// <summary>
@@ -4378,7 +4418,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes,
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
             bool permissionsOnly)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
@@ -4407,24 +4447,24 @@ namespace Opc.Ua.Server
                 NodeMetadata metadata = new NodeMetadata(target, target.NodeId);
 
                 // Treat the case of calls originating from the optimized services that use the cache (Read, Browse and Call services)
-                if (uniqueNodesServiceAttributes != null)
+                if (uniqueNodesServiceAttributesCache != null)
                 {
                     NodeId key = handle.NodeId;
-                    if (uniqueNodesServiceAttributes.ContainsKey(key))
+                    if (uniqueNodesServiceAttributesCache.ContainsKey(key))
                     {
-                        if (uniqueNodesServiceAttributes[key].Count == 0)
+                        if (uniqueNodesServiceAttributesCache[key].Count == 0)
                         {
-                            values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributes, systemContext, target, key);
+                            values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributesCache, systemContext, target, key);
                         }
                         else
                         {
                             // Retrieve value from cache
-                            values = uniqueNodesServiceAttributes[key];
+                            values = uniqueNodesServiceAttributesCache[key];
                         }
                     }
                     else
                     {
-                        values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributes, systemContext, target, key);
+                        values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributesCache, systemContext, target, key);
                     }
 
                     SetAccessAndRolePermissions(values, metadata);

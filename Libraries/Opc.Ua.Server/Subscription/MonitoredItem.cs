@@ -312,7 +312,7 @@ namespace Opc.Ua.Server
             {
                 if (m_readyToPublish)
                 {
-                    Utils.LogTrace("SetTriggered[{0}]", m_id);
+                    Utils.LogTrace(Utils.TraceMasks.OperationDetail, "SetTriggered[{0}]", m_id);
                     m_triggered = true;
                     return true;
                 }
@@ -740,7 +740,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the queue with a data value or an error.
         /// </summary>
-        public virtual void QueueValue(DataValue value, ServiceResult error, bool bypassFilter)
+        public virtual void QueueValue(DataValue value, ServiceResult error, bool ignoreFilters)
         {
             lock (m_lock)
             {
@@ -759,7 +759,7 @@ namespace Opc.Ua.Server
                 // make a shallow copy of the value.
                 if (value != null)
                 {
-                    Utils.LogTrace("RECEIVED VALUE[{0}] Value={1}", this.m_id, value.WrappedValue);
+                    Utils.LogTrace(Utils.TraceMasks.OperationDetail, "RECEIVED VALUE[{0}] Value={1}", this.m_id, value.WrappedValue);
 
                     DataValue copy = new DataValue();
 
@@ -802,7 +802,7 @@ namespace Opc.Ua.Server
                 {
                     if (!m_calculator.QueueRawValue(value))
                     {
-                        Utils.LogWarning("Value received out of order: {1}, ServerHandle={0}",
+                        Utils.LogTrace("Value received out of order: {1}, ServerHandle={0}",
                             m_id, value.SourceTimestamp.ToLocalTime().ToString("HH:mm:ss.fff"));
                     }
 
@@ -818,7 +818,7 @@ namespace Opc.Ua.Server
                 }
 
                 // apply filter to incoming item.
-                if (!m_alwaysReportUpdates && !bypassFilter)
+                if (!m_alwaysReportUpdates && !ignoreFilters)
                 {
                     if (!ApplyFilter(value, error))
                     {
@@ -1126,7 +1126,7 @@ namespace Opc.Ua.Server
                 // publish events.
                 if (m_events != null)
                 {
-                    Utils.LogTrace("MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
+                    Utils.LogTrace(Utils.TraceMasks.OperationDetail, "MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
 
                     EventFieldList overflowEvent = null;
 
@@ -1192,7 +1192,7 @@ namespace Opc.Ua.Server
                         notifications.Enqueue(overflowEvent);
                     }
 
-                    Utils.LogTrace("MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
+                    Utils.LogTrace(Utils.TraceMasks.OperationDetail, "MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
                 }
 
                 // reset state variables.
@@ -1267,7 +1267,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
-                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
+                    Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
 
                 // reset state variables.

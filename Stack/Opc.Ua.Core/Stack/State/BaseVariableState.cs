@@ -2624,7 +2624,7 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    
+
     /// <summary>
     /// Used to receive notifications when the value attribute is read or written.
     /// </summary>

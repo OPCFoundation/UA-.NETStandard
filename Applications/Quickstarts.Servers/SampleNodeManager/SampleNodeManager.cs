@@ -72,6 +72,7 @@ namespace Opc.Ua.Sample
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -845,7 +846,7 @@ namespace Opc.Ua.Sample
             NodeId referenceTypeId,
             bool isInverse,
             ExpandedNodeId targetId,
-            bool deleteBiDirectional)
+            bool deleteBidirectional)
         {
             lock (Lock)
             {
@@ -859,7 +860,7 @@ namespace Opc.Ua.Sample
 
                 source.RemoveReference(referenceTypeId, isInverse, targetId);
 
-                if (deleteBiDirectional)
+                if (deleteBidirectional)
                 {
                     // check if the target is also managed by the node manager.
                     if (!targetId.IsAbsolute)
@@ -983,8 +984,8 @@ namespace Opc.Ua.Sample
             ref ContinuationPoint continuationPoint,
             IList<ReferenceDescription> references)
         {
-            if (continuationPoint == null) throw new ArgumentNullException("continuationPoint");
-            if (references == null) throw new ArgumentNullException("references");
+            if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
+            if (references == null) throw new ArgumentNullException(nameof(references));
 
             // check for view.
             if (!ViewDescription.IsDefault(continuationPoint.View))
@@ -2335,10 +2336,12 @@ namespace Opc.Ua.Sample
         /// <param name="context">The context.</param>
         /// <param name="node">The monitored node.</param>
         /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="ignoreFilters">If the filters should be ignored.</param>
         protected virtual ServiceResult ReadInitialValue(
             ISystemContext context,
             MonitoredNode node,
-            DataChangeMonitoredItem monitoredItem)
+            IDataChangeMonitoredItem2 monitoredItem,
+            bool ignoreFilters)
         {
             DataValue initialValue = new DataValue {
                 Value = null,
@@ -2354,7 +2357,7 @@ namespace Opc.Ua.Sample
                 monitoredItem.DataEncoding,
                 initialValue);
 
-            monitoredItem.QueueValue(initialValue, error);
+            monitoredItem.QueueValue(initialValue, error, ignoreFilters);
 
             return error;
         }
@@ -2465,12 +2468,12 @@ namespace Opc.Ua.Sample
             ServiceResult error = null;
 
             // read initial value.
-            DataValue initialValue = new DataValue();
-
-            initialValue.Value = null;
-            initialValue.ServerTimestamp = DateTime.UtcNow;
-            initialValue.SourceTimestamp = DateTime.MinValue;
-            initialValue.StatusCode = StatusCodes.Good;
+            DataValue initialValue = new DataValue {
+                Value = null,
+                ServerTimestamp = DateTime.UtcNow,
+                SourceTimestamp = DateTime.MinValue,
+                StatusCode = StatusCodes.BadWaitingForInitialData
+            };
 
             error = source.ReadAttribute(
                 context,
@@ -2481,7 +2484,9 @@ namespace Opc.Ua.Sample
 
             if (ServiceResult.IsBad(error))
             {
-                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid)
+                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
                 {
                     return error;
                 }
@@ -2570,7 +2575,7 @@ namespace Opc.Ua.Sample
             }
 
             // report the initial value.
-            datachangeItem.QueueValue(initialValue, null);
+            datachangeItem.QueueValue(initialValue, null, true);
 
             // do any post processing.
             OnCreateMonitoredItem(context, itemToCreate, monitoredNode, datachangeItem);
@@ -2938,6 +2943,7 @@ namespace Opc.Ua.Sample
             IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
+            IList<IMonitoredItem> transferredItems = new List<IMonitoredItem>();
             lock (Lock)
             {
                 for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -2960,12 +2966,13 @@ namespace Opc.Ua.Sample
                     // owned by this node manager.
                     processedItems[ii] = true;
                     var monitoredItem = monitoredItems[ii];
+                    transferredItems.Add(monitoredItem);
 
                     if (sendInitialValues && !monitoredItem.IsReadyToPublish)
                     {
                         if (monitoredItem is DataChangeMonitoredItem dataChangeMonitoredItem)
                         {
-                            errors[ii] = ReadInitialValue(systemContext, monitoredNode, dataChangeMonitoredItem);
+                            errors[ii] = ReadInitialValue(systemContext, monitoredNode, dataChangeMonitoredItem, true);
                         }
                     }
                     else
@@ -2974,6 +2981,22 @@ namespace Opc.Ua.Sample
                     }
                 }
             }
+
+            // do any post processing.
+            OnMonitoredItemsTransferred(systemContext, transferredItems);
+        }
+
+        /// <summary>
+        /// Called after transfer of MonitoredItems.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="monitoredItems">The transferred monitored items.</param>
+        protected virtual void OnMonitoredItemsTransferred(
+            ServerSystemContext context,
+            IList<IMonitoredItem> monitoredItems
+            )
+        {
+            // does nothing.
         }
 
         /// <summary>
@@ -3049,7 +3072,7 @@ namespace Opc.Ua.Sample
             // need to provide an immediate update after enabling.
             if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
             {
-                ReadInitialValue(context, monitoredNode, datachangeItem);
+                ReadInitialValue(context, monitoredNode, datachangeItem, false);
             }
 
             // do any post processing.

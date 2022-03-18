@@ -246,7 +246,7 @@ namespace Opc.Ua.Sample
                     // check if the node has been deleted.
                     if ((masks & NodeStateChangeMasks.Deleted) != 0)
                     {
-                        monitoredItem.QueueValue(null, StatusCodes.BadNodeIdUnknown);
+                        monitoredItem.QueueValue(null, StatusCodes.BadNodeIdUnknown, false);
                         continue;
                     }
 

@@ -51,93 +51,92 @@ namespace Opc.Ua.Server
     internal sealed class OpcUaServerEventSource : EventSource
     {
         // client event ids
-        private const int SendResponseId = 1;
-        private const int ServerCallId = SendResponseId + 1;
-        private const int SessionStateId = ServerCallId + 1;
-        private const int MonitoredItemReadyId = SessionStateId + 1;
+        private const int kSendResponseId = 1;
+        private const int kServerCallId = kSendResponseId + 1;
+        private const int kSessionStateId = kServerCallId + 1;
+        private const int kMonitoredItemReadyId = kSessionStateId + 1;
 
         /// <summary>
         /// The server messages used in event messages.
         /// </summary>
-        private const string SendResponseMessage = "ChannelId {0}: SendResponse {1}";
-        private const string ServerCallMessage = "Server Call={0}, Id={1}";
-        private const string SessionStateMessage = "Session {0}, Id={1}, Name={2}, ChannelId={3}, User={4}";
-        private const string MonitoredItemReadyMessage = "IsReadyToPublish[{0}] {1}";
+        private const string kSendResponseMessage = "ChannelId {0}: SendResponse {1}";
+        private const string kServerCallMessage = "Server Call={0}, Id={1}";
+        private const string kSessionStateMessage = "Session {0}, Id={1}, Name={2}, ChannelId={3}, User={4}";
+        private const string kMonitoredItemReadyMessage = "IsReadyToPublish[{0}] {1}";
 
         /// <summary>
         /// The Server ILogger event Ids used for event messages, when calling back to ILogger.
         /// </summary>
-        private readonly EventId SendResponseEventId = new EventId(TraceMasks.ServiceDetail, nameof(SendResponse));
-        private readonly EventId ServerCallEventId = new EventId(TraceMasks.ServiceDetail, nameof(ServerCall));
-        private readonly EventId SessionStateMessageEventId = new EventId(TraceMasks.Information, nameof(SessionState));
-        private readonly EventId MonitoredItemReadyEventId = new EventId(TraceMasks.OperationDetail, nameof(MonitoredItemReady));
-
+        private readonly EventId m_sendResponseEventId = new EventId(TraceMasks.ServiceDetail, nameof(SendResponse));
+        private readonly EventId m_serverCallEventId = new EventId(TraceMasks.ServiceDetail, nameof(ServerCall));
+        private readonly EventId m_sessionStateMessageEventId = new EventId(TraceMasks.Information, nameof(SessionState));
+        private readonly EventId m_monitoredItemReadyEventId = new EventId(TraceMasks.OperationDetail, nameof(MonitoredItemReady));
 
         /// <summary>
         /// The send response.
         /// </summary>
-        [Event(SendResponseId, Message = SendResponseMessage, Level = EventLevel.Verbose)]
+        [Event(kSendResponseId, Message = kSendResponseMessage, Level = EventLevel.Verbose)]
         public void SendResponse(uint channelId, uint requestId)
         {
             if (IsEnabled())
             {
-                WriteEvent(SendResponseId, channelId, requestId);
+                WriteEvent(kSendResponseId, channelId, requestId);
             }
             else if ((TraceMask & TraceMasks.ServiceDetail) != 0 &&
                 Logger.IsEnabled(LogLevel.Trace))
             {
-                LogTrace(SendResponseEventId, SendResponseMessage, channelId, requestId);
+                LogTrace(m_sendResponseEventId, kSendResponseMessage, channelId, requestId);
             }
         }
 
         /// <summary>
         /// A server call message.
         /// </summary>
-        [Event(ServerCallId, Message = ServerCallMessage, Level = EventLevel.Informational)]
+        [Event(kServerCallId, Message = kServerCallMessage, Level = EventLevel.Informational)]
         public void ServerCall(string requestType, uint requestId)
         {
             if (IsEnabled())
             {
-                WriteEvent(ServerCallId, requestType, requestId);
+                WriteEvent(kServerCallId, requestType, requestId);
             }
             else if ((TraceMask & TraceMasks.ServiceDetail) != 0 &&
                 Logger.IsEnabled(LogLevel.Trace))
             {
-                LogTrace(ServerCallEventId, ServerCallMessage, requestType, requestId);
+                LogTrace(m_serverCallEventId, kServerCallMessage, requestType, requestId);
             }
         }
 
         /// <summary>
         /// The state of the session.
         /// </summary>
-        [Event(SessionStateId, Message = SessionStateMessage, Level = EventLevel.Informational)]
+        [Event(kSessionStateId, Message = kSessionStateMessage, Level = EventLevel.Informational)]
         public void SessionState(string context, string sessionId, string sessionName, string secureChannelId, string identity)
         {
             if (IsEnabled())
             {
-                WriteEvent(SessionStateId, context, sessionId, sessionName, secureChannelId, identity);
+                WriteEvent(kSessionStateId, context, sessionId, sessionName, secureChannelId, identity);
             }
             else if (Logger.IsEnabled(LogLevel.Information))
             {
-                LogInfo(SessionStateMessageEventId, SessionStateMessage, context, sessionId, sessionName, secureChannelId, identity);
+                LogInfo(m_sessionStateMessageEventId, kSessionStateMessage, context, sessionId, sessionName, secureChannelId, identity);
             }
         }
 
         /// <summary>
         /// The state of the server session.
         /// </summary>
-        [Event(MonitoredItemReadyId, Message = MonitoredItemReadyMessage, Level = EventLevel.Verbose)]
+        [Event(kMonitoredItemReadyId, Message = kMonitoredItemReadyMessage, Level = EventLevel.Verbose)]
         public void MonitoredItemReady(uint id, string state)
         {
             if ((TraceMask & TraceMasks.OperationDetail) != 0)
             {
                 if (IsEnabled())
                 {
-                    WriteEvent(MonitoredItemReadyId, id, state);
+                    WriteEvent(kMonitoredItemReadyId, id, state);
                 }
                 else if (Logger.IsEnabled(LogLevel.Trace))
                 {
-                    LogTrace(MonitoredItemReadyEventId, MonitoredItemReadyMessage, id, state);
+                    LogTrace(m_monitoredItemReadyEventId, kMonitoredItemReadyMessage, id, state);
                 }
             }
         }

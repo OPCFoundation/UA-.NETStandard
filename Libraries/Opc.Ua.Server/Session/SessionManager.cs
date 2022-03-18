@@ -76,6 +76,7 @@ namespace Opc.Ua.Server
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -310,10 +311,10 @@ namespace Opc.Ua.Server
                 // check if the application has a callback which validates the identity tokens.
                 lock (m_eventLock)
                 {
-                    if (m_ImpersonateUser != null)
+                    if (m_impersonateUser != null)
                     {
                         ImpersonateEventArgs args = new ImpersonateEventArgs(newIdentity, userTokenPolicy, context.ChannelContext.EndpointDescription);
-                        m_ImpersonateUser(session, args);
+                        m_impersonateUser(session, args);
 
                         if (ServiceResult.IsBad(args.IdentityValidationError))
                         {
@@ -447,12 +448,12 @@ namespace Opc.Ua.Server
                     // find session.
                     if (!m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
                     {
-                        var Handler = m_ValidateSessionLessRequest;
+                        var handler = m_validateSessionLessRequest;
 
-                        if (Handler != null)
+                        if (handler != null)
                         {
                             var args = new ValidateSessionLessRequestEventArgs(requestHeader.AuthenticationToken, requestType);
-                            Handler(this, args);
+                            handler(this, args);
 
                             if (ServiceResult.IsBad(args.Error))
                             {
@@ -540,9 +541,9 @@ namespace Opc.Ua.Server
 
                 switch (reason)
                 {
-                    case SessionEventReason.Created: { handler = m_SessionCreated; break; }
-                    case SessionEventReason.Activated: { handler = m_SessionActivated; break; }
-                    case SessionEventReason.Closing: { handler = m_SessionClosing; break; }
+                    case SessionEventReason.Created: { handler = m_sessionCreated; break; }
+                    case SessionEventReason.Activated: { handler = m_sessionActivated; break; }
+                    case SessionEventReason.Closing: { handler = m_sessionClosing; break; }
                 }
 
                 if (handler != null)
@@ -627,11 +628,11 @@ namespace Opc.Ua.Server
         private int m_minNonceLength;
 
         private object m_eventLock = new object();
-        private event SessionEventHandler m_SessionCreated;
-        private event SessionEventHandler m_SessionActivated;
-        private event SessionEventHandler m_SessionClosing;
-        private event ImpersonateEventHandler m_ImpersonateUser;
-        private event EventHandler<ValidateSessionLessRequestEventArgs> m_ValidateSessionLessRequest;
+        private event SessionEventHandler m_sessionCreated;
+        private event SessionEventHandler m_sessionActivated;
+        private event SessionEventHandler m_sessionClosing;
+        private event ImpersonateEventHandler m_impersonateUser;
+        private event EventHandler<ValidateSessionLessRequestEventArgs> m_validateSessionLessRequest;
         #endregion
 
         #region ISessionManager Members
@@ -642,7 +643,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_eventLock)
                 {
-                    m_SessionCreated += value;
+                    m_sessionCreated += value;
                 }
             }
 
@@ -650,7 +651,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_eventLock)
                 {
-                    m_SessionCreated -= value;
+                    m_sessionCreated -= value;
                 }
             }
         }
@@ -662,7 +663,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_eventLock)
                 {
-                    m_SessionActivated += value;
+                    m_sessionActivated += value;
                 }
             }
 
@@ -670,7 +671,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_eventLock)
                 {
-                    m_SessionActivated -= value;
+                    m_sessionActivated -= value;
                 }
             }
         }
@@ -682,7 +683,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_eventLock)
                 {
-                    m_SessionClosing += value;
+                    m_sessionClosing += value;
                 }
             }
 
@@ -690,7 +691,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_eventLock)
                 {
-                    m_SessionClosing -= value;
+                    m_sessionClosing -= value;
                 }
             }
         }
@@ -702,7 +703,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_eventLock)
                 {
-                    m_ImpersonateUser += value;
+                    m_impersonateUser += value;
                 }
             }
 
@@ -710,7 +711,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_eventLock)
                 {
-                    m_ImpersonateUser -= value;
+                    m_impersonateUser -= value;
                 }
             }
         }
@@ -722,7 +723,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_eventLock)
                 {
-                    m_ValidateSessionLessRequest += value;
+                    m_validateSessionLessRequest += value;
                 }
             }
 
@@ -730,7 +731,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_eventLock)
                 {
-                    m_ValidateSessionLessRequest -= value;
+                    m_validateSessionLessRequest -= value;
                 }
             }
         }
