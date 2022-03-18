@@ -1,9 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using Opc.Ua;
 
@@ -44,7 +39,7 @@ namespace Alarms
 
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
-            Debug.WriteLine("NonExclusiveLevelHolder alarm typedefinition " + m_alarm.TypeDefinitionId.ToString());
+            Utils.LogInfo(Utils.TraceMasks.Information, "NonExclusiveLevelHolder alarm typedefinition " + m_alarm.TypeDefinitionId.ToString());
 
 
 

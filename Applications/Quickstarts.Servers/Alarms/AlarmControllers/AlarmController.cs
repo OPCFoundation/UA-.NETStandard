@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -80,7 +79,7 @@ namespace Alarms
                 bool boolValue = false;
                 GetValue(ref value, ref boolValue);
 
-                Debug.WriteLine("Update value " + value.ToString());
+                Utils.LogInfo(Utils.TraceMasks.Information, "AlarmController Update Value = " + value.ToString());
 
                 if (m_isBoolean)
                 {
@@ -114,7 +113,16 @@ namespace Alarms
         {
             if ( value.GetType().Name == "Int32" )
             {
-                m_value = (Int32)value;
+                // Don't let anyone write a value out of range
+                Int32 potentialWrite = (Int32)value;
+                if ( potentialWrite >= AlarmDefines.MIN_VALUE && potentialWrite <= AlarmDefines.MAX_VALUE )
+                {
+                    m_value = potentialWrite;
+                }
+                else
+                {
+                    Utils.LogInfo(Utils.TraceMasks.Error, "AlarmController Received out of range manual write of " + value.ToString());
+                }
             }
             else
             {
@@ -188,7 +196,8 @@ namespace Alarms
                 {
                     if ( m_validLastMaxValue )
                     {
-                        Debug.WriteLine("Cycle Time " + (DateTime.Now - m_lastMaxValue).ToString() + " Interval " + m_interval.ToString());
+                        Utils.LogInfo(Utils.TraceMasks.Information,
+                            "Cycle Time " + (DateTime.Now - m_lastMaxValue).ToString() + " Interval " + m_interval.ToString());
                     }
                     m_lastMaxValue = DateTime.Now;
                     m_validLastMaxValue = true;
@@ -268,7 +277,7 @@ namespace Alarms
 
             double calculated = amplitude * (Math.Sin(period * (reducedPeriod + phase))) + verticalShift;
 
-            Debug.WriteLine(
+            Utils.LogInfo(Utils.TraceMasks.Information,
                 " Phase " + String.Format("{0:0.00}", phase) +
                 " Value " + value.ToString() +
                 " Sine " + String.Format("{0:0.00}", calculated) +

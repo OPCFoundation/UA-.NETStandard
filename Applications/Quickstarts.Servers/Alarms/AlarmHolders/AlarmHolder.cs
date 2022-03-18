@@ -1,9 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 
 using Opc.Ua;
@@ -37,8 +33,6 @@ namespace Alarms
 
             m_alarmRootName = m_alarmTypeName + extraName;
             m_mapName = (string)m_parent.NodeId.Identifier + "." + m_alarmRootName;
-            Debug.WriteLine("Creating " + m_mapName + " Optional = " + Optional);
-
 
             InitializeInternal(m_alarm);
         }
@@ -206,7 +200,7 @@ namespace Alarms
 
         public virtual void SetValue(string message = "")
         {
-            Debug.WriteLine("AlarmHolder.SetValue() - Should not be called");
+            Utils.LogInfo(Utils.TraceMasks.Error, "AlarmHolder.SetValue() - Should not be called");
         }
 
         public void Start()
@@ -223,13 +217,13 @@ namespace Alarms
 
         protected virtual bool UpdateShelving()
         {
-            Debug.WriteLine("AlarmHolder.UpdateShelving() - Should not be called");
+            Utils.LogInfo(Utils.TraceMasks.Error, "AlarmHolder.UpdateShelving() - Should not be called");
             return false;
         }
 
         protected virtual bool UpdateSuppression()
         {
-            Debug.WriteLine("AlarmHolder.UpdateSuppression() - Should not be called");
+            Utils.LogInfo(Utils.TraceMasks.Error, "AlarmHolder.UpdateSuppression() - Should not be called");
             return false;
         }
 

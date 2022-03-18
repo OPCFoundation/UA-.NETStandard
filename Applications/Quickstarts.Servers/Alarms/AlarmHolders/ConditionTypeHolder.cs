@@ -1,11 +1,5 @@
 using System;
-using System.Collections.Generic;
 
-using System.Diagnostics;
-
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Opc.Ua;
 
 #pragma warning disable CS1591
@@ -49,7 +43,7 @@ namespace Alarms
             alarm.ConditionClassId.Value = m_alarmConditionType.Node;
             alarm.ConditionClassName.Value = new LocalizedText("", m_alarmConditionType.ConditionName);
             alarm.ConditionName.Value = m_alarmRootName;
-            Debug.WriteLine("Alarm ConditionName = " + alarm.ConditionName.Value);
+            Utils.LogInfo(Utils.TraceMasks.Information, "Alarm ConditionName = " + alarm.ConditionName.Value);
 
             alarm.BranchId.Value = new NodeId();
             alarm.Retain.Value = false;
@@ -128,11 +122,11 @@ namespace Alarms
             branchEvent.ConditionClassId.Value = new NodeId(alarm.ConditionClassId.Value);
             branchEvent.ConditionClassName.Value = new LocalizedText(alarm.ConditionClassName.Value);
             branchEvent.ConditionName.Value = String.Copy(alarm.ConditionName.Value);
-            Debug.WriteLine("Branch conditionName = " + branchEvent.ConditionName.Value);
+            Utils.LogInfo(Utils.TraceMasks.Information, "Branch conditionName = " + branchEvent.ConditionName.Value);
             branchEvent.BranchId.Value = branchId;
             // Message part of BaseAlarmState - adding here to deal with branch
             branchEvent.Message.Value = "Branch  " + branchEvent.BranchId.Value.ToString() + " Created, new Value = " + m_alarmController.GetValue().ToString();
-            Debug.WriteLine(branchEvent.Message.Value);
+            Utils.LogInfo(Utils.TraceMasks.Information, branchEvent.Message.Value.ToString());
             branchEvent.Retain.Value = alarm.Retain.Value;
 
             branchEvent.SetEnableState(SystemContext, alarm.EnabledState.Id.Value);
@@ -144,13 +138,6 @@ namespace Alarms
             branchEvent.OnEnableDisable = OnEnableDisableAlarm;
             branchEvent.OnAddComment = OnAddComment;
 
-            if (Optional)
-            {
-                //branchEvent.ConditionSubClassId.Value = alarm.ConditionSubClassId.Value.ToArray();
-                //branchEvent.ConditionSubClassName.Value = alarm.ConditionSubClassName.Value.ToArray();
-            }
-
-            // TODO
             branchEvent.ConditionSubClassId = null;
             branchEvent.ConditionSubClassName = null;
 
@@ -207,10 +194,6 @@ namespace Alarms
             if ( alarm == null )
             {
                 alarm = GetAlarm();
-                if (m_alarmTypeName.Contains("Derived"))
-                {
-                    Debug.WriteLine("");
-                }
             }
 
             if (alarm.EnabledState.Id.Value)
