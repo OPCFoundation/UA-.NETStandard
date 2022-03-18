@@ -31,20 +31,8 @@ namespace Alarms
 
         public const int BOOL_SEVERITY = 500;
 
-
         public const double NORMAL_MAX_TIME_SHELVED = 2000000;
         public const double SHORT_MAX_TIME_SHELVED = 30000;
-
-        //public const string BASE_PRODUCT_URI = "http://Quickstarts.ca/FoundationServer/";
-
-        //public const int BASE_CUSTOM_TYPE_NODE_ID = 111111;
-
-        //public const string DERIVED_NAME = "Derived";
-        //public const int DERIVED_TYPE_OFFSET = 500000; // Goofy, but should work to make it easier to create new alarm types
-
-        ////public const int DERIVED_SYSTEM_OFF_NORMAL_ALARM_TYPE = BASE_CUSTOM_TYPE_NODE_ID + 1;
-        ////public const string DERIVED_SYSTEM_OFF_NORMAL_ALARM_TYPE_NAME = "DerivedSystemOffNormalAlarmType";
-        ////public const string DERIVED_SYSTEM_OFF_NORMAL_ALARM_TYPE_PRODUCT_URI = BASE_PRODUCT_URI + DERIVED_SYSTEM_OFF_NORMAL_ALARM_TYPE_NAME;
 
         public const int MILLISECONDS_PER_SECOND = 1000;
         public const int MILLISECONDS_PER_MINUTE = 60 * MILLISECONDS_PER_SECOND;
@@ -53,21 +41,8 @@ namespace Alarms
         public const int MILLISECONDS_PER_WEEK = 7 * MILLISECONDS_PER_DAY;
         public const int MILLISECONDS_PER_TWO_WEEKS = 2 * MILLISECONDS_PER_WEEK;
 
-        public const string SET_CERTIFICATE_EXPIRATION_NAME = "SetCertificateExpiration";
-        public const string RESET_CERTIFICATE_EXPIRATIONS_NAME = "ResetCertificateExpirations";
-        public const string RESET_OUTSIDE_CERTIFICATE_NAME = "ResetOutsideCertificate";
-        public const string RESET_INSIDE_CERTIFICATE_NAME = "ResetInsideCertificate";
-        public const string RESET_EXPIRED_CERTIFICATE_NAME = "ResetExpiredCertificate";
-
-
-        public const string OUTSIDE_LIMIT_NAME = "OutsideLimit";
-        public const string INSIDE_LIMIT_NAME = "InsideLimit";
-        public const string EXPIRED_LIMIT_NAME = "ExpiredLimit";
-
         public const string TRIGGER_EXTENSION = ".Trigger";
         public const string ALARM_EXTENSION = ".Alarm";
         public const string DISCREPANCY_TARGET_NAME = "TargetValueNodeId";
-
-
     }
 }

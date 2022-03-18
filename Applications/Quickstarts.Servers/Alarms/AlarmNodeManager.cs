@@ -42,6 +42,20 @@ namespace Alarms
         {
             return new AlarmNodeManager(server, configuration);
         }
+
+        /// <inheritdoc/>
+        public StringCollection NamespacesUris
+        {
+            get
+            {
+                var alarmName = "/Alarms/";
+                var uri = Quickstarts.ReferenceServer.Namespaces.ReferenceServer + alarmName;
+                var instanceUri = uri + "Instance";
+                var nameSpaces = new StringCollection { uri, instanceUri };
+                return nameSpaces;
+            }
+        }
+
     }
 
     /// <summary>
