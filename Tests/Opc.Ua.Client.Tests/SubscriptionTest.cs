@@ -412,6 +412,13 @@ namespace Opc.Ua.Client.Tests
                     DisableMonitoredItemCache = true,
                     PublishingEnabled = true
                 };
+
+                subscription.FastDataChangeCallback = (_, notification, __) => {
+                    notification.MonitoredItems.ForEach(item => {
+                        Interlocked.Increment(ref numOfNotifications);
+                    });
+                };
+
                 subscriptionList.Add(subscription);
                 var simulatedNodes = GetTestSetSimulation(Session.NamespaceUris);
                 var list = new List<MonitoredItem>();
@@ -431,13 +438,9 @@ namespace Opc.Ua.Client.Tests
                 Assert.True(result);
                 await subscription.CreateAsync().ConfigureAwait(false);
                 var publishInterval = (int)subscription.CurrentPublishingInterval;
-                TestContext.Out.WriteLine($"CurrentPublishingInterval: {publishInterval}");
 
-                subscription.FastDataChangeCallback = (_, notification, __) => {
-                    notification.MonitoredItems.ForEach(item => {
-                        Interlocked.Increment(ref numOfNotifications);
-                    });
-                };
+                TestContext.Out.WriteLine($"Id: {subscription.Id} CurrentPublishingInterval: {publishInterval}");
+
             }
 
             var stopwatch = Stopwatch.StartNew();
