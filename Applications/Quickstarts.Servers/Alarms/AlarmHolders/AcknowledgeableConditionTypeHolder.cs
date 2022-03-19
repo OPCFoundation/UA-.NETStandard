@@ -57,30 +57,6 @@ namespace Alarms
             alarm.AutoReportStateChanges = true;
         }
 
-        public override BaseEventState CreateBranch(BaseEventState branch, NodeId branchId)
-        {
-            if (branch == null)
-            {
-                branch = new AcknowledgeableConditionState(m_parent);
-            }
-
-            AcknowledgeableConditionState branchEvent = GetAlarm(branch);
-            InitializeInternal(branchEvent);
-            base.CreateBranch(branch, branchId);
-
-            AcknowledgeableConditionState alarm = GetAlarm();
-
-            branchEvent.SetAcknowledgedState(SystemContext, alarm.AckedState.Id.Value);
-
-            branchEvent.SetConfirmedState(SystemContext, alarm.ConfirmedState.Id.Value);
-            branchEvent.OnConfirm = OnConfirm;
-
-            branchEvent.Retain.Value = GetRetainState();
-            branchEvent.AutoReportStateChanges = false;
-
-            return branchEvent;
-        }
-
         private void InitializeInternal(AcknowledgeableConditionState alarm)
         {
             alarm.OnAcknowledge = OnAcknowledge;

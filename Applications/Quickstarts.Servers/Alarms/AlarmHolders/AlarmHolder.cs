@@ -92,12 +92,6 @@ namespace Alarms
         {
         }
 
-        public virtual BaseEventState CreateBranch(BaseEventState alarm, NodeId branchId)
-        {
-            InitializeInternal(alarm, branchId);
-            return alarm;
-        }
-
         private void InitializeInternal(BaseEventState alarm, NodeId branchId = null)
         {
             string triggerNodeId = (string)m_parent.NodeId.Identifier + "." + TriggerName;

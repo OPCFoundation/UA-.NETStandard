@@ -104,49 +104,6 @@ namespace Alarms
             }
         }
 
-        public override BaseEventState CreateBranch(BaseEventState branch, NodeId branchId)
-        {
-            if (branch == null)
-            {
-                // this is invalid
-                branch = new ConditionState(m_parent);
-            }
-
-            BaseEventState baseBranchEvent = base.CreateBranch(branch, branchId);
-
-            ConditionState branchEvent = GetAlarm(baseBranchEvent);
-            ConditionState alarm = GetAlarm();
-
-            // Set all ConditionType Parameters
-            branchEvent.ClientUserId.Value = String.Copy(alarm.ClientUserId.Value);
-            branchEvent.ConditionClassId.Value = new NodeId(alarm.ConditionClassId.Value);
-            branchEvent.ConditionClassName.Value = new LocalizedText(alarm.ConditionClassName.Value);
-            branchEvent.ConditionName.Value = String.Copy(alarm.ConditionName.Value);
-            Utils.LogInfo(Utils.TraceMasks.Information, "Branch conditionName = " + branchEvent.ConditionName.Value);
-            branchEvent.BranchId.Value = branchId;
-            // Message part of BaseAlarmState - adding here to deal with branch
-            branchEvent.Message.Value = "Branch  " + branchEvent.BranchId.Value.ToString() + " Created, new Value = " + m_alarmController.GetValue().ToString();
-            Utils.LogInfo(Utils.TraceMasks.Information, branchEvent.Message.Value.ToString());
-            branchEvent.Retain.Value = alarm.Retain.Value;
-
-            branchEvent.SetEnableState(SystemContext, alarm.EnabledState.Id.Value);
-            branchEvent.Quality.Value = alarm.Quality.Value;
-            branchEvent.LastSeverity.Value = alarm.LastSeverity.Value;
-            branchEvent.Comment.Value = new LocalizedText(alarm.Comment.Value);
-
-            // Set Method Handlers
-            branchEvent.OnEnableDisable = OnEnableDisableAlarm;
-            branchEvent.OnAddComment = OnAddComment;
-
-            branchEvent.ConditionSubClassId = null;
-            branchEvent.ConditionSubClassName = null;
-
-            return branchEvent;
-        }
-
-
-
-
         #region Overrides
 
         public override void SetValue(string message = "")

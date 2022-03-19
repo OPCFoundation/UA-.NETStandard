@@ -52,25 +52,6 @@ namespace Alarms
             }
         }
 
-        public override BaseEventState CreateBranch(BaseEventState branch, NodeId branchId)
-        {
-            BaseEventState branchEvent = base.CreateBranch(branch, branchId);
-
-            BaseEventState alarm = GetAlarm();
-
-            branchEvent.EventId.Value = Guid.NewGuid().ToByteArray();
-            branchEvent.EventType.Value = new NodeId(alarm.EventType.Value);
-            branchEvent.SourceNode.Value = m_trigger.NodeId;
-            branchEvent.SourceName.Value = m_trigger.SymbolicName;
-            branchEvent.Time.Value = DateTime.UtcNow;
-            branchEvent.ReceiveTime.Value = alarm.Time.Value;
-            // Do the Message in the ConditionType, as it has the branchId
-            //branchEvent.Message.Value = MapName + " Branch  " + branchEvent.Br.ToString() + " Created";
-            branchEvent.Severity.Value = alarm.Severity.Value;
-
-            return branchEvent;
-        }
-
         #region Overrides
 
         public override void SetValue(string message = "")
