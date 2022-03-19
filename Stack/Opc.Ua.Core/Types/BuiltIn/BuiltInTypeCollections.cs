@@ -180,12 +180,12 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A collection of SByte values.
+    /// A collection of Byte values.
     /// </summary>
     /// <remarks>
-    /// Provides a strongly-typed list of <see cref="SByte"/> values.
+    /// Provides a strongly-typed list of <see cref="Byte"/> values.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfSByte", Namespace = Namespaces.OpcUaXsd, ItemName = "SByte")]
+    [CollectionDataContract(Name = "ListOfByte", Namespace = Namespaces.OpcUaXsd, ItemName = "Byte")]
     public partial class ByteCollection : List<byte>
     {
         /// <summary>
