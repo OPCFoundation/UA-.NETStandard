@@ -309,7 +309,7 @@ namespace Opc.Ua
         public bool SupportsLoadPrivateKey => true;
 
         /// <summary>
-        /// Loads the private key from a PFX file in the certificate store.
+        /// Loads the private key from a PFX/PEM file in the certificate store.
         /// </summary>
         public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
         {
@@ -745,12 +745,26 @@ namespace Opc.Ua
 
                             // note: only obtain the filenames for delete, loading the private keys
                             // without authorization causes false negatives (LogErrors)
+
+                            //Added to enable loading of pem private key
                             if (!entry.PrivateKeyFile.Exists)
                             {
                                 // check for PEM file.
                                 entry.PrivateKeyFile = new FileInfo(filePath.ToString() + ".pem");
 
-                                if (!entry.PrivateKeyFile.Exists)
+                                if (entry.PrivateKeyFile.Exists)
+                                {
+                                    if (_pemResolverService == null)
+                                    {
+                                        throw new Exception("\nPem Resolver not implemented. ");
+                                    }
+                                    X509Certificate2 certificate = _pemResolverService.LoadPrivateKeyFromPem(file, entry.PrivateKeyFile);
+                                    if (certificate.HasPrivateKey)
+                                    {
+                                        entry.CertificateWithPrivateKey = certificate;
+                                    }
+                                }
+                                else
                                 {
                                     entry.PrivateKeyFile = null;
                                 }
