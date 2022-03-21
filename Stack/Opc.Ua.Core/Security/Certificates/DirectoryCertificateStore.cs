@@ -35,6 +35,7 @@ namespace Opc.Ua
         public DirectoryCertificateStore()
         {
             m_certificates = new Dictionary<string, Entry>();
+            _pemResolverService = InvokePemResolver.GetPemResolver();
         }
         #endregion
 
@@ -377,35 +378,61 @@ namespace Opc.Ua
                             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet
                         };
 
-                        FileInfo privateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
-                        if (!privateKeyFile.Exists)
+                        FileInfo privateKeyFilePfx = new FileInfo(filePath.ToString() + ".pfx");
+                        FileInfo privateKeyFilePem = new FileInfo(filePath.ToString() + ".pem");
+                        if (privateKeyFilePfx.Exists)
                         {
-                            Utils.LogError(Utils.TraceMasks.Security, "A private key for the certificate with thumbprint [{0}] does not exist.", certificate.Thumbprint);
-                            continue;
+                            certificateFound = true;
+                            password = password ?? String.Empty;
+                            foreach (var flag in storageFlags)
+                            {
+                                try
+                                {
+                                    certificate = new X509Certificate2(
+                                        privateKeyFilePfx.FullName,
+                                        password,
+                                        flag);
+                                    if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                                    {
+                                        Utils.LogInfo(Utils.TraceMasks.Security, "Imported the private key for [{0}].", certificate.Thumbprint);
+                                        return certificate;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    importException = ex;
+                                    certificate?.Dispose();
+                                    certificate = null;
+                                }
+                            }
                         }
-
-                        certificateFound = true;
-                        password = password ?? String.Empty;
-                        foreach (var flag in storageFlags)
+                        // if PFX file doesn't exist, check for PEM file.
+                        else if (privateKeyFilePem.Exists)
                         {
+                            certificateFound = true;
                             try
                             {
-                                certificate = new X509Certificate2(
-                                    privateKeyFile.FullName,
-                                    password,
-                                    flag);
+                                if (_pemResolverService == null)
+                                {
+                                    throw new Exception("\nPem Resolver not implemented. ");
+                                }
+                                certificate = _pemResolverService.LoadPrivateKeyFromPem(file, privateKeyFilePem, password);
                                 if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                                 {
-                                    Utils.LogInfo(Utils.TraceMasks.Security, "Imported the private key for [{0}].", certificate.Thumbprint);
                                     return certificate;
                                 }
                             }
-                            catch (Exception ex)
+                            catch (Exception exception)
                             {
-                                importException = ex;
                                 certificate?.Dispose();
                                 certificate = null;
+                                throw new Exception(exception.Message + "Pem file cannot be processed.");
                             }
+                        }
+                        else
+                        {
+                            Utils.LogError(Utils.TraceMasks.Security, "A private key for the certificate with thumbprint [{0}] does not exist.", certificate.Thumbprint);
+                            continue;
                         }
                     }
                     catch (Exception e)
@@ -889,6 +916,7 @@ namespace Opc.Ua
         private DirectoryInfo m_privateKeySubdir;
         private Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
+        private IPemResolver _pemResolverService;
         #endregion
     }
 }

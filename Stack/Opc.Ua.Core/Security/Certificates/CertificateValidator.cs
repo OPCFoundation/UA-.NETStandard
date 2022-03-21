@@ -389,6 +389,7 @@ namespace Opc.Ua
 
                 // invoke callback.
                 bool accept = false;
+                string applicationErrorMsg = string.Empty;
 
                 ServiceResult serviceResult = se.Result;
                 lock (m_callbackLock)
@@ -406,6 +407,7 @@ namespace Opc.Ua
                                 serviceResult = null;
                                 break;
                             }
+                            applicationErrorMsg = args.ApplicationErrorMsg;
                             accept = args.Accept;
                         }
                         else if (m_autoAcceptUntrustedCertificates &&
@@ -422,7 +424,14 @@ namespace Opc.Ua
                         else
                         {
                             // report the rejected service result
-                            se = new ServiceResultException(serviceResult);
+                            if (applicationErrorMsg.Equals(string.Empty))
+                            {
+                                se = new ServiceResultException(serviceResult);
+                            }
+                            else
+                            {
+                                se = new ServiceResultException(applicationErrorMsg);
+                            }
                         }
                     } while (accept && serviceResult != null);
                 }
@@ -1494,6 +1503,15 @@ namespace Opc.Ua
             get => m_acceptAll;
             set => m_acceptAll = value;
         }
+
+        /// <summary>
+        /// The custom error message from the application.
+        /// </summary>
+        public string ApplicationErrorMsg
+        {
+            get { return m_applicationErrorMsg; }
+            set { m_applicationErrorMsg = value; }
+        }
         #endregion
 
         #region Private Fields
@@ -1501,6 +1519,7 @@ namespace Opc.Ua
         private X509Certificate2 m_certificate;
         private bool m_accept;
         private bool m_acceptAll;
+        private string m_applicationErrorMsg;
         #endregion
     }
 
