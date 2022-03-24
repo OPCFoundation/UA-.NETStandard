@@ -1003,7 +1003,7 @@ namespace Opc.Ua.Client
                     template.m_checkDomain);
 
                 // try transfer
-                if (!session.TransferSubscriptions(new SubscriptionCollection(session.Subscriptions), false))
+                if (!session.TransferSubscriptions(new SubscriptionCollection(template.Subscriptions), false))
                 {
                     // if transfer failed, create the subscriptions.
                     foreach (Subscription subscription in session.Subscriptions)
@@ -1057,7 +1057,7 @@ namespace Opc.Ua.Client
                     template.m_checkDomain);
 
                 // try transfer
-                if (!session.TransferSubscriptions(new SubscriptionCollection(session.Subscriptions), false))
+                if (!session.TransferSubscriptions(new SubscriptionCollection(template.Subscriptions), false))
                 {
                     // if transfer failed, create the subscriptions.
                     foreach (Subscription subscription in session.Subscriptions)
@@ -3432,37 +3432,46 @@ namespace Opc.Ua.Client
 
             lock (SyncRoot)
             {
-                ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
-                if (!StatusCode.IsGood(responseHeader.ServiceResult))
+                if (subscriptionIds.Count > 0)
                 {
-                    Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
-                    return false;
-                }
-
-                ClientBase.ValidateResponse(results, subscriptionIds);
-                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
-
-                for (int ii = 0; ii < subscriptions.Count; ii++)
-                {
-                    if (StatusCode.IsGood(results[ii].StatusCode))
+                    ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
+                    if (!StatusCode.IsGood(responseHeader.ServiceResult))
                     {
-                        if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
-                        {   // create ack for available sequence numbers
-                            foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
-                            {
-                                var ack = new SubscriptionAcknowledgement() {
-                                    SubscriptionId = subscriptionIds[ii],
-                                    SequenceNumber = sequenceNumber
-                                };
-                                m_acknowledgementsToSend.Add(ack);
+                        Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
+                        return false;
+                    }
+                    ClientBase.ValidateResponse(results, subscriptionIds);
+                    ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+
+                    for (int ii = 0; ii < subscriptions.Count; ii++)
+                    {
+                        if (StatusCode.IsGood(results[ii].StatusCode))
+                        {
+                            if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
+                            {   // create ack for available sequence numbers
+                                foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
+                                {
+                                    var ack = new SubscriptionAcknowledgement() {
+                                        SubscriptionId = subscriptionIds[ii],
+                                        SequenceNumber = sequenceNumber
+                                    };
+                                    m_acknowledgementsToSend.Add(ack);
+                                }
                             }
                         }
-                    }
-                    else
-                    {
-                        Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
+                        else
+                        {
+                            Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
+                            return false;
+                        }
                     }
                 }
+                else
+                {
+                    Utils.LogInfo("There is no subscriptions need TransferSubscription");
+                }
+
+                
             }
 
             return true;
