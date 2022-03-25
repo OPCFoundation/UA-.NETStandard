@@ -250,7 +250,7 @@ namespace Opc.Ua.PubSub
         public abstract bool PublishNetworkMessage(UaNetworkMessage networkMessage);
 
         /// <summary>
-        /// Get flag that indicates if all the network connections are active and connected
+        /// Get flag that indicates if all the network clients are connected
         /// </summary>
         public abstract bool AreClientsConnected();
 

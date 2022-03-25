@@ -348,21 +348,10 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Create the network messages built from the provided writerGroupConfiguration
+        /// Always returns true since UDP is a connectionless protocol
         /// </summary>
         public override bool AreClientsConnected()
         {
-            foreach (UdpClient client in m_publisherUdpClients)
-            {
-                if (!client.Client.Connected)
-                    return false;
-            }
-            foreach (UdpClient client in m_subscriberUdpClients)
-            {
-                if (!client.Client.Connected)
-                    return false;
-            }
-
             return true;
         }
         #endregion

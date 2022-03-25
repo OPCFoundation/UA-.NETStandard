@@ -274,7 +274,7 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Create the network messages built from the provided writerGroupConfiguration
+        /// Get flag that indicates if all the network connections are active and connected
         /// </summary>
         public override bool AreClientsConnected()
         {
