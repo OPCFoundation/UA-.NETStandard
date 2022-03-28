@@ -236,16 +236,16 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(240)]
         public async Task ConnectMultipleSessionsAsync()
         {
-            var endpoint = await m_clientFixture.GetEndpointAsync(m_url, SecurityPolicies.Basic256Sha256, m_endpoints);
+            var endpoint = await ClientFixture.GetEndpointAsync(this.ServerUrl, SecurityPolicies.Basic256Sha256, this.Endpoints);
             Assert.NotNull(endpoint);
 
-            var channel = await m_clientFixture.CreateChannelAsync(endpoint).ConfigureAwait(false);
+            var channel = await ClientFixture.CreateChannelAsync(endpoint).ConfigureAwait(false);
             Assert.NotNull(channel);
 
-            var session1 = m_clientFixture.CreateSession(channel, endpoint);
+            var session1 = ClientFixture.CreateSession(channel, endpoint);
             session1.Open("Session1", null);
 
-            var session2 = m_clientFixture.CreateSession(channel, endpoint);
+            var session2 = ClientFixture.CreateSession(channel, endpoint);
             session2.Open("Session2", null);
 
             session1.Close(closeChannel: false);

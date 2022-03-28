@@ -214,7 +214,7 @@ namespace Opc.Ua.Client.Tests
         /// <returns></returns>
         public async Task<ITransportChannel> CreateChannelAsync(ConfiguredEndpoint endpoint)
         {
-            return await SessionChannel.CreateAsync(Config, null, endpoint, true, false).ConfigureAwait(false);
+            return await Session.CreateChannelAsync(Config, null, endpoint, true, false).ConfigureAwait(false);
         }
 
         /// <summary>

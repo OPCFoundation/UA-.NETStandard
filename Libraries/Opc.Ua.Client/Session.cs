@@ -750,6 +750,92 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Public Static Methods
+
+        /// <summary>
+        /// Creates a secure channel to the specified endpoint.
+        /// </summary>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="connection">The client endpoint for the reverse connect.</param>
+        /// <param name="endpoint">A configured endpoint to connect to.</param> 
+        /// <param name="updateBeforeConnect">Update configuration based on server prior connect.</param>
+        /// <param name="checkDomain">Check that the certificate specifies a valid domain (computer) name.</param>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        public static async Task<ITransportChannel> CreateChannelAsync(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain)
+        {
+            endpoint.UpdateBeforeConnect = updateBeforeConnect;
+
+            EndpointDescription endpointDescription = endpoint.Description;
+
+            // create the endpoint configuration (use the application configuration to provide default values).
+            EndpointConfiguration endpointConfiguration = endpoint.Configuration;
+
+            if (endpointConfiguration == null)
+            {
+                endpoint.Configuration = endpointConfiguration = EndpointConfiguration.Create(configuration);
+            }
+
+            // create message context.
+            IServiceMessageContext messageContext = configuration.CreateMessageContext(true);
+
+            // update endpoint description using the discovery endpoint.
+            if (endpoint.UpdateBeforeConnect && connection == null)
+            {
+                endpoint.UpdateFromServer();
+                endpointDescription = endpoint.Description;
+                endpointConfiguration = endpoint.Configuration;
+            }
+
+            // checks the domains in the certificate.
+            if (checkDomain &&
+                endpoint.Description.ServerCertificate != null &&
+                endpoint.Description.ServerCertificate.Length > 0)
+            {
+                configuration.CertificateValidator?.ValidateDomains(
+                    new X509Certificate2(endpoint.Description.ServerCertificate),
+                    endpoint);
+                checkDomain = false;
+            }
+
+            X509Certificate2 clientCertificate = null;
+            X509Certificate2Collection clientCertificateChain = null;
+            if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
+            {
+                clientCertificate = await LoadCertificate(configuration).ConfigureAwait(false);
+                clientCertificateChain = await LoadCertificateChain(configuration, clientCertificate).ConfigureAwait(false);
+            }
+
+            // initialize the channel which will be created with the server.
+            ITransportChannel channel;
+            if (connection != null)
+            {
+                channel = SessionChannel.CreateUaBinaryChannel(
+                    configuration,
+                    connection,
+                    endpointDescription,
+                    endpointConfiguration,
+                    clientCertificate,
+                    clientCertificateChain,
+                    messageContext);
+            }
+            else
+            {
+                channel = SessionChannel.Create(
+                     configuration,
+                     endpointDescription,
+                     endpointConfiguration,
+                     clientCertificate,
+                     clientCertificateChain,
+                     messageContext);
+            }
+
+            return channel;
+        }
+
         /// <summary>
         /// Creates a new communication session with a server by invoking the CreateSession service
         /// </summary>
@@ -845,7 +931,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales)
         {
             // initialize the channel which will be created with the server.
-            ITransportChannel channel = await SessionChannel.CreateAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain).ConfigureAwait(false);
+            ITransportChannel channel = await Session.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain).ConfigureAwait(false);
 
             // create the session object.
             Session session = new Session(channel, configuration, endpoint, null);
@@ -3491,7 +3577,6 @@ namespace Opc.Ua.Client
                     Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
                 }
 
-                
             }
 
             return true;
