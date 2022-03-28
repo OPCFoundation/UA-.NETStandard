@@ -3442,6 +3442,7 @@ namespace Opc.Ua.Client
                     }
                     ClientBase.ValidateResponse(results, subscriptionIds);
                     ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+                    var failedSubscriptionIds = new UInt32Collection();
 
                     for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
@@ -3462,13 +3463,17 @@ namespace Opc.Ua.Client
                         else
                         {
                             Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
-                            return false;
+                            failedSubscriptionIds.Add(subscriptions[ii].TransferId);
                         }
+                    }
+                    if(failedSubscriptionIds.Count > 0)
+                    {
+                        return false;
                     }
                 }
                 else
                 {
-                    Utils.LogInfo("There is no subscriptions need TransferSubscription");
+                    Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
                 }
 
                 
