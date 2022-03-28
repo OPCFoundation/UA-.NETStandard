@@ -1638,7 +1638,7 @@ namespace Opc.Ua.Server
 
             if (details == null)
             {
-                throw new ServiceResultException(StatusCodes.BadHistoryOperationUnsupported);
+                throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
 
             // create result lists.
@@ -2470,6 +2470,40 @@ namespace Opc.Ua.Server
                 }
 
                 errors[ii] = StatusCodes.Good;
+            }
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        public virtual void TransferMonitoredItems(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<ServiceResult> errors)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+            if (errors == null) throw new ArgumentNullException(nameof(errors));
+
+            var processedItems = new List<bool>(monitoredItems.Count);
+
+            // preset results for unknown nodes
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
+            {
+                processedItems.Add(monitoredItems[ii] == null);
+                errors[ii] = StatusCodes.BadMonitoredItemIdInvalid;
+            }
+
+            // call each node manager.
+            foreach (INodeManager nodeManager in m_nodeManagers)
+            {
+                nodeManager.TransferMonitoredItems(
+                    context,
+                    sendInitialValues,
+                    monitoredItems,
+                    processedItems,
+                    errors);
             }
         }
 

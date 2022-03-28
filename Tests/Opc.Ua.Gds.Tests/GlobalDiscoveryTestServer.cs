@@ -43,9 +43,9 @@ namespace Opc.Ua.Gds.Tests
         public ApplicationConfiguration Config { get; private set; }
         public int BasePort { get; private set; }
 
-        public GlobalDiscoveryTestServer(bool _autoAccept)
+        public GlobalDiscoveryTestServer(bool autoAccept)
         {
-            m_autoAccept = _autoAccept;
+            s_autoAccept = autoAccept;
         }
 
         public async Task StartServer(bool clean, int basePort = -1)
@@ -72,10 +72,10 @@ namespace Opc.Ua.Gds.Tests
                 }
 
                 // always start with clean cert store
-                TestUtils.CleanupTrustList(Config.SecurityConfiguration.ApplicationCertificate.OpenStore());
-                TestUtils.CleanupTrustList(Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore());
-                TestUtils.CleanupTrustList(Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore());
-                TestUtils.CleanupTrustList(Config.SecurityConfiguration.RejectedCertificateStore.OpenStore());
+                await TestUtils.CleanupTrustList(Config.SecurityConfiguration.ApplicationCertificate.OpenStore());
+                await TestUtils.CleanupTrustList(Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore());
+                await TestUtils.CleanupTrustList(Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore());
+                await TestUtils.CleanupTrustList(Config.SecurityConfiguration.RejectedCertificateStore.OpenStore());
 
                 Config = await Load(Application, basePort).ConfigureAwait(false);
             }
@@ -169,8 +169,8 @@ namespace Opc.Ua.Gds.Tests
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = m_autoAccept;
-                if (m_autoAccept)
+                e.Accept = s_autoAccept;
+                if (s_autoAccept)
                 {
                     Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
                 }
@@ -181,7 +181,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
+        private static async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
         {
 #if !USE_FILE_CONFIG
             // load the application configuration.
@@ -195,10 +195,9 @@ namespace Opc.Ua.Gds.Tests
                 DefaultSubjectNameContext = "O=OPC Foundation",
                 CertificateGroups = new CertificateGroupConfigurationCollection()
                 {
-                    new CertificateGroupConfiguration()
-                    {
+                    new CertificateGroupConfiguration() {
                         Id = "Default",
-                        CertificateType ="RsaSha256ApplicationCertificateType",
+                        CertificateType = "RsaSha256ApplicationCertificateType",
                         SubjectName = "CN=GDS Test CA, O=OPC Foundation",
                         BaseStorePath = Path.Combine(gdsRoot, "CA", "default"),
                         DefaultCertificateHashSize = 256,
@@ -242,6 +241,6 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private GlobalDiscoverySampleServer m_server;
-        private static bool m_autoAccept = false;
+        private static bool s_autoAccept = false;
     }
 }

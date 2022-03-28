@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -35,6 +35,7 @@ using System.Threading;
 using System.Runtime.Serialization;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 
 namespace Opc.Ua.Server
 {
@@ -169,6 +170,7 @@ namespace Opc.Ua.Server
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -251,6 +253,14 @@ namespace Opc.Ua.Server
                     return m_session.Id;
                 }
             }
+        }
+
+        /// <summary>
+        /// The owner identity.
+        /// </summary>
+        public UserIdentityToken OwnerIdentity
+        {
+            get { return (m_session != null) ? m_session.IdentityToken : m_savedOwnerIdentity; }
         }
 
         /// <summary>
@@ -493,7 +503,7 @@ namespace Opc.Ua.Server
                     {
                         if (!m_waitingForPublish)
                         {
-                            // TraceState("READY TO PUBLISH");
+                            // TraceState(LogLevel.Trace, TraceStateId.Deleted, "READY TO PUBLISH");
                         }
 
                         m_waitingForPublish = true;
@@ -506,7 +516,7 @@ namespace Opc.Ua.Server
                 {
                     if (!m_waitingForPublish)
                     {
-                        // TraceState("READY TO KEEPALIVE");
+                        // TraceState(LogLevel.Trace, TraceStateId.Items, "READY TO KEEPALIVE");
                     }
 
                     m_waitingForPublish = true;
@@ -519,13 +529,58 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Transfers the subscription to a new session.
+        /// </summary>
+        /// <param name="context">The session to which the subscription is transferred.</param>
+        /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param> 
+        public void TransferSession(OperationContext context, bool sendInitialValues)
+        {
+            lock (m_lock)
+            {
+                m_session = context.Session;
+            }
+
+            var monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+            var errors = new List<ServiceResult>(monitoredItems.Count);
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
+            {
+                errors.Add(null);
+            }
+
+            m_server.NodeManager.TransferMonitoredItems(context, sendInitialValues, monitoredItems, errors);
+
+            int badTransfers = 0;
+            for (int ii = 0; ii < errors.Count; ii++)
+            {
+                if (ServiceResult.IsBad(errors[ii]))
+                {
+                    badTransfers++;
+                }
+            }
+
+            if (badTransfers > 0)
+            {
+                Utils.LogTrace("Failed to transfer {0} Monitored Items", badTransfers);
+            }
+
+            lock (DiagnosticsWriteLock)
+            {
+                m_diagnostics.SessionId = m_session.Id;
+            }
+        }
+
+        /// <summary>
         /// Tells the subscription that the owning session is being closed.
         /// </summary>
         public void SessionClosed()
         {
             lock (m_lock)
             {
-                m_session = null;
+                if (m_session != null)
+                {
+                    m_savedOwnerIdentity = m_session.IdentityToken;
+                    m_session = null;
+                }
             }
 
             lock (DiagnosticsWriteLock)
@@ -604,7 +659,7 @@ namespace Opc.Ua.Server
                     return StatusCodes.BadSequenceNumberInvalid;
                 }
 
-                // TraceState("ACK " + sequenceNumber.ToString());
+                // TraceState(LogLevel.Trace, TraceStateId.Items, "ACK " + sequenceNumber.ToString());
 
                 // message not found.
                 return StatusCodes.BadSequenceNumberUnknown;
@@ -654,7 +709,7 @@ namespace Opc.Ua.Server
                     // clear counters on success.
                     if (message != null)
                     {
-                        // TraceState(Utils.Format("PUBLISH #{0}", message.SequenceNumber));
+                        // TraceState(LogLevel.Trace, TraceStateId.Items, Utils.Format("PUBLISH #{0}", message.SequenceNumber));
                         ResetKeepaliveCount();
                         m_waitingForPublish = moreNotifications;
                         ResetLifetimeCount();
@@ -676,10 +731,10 @@ namespace Opc.Ua.Server
             {
                 m_expired = true;
 
-                message = new NotificationMessage();
-
-                message.SequenceNumber = (uint)m_sequenceNumber;
-                message.PublishTime = DateTime.UtcNow;
+                message = new NotificationMessage {
+                    SequenceNumber = (uint)m_sequenceNumber,
+                    PublishTime = DateTime.UtcNow
+                };
 
                 Utils.IncrementIdentifier(ref m_sequenceNumber);
 
@@ -688,8 +743,39 @@ namespace Opc.Ua.Server
                     m_diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
                 }
 
-                StatusChangeNotification notification = new StatusChangeNotification();
-                notification.Status = StatusCodes.BadTimeout;
+                StatusChangeNotification notification = new StatusChangeNotification {
+                    Status = StatusCodes.BadTimeout
+                };
+                message.NotificationData.Add(new ExtensionObject(notification));
+            }
+
+            return message;
+        }
+
+        /// <summary>
+        /// Publishes a SubscriptionTransferred status message.
+        /// </summary>
+        public NotificationMessage SubscriptionTransferred()
+        {
+            NotificationMessage message = null;
+
+            lock (m_lock)
+            {
+                message = new NotificationMessage {
+                    SequenceNumber = (uint)m_sequenceNumber,
+                    PublishTime = DateTime.UtcNow
+                };
+
+                Utils.IncrementIdentifier(ref m_sequenceNumber);
+
+                lock (DiagnosticsWriteLock)
+                {
+                    m_diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
+                }
+
+                var notification = new StatusChangeNotification {
+                    Status = StatusCodes.GoodSubscriptionTransferred
+                };
                 message.NotificationData.Add(new ExtensionObject(notification));
             }
 
@@ -707,7 +793,7 @@ namespace Opc.Ua.Server
             // check session.
             VerifySession(context);
 
-            // TraceState("PUBLISH");
+            // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH");
 
             // check if a keep alive should be sent if there is no data.
             bool keepAliveIfNoData = (m_keepAliveCounter >= m_maxKeepAliveCount);
@@ -726,7 +812,7 @@ namespace Opc.Ua.Server
 
                 moreNotifications = m_waitingForPublish = m_lastSentMessage < m_sentMessages.Count - 1;
 
-                // TraceState("PUBLISH QUEUED MESSAGE");
+                // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH QUEUED MESSAGE");
                 return m_sentMessages[m_lastSentMessage++];
             }
 
@@ -840,7 +926,7 @@ namespace Opc.Ua.Server
                 // create a keep alive message.
                 NotificationMessage message = new NotificationMessage();
 
-                // use the sequence number for the next message.                    
+                // use the sequence number for the next message.
                 message.SequenceNumber = (uint)m_sequenceNumber;
                 message.PublishTime = DateTime.UtcNow;
 
@@ -850,7 +936,7 @@ namespace Opc.Ua.Server
                     availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
                 }
 
-                // TraceState("PUBLISH KEEPALIVE");
+                // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH KEEPALIVE");
                 return message;
             }
 
@@ -858,15 +944,10 @@ namespace Opc.Ua.Server
             int overflowCount = messages.Count - (int)m_maxMessageCount;
             if (overflowCount > 0)
             {
-
                 Utils.LogWarning(
-                    "WARNING: QUEUE OVERFLOW. Dropping {2} Messages. Increase MaxMessageQueueSize. SubId={0}, MaxMessageQueueSize={1}",
-                    m_id,
-                    m_maxMessageCount,
-                    overflowCount);
-
+                    "WARNING: QUEUE OVERFLOW. Dropping {0} Messages. Increase MaxMessageQueueSize. SubId={1}, MaxMessageQueueSize={2}",
+                    overflowCount, m_id, m_maxMessageCount);
                 messages.RemoveRange(0, overflowCount);
-
             }
 
             // remove old messages if queue is full.
@@ -900,8 +981,25 @@ namespace Opc.Ua.Server
                 availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
             }
 
-            // TraceState("PUBLISH NEW MESSAGE");
+            // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH NEW MESSAGE");
             return m_sentMessages[m_lastSentMessage++];
+        }
+
+        /// <summary>
+        /// Returns the available sequence numbers for retransmission
+        /// For example used in Transfer Subscription
+        /// </summary>
+        public UInt32Collection AvailableSequenceNumbersForRetransmission()
+        {
+            var availableSequenceNumbers = new UInt32Collection();
+            // Assumption we do not check lastSentMessage < sentMessages.Count because
+            // in case of subscription transfer original client might have crashed by handling message,
+            // therefor new client should have to chance to process all available messages
+            for (int ii = 0; ii < m_sentMessages.Count; ii++)
+            {
+                availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
+            }
+            return availableSequenceNumbers;
         }
 
         /// <summary>
@@ -2151,6 +2249,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Sets the subscription to durable mode.
+        /// </summary>
+        public ServiceResult SetSubscriptionDurable(uint lifeTimeInHours, out uint revisedLifeTimeInHours)
+        {
+            lock (m_lock)
+            {
+                // set default
+                revisedLifeTimeInHours = 0;
+
+                if (m_monitoredItems.Count > 0)
+                {
+                    return StatusCodes.BadInvalidState;
+                }
+
+                // TODO: enable the durable subscription support here
+
+                return StatusCodes.Good;
+            }
+        }
+
+        /// <summary>
         /// Gets the monitored items for the subscription.
         /// </summary>
         public void GetMonitoredItems(out uint[] serverHandles, out uint[] clientHandles)
@@ -2222,10 +2341,10 @@ namespace Opc.Ua.Server
         /// </summary>
         private void TraceState(LogLevel logLevel, TraceStateId id, string context)
         {
-            const string DeletedMessage = "Subscription {0}, SessionId={1}, Id={2}, SeqNo={3}, MessageCount={4}";
-            const string ConfigMessage = "Subscription {0}, SessionId={1}, Id={2}, Priority={3}, Publishing={4}, KeepAlive={5}, LifeTime={6}, MaxNotifications={7}, Enabled={8}";
-            const string MonitorMessage = "Subscription {0}, Id={1}, KeepAliveCount={2}, LifeTimeCount={3}, WaitingForPublish={4}, SeqNo={5}, ItemCount={6}, ItemsToCheck={7}, ItemsToPublish={8}, MessageCount={9}";
-            const string ItemsMessage = "Subscription {0}, Id={1}, ItemCount={2}, ItemsToCheck={3}, ItemsToPublish={4}";
+            const string deletedMessage = "Subscription {0}, SessionId={1}, Id={2}, SeqNo={3}, MessageCount={4}";
+            const string configMessage = "Subscription {0}, SessionId={1}, Id={2}, Priority={3}, Publishing={4}, KeepAlive={5}, LifeTime={6}, MaxNotifications={7}, Enabled={8}";
+            const string monitorMessage = "Subscription {0}, Id={1}, KeepAliveCount={2}, LifeTimeCount={3}, WaitingForPublish={4}, SeqNo={5}, ItemCount={6}, ItemsToCheck={7}, ItemsToPublish={8}, MessageCount={9}";
+            const string itemsMessage = "Subscription {0}, Id={1}, ItemCount={2}, ItemsToCheck={3}, ItemsToPublish={4}";
 
             if (!Utils.Logger.IsEnabled(logLevel))
             {
@@ -2248,24 +2367,24 @@ namespace Opc.Ua.Server
             switch (id)
             {
                 case TraceStateId.Deleted:
-                    Utils.Log(logLevel, DeletedMessage, context, m_session?.Id, m_id,
+                    Utils.Log(logLevel, deletedMessage, context, m_session?.Id, m_id,
                         sequenceNumber, sentMessages);
                     break;
 
                 case TraceStateId.Config:
-                    Utils.Log(logLevel, ConfigMessage, context, m_session?.Id, m_id,
+                    Utils.Log(logLevel, configMessage, context, m_session?.Id, m_id,
                         m_priority, m_publishingInterval, m_maxKeepAliveCount,
                         m_maxLifetimeCount, m_maxNotificationsPerPublish, publishingEnabled);
                     break;
 
                 case TraceStateId.Items:
-                    Utils.Log(logLevel, ItemsMessage, context, m_id,
+                    Utils.Log(logLevel, itemsMessage, context, m_id,
                         monitoredItems, itemsToCheck, itemsToPublish);
                     break;
 
                 case TraceStateId.Publish:
                 case TraceStateId.Monitor:
-                    Utils.Log(logLevel, MonitorMessage, context, m_id, m_keepAliveCounter, m_lifetimeCounter,
+                    Utils.Log(logLevel, monitorMessage, context, m_id, m_keepAliveCounter, m_lifetimeCounter,
                         waitingForPublish, sequenceNumber, monitoredItems, itemsToCheck,
                         itemsToPublish, sentMessages);
                     break;
@@ -2278,6 +2397,7 @@ namespace Opc.Ua.Server
         private IServerInternal m_server;
         private Session m_session;
         private uint m_id;
+        private UserIdentityToken m_savedOwnerIdentity;
         private double m_publishingInterval;
         private uint m_maxLifetimeCount;
         private uint m_maxKeepAliveCount;

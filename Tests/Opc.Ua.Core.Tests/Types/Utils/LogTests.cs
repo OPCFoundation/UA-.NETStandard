@@ -98,6 +98,7 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                     Utils.Tracing.TraceEventHandler -= this.TraceEventHandler;
                     m_disposed = true;
                 }
+                GC.SuppressFinalize(this);
             }
 
             /// <summary>
@@ -145,7 +146,7 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 Utils.Trace(Utils.TraceMasks.None, "This is a None message: {0}", Utils.TraceMasks.None);
                 if (Utils.Logger.IsEnabled(LogLevel.Trace))
                 {
-                    Assert.AreEqual(Utils.TraceMasks.Information, logger.LastTraceEventArgs.TraceMask);
+                    Assert.AreEqual(Utils.TraceMasks.Operation, logger.LastTraceEventArgs.TraceMask);
                     logger.LastTraceEventArgs = null;
                 }
                 else
@@ -280,11 +281,11 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
 #if DEBUG
                 switch (logLevel)
                 {
-                    case LogLevel.Trace: Assert.AreEqual(19, logger.TraceList.Count); break;
-                    case LogLevel.Debug: Assert.AreEqual(12, logger.TraceList.Count); break;
-                    case LogLevel.Information: Assert.AreEqual(11, logger.TraceList.Count); break;
-                    case LogLevel.Warning: Assert.AreEqual(7, logger.TraceList.Count); break;
-                    case LogLevel.Error: Assert.AreEqual(6, logger.TraceList.Count); break;
+                    case LogLevel.Trace: Assert.AreEqual(20, logger.TraceList.Count); break;
+                    case LogLevel.Debug: Assert.AreEqual(13, logger.TraceList.Count); break;
+                    case LogLevel.Information: Assert.AreEqual(12, logger.TraceList.Count); break;
+                    case LogLevel.Warning: Assert.AreEqual(8, logger.TraceList.Count); break;
+                    case LogLevel.Error: Assert.AreEqual(7, logger.TraceList.Count); break;
                     case LogLevel.Critical: Assert.AreEqual(1, logger.TraceList.Count); break;
                 }
 #else

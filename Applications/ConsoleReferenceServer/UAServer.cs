@@ -103,12 +103,35 @@ namespace Quickstarts
                 bool haveAppCertificate = await m_application.CheckApplicationInstanceCertificate(false, minimumKeySize: 0).ConfigureAwait(false);
                 if (!haveAppCertificate)
                 {
-                    throw new Exception("Application instance certificate invalid!");
+                    throw new ErrorExitException("Application instance certificate invalid!");
                 }
 
                 if (!config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
                 {
                     config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new ErrorExitException(ex.Message, ExitCode);
+            }
+        }
+
+        /// <summary>
+        /// Create server instance and add node managers.
+        /// </summary>
+        public void Create(IList<INodeManagerFactory> nodeManagerFactories)
+        {
+            try
+            {
+                // create the server.
+                m_server = new T();
+                if (nodeManagerFactories != null)
+                {
+                    foreach (var factory in nodeManagerFactories)
+                    {
+                        m_server.AddNodeManager(factory);
+                    }
                 }
             }
             catch (Exception ex)
@@ -125,7 +148,7 @@ namespace Quickstarts
             try
             {
                 // create the server.
-                m_server = new T();
+                m_server = m_server ?? new T();
 
                 // start the server
                 await m_application.Start(m_server).ConfigureAwait(false);
@@ -197,7 +220,7 @@ namespace Quickstarts
                     return;
                 }
             }
-            m_output.WriteLine("Rejected Certificate: {0} [{1}] [{2}]", e.Error, e.Certificate.Subject,  e.Certificate.Thumbprint);
+            m_output.WriteLine("Rejected Certificate: {0} [{1}] [{2}]", e.Error, e.Certificate.Subject, e.Certificate.Thumbprint);
         }
 
         /// <summary>
@@ -214,9 +237,9 @@ namespace Quickstarts
         /// </summary>
         private void PrintSessionStatus(Session session, string reason, bool lastContact = false)
         {
+            StringBuilder item = new StringBuilder();
             lock (session.DiagnosticsLock)
             {
-                StringBuilder item = new StringBuilder();
                 item.AppendFormat("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName);
                 if (lastContact)
                 {
@@ -230,8 +253,8 @@ namespace Quickstarts
                     }
                     item.AppendFormat(":{0}", session.Id);
                 }
-                m_output.WriteLine(item.ToString());
             }
+            m_output.WriteLine(item.ToString());
         }
 
         /// <summary>

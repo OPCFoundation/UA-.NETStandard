@@ -34,6 +34,32 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// The constructor from a template.
+        /// </summary>
+        public ApplicationConfiguration(ApplicationConfiguration template)
+        {
+            Initialize();
+
+            m_applicationName = template.m_applicationName;
+            m_applicationType = template.m_applicationType;
+            m_applicationUri = template.m_applicationUri;
+            m_discoveryServerConfiguration = template.m_discoveryServerConfiguration;
+            m_securityConfiguration = template.m_securityConfiguration;
+            m_transportConfigurations = template.m_transportConfigurations;
+            m_serverConfiguration = template.m_serverConfiguration;
+            m_clientConfiguration = template.m_clientConfiguration;
+            m_disableHiResClock = template.m_disableHiResClock;
+            m_certificateValidator = template.m_certificateValidator;
+            m_transportQuotas = template.m_transportQuotas;
+            m_traceConfiguration = template.m_traceConfiguration;
+            m_extensions = template.m_extensions;
+            m_extensionObjects = template.m_extensionObjects;
+            m_sourceFilePath = template.m_sourceFilePath;
+            m_messageContext = template.m_messageContext;
+            m_properties = template.m_properties;
+        }
+
+        /// <summary>
         /// Sets private members to default values.
         /// </summary>
         private void Initialize()
@@ -579,7 +605,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public TransportConfigurationCollection(IEnumerable<TransportConfiguration> collection) : base(collection) { }
@@ -704,7 +730,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="System.ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public ServerSecurityPolicyCollection(IEnumerable<ServerSecurityPolicy> collection) : base(collection) { }
@@ -1160,7 +1186,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public SamplingRateGroupCollection(IEnumerable<SamplingRateGroup> collection) : base(collection) { }
@@ -1230,8 +1256,7 @@ namespace Opc.Ua
                         };
                         if (newPolicies.Find(s =>
                             s.SecurityMode == newPolicy.SecurityMode &&
-                            String.Compare(s.SecurityPolicyUri, newPolicy.SecurityPolicyUri) == 0
-                            ) == null)
+                            string.Equals(s.SecurityPolicyUri, newPolicy.SecurityPolicyUri, StringComparison.Ordinal)) == null)
                         {
                             newPolicies.Add(newPolicy);
                         }
@@ -1245,8 +1270,8 @@ namespace Opc.Ua
                         {
                             if (newPolicies.Find(s =>
                                 s.SecurityMode == securityPolicy.SecurityMode &&
-                                String.Compare(s.SecurityPolicyUri, securityPolicy.SecurityPolicyUri) == 0
-                                ) == null)
+                                string.Equals(s.SecurityPolicyUri, securityPolicy.SecurityPolicyUri,
+                                    StringComparison.Ordinal)) == null)
                             {
                                 newPolicies.Add(securityPolicy);
                             }
@@ -2152,7 +2177,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public ReverseConnectClientCollection(IEnumerable<ReverseConnectClient> collection) : base(collection) { }
@@ -2413,7 +2438,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public ReverseConnectClientEndpointCollection(IEnumerable<ReverseConnectClientEndpoint> collection) : base(collection) { }
@@ -2624,7 +2649,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public ServerRegistrationCollection(IEnumerable<ServerRegistration> collection) : base(collection) { }
@@ -2769,7 +2794,11 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize() => m_trustedCertificates = new CertificateIdentifierCollection();
+        private void Initialize()
+        {
+            m_lock = new object();
+            m_trustedCertificates = new CertificateIdentifierCollection();
+        }
 
         /// <summary>
         /// Initializes the object during deserialization.

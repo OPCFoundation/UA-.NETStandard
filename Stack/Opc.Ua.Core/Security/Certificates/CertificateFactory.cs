@@ -206,7 +206,7 @@ namespace Opc.Ua
         /// </summary>
         public static X509CRL RevokeCertificate(
             X509Certificate2 issuerCertificate,
-            List<X509CRL> issuerCrls,
+            X509CRLCollection issuerCrls,
             X509Certificate2Collection revokedCertificates
             )
         {
@@ -224,7 +224,7 @@ namespace Opc.Ua
         /// </remarks>
         public static X509CRL RevokeCertificate(
             X509Certificate2 issuerCertificate,
-            List<X509CRL> issuerCrls,
+            X509CRLCollection issuerCrls,
             X509Certificate2Collection revokedCertificates,
             DateTime thisUpdate,
             DateTime nextUpdate

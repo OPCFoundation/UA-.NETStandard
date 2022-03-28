@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -244,7 +244,7 @@ namespace MemoryBuffer
 
             if (!QualifiedName.IsNull(dataEncoding))
             {
-                return StatusCodes.BadDataEncodingInvalid;
+                return StatusCodes.BadDataEncodingUnsupported;
             }
 
             int offset = (int)tag.Offset;
@@ -296,7 +296,7 @@ namespace MemoryBuffer
 
             if (!QualifiedName.IsNull(dataEncoding))
             {
-                return StatusCodes.BadDataEncodingInvalid;
+                return StatusCodes.BadDataEncodingUnsupported;
             }
 
             if (statusCode != StatusCodes.Good)
@@ -438,26 +438,26 @@ namespace MemoryBuffer
         /// </summary>
         public MemoryBufferMonitoredItem CreateDataChangeItem(
             ServerSystemContext context,
-            MemoryTagState      tag,
-            uint                subscriptionId,
-            uint                monitoredItemId,
-            ReadValueId         itemToMonitor,
-            DiagnosticsMasks    diagnosticsMasks,
-            TimestampsToReturn  timestampsToReturn,
-            MonitoringMode      monitoringMode,
-            uint                clientHandle,
-            double              samplingInterval)
-
-            /*
-            ISystemContext context,
             MemoryTagState tag,
+            uint subscriptionId,
             uint monitoredItemId,
-            uint attributeId,
+            ReadValueId itemToMonitor,
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
             MonitoringMode monitoringMode,
             uint clientHandle,
-            double samplingInterval)*/
+            double samplingInterval)
+
+        /*
+        ISystemContext context,
+        MemoryTagState tag,
+        uint monitoredItemId,
+        uint attributeId,
+        DiagnosticsMasks diagnosticsMasks,
+        TimestampsToReturn timestampsToReturn,
+        MonitoringMode monitoringMode,
+        uint clientHandle,
+        double samplingInterval)*/
         {
             lock (m_dataLock)
             {
@@ -468,7 +468,6 @@ namespace MemoryBuffer
                     tag.Offset,
                     0,
                     monitoredItemId,
-                    context.OperationContext.Session,
                     itemToMonitor,
                     diagnosticsMasks,
                     timestampsToReturn,
@@ -553,7 +552,7 @@ namespace MemoryBuffer
 
             DateTime end1 = DateTime.UtcNow;
 
-            double delta1 = ((double)(end1.Ticks-start1.Ticks))/TimeSpan.TicksPerMillisecond;
+            double delta1 = ((double)(end1.Ticks - start1.Ticks)) / TimeSpan.TicksPerMillisecond;
 
             if (delta1 > 100)
             {
@@ -669,7 +668,7 @@ namespace MemoryBuffer
 
             DateTime end1 = DateTime.UtcNow;
 
-            double delta1 = ((double)(end1.Ticks-start1.Ticks))/TimeSpan.TicksPerMillisecond;
+            double delta1 = ((double)(end1.Ticks - start1.Ticks)) / TimeSpan.TicksPerMillisecond;
 
             if (delta1 > 100)
             {
@@ -683,7 +682,7 @@ namespace MemoryBuffer
         private IServerInternal m_server;
         private INodeManager m_nodeManager;
         private MemoryBufferMonitoredItem[][] m_monitoringTable;
-        private Dictionary<uint,MemoryBufferMonitoredItem> m_nonValueMonitoredItems;
+        private Dictionary<uint, MemoryBufferMonitoredItem> m_nonValueMonitoredItems;
         private BuiltInType m_elementType;
         private int m_elementSize;
         private DateTime m_lastScanTime;

@@ -2,22 +2,29 @@
   <PropertyGroup>
     <Product>OPC UA .NET Standard Library</Product>
     <RepositoryUrl>https://github.com/OPCFoundation/UA-.NETStandard</RepositoryUrl>
-    <VersionPrefix>1.04.360</VersionPrefix>
+    <VersionPrefix>1.04.368</VersionPrefix>
     <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
-    <Copyright>Copyright © 2004-2021 OPC Foundation, Inc</Copyright>
+    <Copyright>Copyright © 2004-2022 OPC Foundation, Inc</Copyright>
     <Company>OPC Foundation</Company>
     <Authors>OPC Foundation</Authors>
-    <NoWarn>NU5125;RCS1138;RCS1139;RCS1075;NETSDK1138</NoWarn>
+    <NoWarn>NU5125;CA2254</NoWarn>
     <NeutralLanguage>en-US</NeutralLanguage>
     <HighEntropyVA>true</HighEntropyVA>
     <IsPackable>false</IsPackable>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Highest language version supported by .NET Standard 2.0 and .NET framework -->
     <LangVersion>7.3</LangVersion>
     <!--TODO <GenerateDocumentationFile>true</GenerateDocumentationFile>-->
   </PropertyGroup>
 
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisModeSecurity>preview-all</AnalysisModeSecurity>
+    <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
+  </PropertyGroup>
+    
   <PropertyGroup>
     <PackageIcon>images/logo.jpg</PackageIcon>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
@@ -33,14 +40,10 @@
     <None Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg" Pack="true" PackagePath="$(PackageIcon)"/>
   </ItemGroup>
 
-  <ItemGroup Condition="'$(RCS)' == 'true'">
-    <PackageReference Include="Roslynator.Analyzers" Version="3.3.0" PrivateAssets="All" />
-  </ItemGroup>
-
   <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All"/>
   </ItemGroup>
-  
+
   <!-- Deterministic build is currently not supported for code coverage tests. -->
   <PropertyGroup Condition="'$(CollectCoverage)' != 'true' AND ('$(TF_BUILD)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true')">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>

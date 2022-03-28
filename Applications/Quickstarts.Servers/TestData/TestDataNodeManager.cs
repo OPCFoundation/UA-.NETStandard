@@ -51,6 +51,19 @@ namespace TestData
         {
             return new TestDataNodeManager(server, configuration);
         }
+
+        /// <inheritdoc/>
+        public StringCollection NamespacesUris
+        {
+            get
+            {
+                var nameSpaces = new StringCollection {
+                    Namespaces.TestData,
+                    Namespaces.TestData + "Instance"
+                };  
+                return nameSpaces;
+            }
+        }
     }
 
     /// <summary>
@@ -142,7 +155,7 @@ namespace TestData
             {
                 // ensure the namespace used by the node manager is in the server's namespace table.
                 m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.TestData);
-                m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.TestData + "/Instance");
+                m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.TestData + "Instance");
 
                 base.CreateAddressSpace(externalReferences);
 
@@ -165,7 +178,6 @@ namespace TestData
                 foreach (NodeState node in PredefinedNodes.Values)
                 {
                     ConditionState condition = node as ConditionState;
-
                     if (condition != null && !Object.ReferenceEquals(condition.Parent, conditionsFolder))
                     {
                         condition.AddNotifier(SystemContext, null, true, conditionsFolder);
@@ -175,8 +187,8 @@ namespace TestData
 
                 // enable history for all numeric scalar values.
                 ScalarValueObjectState scalarValues = (ScalarValueObjectState)FindPredefinedNode(
-                    new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex),
-                    typeof(ScalarValueObjectState));
+                new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex),
+                typeof(ScalarValueObjectState));
 
                 scalarValues.Int32Value.Historizing = true;
                 scalarValues.Int32Value.AccessLevel = (byte)(scalarValues.Int32Value.AccessLevel | AccessLevels.HistoryRead);

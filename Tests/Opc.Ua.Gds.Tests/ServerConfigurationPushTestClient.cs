@@ -40,7 +40,7 @@ namespace Opc.Ua.Gds.Tests
 
     public class ServerConfigurationPushTestClient
     {
-        public ServerPushConfigurationClient PushClient => _client;
+        public ServerPushConfigurationClient PushClient => m_client;
         public static bool AutoAccept = false;
 
         public ServerConfigurationPushTestClient(bool autoAccept)
@@ -95,13 +95,13 @@ namespace Opc.Ua.Gds.Tests
                 .AsClient()
                 .AddSecurityConfiguration(
                     "CN=Server Configuration Push Test Client, O=OPC Foundation",
-                    pkiRoot)
+                    pkiRoot, pkiRoot, pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension<ServerConfigurationPushTestClientConfiguration>(null, clientConfig)
-                .SetOutputFilePath(pkiRoot + "/Logs/Opc.Ua.Gds.Tests.log.txt")
+                .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(Utils.TraceMasks.Error)
                 .Create().ConfigureAwait(false);
 #endif
@@ -115,7 +115,7 @@ namespace Opc.Ua.Gds.Tests
             Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration = application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
-            _client = new ServerPushConfigurationClient(application) {
+            m_client = new ServerPushConfigurationClient(application.ApplicationConfiguration) {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(clientConfiguration.ServerUrl, port)
             };
             if (String.IsNullOrEmpty(clientConfiguration.AppUserName))
@@ -134,10 +134,10 @@ namespace Opc.Ua.Gds.Tests
         {
             Console.WriteLine("Disconnect Session. Waiting for exit...");
 
-            if (_client != null)
+            if (m_client != null)
             {
-                ServerPushConfigurationClient pushClient = _client;
-                _client = null;
+                ServerPushConfigurationClient pushClient = m_client;
+                m_client = null;
                 pushClient.Disconnect();
             }
 
@@ -164,7 +164,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private ServerPushConfigurationClient _client;
+        private ServerPushConfigurationClient m_client;
 
     }
 

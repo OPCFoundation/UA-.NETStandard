@@ -321,7 +321,7 @@ namespace Opc.Ua.Bindings
                         m_listeningSocket.Dispose();
                         m_listeningSocket = null;
                     }
-                    Utils.LogWarning("failed to create IPv4 listening socket: " + ex.Message);
+                    Utils.LogWarning("Failed to create IPv4 listening socket: {0}", ex.Message);
                 }
 
                 if (ipAddress == IPAddress.Any)
@@ -349,7 +349,7 @@ namespace Opc.Ua.Bindings
                             m_listeningSocketIPv6.Dispose();
                             m_listeningSocketIPv6 = null;
                         }
-                        Utils.LogWarning("failed to create IPv6 listening socket: " + ex.Message);
+                        Utils.LogWarning("Failed to create IPv6 listening socket: {0}", ex.Message);
                     }
                 }
                 if (m_listeningSocketIPv6 == null && m_listeningSocket == null)

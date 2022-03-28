@@ -48,10 +48,10 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Initializes a new instance of the <see cref="ServerPushConfigurationClient"/> class.
         /// </summary>
-        /// <param name="application">The application.</param>
-        public ServerPushConfigurationClient(ApplicationInstance application)
+        /// <param name="configuration">The application configuration.</param>
+        public ServerPushConfigurationClient(ApplicationConfiguration configuration)
         {
-            m_application = application;
+            m_configuration = configuration;
         }
         #endregion
 
@@ -68,7 +68,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The application instance.
         /// </value>
-        public ApplicationInstance Application => m_application;
+        public ApplicationConfiguration Configuration => m_configuration;
 
         /// <summary>
         /// Gets or sets the admin credentials.
@@ -204,8 +204,8 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
             }
 
-            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_application.ApplicationConfiguration);
+            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, endpointUrl, true);
+            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
             await Connect(endpoint).ConfigureAwait(false);
@@ -239,11 +239,11 @@ namespace Opc.Ua.Gds.Client
             }
 
             m_session = await Session.Create(
-                m_application.ApplicationConfiguration,
+                m_configuration,
                 endpoint,
                 false,
                 false,
-                m_application.ApplicationName,
+                m_configuration.ApplicationName,
                 60000,
                 m_adminCredentials,
                 m_preferredLocales).ConfigureAwait(false);
@@ -809,7 +809,7 @@ namespace Opc.Ua.Gds.Client
         #endregion
 
         #region Private Fields
-        private ApplicationInstance m_application;
+        private ApplicationConfiguration m_configuration;
         private ConfiguredEndpoint m_endpoint;
         private string m_endpointUrl;
         private string[] m_preferredLocales;

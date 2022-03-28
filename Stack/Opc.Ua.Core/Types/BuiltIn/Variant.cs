@@ -862,6 +862,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Append a ByteString as a hex string.
+        /// </summary>
+        private void AppendByteString(StringBuilder buffer, byte[] bytes, IFormatProvider formatProvider)
+        {
+            if (bytes != null)
+            {
+                for (int ii = 0; ii < bytes.Length; ii++)
+                {
+                    buffer.AppendFormat(formatProvider, "{0:X2}", bytes[ii]);
+                }
+            }
+            else
+            {
+                buffer.Append("(null)");
+            }
+        }
+
+        /// <summary>
         /// Formats a value as a string.
         /// </summary>
         private void AppendFormat(StringBuilder buffer, object value, IFormatProvider formatProvider)
@@ -877,12 +895,7 @@ namespace Opc.Ua
             if (m_typeInfo.BuiltInType == BuiltInType.ByteString && m_typeInfo.ValueRank < 0)
             {
                 byte[] bytes = (byte[])value;
-
-                for (int ii = 0; ii < bytes.Length; ii++)
-                {
-                    buffer.AppendFormat(formatProvider, "{0:X2}", bytes[ii]);
-                }
-
+                AppendByteString(buffer, bytes, formatProvider);
                 return;
             }
 
@@ -901,17 +914,34 @@ namespace Opc.Ua
             {
                 buffer.Append('{');
 
-                if (array.Length > 0)
+                if (m_typeInfo.BuiltInType == BuiltInType.ByteString)
                 {
-                    AppendFormat(buffer, array.GetValue(0), formatProvider);
-                }
+                    if (array.Length > 0)
+                    {
+                        byte[] bytes = (byte[])array.GetValue(0);
+                        AppendByteString(buffer, bytes, formatProvider);
+                    }
 
-                for (int ii = 1; ii < array.Length; ii++)
+                    for (int ii = 1; ii < array.Length; ii++)
+                    {
+                        buffer.Append('|');
+                        byte[] bytes = (byte[])array.GetValue(ii);
+                        AppendByteString(buffer, bytes, formatProvider);
+                    }
+                }
+                else
                 {
-                    buffer.Append(" |");
-                    AppendFormat(buffer, array.GetValue(ii), formatProvider);
-                }
+                    if (array.Length > 0)
+                    {
+                        AppendFormat(buffer, array.GetValue(0), formatProvider);
+                    }
 
+                    for (int ii = 1; ii < array.Length; ii++)
+                    {
+                        buffer.Append('|');
+                        AppendFormat(buffer, array.GetValue(ii), formatProvider);
+                    }
+                }
                 buffer.Append('}');
                 return;
             }
@@ -2756,7 +2786,7 @@ namespace Opc.Ua
         /// <param name="format">(Unused) Always pass a NULL value</param>
         /// <param name="formatProvider">The format-provider to use. If unsure, pass an empty string or null</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <remarks>
         /// Returns the string representation of the object.

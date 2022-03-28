@@ -111,12 +111,16 @@ csharp_style_expression_bodied_accessors                                      = 
 csharp_style_expression_bodied_constructors                                   = false : suggestion
 csharp_style_expression_bodied_methods                                        = false : suggestion
 csharp_style_expression_bodied_properties                                     = true : silent
+csharp_style_expression_bodied_lambdas                                        = true : silent
+csharp_style_expression_bodied_local_functions                                = false : silent
+
 
 #Style - expression level options
 csharp_prefer_braces                                                          = true : silent
 csharp_style_deconstructed_variable_declaration                               = true : suggestion
 csharp_prefer_simple_default_expression                                       = true : suggestion
 csharp_style_inlined_variable_declaration                                     = false : suggestion
+csharp_prefer_simple_using_statement                                          = false : suggestion
 
 #Style - implicit and explicit types
 csharp_style_var_for_built_in_types                                           = false : silent
@@ -161,6 +165,7 @@ dotnet_style_prefer_conditional_expression_over_return                        = 
 
 # 'using' directive preferences
 csharp_using_directive_placement                                              = outside_namespace : silent
+csharp_style_namespace_declarations                                           = block_scoped : silent
 
 # Naming rules
 
@@ -226,11 +231,22 @@ dotnet_naming_rule.instance_fields_should_be_camel_case.severity              = 
 dotnet_naming_rule.instance_fields_should_be_camel_case.symbols               = instance_fields
 dotnet_naming_rule.instance_fields_should_be_camel_case.style                 = instance_field_style
 
-dotnet_naming_symbols.instance_fields.applicable_kinds                        = field, event
+dotnet_naming_symbols.instance_fields.applicable_kinds                        = field
 dotnet_naming_symbols.instance_fields.applicable_accessibilities              = private, protected, private_protected, protected_friend
 
 dotnet_naming_style.instance_field_style.capitalization                       = camel_case
 dotnet_naming_style.instance_field_style.required_prefix                      = m_
+
+# Private event fields are PascalCase and start with m_
+dotnet_naming_rule.instance_events_should_be_pascal_case.severity             = suggestion
+dotnet_naming_rule.instance_events_should_be_pascal_case.symbols              = instance_events
+dotnet_naming_rule.instance_events_should_be_pascal_case.style                = instance_events_style
+
+dotnet_naming_symbols.instance_events.applicable_kinds                        = event
+dotnet_naming_symbols.instance_events.applicable_accessibilities              = private, protected, private_protected, protected_friend
+
+dotnet_naming_style.instance_events_style.capitalization                      = pascal_case
+dotnet_naming_style.instance_events_style.required_prefix                     = m_
 
 # Locals and parameters are camelCase
 dotnet_naming_rule.locals_should_be_camel_case.severity                       = suggestion
@@ -260,7 +276,10 @@ dotnet_naming_symbols.all_members.applicable_kinds                            = 
 dotnet_naming_style.pascal_case_style.capitalization                          = pascal_case
 
 # Diagnostic settings (windows only)
-dotnet_analyzer_diagnostic.category-reliability.severity                      = suggestion
+dotnet_analyzer_diagnostic.category-style.severity                            = suggestion
+dotnet_analyzer_diagnostic.category-globalization.severity                    = silent
+dotnet_analyzer_diagnostic.category-design.severity                           = suggestion
+dotnet_analyzer_diagnostic.category-reliability.severity                      = warning
 dotnet_analyzer_diagnostic.category-performance.severity                      = warning
 dotnet_analyzer_diagnostic.category-security.severity                         = warning
 
@@ -275,8 +294,11 @@ dotnet_diagnostic.CA1822.severity                                             = 
 dotnet_code_quality.CA1822.api_surface                                        = private, internal
 
 # CA3075: Insecure DTD processing in XML
-dotnet_diagnostic.CA3075.severity                                             = warning
+dotnet_diagnostic.CA3075.severity                                             = error
+dotnet_diagnostic.CA3077.severity                                             = error
 
-# RCS1090: Add call to 'ConfigureAwait' (or vice versa)
-dotnet_diagnostic.RCS1090.severity                                            = silent
+# IDE0049: Simplify Names
+dotnet_diagnostic.IDE0049.severity                                            = silent
 
+# CA1507: Use nameof in place of string
+dotnet_diagnostic.CA1507.severity                                             = warning

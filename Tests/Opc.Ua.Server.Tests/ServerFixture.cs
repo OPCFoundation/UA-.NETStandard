@@ -48,7 +48,8 @@ namespace Opc.Ua.Server.Tests
         public bool AutoAccept { get; set; }
         public bool OperationLimits { get; set; }
         public int ReverseConnectTimeout { get; set; }
-        public int TraceMasks { get; set; } = Utils.TraceMasks.All;
+        public bool AllNodeManagers { get; set; }
+        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
         public bool SecurityNone { get; set; } = false;
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
         public int Port { get; private set; }
@@ -131,7 +132,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public async Task<T> StartAsync(TextWriter writer, string pkiRoot, int port = 0)
         {
-            Random m_random = new Random();
+            Random random = new Random();
             bool retryStartServer = false;
             int testPort = port;
             int serverStartRetries = 1;
@@ -161,10 +162,10 @@ namespace Opc.Ua.Server.Tests
                         throw;
                     }
                     serverStartRetries--;
-                    testPort = m_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
+                    testPort = random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
-                await Task.Delay(m_random.Next(100, 1000)).ConfigureAwait(false);
+                await Task.Delay(random.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
 
             return Server;
@@ -194,6 +195,10 @@ namespace Opc.Ua.Server.Tests
 
             // start the server.
             T server = new T();
+            if (AllNodeManagers && server is StandardServer standardServer)
+            {
+                Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);
+            }
             await Application.Start(server).ConfigureAwait(false);
             Server = server;
             Port = port;

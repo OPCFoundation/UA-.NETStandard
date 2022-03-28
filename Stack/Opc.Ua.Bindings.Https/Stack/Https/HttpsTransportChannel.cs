@@ -110,6 +110,8 @@ namespace Opc.Ua.Bindings
         {
             try
             {
+                Utils.LogInfo("{0} Open {1}.", nameof(HttpsTransportChannel), m_url);
+
                 // auto validate server cert, if supported
                 // if unsupported, the TLS server cert must be trusted by a root CA
                 var handler = new HttpClientHandler();
@@ -153,6 +155,8 @@ namespace Opc.Ua.Bindings
                                     return false;
                                 };
                             propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
+
+                            Utils.LogInfo("{0} ServerCertificate callback enabled.", nameof(HttpsTransportChannel));
                         }
                         catch (PlatformNotSupportedException)
                         {
@@ -174,6 +178,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void Close()
         {
+            Utils.LogInfo("{0} Close {1}.", nameof(HttpsTransportChannel), m_url);
             m_client?.Dispose();
         }
 
@@ -207,9 +212,9 @@ namespace Opc.Ua.Bindings
             try
             {
                 ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
-                content.Headers.ContentType = m_mediaTypeHeaderValue;
+                content.Headers.ContentType = s_mediaTypeHeaderValue;
                 if (EndpointDescription?.SecurityPolicyUri != null &&
-                    string.Compare(EndpointDescription.SecurityPolicyUri, SecurityPolicies.None) != 0)
+                    !string.Equals(EndpointDescription.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal))
                 {
                     content.Headers.Add("OPCUA-SecurityPolicy", EndpointDescription.SecurityPolicyUri);
                 }
@@ -339,10 +344,14 @@ namespace Opc.Ua.Bindings
             try
             {
                 ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
-                content.Headers.ContentType = m_mediaTypeHeaderValue;
+                content.Headers.ContentType = s_mediaTypeHeaderValue;
                 var result = await m_client.PostAsync(m_url, content, ct).ConfigureAwait(false);
                 result.EnsureSuccessStatusCode();
+#if NET6_0_OR_GREATER
+                Stream responseContent = await result.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+#else
                 Stream responseContent = await result.Content.ReadAsStreamAsync().ConfigureAwait(false);
+#endif
                 return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
             }
             catch (Exception ex)
@@ -390,7 +399,7 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private HttpClient m_client;
-        private static readonly MediaTypeHeaderValue m_mediaTypeHeaderValue = new MediaTypeHeaderValue("application/octet-stream");
+        private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new MediaTypeHeaderValue("application/octet-stream");
     }
 }
 

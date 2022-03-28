@@ -28,7 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
@@ -41,6 +44,7 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ClientFixture
     {
+        private NUnitTraceLogger m_traceLogger;
         public ApplicationConfiguration Config { get; private set; }
         public ConfiguredEndpoint Endpoint { get; private set; }
         public string EndpointUrl { get; private set; }
@@ -48,7 +52,7 @@ namespace Opc.Ua.Client.Tests
         public ReverseConnectManager ReverseConnectManager { get; private set; }
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
-        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
+        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
 
         #region Public Methods
         /// <summary>
@@ -93,7 +97,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task StartReverseConnectHost()
         {
-            Random m_random = new Random();
+            Random random = new Random();
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
             bool retryStartServer = false;
             int serverStartRetries = 25;
@@ -114,10 +118,10 @@ namespace Opc.Ua.Client.Tests
                     {
                         throw;
                     }
-                    testPort = m_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
+                    testPort = random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
-                await Task.Delay(m_random.Next(100, 1000)).ConfigureAwait(false);
+                await Task.Delay(random.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
         }
 
@@ -303,6 +307,21 @@ namespace Opc.Ua.Client.Tests
             using (var client = DiscoveryClient.Create(url, endpointConfiguration))
             {
                 return await client.GetEndpointsAsync(null).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Connect the nunit writer with the logger.
+        /// </summary>
+        public void SetTraceOutput(TextWriter writer)
+        {
+            if (m_traceLogger == null)
+            {
+                m_traceLogger = NUnitTraceLogger.Create(writer, Config, TraceMasks);
+            }
+            else
+            {
+                m_traceLogger.SetWriter(writer);
             }
         }
         #endregion

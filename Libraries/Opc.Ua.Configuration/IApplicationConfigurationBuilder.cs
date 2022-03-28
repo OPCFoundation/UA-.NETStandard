@@ -316,17 +316,20 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Add the unsecure security policy type none to server configuration.
         /// </summary>
-        IApplicationConfigurationBuilderServerSelected AddUnsecurePolicyNone();
+        /// <param name="addPolicy">Add policy if true.</param>
+        IApplicationConfigurationBuilderServerSelected AddUnsecurePolicyNone(bool addPolicy = true);
 
         /// <summary>
         /// Add the sign security policies to the server configuration.
         /// </summary>
-        IApplicationConfigurationBuilderServerSelected AddSignPolicies();
+        /// <param name="addPolicies">Add policies if true.</param>
+        IApplicationConfigurationBuilderServerSelected AddSignPolicies(bool addPolicies = true);
 
         /// <summary>
         /// Add the sign and encrypt security policies to the server configuration.
         /// </summary>
-        IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies();
+        /// <param name="addPolicies">Add policies if true.</param>
+        IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies(bool addPolicies = true);
 
         /// <summary>
         /// Add the specified security policy with the specified security mode.

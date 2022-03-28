@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -31,9 +31,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
-using System.Threading.Tasks;
 using Opc.Ua.Bindings;
 using static Opc.Ua.Utils;
 
@@ -51,7 +51,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public StandardServer()
         {
-
+            m_nodeManagerFactories = new List<INodeManagerFactory>();
         }
         #endregion
 
@@ -648,6 +648,7 @@ namespace Opc.Ua.Server
                 case StatusCodes.BadCertificateIssuerRevocationUnknown:
                 case StatusCodes.BadCertificateInvalid:
                 case StatusCodes.BadCertificateHostNameInvalid:
+                case StatusCodes.BadCertificatePolicyCheckFailed:
                 case StatusCodes.BadApplicationSignatureInvalid:
                 {
                     return true;
@@ -1313,6 +1314,59 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Invokes the TransferSubscriptions service.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="subscriptionIds">The list of Subscriptions to transfer.</param>
+        /// <param name="sendInitialValues">If the initial values should be sent.</param>
+        /// <param name="results">The list of result StatusCodes for the Subscriptions to transfer.</param>
+        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
+        public override ResponseHeader TransferSubscriptions(
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool sendInitialValues,
+            out TransferResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            results = null;
+            diagnosticInfos = null;
+
+            OperationContext context = ValidateRequest(requestHeader, RequestType.TransferSubscriptions);
+
+            try
+            {
+                ValidateOperationLimits(subscriptionIds);
+
+                ServerInternal.SubscriptionManager.TransferSubscriptions(
+                    context,
+                    subscriptionIds,
+                    sendInitialValues,
+                    out results,
+                    out diagnosticInfos);
+
+                return CreateResponse(requestHeader, context.StringTable);
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -1374,7 +1428,7 @@ namespace Opc.Ua.Server
         /// <param name="results">The list of results for the acknowledgements.</param>
         /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object 
+        /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader Publish(
             RequestHeader requestHeader,
@@ -1670,7 +1724,7 @@ namespace Opc.Ua.Server
         /// <param name="results">The list of StatusCodes for the Subscriptions to enable/disable.</param>
         /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object 
+        /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader SetPublishingMode(
             RequestHeader requestHeader,
@@ -1727,7 +1781,7 @@ namespace Opc.Ua.Server
         /// <param name="removeResults">The list of StatusCodes for the items to delete.</param>
         /// <param name="removeDiagnosticInfos">The list of diagnostic information for the links to delete.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object 
+        /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader SetTriggering(
             RequestHeader requestHeader,
@@ -2107,12 +2161,15 @@ namespace Opc.Ua.Server
         /// Registers the server with the discovery server.
         /// </summary>
         /// <returns>Boolean value.</returns>
-        public async Task<bool> RegisterWithDiscoveryServer()
+        public bool RegisterWithDiscoveryServer()
         {
-            ApplicationConfiguration configuration = string.IsNullOrEmpty(base.Configuration.SourceFilePath) ?
-                base.Configuration : await ApplicationConfiguration.Load(new FileInfo(base.Configuration.SourceFilePath), ApplicationType.Server, null, false).ConfigureAwait(false);
-            CertificateValidationEventHandler registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
+            ApplicationConfiguration configuration = new ApplicationConfiguration(base.Configuration);
+
+            // use a dedicated certificate validator with the registration, but derive behavior from server config
+            var registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
+            configuration.CertificateValidator = new CertificateValidator();
             configuration.CertificateValidator.CertificateValidation += registrationCertificateValidator;
+            configuration.CertificateValidator.Update(configuration.SecurityConfiguration).GetAwaiter().GetResult();
 
             try
             {
@@ -2164,9 +2221,10 @@ namespace Opc.Ua.Server
                                     ExtensionObjectCollection discoveryConfiguration = new ExtensionObjectCollection();
                                     StatusCodeCollection configurationResults = null;
                                     DiagnosticInfoCollection diagnosticInfos = null;
-                                    MdnsDiscoveryConfiguration mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration();
-                                    mdnsDiscoveryConfig.ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
-                                    mdnsDiscoveryConfig.MdnsServerName = Utils.GetHostName();
+                                    MdnsDiscoveryConfiguration mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration {
+                                        ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities,
+                                        MdnsServerName = Utils.GetHostName()
+                                    };
                                     ExtensionObject extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
                                     discoveryConfiguration.Add(extensionObject);
                                     client.RegisterServer2(
@@ -2250,7 +2308,7 @@ namespace Opc.Ua.Server
         /// Registers the server endpoints with the LDS.
         /// </summary>
         /// <param name="state">The state.</param>
-        private async void OnRegisterServer(object state)
+        private void OnRegisterServer(object state)
         {
             try
             {
@@ -2264,9 +2322,9 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (await RegisterWithDiscoveryServer().ConfigureAwait(false))
+                if (RegisterWithDiscoveryServer())
                 {
-                    // schedule next registration.                        
+                    // schedule next registration.
                     lock (m_registrationLock)
                     {
                         if (m_maxRegistrationInterval > 0)
@@ -2298,7 +2356,7 @@ namespace Opc.Ua.Server
 
                             Utils.LogInfo("Register server failed. Trying again in {0} ms", m_lastRegistrationInterval);
 
-                            // create timer.        
+                            // create timer.
                             m_registrationTimer = new Timer(OnRegisterServer, this, m_lastRegistrationInterval, Timeout.Infinite);
                         }
                     }
@@ -2774,7 +2832,7 @@ namespace Opc.Ua.Server
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
                     MasterNodeManager masterNodeManager = CreateMasterNodeManager(m_serverInternal, configuration);
 
-                    // add the node manager to the datastore. 
+                    // add the node manager to the datastore.
                     m_serverInternal.SetNodeManager(masterNodeManager);
 
                     // put the node manager into a state that allows it to be used by other objects.
@@ -2784,7 +2842,7 @@ namespace Opc.Ua.Server
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateEventManager.");
                     EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
-                    // creates the server object. 
+                    // creates the server object.
                     m_serverInternal.CreateServerObject(
                         eventManager,
                         resourceManager,
@@ -2807,7 +2865,7 @@ namespace Opc.Ua.Server
                     SubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
                     subscriptionManager.Startup();
 
-                    // add the session manager to the datastore. 
+                    // add the session manager to the datastore.
                     m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
 
                     ServerError = null;
@@ -2932,7 +2990,7 @@ namespace Opc.Ua.Server
                 {
                     // unregister from Discovery Server
                     m_registrationInfo.IsOnline = false;
-                    RegisterWithDiscoveryServer().GetAwaiter().GetResult();
+                    RegisterWithDiscoveryServer();
                 }
 
                 lock (m_lock)
@@ -3097,7 +3155,14 @@ namespace Opc.Ua.Server
         /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
         protected virtual MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new MasterNodeManager(server, configuration, null);
+            IList<INodeManager> nodeManagers = new List<INodeManager>();
+
+            foreach (var nodeManagerFactory in m_nodeManagerFactories)
+            {
+                nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
+            }
+
+            return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
         }
 
         /// <summary>
@@ -3150,6 +3215,32 @@ namespace Opc.Ua.Server
         {
             // may be overridden by the subclass.
         }
+
+        /// <summary>
+        /// The node manager factories that are used on startup of the server.
+        /// </summary>
+        public IEnumerable<INodeManagerFactory> NodeManagerFactories => m_nodeManagerFactories;
+
+        /// <summary>
+        /// Add a node manager factory which is used on server start
+        /// to instantiate the node manager in the server.
+        /// </summary>
+        /// <param name="nodeManagerFactory">The node manager factory used to create the NodeManager.</param>
+        public virtual void AddNodeManager(INodeManagerFactory nodeManagerFactory)
+        {
+            m_nodeManagerFactories.Add(nodeManagerFactory);
+        }
+
+        /// <summary>
+        /// Remove a node manager factory from the list of node managers.
+        /// Does not remove a NodeManager from a running server,
+        /// only removes the factory before the server starts.
+        /// </summary>
+        /// <param name="nodeManagerFactory">The node manager factory to remove.</param>
+        public virtual void RemoveNodeManager(INodeManagerFactory nodeManagerFactory)
+        {
+            m_nodeManagerFactories.Remove(nodeManagerFactory);
+        }
         #endregion
 
         #region Private Properties
@@ -3169,6 +3260,7 @@ namespace Opc.Ua.Server
         private int m_lastRegistrationInterval;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
+        private IList<INodeManagerFactory> m_nodeManagerFactories;
         #endregion
     }
 }
