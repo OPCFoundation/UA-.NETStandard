@@ -273,11 +273,10 @@ namespace Opc.Ua
                 foreach (EndpointDescription discoveryEndPoint in endpoints)
                 {
                     Uri discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
-                    if (endpointUrl.Scheme == discoveryEndPointUri.Scheme)
+                    if  ( (endpointUrl.Scheme == discoveryEndPointUri.Scheme) && (endpointUrl.Port == discoveryEndPointUri.Port))
                     {
                         UriBuilder builder = new UriBuilder(discoveryEndPointUri);
                         builder.Host = endpointUrl.DnsSafeHost;
-                        builder.Port = endpointUrl.Port;
                         discoveryEndPoint.EndpointUrl = builder.ToString();
                     }
 
