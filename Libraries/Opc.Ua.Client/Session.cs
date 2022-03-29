@@ -750,6 +750,74 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Public Static Methods
+        /// <summary>
+        /// Creates a new communication session with a server by invoking the CreateSession service
+        /// </summary>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="identity">The identity.</param>
+        /// <param name="preferredLocales">The user identity to associate with the session.</param>
+        /// <returns>The new session object</returns>
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales)
+        {
+            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales);
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server by invoking the CreateSession service
+        /// </summary>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="identity">The user identity to associate with the session.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <returns>The new session object.</returns>
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales)
+        {
+            return Create(configuration, null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales);
+        }
+
+        /// <summary>
+        /// Creates a new session with a server using the specified channel by invoking the CreateSession service
+        /// </summary>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="channel">The channel for the server.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="clientCertificate">The certificate to use for the client.</param>
+        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
+        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
+        /// <returns></returns>
+        public static Session Create(
+           ApplicationConfiguration configuration,
+           ITransportChannel channel,
+           ConfiguredEndpoint endpoint,
+           X509Certificate2 clientCertificate,
+           EndpointDescriptionCollection availableEndpoints = null,
+           StringCollection discoveryProfileUris = null)
+        {
+            return new Session(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+        }
 
         /// <summary>
         /// Creates a secure channel to the specified endpoint.
@@ -834,76 +902,6 @@ namespace Opc.Ua.Client
             }
 
             return channel;
-        }
-
-        /// <summary>
-        /// Creates a new communication session with a server by invoking the CreateSession service
-        /// </summary>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The timeout period for the session.</param>
-        /// <param name="identity">The identity.</param>
-        /// <param name="preferredLocales">The user identity to associate with the session.</param>
-        /// <returns>The new session object</returns>
-        public static Task<Session> Create(
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales)
-        {
-            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales);
-        }
-
-        /// <summary>
-        /// Creates a new communication session with a server by invoking the CreateSession service
-        /// </summary>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The timeout period for the session.</param>
-        /// <param name="identity">The user identity to associate with the session.</param>
-        /// <param name="preferredLocales">The preferred locales.</param>
-        /// <returns>The new session object.</returns>
-        public static Task<Session> Create(
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            bool checkDomain,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales)
-        {
-            return Create(configuration, null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales);
-        }
-
-        /// <summary>
-        /// Creates a new session with a server using the specified channel by invoking the CreateSession service
-        /// </summary>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="channel">The channel for the server.</param>
-        /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="clientCertificate">The certificate to use for the client.</param>
-        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
-        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
-        /// <returns></returns>
-        public static Session Create(
-           ApplicationConfiguration configuration,
-           ITransportChannel channel,
-           ConfiguredEndpoint endpoint,
-           X509Certificate2 clientCertificate,
-           EndpointDescriptionCollection availableEndpoints = null,
-           StringCollection discoveryProfileUris = null)
-        {
-            var session = new Session(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
-            return session;
         }
 
         /// <summary>
