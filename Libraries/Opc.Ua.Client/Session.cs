@@ -3359,7 +3359,9 @@ namespace Opc.Ua.Client
                     this.OperationTimeout = existingTimeout;
 
                     if (closeChannel)
+                    {
                         CloseChannel();
+                    }
 
                     // raised notification indicating the session is closed.
                     SessionCreated(null, null);
@@ -3383,7 +3385,9 @@ namespace Opc.Ua.Client
 
             // clean up.
             if (closeChannel)
+            {
                 Dispose();
+            }
 
             return result;
         }
