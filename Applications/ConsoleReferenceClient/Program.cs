@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -49,6 +50,11 @@ namespace Quickstarts.ConsoleReferenceClient
         {
             TextWriter output = Console.Out;
             output.WriteLine("OPC UA Console Reference Client");
+
+            output.WriteLine("OPC UA library: {0} @ {1} -- {2}",
+                Utils.GetAssemblyBuildNumber(),
+                Utils.GetAssemblyTimestamp().ToString("G", CultureInfo.InvariantCulture),
+                Utils.GetAssemblySoftwareVersion());
 
             // The application name and config file names
             var applicationName = "ConsoleReferenceClient";

@@ -826,10 +826,19 @@ namespace Opc.Ua
                 {
                     if (description.SecurityMode == MessageSecurityMode.None)
                     {
-                        // ensure a security policy is specified for user tokens.
-                        clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+                        if (clone.TokenType == UserTokenType.Anonymous)
+                        {
+                            // no need for security with anonymous token
+                            clone.SecurityPolicyUri = SecurityPolicies.None;
+                        }
+                        else
+                        {
+                            // ensure a security policy is specified for user tokens.
+                            clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+                        }
                     }
                 }
+
                 // ensure each policy has a unique id within the context of the Server
                 clone.PolicyId = Utils.Format("{0}", ++m_userTokenPolicyId);
                 
