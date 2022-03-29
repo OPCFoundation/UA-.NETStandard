@@ -1,4 +1,4 @@
-name: Issue/🐞Bug report
+name: 🐞Bug/Issue report
 description: Create an issue report to help us improve
 title: "<title>"
 labels: [Needs Triage]
@@ -50,7 +50,7 @@ body:
         - **OS**: [Windows 10, Ubuntu, macOS]
         - **Environment**: [e.g. Visual Studio 2019 16.7.2]
         - **Runtime**: [e.g. .NET 4.6.2, .NET Core 3.1]
-        - **NugetVersion**: [e.g. 1.4.368.33]        
+        - **Nuget Version**: [e.g. 1.4.368.33]        
         - **Component**: [e.g. Opc.Ua.Core]
         - **Server**: [e.g. Reference Server]
         - **Client**: [e.g. UA Expert]
@@ -58,7 +58,7 @@ body:
         - OS:
         - Environment:
         - Runtime:
-        - NugetVersion
+        - Nuget Version:
         - Component:
         - Server:
         - Client: 
