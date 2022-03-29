@@ -149,20 +149,19 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public IUaPubSubDataStore DataStore { get { return m_dataStore; } }
 
-        #endregion
-
-        #region Internal Properties
         /// <summary>
         /// Get the read only list of <see cref="UaPubSubConnection"/> created for this Application instance 
         /// </summary>
-        internal ReadOnlyList<IUaPubSubConnection> PubSubConnections
+        public ReadOnlyList<IUaPubSubConnection> PubSubConnections
         {
             get
             {
                 return new ReadOnlyList<IUaPubSubConnection>(m_uaPubSubConnections);
             }
         }
+        #endregion
 
+        #region Internal Properties
         /// <summary>
         /// Get reference to current configured DataCollector for this UaPubSubApplication
         /// </summary>
