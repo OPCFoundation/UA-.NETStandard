@@ -54,12 +54,18 @@ namespace Opc.Ua.Export
         /// <param name="istrm">The input stream.</param>
         public void Write(Stream istrm)
         {
-            StreamWriter writer = new StreamWriter(istrm, Encoding.UTF8);
+            XmlWriterSettings settings = new XmlWriterSettings() {
+                Indent = true,
+                Encoding = Encoding.UTF8,
+                IndentChars = "    "
+            };
+
+            var writer = XmlWriter.Create(istrm, settings);
 
             try
             {
                 XmlSerializer serializer = new XmlSerializer(typeof(UANodeSet));
-                serializer.Serialize(writer, this);
+                serializer.Serialize(writer, this, null);
             }
             finally
             {
