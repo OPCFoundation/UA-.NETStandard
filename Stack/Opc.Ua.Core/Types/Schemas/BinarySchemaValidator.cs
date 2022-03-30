@@ -86,11 +86,11 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         public override string GetSchema(string typeName)
         {
-            XmlWriterSettings settings = new XmlWriterSettings();
-
-            settings.Encoding = Encoding.UTF8;
-            settings.Indent = true;
-            settings.IndentChars = "    ";
+            XmlWriterSettings settings = new XmlWriterSettings {
+                Encoding = Encoding.UTF8,
+                Indent = true,
+                IndentChars = "    "
+            };
 
             MemoryStream ostrm = new MemoryStream();
             XmlWriter writer = XmlWriter.Create(ostrm, settings);
