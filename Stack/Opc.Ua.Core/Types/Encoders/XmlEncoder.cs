@@ -36,7 +36,7 @@ namespace Opc.Ua
             m_context = context;
             m_nestingLevel = 0;
 
-            XmlWriterSettings settings = new XmlWriterSettings();
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CheckCharacters = false;
             settings.ConformanceLevel = ConformanceLevel.Auto;
             settings.NamespaceHandling = NamespaceHandling.OmitDuplicates;

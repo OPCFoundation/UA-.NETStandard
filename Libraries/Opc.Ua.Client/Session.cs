@@ -1326,12 +1326,8 @@ namespace Opc.Ua.Client
         public IEnumerable<Subscription> Load(Stream stream)
         {
             // secure settings
-            XmlReaderSettings settings = new XmlReaderSettings {
-                DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null,
-                ConformanceLevel = ConformanceLevel.Document,
-                CloseInput = true
-            };
+            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
+            settings.CloseInput = true;
 
             using (XmlReader reader = XmlReader.Create(stream, settings))
             {

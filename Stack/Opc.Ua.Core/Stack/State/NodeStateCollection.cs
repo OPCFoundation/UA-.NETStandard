@@ -74,12 +74,7 @@ namespace Opc.Ua
             }
 
             XmlWriterSettings settings = new XmlWriterSettings();
-
-            settings.Encoding = Encoding.UTF8;
             settings.CloseOutput = true;
-            settings.ConformanceLevel = ConformanceLevel.Document;
-            settings.Indent = true;
-
             using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
             {
                 DataContractSerializer serializer = new DataContractSerializer(typeof(NodeSet));
@@ -200,18 +195,14 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsXml(ISystemContext context, Stream ostrm, bool keepStreamOpen)
         {
-            XmlWriterSettings settings = new XmlWriterSettings();
-
-            settings.Encoding = Encoding.UTF8;
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = !keepStreamOpen;
-            settings.ConformanceLevel = ConformanceLevel.Document;
-            settings.Indent = true;
 
-            ServiceMessageContext messageContext = new ServiceMessageContext();
-
-            messageContext.NamespaceUris = context.NamespaceUris;
-            messageContext.ServerUris = context.ServerUris;
-            messageContext.Factory = context.EncodeableFactory;
+            ServiceMessageContext messageContext = new ServiceMessageContext {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Factory = context.EncodeableFactory
+            };
 
             using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
             {

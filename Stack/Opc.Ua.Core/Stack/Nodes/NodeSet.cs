@@ -64,13 +64,7 @@ namespace Opc.Ua
         /// <param name="istrm">The input stream.</param>
         public void Write(Stream istrm)
         {
-            XmlWriterSettings settings = new XmlWriterSettings {
-                Encoding = Encoding.UTF8,
-                Indent = true,
-                IndentChars = "    "
-            };
-
-            var writer = XmlWriter.Create(istrm, settings);
+            var writer = XmlWriter.Create(istrm, Utils.DefaultXmlWriterSettings());
 
             try
             {

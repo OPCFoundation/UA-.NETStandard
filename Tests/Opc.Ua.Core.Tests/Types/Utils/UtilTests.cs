@@ -268,6 +268,27 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
         }
 
+        [Test]
+        public void ValidateXmlWriterSettings()
+        {
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+            Assert.AreEqual(Encoding.UTF8, settings.Encoding);
+            Assert.AreEqual(false, settings.CloseOutput);
+            Assert.AreEqual(true, settings.Indent);
+            Assert.AreEqual(ConformanceLevel.Document, settings.ConformanceLevel);
+            Assert.AreEqual(false, settings.OmitXmlDeclaration);
+            Assert.AreEqual("  ", settings.IndentChars);
+        }
+
+        [Test]
+        public void ValidateXmlReaderSettings()
+        {
+            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
+            Assert.AreEqual(DtdProcessing.Prohibit, settings.DtdProcessing);
+            //Assert.AreEqual(null, settings.XmlResolver);
+            Assert.AreEqual(ConformanceLevel.Document, settings.ConformanceLevel);
+            Assert.AreEqual(false, settings.CloseInput);
+        }
         #endregion
     }
 
