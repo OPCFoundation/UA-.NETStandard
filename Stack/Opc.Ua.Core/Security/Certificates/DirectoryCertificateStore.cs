@@ -378,8 +378,8 @@ namespace Opc.Ua
                             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet
                         };
 
-                        FileInfo privateKeyFilePfx = new FileInfo(filePath.ToString() + ".pfx");
-                        FileInfo privateKeyFilePem = new FileInfo(filePath.ToString() + ".pem");
+                        FileInfo privateKeyFilePfx = new FileInfo(filePath + ".pfx");
+                        FileInfo privateKeyFilePem = new FileInfo(filePath + ".pem");
                         password = password ?? String.Empty;
                         if (privateKeyFilePfx.Exists)
                         {
@@ -402,7 +402,6 @@ namespace Opc.Ua
                                 {
                                     importException = ex;
                                     certificate?.Dispose();
-                                    certificate = null;
                                 }
                             }
                         }
@@ -427,7 +426,6 @@ namespace Opc.Ua
                             catch (Exception exception)
                             {
                                 certificate?.Dispose();
-                                certificate = null;
                                 importException = exception;
                             }
                         }
