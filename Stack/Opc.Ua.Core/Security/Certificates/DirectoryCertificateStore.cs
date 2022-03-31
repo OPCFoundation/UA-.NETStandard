@@ -380,10 +380,10 @@ namespace Opc.Ua
 
                         FileInfo privateKeyFilePfx = new FileInfo(filePath.ToString() + ".pfx");
                         FileInfo privateKeyFilePem = new FileInfo(filePath.ToString() + ".pem");
+                        password = password ?? String.Empty;
                         if (privateKeyFilePfx.Exists)
                         {
                             certificateFound = true;
-                            password = password ?? String.Empty;
                             foreach (var flag in storageFlags)
                             {
                                 try
@@ -416,9 +416,11 @@ namespace Opc.Ua
                                 {
                                     throw new Exception("\nPem Resolver not implemented. ");
                                 }
+
                                 certificate = _pemResolverService.LoadPrivateKeyFromPem(file, privateKeyFilePem, password);
                                 if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                                 {
+                                    Utils.LogInfo(Utils.TraceMasks.Security, "Imported the private key for [{0}].", certificate.Thumbprint);
                                     return certificate;
                                 }
                             }
@@ -426,7 +428,7 @@ namespace Opc.Ua
                             {
                                 certificate?.Dispose();
                                 certificate = null;
-                                throw new Exception(exception.Message + "Pem file cannot be processed.");
+                                importException = exception;
                             }
                         }
                         else
@@ -437,7 +439,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Could not load private key for certificate {0}", subjectName);
+                        Utils.LogError(e, "Could not load private key for certificate {0}", subjectName, e.Message);
                     }
                 }
 
@@ -745,26 +747,12 @@ namespace Opc.Ua
 
                             // note: only obtain the filenames for delete, loading the private keys
                             // without authorization causes false negatives (LogErrors)
-
-                            //Added to enable loading of pem private key
                             if (!entry.PrivateKeyFile.Exists)
                             {
                                 // check for PEM file.
                                 entry.PrivateKeyFile = new FileInfo(filePath.ToString() + ".pem");
 
-                                if (entry.PrivateKeyFile.Exists)
-                                {
-                                    if (_pemResolverService == null)
-                                    {
-                                        throw new Exception("\nPem Resolver not implemented. ");
-                                    }
-                                    X509Certificate2 certificate = _pemResolverService.LoadPrivateKeyFromPem(file, entry.PrivateKeyFile);
-                                    if (certificate.HasPrivateKey)
-                                    {
-                                        entry.CertificateWithPrivateKey = certificate;
-                                    }
-                                }
-                                else
+                                if (!entry.PrivateKeyFile.Exists)
                                 {
                                     entry.PrivateKeyFile = null;
                                 }
