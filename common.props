@@ -28,8 +28,6 @@
   <PropertyGroup>
     <PackageIcon>images/logo.jpg</PackageIcon>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
-    <!-- deprecated <PackageLicenseUrl>https://opcfoundation.org/license/source/1.11/index.html</PackageLicenseUrl>-->
-    <PackageLicenseFile>licenses/LICENSE.txt</PackageLicenseFile>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
     <PackageTags>OPCFoundation OPC UA netstandard ios linux dotnet net netcore uwp</PackageTags>
@@ -42,6 +40,11 @@
   <ItemGroup Condition="'$(IsPackable)' != 'false' AND '$(PackageLicenseExpression)' == ''">
     <None Include="$(MSBuildThisFileDirectory)/LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)"/>
   </ItemGroup>
+
+  <PropertyGroup Condition="'$(IsPackable)' != 'false' AND '$(PackageLicenseExpression)' == ''">
+    <!-- deprecated <PackageLicenseUrl>https://opcfoundation.org/license/source/1.11/index.html</PackageLicenseUrl>-->
+    <PackageLicenseFile>licenses/LICENSE.txt</PackageLicenseFile>
+  </PropertyGroup>
 
   <ItemGroup Condition="'$(IsPackable)' != 'false'">
     <None Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg" Pack="true" PackagePath="$(PackageIcon)"/>
