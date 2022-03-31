@@ -8,6 +8,7 @@
     <RootNamespace>Opc.Ua.Client</RootNamespace>
     <Description>OPC UA Client Class Library</Description>
     <IsPackable>true</IsPackable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 

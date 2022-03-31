@@ -7,6 +7,7 @@
     <RootNamespace>Opc.Ua.Configuration</RootNamespace>
     <Description>OPC UA Configuration Class Library</Description>
     <IsPackable>true</IsPackable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 

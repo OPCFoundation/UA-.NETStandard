@@ -7,6 +7,7 @@
     <RootNameSpace>Opc.Ua.Client.ComplexTypes</RootNameSpace>
     <Description>OPC UA Complex Types Client Class Library</Description>
     <IsPackable>true</IsPackable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
