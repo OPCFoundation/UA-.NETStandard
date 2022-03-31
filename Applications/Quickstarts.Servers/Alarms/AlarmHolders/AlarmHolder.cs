@@ -94,9 +94,7 @@ namespace Alarms
 
         private void InitializeInternal(BaseEventState alarm, NodeId branchId = null)
         {
-            string triggerNodeId = (string)m_parent.NodeId.Identifier + "." + TriggerName;
-
-            string alarmName = AlarmName/* + GetBranchNodeIdString(branchId)*/;
+            string alarmName = AlarmName;
             string alarmNodeId = (string)m_parent.NodeId.Identifier + "." + AlarmName;
 
             alarm.SymbolicName = alarmName;
@@ -142,18 +140,6 @@ namespace Alarms
             return new NodeId(++m_branchCounter, NamespaceIndex);
         }
 
-        public virtual string GetBranchNodeIdString(NodeId branchId)
-        {
-            string nodeIdString = "";
-
-            if (IsBranch(branchId))
-            {
-                // Just the numeric
-                nodeIdString = "." + branchId.Identifier.ToString();
-            }
-            return nodeIdString;
-        }
-
         public virtual void Update(bool updated)
         {
             DelayedEvents();
@@ -162,7 +148,6 @@ namespace Alarms
                 SetValue();
             }
         }
-
 
         public virtual void DelayedEvents()
         {
@@ -296,7 +281,6 @@ namespace Alarms
         public string AlarmNodeName
         {
             get { return m_alarm.NodeId.ToString(); }
-            //            get { return m_alarmRootName + AlarmDefines.ALARM_EXTENSION; }
         }
 
         public bool Analog

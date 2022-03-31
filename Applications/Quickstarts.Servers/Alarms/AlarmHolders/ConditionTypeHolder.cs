@@ -58,12 +58,6 @@ namespace Alarms
             alarm.OnEnableDisable = OnEnableDisableAlarm;
             alarm.OnAddComment = OnAddComment;
 
-            if (Optional)
-            {
-                //alarm.ConditionSubClassId.Value = new List<NodeId>().ToArray();
-                //alarm.ConditionSubClassName.Value = new List<LocalizedText>().ToArray();
-            }
-
             alarm.ConditionSubClassId = null;
             alarm.ConditionSubClassName = null;
         }
@@ -127,20 +121,6 @@ namespace Alarms
                 ReportEvent();
             }
         }
-
-        //public override string GetBranchNodeIdString(BaseEventState baseEvent)
-        //{
-        //    string nodeIdString = "";
-
-        //    ConditionState alarm = GetAlarm(baseEvent);
-        //    if ( alarm.BranchId != null && alarm.BranchId.Value != null &&  !alarm.BranchId.Value.IsNullNodeId )
-        //    {
-        //        nodeIdString = alarm.BranchId.Value.ToString();
-        //    }
-
-        //    return nodeIdString;
-        //}
-
 
         #endregion
 
@@ -246,7 +226,7 @@ namespace Alarms
             {
                 shouldEvent = true;
             }
-//            Log("ShouldEvent", "Current Severity " + existingSeverity.ToString() + " new severity " + newSeverity.ToString() + " should event " + shouldEvent.ToString());
+
             return shouldEvent;
         }
 
