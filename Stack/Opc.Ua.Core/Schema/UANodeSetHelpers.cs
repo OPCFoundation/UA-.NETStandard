@@ -54,7 +54,10 @@ namespace Opc.Ua.Export
         /// <param name="istrm">The input stream.</param>
         public void Write(Stream istrm)
         {
-            var writer = XmlWriter.Create(istrm, Utils.DefaultXmlWriterSettings());
+            var setting = Utils.DefaultXmlWriterSettings();
+            setting.CloseOutput = true;
+
+            var writer = XmlWriter.Create(istrm, setting);
 
             try
             {
