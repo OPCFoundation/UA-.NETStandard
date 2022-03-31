@@ -1295,11 +1295,8 @@ namespace Opc.Ua.Client
         public void Save(Stream stream, IEnumerable<Subscription> subscriptions)
         {
             SubscriptionCollection subscriptionList = new SubscriptionCollection(subscriptions);
-            XmlWriterSettings settings = new XmlWriterSettings {
-                Indent = true,
-                OmitXmlDeclaration = false,
-                Encoding = Encoding.UTF8
-            };
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+
             using (XmlWriter writer = XmlWriter.Create(stream, settings))
             {
                 DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
@@ -1326,12 +1323,8 @@ namespace Opc.Ua.Client
         public IEnumerable<Subscription> Load(Stream stream)
         {
             // secure settings
-            XmlReaderSettings settings = new XmlReaderSettings {
-                DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null,
-                ConformanceLevel = ConformanceLevel.Document,
-                CloseInput = true
-            };
+            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
+            settings.CloseInput = true;
 
             using (XmlReader reader = XmlReader.Create(stream, settings))
             {

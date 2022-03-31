@@ -407,12 +407,8 @@ namespace Opc.Ua
         /// <remarks>Calls GetType() on the current instance and passes that to the DataContractSerializer.</remarks>
         public void SaveToFile(string filePath)
         {
-            XmlWriterSettings settings = new XmlWriterSettings()
-            {
-                Encoding = Encoding.UTF8,
-                Indent = true,
-                CloseOutput = true
-            };
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+            settings.CloseOutput = true;
 
             using (Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite))
             using (XmlWriter writer = XmlDictionaryWriter.Create(ostrm, settings))

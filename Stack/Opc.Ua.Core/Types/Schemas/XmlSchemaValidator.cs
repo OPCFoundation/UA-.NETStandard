@@ -114,11 +114,7 @@ namespace Opc.Ua.Schema.Xml
         /// </summary>
         public override string GetSchema(string typeName)
         {
-            XmlWriterSettings settings = new XmlWriterSettings();
-
-            settings.Encoding = Encoding.UTF8;
-            settings.Indent = true;
-            settings.IndentChars = "    ";
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
 
             MemoryStream ostrm = new MemoryStream();
             XmlWriter writer = XmlWriter.Create(ostrm, settings);

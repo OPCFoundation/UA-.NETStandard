@@ -49,10 +49,7 @@ namespace Opc.Ua.PubSub.Configuration
         {
             Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
 
-            XmlWriterSettings settings = new XmlWriterSettings();
-
-            settings.Encoding = System.Text.Encoding.UTF8;
-            settings.Indent = true;
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
 
             using (XmlWriter writer = XmlDictionaryWriter.Create(ostrm, settings))

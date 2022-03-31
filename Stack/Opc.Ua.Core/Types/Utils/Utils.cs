@@ -2801,12 +2801,26 @@ namespace Opc.Ua
         /// DtdProcessing Prohibited, XmlResolver disabled and
         /// ConformanceLevel Document.
         /// </summary>
-        internal static XmlReaderSettings DefaultXmlReaderSettings()
+        public static XmlReaderSettings DefaultXmlReaderSettings()
         {
             return new XmlReaderSettings() {
                 DtdProcessing = DtdProcessing.Prohibit,
                 XmlResolver = null,
                 ConformanceLevel = ConformanceLevel.Document
+            };
+        }
+
+        /// <summary>
+        /// Returns a XmlWriterSetting with deterministic defaults across .NET versions.
+        /// </summary>
+        public static XmlWriterSettings DefaultXmlWriterSettings()
+        {
+            return new XmlWriterSettings() {
+                Encoding = Encoding.UTF8,
+                Indent = true,
+                ConformanceLevel = ConformanceLevel.Document,
+                IndentChars = "  ",
+                CloseOutput = false,
             };
         }
 
