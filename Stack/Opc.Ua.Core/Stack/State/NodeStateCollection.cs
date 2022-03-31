@@ -73,7 +73,7 @@ namespace Opc.Ua
                 nodeSet.Add(node, nodeTable.NamespaceUris, nodeTable.ServerUris);
             }
 
-            XmlWriterSettings settings = new XmlWriterSettings();
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
             using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
             {
