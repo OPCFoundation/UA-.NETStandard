@@ -25,6 +25,6 @@
   </metadata>
   <files>
     <file src="logo.jpg" target="images/" />
-    <file src="../Licenses/LICENSE.txt" target="licenses/LICENSE.txt"/>
+    <file src="../LICENSE.txt" target="licenses/LICENSE.txt"/>
   </files>
 </package>
