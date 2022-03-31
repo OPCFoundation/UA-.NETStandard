@@ -197,7 +197,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error loading ConfiguredEnpoints.");
+                Utils.LogError(e, "Unexpected error loading ConfiguredEndpoints.");
                 throw;
             }
         }
