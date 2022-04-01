@@ -138,20 +138,29 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine("Endpoints:");
                 foreach (var endpoint in Endpoints)
                 {
-                    using (var cert = new X509Certificate2(endpoint.ServerCertificate))
+                    TestContext.Out.WriteLine("{0}", endpoint.Server.ApplicationName);
+                    TestContext.Out.WriteLine("  {0}", endpoint.Server.ApplicationUri);
+                    TestContext.Out.WriteLine(" {0}", endpoint.EndpointUrl);
+                    TestContext.Out.WriteLine("  {0}", endpoint.EncodingSupport);
+                    TestContext.Out.WriteLine("  {0}/{1}/{2}", endpoint.SecurityLevel, endpoint.SecurityMode, endpoint.SecurityPolicyUri);
+
+                    if (endpoint.ServerCertificate != null)
                     {
-                        TestContext.Out.WriteLine("{0}", endpoint.Server.ApplicationName);
-                        TestContext.Out.WriteLine("  {0}", endpoint.Server.ApplicationUri);
-                        TestContext.Out.WriteLine(" {0}", endpoint.EndpointUrl);
-                        TestContext.Out.WriteLine("  {0}", endpoint.EncodingSupport);
-                        TestContext.Out.WriteLine("  {0}/{1}/{2}", endpoint.SecurityLevel, endpoint.SecurityMode, endpoint.SecurityPolicyUri);
-                        TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
-                        foreach (var userIdentity in endpoint.UserIdentityTokens)
+                        using (var cert = new X509Certificate2(endpoint.ServerCertificate))
                         {
-                            TestContext.Out.WriteLine("  {0}", userIdentity.TokenType);
-                            TestContext.Out.WriteLine("  {0}", userIdentity.PolicyId);
-                            TestContext.Out.WriteLine("  {0}", userIdentity.SecurityPolicyUri);
+                            TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
                         }
+                    }
+                    else
+                    {
+                        TestContext.Out.WriteLine("  [no certificate]");
+                    }
+
+                    foreach (var userIdentity in endpoint.UserIdentityTokens)
+                    {
+                        TestContext.Out.WriteLine("  {0}", userIdentity.TokenType);
+                        TestContext.Out.WriteLine("  {0}", userIdentity.PolicyId);
+                        TestContext.Out.WriteLine("  {0}", userIdentity.SecurityPolicyUri);
                     }
                 }
             }
