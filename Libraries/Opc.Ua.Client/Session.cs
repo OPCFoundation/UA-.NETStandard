@@ -991,7 +991,7 @@ namespace Opc.Ua.Client
                     template.m_checkDomain);
 
                 // try transfer
-                if (!session.TransferSubscriptions(new SubscriptionCollection(session.Subscriptions), false))
+                if (!session.TransferSubscriptions(new SubscriptionCollection(template.Subscriptions), false))
                 {
                     // if transfer failed, create the subscriptions.
                     foreach (Subscription subscription in session.Subscriptions)
@@ -1045,7 +1045,7 @@ namespace Opc.Ua.Client
                     template.m_checkDomain);
 
                 // try transfer
-                if (!session.TransferSubscriptions(new SubscriptionCollection(session.Subscriptions), false))
+                if (!session.TransferSubscriptions(new SubscriptionCollection(template.Subscriptions), false))
                 {
                     // if transfer failed, create the subscriptions.
                     foreach (Subscription subscription in session.Subscriptions)
@@ -1283,11 +1283,8 @@ namespace Opc.Ua.Client
         public void Save(Stream stream, IEnumerable<Subscription> subscriptions)
         {
             SubscriptionCollection subscriptionList = new SubscriptionCollection(subscriptions);
-            XmlWriterSettings settings = new XmlWriterSettings {
-                Indent = true,
-                OmitXmlDeclaration = false,
-                Encoding = Encoding.UTF8
-            };
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+
             using (XmlWriter writer = XmlWriter.Create(stream, settings))
             {
                 DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
@@ -1314,12 +1311,8 @@ namespace Opc.Ua.Client
         public IEnumerable<Subscription> Load(Stream stream)
         {
             // secure settings
-            XmlReaderSettings settings = new XmlReaderSettings {
-                DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null,
-                ConformanceLevel = ConformanceLevel.Document,
-                CloseInput = true
-            };
+            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
+            settings.CloseInput = true;
 
             using (XmlReader reader = XmlReader.Create(stream, settings))
             {
@@ -3420,37 +3413,51 @@ namespace Opc.Ua.Client
 
             lock (SyncRoot)
             {
-                ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
-                if (!StatusCode.IsGood(responseHeader.ServiceResult))
+                if (subscriptionIds.Count > 0)
                 {
-                    Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
-                    return false;
-                }
-
-                ClientBase.ValidateResponse(results, subscriptionIds);
-                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
-
-                for (int ii = 0; ii < subscriptions.Count; ii++)
-                {
-                    if (StatusCode.IsGood(results[ii].StatusCode))
+                    ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
+                    if (!StatusCode.IsGood(responseHeader.ServiceResult))
                     {
-                        if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
-                        {   // create ack for available sequence numbers
-                            foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
-                            {
-                                var ack = new SubscriptionAcknowledgement() {
-                                    SubscriptionId = subscriptionIds[ii],
-                                    SequenceNumber = sequenceNumber
-                                };
-                                m_acknowledgementsToSend.Add(ack);
+                        Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
+                        return false;
+                    }
+                    ClientBase.ValidateResponse(results, subscriptionIds);
+                    ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+                    var failedSubscriptionIds = new UInt32Collection();
+
+                    for (int ii = 0; ii < subscriptions.Count; ii++)
+                    {
+                        if (StatusCode.IsGood(results[ii].StatusCode))
+                        {
+                            if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
+                            {   // create ack for available sequence numbers
+                                foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
+                                {
+                                    var ack = new SubscriptionAcknowledgement() {
+                                        SubscriptionId = subscriptionIds[ii],
+                                        SequenceNumber = sequenceNumber
+                                    };
+                                    m_acknowledgementsToSend.Add(ack);
+                                }
                             }
                         }
+                        else
+                        {
+                            Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
+                            failedSubscriptionIds.Add(subscriptions[ii].TransferId);
+                        }
                     }
-                    else
+                    if(failedSubscriptionIds.Count > 0)
                     {
-                        Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
+                        return false;
                     }
                 }
+                else
+                {
+                    Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
+                }
+
+                
             }
 
             return true;

@@ -260,6 +260,7 @@ namespace Opc.Ua.Server
             // close the publish queue for the session.
             SessionPublishQueue queue = null;
             IList<Subscription> subscriptionsToDelete = null;
+            uint publishingIntervalCount = 0;
 
             lock (m_lock)
             {
@@ -304,6 +305,16 @@ namespace Opc.Ua.Server
 
                         // delete subscription.
                         subscription.Delete(context);
+
+                        // get the count for the diagnostics.
+                        publishingIntervalCount = GetPublishingIntervalCount();
+
+                        lock (m_server.DiagnosticsWriteLock)
+                        {
+                            ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
+                            diagnostics.CurrentSubscriptionCount--;
+                            diagnostics.PublishingIntervalCount = publishingIntervalCount;
+                        }
                     }
 
                     // mark the subscriptions as abandoned.

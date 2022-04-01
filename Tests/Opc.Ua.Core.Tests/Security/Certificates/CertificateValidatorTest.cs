@@ -1117,6 +1117,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Test if a key below min length is detected.
         /// </summary>
         [Theory]
+        [NonParallelizable]
         public async Task TestMinimumKeyRejected(bool trusted)
         {
             var cert = CertificateFactory.CreateCertificate(null, null, "CN=1k Key", null)
@@ -1165,6 +1166,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Test auto accept.
         /// </summary>
         [Theory]
+        [NonParallelizable]
         public async Task TestAutoAccept(bool trusted, bool autoAccept)
         {
             var cert = CertificateFactory.CreateCertificate(null, null, "CN=Test", null)
