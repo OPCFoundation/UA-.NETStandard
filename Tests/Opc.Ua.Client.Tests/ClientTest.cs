@@ -138,20 +138,29 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine("Endpoints:");
                 foreach (var endpoint in Endpoints)
                 {
-                    using (var cert = new X509Certificate2(endpoint.ServerCertificate))
+                    TestContext.Out.WriteLine("{0}", endpoint.Server.ApplicationName);
+                    TestContext.Out.WriteLine("  {0}", endpoint.Server.ApplicationUri);
+                    TestContext.Out.WriteLine(" {0}", endpoint.EndpointUrl);
+                    TestContext.Out.WriteLine("  {0}", endpoint.EncodingSupport);
+                    TestContext.Out.WriteLine("  {0}/{1}/{2}", endpoint.SecurityLevel, endpoint.SecurityMode, endpoint.SecurityPolicyUri);
+
+                    if (endpoint.ServerCertificate != null)
                     {
-                        TestContext.Out.WriteLine("{0}", endpoint.Server.ApplicationName);
-                        TestContext.Out.WriteLine("  {0}", endpoint.Server.ApplicationUri);
-                        TestContext.Out.WriteLine(" {0}", endpoint.EndpointUrl);
-                        TestContext.Out.WriteLine("  {0}", endpoint.EncodingSupport);
-                        TestContext.Out.WriteLine("  {0}/{1}/{2}", endpoint.SecurityLevel, endpoint.SecurityMode, endpoint.SecurityPolicyUri);
-                        TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
-                        foreach (var userIdentity in endpoint.UserIdentityTokens)
+                        using (var cert = new X509Certificate2(endpoint.ServerCertificate))
                         {
-                            TestContext.Out.WriteLine("  {0}", userIdentity.TokenType);
-                            TestContext.Out.WriteLine("  {0}", userIdentity.PolicyId);
-                            TestContext.Out.WriteLine("  {0}", userIdentity.SecurityPolicyUri);
+                            TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
                         }
+                    }
+                    else
+                    {
+                        TestContext.Out.WriteLine("  [no certificate]");
+                    }
+
+                    foreach (var userIdentity in endpoint.UserIdentityTokens)
+                    {
+                        TestContext.Out.WriteLine("  {0}", userIdentity.TokenType);
+                        TestContext.Out.WriteLine("  {0}", userIdentity.PolicyId);
+                        TestContext.Out.WriteLine("  {0}", userIdentity.SecurityPolicyUri);
                     }
                 }
             }
@@ -206,13 +215,13 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(210)]
         public async Task ConnectAndReconnectAsync()
         {
-            const int Timeout = MaxTimeout;
+            const int connectTimeout = MaxTimeout;
             var session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
             Assert.NotNull(session);
 
             ManualResetEvent quitEvent = new ManualResetEvent(false);
             var reconnectHandler = new SessionReconnectHandler();
-            reconnectHandler.BeginReconnect(session, Timeout / 5,
+            reconnectHandler.BeginReconnect(session, connectTimeout / 5,
                 (object sender, EventArgs e) => {
                     // ignore callbacks from discarded objects.
                     if (!Object.ReferenceEquals(sender, reconnectHandler))
@@ -225,7 +234,7 @@ namespace Opc.Ua.Client.Tests
                     quitEvent.Set();
                 });
 
-            var timeout = quitEvent.WaitOne(Timeout);
+            var timeout = quitEvent.WaitOne(connectTimeout);
             Assert.True(timeout);
 
             var result = session.Close();

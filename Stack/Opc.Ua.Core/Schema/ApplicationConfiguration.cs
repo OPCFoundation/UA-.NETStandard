@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -605,7 +605,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public TransportConfigurationCollection(IEnumerable<TransportConfiguration> collection) : base(collection) { }
@@ -730,7 +730,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="System.ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public ServerSecurityPolicyCollection(IEnumerable<ServerSecurityPolicy> collection) : base(collection) { }
@@ -1186,7 +1186,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public SamplingRateGroupCollection(IEnumerable<SamplingRateGroup> collection) : base(collection) { }
@@ -2177,7 +2177,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public ReverseConnectClientCollection(IEnumerable<ReverseConnectClient> collection) : base(collection) { }
@@ -2438,7 +2438,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public ReverseConnectClientEndpointCollection(IEnumerable<ReverseConnectClientEndpoint> collection) : base(collection) { }
@@ -2649,7 +2649,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public ServerRegistrationCollection(IEnumerable<ServerRegistration> collection) : base(collection) { }

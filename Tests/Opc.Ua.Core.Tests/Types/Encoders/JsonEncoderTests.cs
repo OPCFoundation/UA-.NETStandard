@@ -49,11 +49,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     public class JsonEncoderTests : EncoderCommon
     {
         #region DataSource
-        static TestEnumType[] TestEnumArray = new TestEnumType[]
+        static TestEnumType[] s_testEnumArray = new TestEnumType[]
             { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred };
-        static Int32[] TestInt32Array = new Int32[]
+        static readonly Int32[] s_testInt32Array = new Int32[]
             { 2, 3, 10 };
-        static ExtensionObject TestEncodeable = new ExtensionObject(new FooBarEncodeable(999));
+        static ExtensionObject s_testEncodeable = new ExtensionObject(new FooBarEncodeable(999));
 
         /// <summary>
         /// Constants used by test data set.
@@ -277,11 +277,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Enumeration,  22, "22", "\"22\""},
 
             // arrays
-            {   BuiltInType.Enumeration, TestEnumArray, "[1,2,100]", "[\"One_1\",\"Two_2\",\"Hundred_100\"]"},
-            {   BuiltInType.Enumeration, TestInt32Array, "[2,3,10]", "[\"2\",\"3\",\"10\"]"},
+            {   BuiltInType.Enumeration, s_testEnumArray, "[1,2,100]", "[\"One_1\",\"Two_2\",\"Hundred_100\"]"},
+            {   BuiltInType.Enumeration, s_testInt32Array, "[2,3,10]", "[\"2\",\"3\",\"10\"]"},
 
             // IEncodeable
-            {   BuiltInType.ExtensionObject, TestEncodeable, "{\"Body\":{\"Foo\":\"bar_999\"}}", "{\"Foo\":\"bar_999\"}"}
+            {   BuiltInType.ExtensionObject, s_testEncodeable, "{\"Body\":{\"Foo\":\"bar_999\"}}", "{\"Foo\":\"bar_999\"}"}
         }.ToArray();
         #endregion
 

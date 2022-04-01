@@ -117,6 +117,7 @@ namespace Opc.Ua.Server
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -1002,7 +1003,7 @@ namespace Opc.Ua.Server
             NodeId referenceTypeId,
             bool isInverse,
             ExpandedNodeId targetId,
-            bool deleteBiDirectional)
+            bool deleteBidirectional)
         {
             lock (Lock)
             {
@@ -1023,7 +1024,7 @@ namespace Opc.Ua.Server
                 // only support references to Source Areas.
                 source.Node.RemoveReference(referenceTypeId, isInverse, targetId);
 
-                if (deleteBiDirectional)
+                if (deleteBidirectional)
                 {
                     // check if the target is also managed by this node manager.
                     if (!targetId.IsAbsolute)
@@ -3401,7 +3402,7 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             IList<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterResults,
+            IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
             ref long globalIdCounter)
         {
@@ -3484,7 +3485,7 @@ namespace Opc.Ua.Server
                 }
 
                 // save any filter error details.
-                filterResults[handle.Index] = filterResult;
+                filterErrors[handle.Index] = filterResult;
 
                 if (ServiceResult.IsBad(errors[handle.Index]))
                 {
@@ -3902,7 +3903,7 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterResults)
+            IList<MonitoringFilterResult> filterErrors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             List<IMonitoredItem> modifiedItems = new List<IMonitoredItem>();
@@ -3943,7 +3944,7 @@ namespace Opc.Ua.Server
                         out filterResult);
 
                     // save any filter error details.
-                    filterResults[ii] = filterResult;
+                    filterErrors[ii] = filterResult;
 
                     // save the modified item.
                     if (ServiceResult.IsGood(errors[ii]))
@@ -4417,7 +4418,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes,
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
             bool permissionsOnly)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
@@ -4446,24 +4447,24 @@ namespace Opc.Ua.Server
                 NodeMetadata metadata = new NodeMetadata(target, target.NodeId);
 
                 // Treat the case of calls originating from the optimized services that use the cache (Read, Browse and Call services)
-                if (uniqueNodesServiceAttributes != null)
+                if (uniqueNodesServiceAttributesCache != null)
                 {
                     NodeId key = handle.NodeId;
-                    if (uniqueNodesServiceAttributes.ContainsKey(key))
+                    if (uniqueNodesServiceAttributesCache.ContainsKey(key))
                     {
-                        if (uniqueNodesServiceAttributes[key].Count == 0)
+                        if (uniqueNodesServiceAttributesCache[key].Count == 0)
                         {
-                            values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributes, systemContext, target, key);
+                            values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributesCache, systemContext, target, key);
                         }
                         else
                         {
                             // Retrieve value from cache
-                            values = uniqueNodesServiceAttributes[key];
+                            values = uniqueNodesServiceAttributesCache[key];
                         }
                     }
                     else
                     {
-                        values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributes, systemContext, target, key);
+                        values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributesCache, systemContext, target, key);
                     }
 
                     SetAccessAndRolePermissions(values, metadata);

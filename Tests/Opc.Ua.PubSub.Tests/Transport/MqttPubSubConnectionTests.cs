@@ -43,12 +43,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
     [TestFixture(Description = "Tests for Mqtt connections")]
     public partial class MqttPubSubConnectionTests
     {
-        private const UInt16 NamespaceIndexAllTypes = 3;
+        private const UInt16 kNamespaceIndexAllTypes = 3;
 
         private ManualResetEvent m_uaDataShutdownEvent;
         private ManualResetEvent m_uaMetaDataShutdownEvent;
         private ManualResetEvent m_uaConfigurationUpdateEvent;
-        private const int EstimatedPublishingTime = 60000;
+        private const int kEstimatedPublishingTime = 60000;
 
         [OneTimeSetUp()]
         public void MyTestInitialize()
@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: kNamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Configure the mqtt publisher configuration with the MQTTbroker
@@ -103,7 +103,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             // Create publisher application for multiple datasets
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
-            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+            MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: kNamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -155,7 +155,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConnection.Start();
 
             //Assert
-            if (!m_uaDataShutdownEvent.WaitOne(EstimatedPublishingTime))
+            if (!m_uaDataShutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
                 Assert.Fail("The UADP message was not received");
             }
@@ -203,7 +203,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: kNamespaceIndexAllTypes,
                 metaDataUpdateTime);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
@@ -215,7 +215,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             // Create publisher application for multiple datasets
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
-            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+            MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
@@ -242,7 +242,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: kNamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -277,11 +277,11 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConnection.Start();
 
             //Assert
-            if (!m_uaDataShutdownEvent.WaitOne(EstimatedPublishingTime))
+            if (!m_uaDataShutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
                 Assert.Fail("The JSON message was not received");
             }
-            if (!m_uaMetaDataShutdownEvent.WaitOne(EstimatedPublishingTime))
+            if (!m_uaMetaDataShutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
                 Assert.Fail("The JSON metadata message was not received");
             }
