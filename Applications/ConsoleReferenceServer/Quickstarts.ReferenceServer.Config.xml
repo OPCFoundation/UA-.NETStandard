@@ -190,7 +190,7 @@
       <!-- Allows anonymous users -->
       <ua:UserTokenPolicy>
         <ua:TokenType>Anonymous_0</ua:TokenType>
-        <!-- passwords must be encrypted - no setting lets the stack select a secure profile -->
+        <!-- <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</ua:SecurityPolicyUri> -->
       </ua:UserTokenPolicy>
 
       <!-- Allows username/password -->

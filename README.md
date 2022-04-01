@@ -56,12 +56,14 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 [![Nuget Downloads](https://img.shields.io/nuget/dt/OPCFoundation.NetStandard.Opc.Ua)](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
 
 ### Build Status
-[![Build Status](https://opcfoundation.visualstudio.com/opcua-netstandard/_apis/build/status/OPCFoundation.UA-.NETStandard?branchName=master)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
+[![Azure DevOps](https://opcfoundation.visualstudio.com/opcua-netstandard/_apis/build/status/OPCFoundation.UA-.NETStandard?branchName=master)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
+[![Github Actions](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml/badge.svg)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml)
 [![Build Status](https://img.shields.io/appveyor/build/opcfoundation-org/ua-netstandardlibrary/master?label=Appveyor)](https://ci.appveyor.com/project/opcfoundation-org/ua-netstandardlibrary)
 
 ### Code Quality
 [![Test Status](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/14?style=plastic)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=14&contextType=build)
-[![Coverage Status](https://img.shields.io/azure-devops/coverage/opcfoundation/opcua-netstandard/14/master?style=plastic)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master)
+[![CodeQL](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/codeql-analysis.yml)
+[![Coverage Status](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master/graph/badge.svg?token=vDf5AnilUt)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard)
 
 ## Getting Started
 All the tools you need for .NET Standard come with the .NET Core tools. See [Get started with .NET Core](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
