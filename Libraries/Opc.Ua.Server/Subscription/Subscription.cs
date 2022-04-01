@@ -170,6 +170,7 @@ namespace Opc.Ua.Server
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -2340,10 +2341,10 @@ namespace Opc.Ua.Server
         /// </summary>
         private void TraceState(LogLevel logLevel, TraceStateId id, string context)
         {
-            const string DeletedMessage = "Subscription {0}, SessionId={1}, Id={2}, SeqNo={3}, MessageCount={4}";
-            const string ConfigMessage = "Subscription {0}, SessionId={1}, Id={2}, Priority={3}, Publishing={4}, KeepAlive={5}, LifeTime={6}, MaxNotifications={7}, Enabled={8}";
-            const string MonitorMessage = "Subscription {0}, Id={1}, KeepAliveCount={2}, LifeTimeCount={3}, WaitingForPublish={4}, SeqNo={5}, ItemCount={6}, ItemsToCheck={7}, ItemsToPublish={8}, MessageCount={9}";
-            const string ItemsMessage = "Subscription {0}, Id={1}, ItemCount={2}, ItemsToCheck={3}, ItemsToPublish={4}";
+            const string deletedMessage = "Subscription {0}, SessionId={1}, Id={2}, SeqNo={3}, MessageCount={4}";
+            const string configMessage = "Subscription {0}, SessionId={1}, Id={2}, Priority={3}, Publishing={4}, KeepAlive={5}, LifeTime={6}, MaxNotifications={7}, Enabled={8}";
+            const string monitorMessage = "Subscription {0}, Id={1}, KeepAliveCount={2}, LifeTimeCount={3}, WaitingForPublish={4}, SeqNo={5}, ItemCount={6}, ItemsToCheck={7}, ItemsToPublish={8}, MessageCount={9}";
+            const string itemsMessage = "Subscription {0}, Id={1}, ItemCount={2}, ItemsToCheck={3}, ItemsToPublish={4}";
 
             if (!Utils.Logger.IsEnabled(logLevel))
             {
@@ -2366,24 +2367,24 @@ namespace Opc.Ua.Server
             switch (id)
             {
                 case TraceStateId.Deleted:
-                    Utils.Log(logLevel, DeletedMessage, context, m_session?.Id, m_id,
+                    Utils.Log(logLevel, deletedMessage, context, m_session?.Id, m_id,
                         sequenceNumber, sentMessages);
                     break;
 
                 case TraceStateId.Config:
-                    Utils.Log(logLevel, ConfigMessage, context, m_session?.Id, m_id,
+                    Utils.Log(logLevel, configMessage, context, m_session?.Id, m_id,
                         m_priority, m_publishingInterval, m_maxKeepAliveCount,
                         m_maxLifetimeCount, m_maxNotificationsPerPublish, publishingEnabled);
                     break;
 
                 case TraceStateId.Items:
-                    Utils.Log(logLevel, ItemsMessage, context, m_id,
+                    Utils.Log(logLevel, itemsMessage, context, m_id,
                         monitoredItems, itemsToCheck, itemsToPublish);
                     break;
 
                 case TraceStateId.Publish:
                 case TraceStateId.Monitor:
-                    Utils.Log(logLevel, MonitorMessage, context, m_id, m_keepAliveCounter, m_lifetimeCounter,
+                    Utils.Log(logLevel, monitorMessage, context, m_id, m_keepAliveCounter, m_lifetimeCounter,
                         waitingForPublish, sequenceNumber, monitoredItems, itemsToCheck,
                         itemsToPublish, sentMessages);
                     break;

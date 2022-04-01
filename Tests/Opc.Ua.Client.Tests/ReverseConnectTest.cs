@@ -65,7 +65,7 @@ namespace Opc.Ua.Client.Tests
             {
                 Assert.Ignore("Reverse connect fails on mac OS.");
             }
-
+        
             // pki directory root for test runs. 
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 

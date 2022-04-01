@@ -56,10 +56,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
     public class ContentFilterTests
     {
         #region Shared Properties
-        public EventFilter Filter { get;}
-        public FilterContext FilterContext { get;}
+        public EventFilter Filter { get; }
+        public FilterContext FilterContext { get; }
         public TestFilterTarget TestFilterTarget { get; }
-        
+
         #endregion
 
         #region Constructor
@@ -130,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [TestCase(3, 3, 5, 7, true)]
         [TestCase(3, 1, 5, 7, false)]
         [Category("ContentFilter")]
-        public void InList(object operandFirst1, object operandFirst2, object operandFirst3,  object operandFirst4, object expectedResult)
+        public void InList(object operandFirst1, object operandFirst2, object operandFirst3, object operandFirst4, object expectedResult)
         {
             LiteralOperand loperand1 = new LiteralOperand();
             LiteralOperand loperand2 = new LiteralOperand();
@@ -209,7 +209,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 loperand2.Value = new Variant(operandFirst2);
             }
-            
+
 
             ContentFilterElement filterElement = new ContentFilterElement();
             filterElement.FilterOperator = filterOp;
@@ -241,7 +241,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 loperand2.Value = new Variant(operandFirst2);
             }
-            
+
 
             ContentFilterElement filterElement1 = new ContentFilterElement();
             filterElement1.FilterOperator = filterOp1;
@@ -305,7 +305,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             filterElement2.SetOperands(new List<FilterOperand>() { lFirstOperand, elementOperand });
 
             Filter.WhereClause.Elements = new[] { filterElement2, filterElement1 };
-            
+
             // apply filter.
             object result = Filter.WhereClause.Evaluate(FilterContext, TestFilterTarget);
             Assert.AreEqual(expectedResult, result);
