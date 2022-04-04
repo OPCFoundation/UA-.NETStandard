@@ -83,7 +83,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode and decode of a random built in type.
         /// </summary>
         [Theory]
-        [Category("BuiltInType"), Repeat(RandomRepeats)]
+        [Category("BuiltInType"), Repeat(kRandomRepeats)]
         public void ReEncodeBuiltInType(
             EncodingType encoderType,
             BuiltInType builtInType
@@ -199,7 +199,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// as Variant in a DataValue.
         /// </summary>
         [Theory]
-        [Category("BuiltInType"), Repeat(RandomRepeats)]
+        [Category("BuiltInType"), Repeat(kRandomRepeats)]
         public void ReEncodeBuiltInTypeRandomVariantInDataValue(
             EncodingType encoderType
             )
