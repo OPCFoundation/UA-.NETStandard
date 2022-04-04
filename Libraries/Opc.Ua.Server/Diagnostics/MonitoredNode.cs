@@ -222,8 +222,36 @@ namespace Opc.Ua.Server
 
                 if (baseEventState != null)
                 {
-                    ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
+                    #region  Filter out audit events in case the ServerType_Auditing values is false or the channel is not encrypted
+                    if (serverAuditingNode == null)
+                    {
+                        serverAuditingNode = NodeManager?.FindNodeInAddressSpace(VariableIds.ServerType_Auditing) as BaseVariableState;
+                    }
+                    if (e is AuditEventState)
+                    {
+                        // check Server.Auditing flag
+                        if (serverAuditingNode != null &&
+                            !Convert.ToBoolean(serverAuditingNode.Value))
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            // check if channel is encrypted
+                            OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
+                            if (operationContext != null &&
+                                operationContext.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
+                                operationContext.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport)
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                    #endregion
+
+                    ServiceResult validationResult = NodeManager?.ValidateRolePermissions(new OperationContext(monitoredItem),
                         baseEventState?.EventType?.Value, PermissionType.ReceiveEvents);
+
 
                     if (ServiceResult.IsBad(validationResult))
                     {
@@ -319,6 +347,7 @@ namespace Opc.Ua.Server
         private NodeState m_node;
         private List<MonitoredItem> m_dataChangeMonitoredItems;
         private List<IEventMonitoredItem> m_eventMonitoredItems;
+        private BaseVariableState serverAuditingNode;
         #endregion
     }
 }
