@@ -1187,6 +1187,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.
         /// </summary>
+        public void Reconnect(ITransportWaitingConnection connection)
+            => Reconnect(connection, null);
+
+        /// <summary>
+        /// Reconnects to the server after a network failure using a waiting connection.
+        /// </summary>
         public void Reconnect(ITransportWaitingConnection connection, ITransportChannel transportChannel = null)
         {
             try
@@ -3304,6 +3310,11 @@ namespace Opc.Ua.Client
             return Close(m_keepAliveInterval, closeChannel);
         }
 
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        public virtual StatusCode Close(int timeout)
+            => Close(timeout, true);
         /// <summary>
         /// Disconnects from the server and frees any network resources with the specified timeout.
         /// </summary>
