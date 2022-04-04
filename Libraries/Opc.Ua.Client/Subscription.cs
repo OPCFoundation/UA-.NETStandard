@@ -109,7 +109,7 @@ namespace Opc.Ua.Client
                 if (copyEventHandlers)
                 {
                     m_StateChanged = template.m_StateChanged;
-                    m_PublishStatusChanged = template.m_PublishStatusChanged;
+                    m_publishStatusChanged = template.m_publishStatusChanged;
                     m_fastDataChangeCallback = template.m_fastDataChangeCallback;
                     m_fastEventCallback = template.m_fastEventCallback;
                 }
@@ -173,6 +173,7 @@ namespace Opc.Ua.Client
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -212,7 +213,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    m_PublishStatusChanged += value;
+                    m_publishStatusChanged += value;
                 }
             }
 
@@ -220,7 +221,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    m_PublishStatusChanged -= value;
+                    m_publishStatusChanged -= value;
                 }
             }
         }
@@ -1295,7 +1296,7 @@ namespace Opc.Ua.Client
                 // check if a publish error was previously reported.
                 if (PublishingStopped)
                 {
-                    callback = m_PublishStatusChanged;
+                    callback = m_publishStatusChanged;
                     TraceState("PUBLISHING RECOVERED");
                 }
 
@@ -1641,7 +1642,7 @@ namespace Opc.Ua.Client
                     return;
                 }
 
-                callback = m_PublishStatusChanged;
+                callback = m_publishStatusChanged;
                 m_publishLateCount++;
             }
 
@@ -1930,7 +1931,7 @@ namespace Opc.Ua.Client
 
                     session = m_session;
                     subscriptionId = m_id;
-                    callback = m_PublishStatusChanged;
+                    callback = m_publishStatusChanged;
                 }
 
                 if (callback != null)
@@ -2439,7 +2440,7 @@ namespace Opc.Ua.Client
         private Timer m_publishTimer;
         private DateTime m_lastNotificationTime;
         private int m_publishLateCount;
-        private event EventHandler m_PublishStatusChanged;
+        private event EventHandler m_publishStatusChanged;
 
         private object m_cache = new object();
         private LinkedList<NotificationMessage> m_messageCache;

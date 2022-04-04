@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public async Task<T> StartAsync(TextWriter writer, string pkiRoot, int port = 0)
         {
-            Random m_random = new Random();
+            Random random = new Random();
             bool retryStartServer = false;
             int testPort = port;
             int serverStartRetries = 1;
@@ -162,10 +162,10 @@ namespace Opc.Ua.Server.Tests
                         throw;
                     }
                     serverStartRetries--;
-                    testPort = m_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
+                    testPort = random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
-                await Task.Delay(m_random.Next(100, 1000)).ConfigureAwait(false);
+                await Task.Delay(random.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
 
             return Server;

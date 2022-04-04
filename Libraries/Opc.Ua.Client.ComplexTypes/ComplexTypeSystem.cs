@@ -480,7 +480,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 catch (DataTypeNotFoundException dtnfex)
                 {
                     // add missing type to list
-                    var dataTypeNode = m_session.NodeCache.Find(dtnfex.nodeId);
+                    var dataTypeNode = m_session.NodeCache.Find(dtnfex.NodeId);
                     if (dataTypeNode != null)
                     {
                         AddEnumerationOrStructureType(dataTypeNode, serverEnumTypes, serverStructTypes);
@@ -602,7 +602,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                 }
                                 catch (DataTypeNotFoundException dtnfex)
                                 {
-                                    var typeMatch = structTypesWorkList.FirstOrDefault(n => n.NodeId == dtnfex.nodeId);
+                                    var typeMatch = structTypesWorkList.FirstOrDefault(n => n.NodeId == dtnfex.NodeId);
                                     if (typeMatch == null)
                                     {
                                         throw;

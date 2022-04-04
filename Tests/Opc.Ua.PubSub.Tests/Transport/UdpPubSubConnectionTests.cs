@@ -45,12 +45,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
     public partial class UdpPubSubConnectionTests
     {
         #region Fields
-        private const int EstimatedPublishingTime = 10000;
+        private const int kEstimatedPublishingTime = 10000;
 
-        private const string UdpUrlFormat = "{0}://{1}:4840";
-        private const string UdpDiscoveryIp = "224.0.2.14";
-        private const string UdpMulticastIp = "239.0.0.1";
-        private const int DiscoveryPortNo = 4840;
+        private const string kUdpUrlFormat = "{0}://{1}:4840";
+        private const string kUdpDiscoveryIp = "224.0.2.14";
+        private const string kUdpMulticastIp = "239.0.0.1";
+        private const int kDiscoveryPortNo = 4840;
 
         protected enum UdpConnectionType
         {
@@ -71,8 +71,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Response
         }
 
-        private string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
-        private string SubscriberConfigurationFileName = Path.Combine("Configuration", "SubscriberConfiguration.xml");
+        private string m_publisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+        private string m_subscriberConfigurationFileName = Path.Combine("Configuration", "SubscriberConfiguration.xml");
 
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_uaPublisherApplication;
@@ -86,7 +86,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void MyTestInitialize()
         {
             // Create a publisher application
-            string configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            string configurationFile = Utils.GetAbsoluteFilePath(m_publisherConfigurationFileName, true, true, false);
             m_uaPublisherApplication = UaPubSubApplication.Create(configurationFile);
             Assert.IsNotNull(m_uaPublisherApplication, "m_publisherApplication should not be null");
 

@@ -32,7 +32,7 @@ If a server is derived from the StandardServer class and if the custom NodeManag
 Typically the following porting steps are necessary:
 
   - Use the new `MonitoredItem` constructor which has no `Session` parameter, it is implicitly available in the `Subscription` and the `MonitoredItem`can not keep a private reference when the subscription is transferred.
-  - Add the `TransferMonitoredItems` method from another `NodeManager` sample to the custome `NodeManager` implementationsj.
+  - Add the `TransferMonitoredItems` method from another `NodeManager` sample to the custom `NodeManager` implementations.
   - Depending on the `NodeManager` implementation, add or fix the `ReadInitialValue` method. The monitored item transfer must be able to queue an unfiltered initial value, if requested.
   - More subtle changes might be required, e.g. how the monitored item handle to read the attributes is obtained.
   - Once the server builds, if available run a CTT test against a node in the ported NodeManager.
@@ -43,5 +43,6 @@ Typically the following porting steps are necessary:
 - **There is no opt out**.
 - **Breaking change**: There is currently no support for NodeManagers to *not* support the new transfer service. Unless the NodeManagers are all ported to support the monitored items transfer, build errors will prevent from using the latest 1.4.368 library.
 - There is no client sample for special use cases like e.g. the client restart in a docker container.
+- In some .NET Core 3.1 projects a warning CS8032 occurs due to missing analyzer. Current believe is this warning can be safely disabled. 
 
   

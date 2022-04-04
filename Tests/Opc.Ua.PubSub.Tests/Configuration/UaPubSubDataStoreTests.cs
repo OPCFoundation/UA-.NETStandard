@@ -34,10 +34,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 {
     [TestFixture(Description = "Tests for UaPubSubDataStore class")]
     public class UaPubSubDataStoreTests
-    {     
+    {
         #region WritePublishedDataItem
         [Test(Description = "Validate WritePublishedDataItem call with different values")]
-       
+
         public void ValidateWritePublishedDataItem(
             [Values(true, (byte)1, (ushort)2, (short)3, (uint)4, (int)5, (ulong)6, (long)7,
             (double)8, (float)9, "10")] object value)
@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
 
             //Assert
-            Assert.IsNotNull(readDataValue, "Returned DataValue for written nodeId and attribute is null" );
+            Assert.IsNotNull(readDataValue, "Returned DataValue for written nodeId and attribute is null");
             Assert.AreEqual(readDataValue.Value, value, "Read after write returned different value");
         }
 
@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             //Arrange
             UaPubSubDataStore dataStore = new UaPubSubDataStore();
-            
+
             //Assert
             Assert.Throws(typeof(ArgumentException), () => dataStore.WritePublishedDataItem(null));
         }
@@ -70,9 +70,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             //Arrange
             UaPubSubDataStore dataStore = new UaPubSubDataStore();
-            
+
             //Assert
-            Assert.Throws(typeof(ArgumentException), 
+            Assert.Throws(typeof(ArgumentException),
                 () => dataStore.WritePublishedDataItem(new NodeId("ns=0;i=2253"), (uint)Attributes.AccessLevelEx + 1));
         }
         #endregion
@@ -84,10 +84,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             //Arrange
             UaPubSubDataStore dataStore = new UaPubSubDataStore();
             NodeId nodeId = new NodeId("ns=1;i=1");
-           
+
             //Act     
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
-            
+
             //Assert
             Assert.IsNull(readDataValue, "Returned DataValue for written nodeId and attribute is NOT null");
         }
@@ -97,7 +97,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             //Arrange
             UaPubSubDataStore dataStore = new UaPubSubDataStore();
-           
+
             //Assert
             Assert.Throws(typeof(ArgumentException), () => dataStore.ReadPublishedDataItem(null));
         }
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             //Arrange
             UaPubSubDataStore dataStore = new UaPubSubDataStore();
-                        //Assert
+            //Assert
             Assert.Throws(typeof(ArgumentException),
                 () => dataStore.ReadPublishedDataItem(new NodeId("ns=0;i=2253"), (uint)Attributes.AccessLevelEx + 1));
         }

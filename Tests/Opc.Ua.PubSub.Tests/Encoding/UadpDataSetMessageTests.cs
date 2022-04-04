@@ -39,8 +39,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
     [TestFixture(Description = "Tests for Encoding/Decoding of UadpDataSeMessage objects")]
     public class UadpDataSetMessageTests
     {
-        private string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
-        private string SubscriberConfigurationFileName = Path.Combine("Configuration", "SubscriberConfiguration.xml");
+        private string m_publisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+        private string m_subscriberConfigurationFileName = Path.Combine("Configuration", "SubscriberConfiguration.xml");
 
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_publisherApplication;
@@ -52,20 +52,20 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private ReaderGroupDataType m_firstReaderGroup;
         private DataSetReaderDataType m_firstDataSetReaderType;
         
-        private const ushort NamespaceIndexSimple = 2;
+        private const ushort kNamespaceIndexSimple = 2;
 
         /// <summary>
         /// just for test match the DataSet1->DataSetWriterId
         /// </summary>
-        private const ushort TestDataSetWriterId = 1;
-        private const ushort MessageContentMask = 0x3f;
+        private const ushort kTestDataSetWriterId = 1;
+        private const ushort kMessageContentMask = 0x3f;
 
         [OneTimeSetUp()]
         public void MyTestInitialize()
         {
             // Create a publisher application
             // todo refactor to use the MessagesHelper create configuration
-            string publisherConfigurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            string publisherConfigurationFile = Utils.GetAbsoluteFilePath(m_publisherConfigurationFileName, true, true, false);
             m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile);
             Assert.IsNotNull(m_publisherApplication, "m_publisherApplication should not be null");
 
@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotEmpty(m_publisherConfiguration.PublishedDataSets, "m_publisherConfiguration.PublishedDataSets should not be empty");
 
             // Create a subscriber application
-            string subscriberConfigurationFile = Utils.GetAbsoluteFilePath(SubscriberConfigurationFileName, true, true, false);
+            string subscriberConfigurationFile = Utils.GetAbsoluteFilePath(m_subscriberConfigurationFileName, true, true, false);
             m_subscriberApplication = UaPubSubApplication.Create(subscriberConfigurationFile);
             Assert.IsNotNull(m_subscriberApplication, "m_subscriberApplication should not be null");
 
@@ -127,7 +127,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Act  
             // change network message mask
-            for (uint dataSetMessageContentMask = 0; dataSetMessageContentMask < MessageContentMask; dataSetMessageContentMask++)
+            for (uint dataSetMessageContentMask = 0; dataSetMessageContentMask < kMessageContentMask; dataSetMessageContentMask++)
             {
                 uadpDataSetMessage.SetMessageContentMask((UadpDataSetMessageContentMask)dataSetMessageContentMask);
 
@@ -236,15 +236,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
             DataSetFieldContentMask dataSetFieldContentMask)
         {
-            const int VersionValue = 2;
+            const int versionValue = 2;
 
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act  
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
-            uadpDataSetMessage.MetaDataVersion.MajorVersion = VersionValue;
-            uadpDataSetMessage.MetaDataVersion.MinorVersion = VersionValue * 10;
+            uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
+            uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
             IServiceMessageContext messageContextEncode = new ServiceMessageContext();
             byte[] bytes;
@@ -261,11 +261,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Make sure the reader MajorVersion and MinorVersion are the same with the ones on the dataset message
             DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
-            reader.DataSetMetaData.ConfigurationVersion.MajorVersion = VersionValue;
-            reader.DataSetMetaData.ConfigurationVersion.MinorVersion = VersionValue * 10;
+            reader.DataSetMetaData.ConfigurationVersion.MajorVersion = versionValue;
+            reader.DataSetMetaData.ConfigurationVersion.MinorVersion = versionValue * 10;
 
             // workaround
-            uaDataSetMessageDecoded.DataSetWriterId = TestDataSetWriterId;
+            uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
             uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
             decoder.Dispose();
 
@@ -325,7 +325,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion + 1;
 
             // workaround
-            uaDataSetMessageDecoded.DataSetWriterId = TestDataSetWriterId;
+            uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
             uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
             decoder.Dispose();
 
@@ -384,7 +384,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion;
 
             // workaround
-            uaDataSetMessageDecoded.DataSetWriterId = TestDataSetWriterId;
+            uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
             uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
             decoder.Dispose();
 
@@ -412,15 +412,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
             DataSetFieldContentMask dataSetFieldContentMask)
         {
-            const int VersionValue = 2;
+            const int versionValue = 2;
 
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act  
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
-            uadpDataSetMessage.MetaDataVersion.MajorVersion = VersionValue;
-            uadpDataSetMessage.MetaDataVersion.MinorVersion = VersionValue * 10;
+            uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
+            uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
             IServiceMessageContext messageContextEncode = new ServiceMessageContext();
             byte[] bytes;
@@ -441,7 +441,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion + 1;
 
             // workaround
-            uaDataSetMessageDecoded.DataSetWriterId = TestDataSetWriterId;
+            uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
             uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
             decoder.Dispose();
 
@@ -492,13 +492,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             #region DataSet Simple
             // DataSet 'Simple' fill with data
             DataValue booleanValue = new DataValue(new Variant(true), StatusCodes.Good);
-            m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", NamespaceIndexSimple), Attributes.Value, booleanValue);
+            m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", kNamespaceIndexSimple), Attributes.Value, booleanValue);
             DataValue scalarInt32XValue = new DataValue(new Variant(100), StatusCodes.Good);
-            m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", NamespaceIndexSimple), Attributes.Value, scalarInt32XValue);
+            m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", kNamespaceIndexSimple), Attributes.Value, scalarInt32XValue);
             DataValue scalarInt32YValue = new DataValue(new Variant(50), StatusCodes.Good);
-            m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Fast", NamespaceIndexSimple), Attributes.Value, scalarInt32YValue);
+            m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Fast", kNamespaceIndexSimple), Attributes.Value, scalarInt32YValue);
             DataValue dateTimeValue = new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good);
-            m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", NamespaceIndexSimple), Attributes.Value, dateTimeValue);
+            m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", kNamespaceIndexSimple), Attributes.Value, dateTimeValue);
             #endregion
         }
 
@@ -582,7 +582,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);
 
             // workaround
-            uaDataSetMessageDecoded.DataSetWriterId = TestDataSetWriterId;
+            uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
             uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, m_firstDataSetReaderType);
             decoder.Dispose();
 

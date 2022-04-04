@@ -70,7 +70,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // good applications test set
             var appTestDataGenerator = new ApplicationTestDataGenerator(1);
             m_goodApplicationTestSet = appTestDataGenerator.ApplicationTestSet(kGoodApplicationsTestCount);
-            m_NotYetValidCertsApplicationTestSet = appTestDataGenerator.ApplicationTestSet(kGoodApplicationsTestCount);
+            m_notYetValidCertsApplicationTestSet = appTestDataGenerator.ApplicationTestSet(kGoodApplicationsTestCount);
 
             // create all certs and CRL
             m_caChain = new X509Certificate2[kCaChainCount];
@@ -179,7 +179,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 m_appCerts);
 
             // create signed expired app certs
-            foreach (var app in m_NotYetValidCertsApplicationTestSet)
+            foreach (var app in m_notYetValidCertsApplicationTestSet)
             {
                 var subject = app.Subject;
                 var expiredappcert = CertificateFactory.CreateCertificate(
@@ -1117,6 +1117,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Test if a key below min length is detected.
         /// </summary>
         [Theory]
+        [NonParallelizable]
         public async Task TestMinimumKeyRejected(bool trusted)
         {
             var cert = CertificateFactory.CreateCertificate(null, null, "CN=1k Key", null)
@@ -1165,6 +1166,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Test auto accept.
         /// </summary>
         [Theory]
+        [NonParallelizable]
         public async Task TestAutoAccept(bool trusted, bool autoAccept)
         {
             var cert = CertificateFactory.CreateCertificate(null, null, "CN=Test", null)
@@ -1453,7 +1455,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     // ****** setting under test ******
                     certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
 
-                    foreach (var app in m_NotYetValidCertsApplicationTestSet)
+                    foreach (var app in m_notYetValidCertsApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
                         Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
@@ -1492,7 +1494,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     // ****** setting under test ******
                     certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
 
-                    foreach (var app in m_NotYetValidCertsApplicationTestSet)
+                    foreach (var app in m_notYetValidCertsApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
                         Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
@@ -1578,7 +1580,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         private const int kCaChainCount = 3;
         private const int kGoodApplicationsTestCount = 3;
         private IList<ApplicationTestData> m_goodApplicationTestSet;
-        private IList<ApplicationTestData> m_NotYetValidCertsApplicationTestSet;
+        private IList<ApplicationTestData> m_notYetValidCertsApplicationTestSet;
         private X509Certificate2[] m_caChain;
         private X509Certificate2[] m_caDupeChain;
         private X509CRL[] m_crlChain;

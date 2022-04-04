@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(localhost.Address, "localhost.Address is null");
 
             //create publisher configuration object with modified port
-            string configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            string configurationFile = Utils.GetAbsoluteFilePath(m_publisherConfigurationFileName, true, true, false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(publisherConfiguration.Connections.Count, 1, "publisherConfiguration.Connection should be > 0");
@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(unicastIPAddress, "unicastIPAddress is null");
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = string.Format(UdpUrlFormat, Utils.UriSchemeOpcUdp, unicastIPAddress.ToString());
+            publisherAddress.Url = string.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, unicastIPAddress.ToString());
             publisherConfiguration.Connections.First().Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             m_shutdownEvent = new ManualResetEvent(false);
 
             //setup uadp client for receiving from multicast (simulate a subscriber unicast)
-            UdpClient udpUnicastClient = new UdpClientUnicast(localhost.Address, DiscoveryPortNo);
+            UdpClient udpUnicastClient = new UdpClientUnicast(localhost.Address, kDiscoveryPortNo);
             Assert.IsNotNull(udpUnicastClient, "udpUnicastClient is null");
             udpUnicastClient.BeginReceive(new AsyncCallback(OnReceive), udpUnicastClient);
 
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             //Assert
             bool noMessageReceived = false;
-            if (!m_shutdownEvent.WaitOne(EstimatedPublishingTime))
+            if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
                 noMessageReceived = true;
             }
@@ -134,7 +134,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(localhost.Address, "localhost.Address is null");
 
             //create publisher configuration object with modified port
-            string configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            string configurationFile = Utils.GetAbsoluteFilePath(m_publisherConfigurationFileName, true, true, false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(publisherConfiguration.Connections.Count, 1, "publisherConfiguration.Connection should be > 0");
@@ -143,7 +143,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(broadcastIPAddress, "broadcastIPAddress is null");
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = string.Format(UdpUrlFormat, Utils.UriSchemeOpcUdp, broadcastIPAddress.ToString());
+            publisherAddress.Url = string.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, broadcastIPAddress.ToString());
             publisherConfiguration.Connections.First().Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -157,7 +157,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             m_shutdownEvent = new ManualResetEvent(false);
 
             //setup uadp client for receiving from broadcast (simulate a subscriber broadcast)
-            UdpClient udpBroadcastClient = new UdpClientBroadcast(localhost.Address, DiscoveryPortNo, UsedInContext.Subscriber);
+            UdpClient udpBroadcastClient = new UdpClientBroadcast(localhost.Address, kDiscoveryPortNo, UsedInContext.Subscriber);
             udpBroadcastClient.BeginReceive(new AsyncCallback(OnReceive), udpBroadcastClient);
 
             // prepare a network message
@@ -181,7 +181,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             //Assert
             bool noMessageReceived = false;
-            if (!m_shutdownEvent.WaitOne(EstimatedPublishingTime))
+            if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
                 noMessageReceived = true;
             }
@@ -208,17 +208,17 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(localhost.Address, "localhost.Address is null");
 
             //create publisher configuration object with modified port
-            string configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            string configurationFile = Utils.GetAbsoluteFilePath(m_publisherConfigurationFileName, true, true, false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(publisherConfiguration.Connections.Count, 1, "publisherConfiguration.Connection should be > 0");
 
-            IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(UdpMulticastIp);
+            IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpMulticastIp);
             IPAddress multicastIPAddress = multicastIPAddresses.First();
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = string.Format(UdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
+            publisherAddress.Url = string.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
             publisherConfiguration.Connections.First().Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -232,7 +232,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             m_shutdownEvent = new ManualResetEvent(false);
 
             //setup uadp client for receiving from multicast (simulate a subscriber multicast)
-            UdpClient udpMulticastClient = new UdpClientMulticast(localhost.Address, multicastIPAddress, DiscoveryPortNo);
+            UdpClient udpMulticastClient = new UdpClientMulticast(localhost.Address, multicastIPAddress, kDiscoveryPortNo);
             udpMulticastClient.BeginReceive(new AsyncCallback(OnReceive), udpMulticastClient);
 
             // prepare a network message
@@ -256,7 +256,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             //Assert
             bool noMessageReceived = false;
-            if (!m_shutdownEvent.WaitOne(EstimatedPublishingTime))
+            if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
                 noMessageReceived = true;
             }
@@ -283,18 +283,18 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(localhost.Address, "localhost.Address is null");
 
             //create publisher configuration object with modified port
-            string configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            string configurationFile = Utils.GetAbsoluteFilePath(m_publisherConfigurationFileName, true, true, false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(publisherConfiguration.Connections.Count, 1, "publisherConfiguration.Connection should be > 0");
 
             //discovery IP adress 224.0.2.14
-            IPAddress[] multicastIPAddresses =  Dns.GetHostAddresses(UdpDiscoveryIp);
+            IPAddress[] multicastIPAddresses =  Dns.GetHostAddresses(kUdpDiscoveryIp);
             IPAddress multicastIPAddress = multicastIPAddresses.First();
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = string.Format(UdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
+            publisherAddress.Url = string.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -308,7 +308,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             m_shutdownEvent = new ManualResetEvent(false);
 
             //setup uadp client for receiving from multicast (simulate a subscriber multicast)
-            UdpClient udpMulticastClient = new UdpClientMulticast(localhost.Address, multicastIPAddress, DiscoveryPortNo);
+            UdpClient udpMulticastClient = new UdpClientMulticast(localhost.Address, multicastIPAddress, kDiscoveryPortNo);
             udpMulticastClient.BeginReceive(new AsyncCallback(OnReceive), udpMulticastClient);
 
             // prepare a network message
@@ -337,7 +337,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             //Assert
             bool noMessageReceived = false;
-            if (!m_shutdownEvent.WaitOne(EstimatedPublishingTime))
+            if (!m_shutdownEvent.WaitOne(kEstimatedPublishingTime))
             {
                 noMessageReceived = true;
             }

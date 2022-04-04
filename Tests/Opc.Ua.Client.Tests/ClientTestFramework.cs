@@ -52,8 +52,8 @@ namespace Opc.Ua.Client.Tests
 
         public const int MaxReferences = 100;
         public const int MaxTimeout = 10000;
-        public const int TransportQuota_MaxMessageSize = 4 * 1024 * 1024;
-        public const int TransportQuota_MaxStringLength = 1 * 1024 * 1024;
+        public const int TransportQuotaMaxMessageSize = 4 * 1024 * 1024;
+        public const int TransportQuotaMaxStringLength = 1 * 1024 * 1024;
 
         public bool SingleSession { get; set; } = true;
         public bool SupportsExternalServerUrl { get; set; } = false;
@@ -139,9 +139,9 @@ namespace Opc.Ua.Client.Tests
 
                 await ServerFixture.LoadConfiguration(PkiRoot).ConfigureAwait(false);
                 ServerFixture.Config.TransportQuotas.MaxMessageSize =
-                ServerFixture.Config.TransportQuotas.MaxBufferSize = TransportQuota_MaxMessageSize;
+                ServerFixture.Config.TransportQuotas.MaxBufferSize = TransportQuotaMaxMessageSize;
                 ServerFixture.Config.TransportQuotas.MaxByteStringLength =
-                ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuota_MaxStringLength;
+                ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
                 ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
             }
 

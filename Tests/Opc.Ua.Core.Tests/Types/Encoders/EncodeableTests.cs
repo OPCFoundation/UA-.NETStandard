@@ -81,7 +81,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int arrayLength = DataGenerator.GetRandomByte();
             Array array = Array.CreateInstance(systemType, arrayLength);
             ExpandedNodeId dataTypeId = NodeId.Null;
-            for(int i = 0; i < array.Length; i ++)
+            for (int i = 0; i < array.Length; i++)
             {
                 IEncodeable testObject = CreateDefaultEncodableType(systemType) as IEncodeable;
                 array.SetValue(testObject, i);
@@ -89,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     dataTypeId = testObject.TypeId;
                 }
-            }           
+            }
 
             string objectName = "Array";
             BuiltInType builtInType = BuiltInType.Variant;
@@ -133,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int elementsCount = ElementsFromDimension(dimensions);
             Array array = Array.CreateInstance(systemType, elementsCount);
 
-            
+
 
             ExpandedNodeId dataTypeId = NodeId.Null;
             for (int i = 0; i < array.Length; i++)
@@ -144,7 +144,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     dataTypeId = testObject.TypeId;
                 }
-            }            
+            }
 
             string objectName = "Matrix";
             BuiltInType builtInType = BuiltInType.Variant;
