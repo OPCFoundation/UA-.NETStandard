@@ -835,7 +835,7 @@ namespace Opc.Ua
                 // report completion.
                 OperationCompleted();
             }
-            #endregion
+            #endregion     
 
             #region Private Fields
             private EndpointBase m_endpoint;
