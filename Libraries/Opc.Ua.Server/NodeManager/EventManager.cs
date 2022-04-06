@@ -248,11 +248,34 @@ namespace Opc.Ua.Server
         }
         #endregion
 
+        #region Public Properties
+        /// <summary>
+        /// Returns the cached read value of ServerType_Auditing
+        /// </summary>
+        public bool ServerAuditing
+        {
+            get{
+
+                if (m_bServerAuditing == null)
+                {
+                    // Extract the value of the ServerType_Auditing node
+                    // Note: The value is cached and it is not updated dynamically
+                    BaseVariableState auditing = m_server.NodeManager?.DiagnosticsNodeManager.FindPredefinedNode(VariableIds.Server_Auditing,
+                        typeof(BaseVariableState)) as BaseVariableState;
+                    m_bServerAuditing = Convert.ToBoolean(auditing.Value, System.Globalization.CultureInfo.InvariantCulture);
+                }
+
+                return (bool)m_bServerAuditing;
+            }
+        }
+        #endregion
+
         #region Private Fields
         private object m_lock = new object();
         private IServerInternal m_server;
         private Dictionary<uint, IEventMonitoredItem> m_monitoredItems;
         private uint m_maxEventQueueSize;
+        private bool? m_bServerAuditing = null;
         #endregion
     }
 }

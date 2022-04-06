@@ -585,7 +585,7 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                AuditConditionCommentEventState e = new AuditConditionCommentEventState(null);
+                AuditConditionEnableEventState e = new AuditConditionEnableEventState(null);
 
                 TranslationInfo info = new TranslationInfo(
                     "AuditConditionEnable",

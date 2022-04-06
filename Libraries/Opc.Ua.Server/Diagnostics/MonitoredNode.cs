@@ -215,12 +215,6 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (serverAuditingNode == null)
-            {
-                serverAuditingNode = NodeManager?.FindNodeInAddressSpace(VariableIds.ServerType_Auditing) as BaseVariableState;
-            }
-            bool bServerAuditing = Convert.ToBoolean(serverAuditingNode.Value);
-
             for (int ii = 0; ii < eventMonitoredItems.Count; ii++)
             {
                 IEventMonitoredItem monitoredItem = eventMonitoredItems[ii];
@@ -233,7 +227,7 @@ namespace Opc.Ua.Server
                     if (e is AuditEventState)
                     {
                         // check Server.Auditing flag and skip if false
-                        if (!bServerAuditing)
+                        if (!NodeManager.Server.EventManager.ServerAuditing)
                         {
                             continue;
                         }
@@ -349,7 +343,6 @@ namespace Opc.Ua.Server
         private NodeState m_node;
         private List<MonitoredItem> m_dataChangeMonitoredItems;
         private List<IEventMonitoredItem> m_eventMonitoredItems;
-        private BaseVariableState serverAuditingNode;
         #endregion
     }
 }
