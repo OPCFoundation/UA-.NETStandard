@@ -200,7 +200,7 @@ namespace Opc.Ua.Server
         {
             List<IEventMonitoredItem> eventMonitoredItems = new List<IEventMonitoredItem>();
 
-            lock (NodeManager.Lock)
+            lock (NodeManager?.Lock)
             {
                 if (EventMonitoredItems == null)
                 {
@@ -215,6 +215,12 @@ namespace Opc.Ua.Server
                 }
             }
 
+            if (serverAuditingNode == null)
+            {
+                serverAuditingNode = NodeManager?.FindNodeInAddressSpace(VariableIds.ServerType_Auditing) as BaseVariableState;
+            }
+            bool bServerAuditing = Convert.ToBoolean(serverAuditingNode.Value);
+
             for (int ii = 0; ii < eventMonitoredItems.Count; ii++)
             {
                 IEventMonitoredItem monitoredItem = eventMonitoredItems[ii];
@@ -223,21 +229,17 @@ namespace Opc.Ua.Server
                 if (baseEventState != null)
                 {
                     #region  Filter out audit events in case the ServerType_Auditing values is false or the channel is not encrypted
-                    if (serverAuditingNode == null)
-                    {
-                        serverAuditingNode = NodeManager?.FindNodeInAddressSpace(VariableIds.ServerType_Auditing) as BaseVariableState;
-                    }
+                   
                     if (e is AuditEventState)
                     {
-                        // check Server.Auditing flag
-                        if (serverAuditingNode != null &&
-                            !Convert.ToBoolean(serverAuditingNode.Value))
+                        // check Server.Auditing flag and skip if false
+                        if (!bServerAuditing)
                         {
                             continue;
                         }
                         else
                         {
-                            // check if channel is encrypted
+                            // check if channel is not encrypted and skip if so
                             OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
                             if (operationContext != null &&
                                 operationContext.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
@@ -259,7 +261,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
+                    validationResult = NodeManager?.ValidateRolePermissions(new OperationContext(monitoredItem),
                         baseEventState?.SourceNode?.Value, PermissionType.ReceiveEvents);
 
                     if (ServiceResult.IsBad(validationResult))
@@ -269,7 +271,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                lock (NodeManager.Lock)
+                lock (NodeManager?.Lock)
                 {
                     // enqueue event
                     monitoredItem?.QueueEvent(e);
@@ -285,7 +287,7 @@ namespace Opc.Ua.Server
         /// <param name="changes">The mask indicating what changes have occurred.</param>
         public void OnMonitoredNodeChanged(ISystemContext context, NodeState node, NodeStateChangeMasks changes)
         {
-            lock (NodeManager.Lock)
+            lock (NodeManager?.Lock)
             {
                 if (DataChangeMonitoredItems == null)
                 {
