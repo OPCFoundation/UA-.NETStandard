@@ -116,10 +116,6 @@ namespace Alarms
                 }
                 else
                 {
-                    if (value < 0)
-                    {
-                        bool waiting = true;
-                    }
                     m_variable.Value = value;
                 }
                 m_variable.Timestamp = DateTime.UtcNow;
@@ -165,7 +161,6 @@ namespace Alarms
                     m_value = m_midpoint;
                 }
             }
-            Type valueType = value.GetType();
         }
 
         public virtual bool CanSetValue()

@@ -250,7 +250,6 @@ namespace Alarms
             bool shouldEvent = false;
             ConditionState alarm = GetAlarm();
             ushort newSeverity = GetSeverity();
-            ushort existingSeverity = alarm.Severity.Value;
             if (newSeverity != alarm.Severity.Value)
             {
                 shouldEvent = true;
@@ -280,7 +279,6 @@ namespace Alarms
 
             if ( !isEvent )
             {
-                ConditionState alarm = GetAlarm();
                 LogError(caller, EventErrorMessage(eventId));
             }
 

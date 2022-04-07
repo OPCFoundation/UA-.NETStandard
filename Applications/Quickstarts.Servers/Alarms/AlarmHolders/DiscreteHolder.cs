@@ -84,7 +84,6 @@ namespace Alarms
         public override void SetValue(string message = "")
         {
 
-            DiscreteAlarmState alarm = GetAlarm();
             bool active = m_alarmController.IsBooleanActive();
             int value = m_alarmController.GetValue();
 

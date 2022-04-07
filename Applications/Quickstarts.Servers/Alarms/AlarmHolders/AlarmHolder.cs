@@ -82,7 +82,6 @@ namespace Alarms
         public BaseEventState GetBranch(byte[] eventId)
         {
             BaseEventState state = null;
-            string eventIdString = Utils.ToHexString(eventId);
 
             ConditionState alarm = m_alarm as ConditionState;
             if (alarm != null)
