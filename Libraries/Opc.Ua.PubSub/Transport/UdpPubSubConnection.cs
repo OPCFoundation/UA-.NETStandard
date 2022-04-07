@@ -85,7 +85,6 @@ namespace Opc.Ua.PubSub.Transport
         /// Get the port from configured <see cref="PubSubConnectionDataType"/>.Address
         /// </summary>
         public int Port { get; private set; }
-       
         #endregion
 
         #region UaPubSubConnection - Overrides
@@ -346,6 +345,14 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Always returns true since UDP is a connectionless protocol
+        /// </summary>
+        public override bool AreClientsConnected()
+        {
+            return true;
         }
         #endregion
 

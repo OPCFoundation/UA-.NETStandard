@@ -8,6 +8,8 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Description>OPC UA GDS Server Class Library</Description>
     <IsPackable>true</IsPackable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   
