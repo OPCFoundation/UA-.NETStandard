@@ -200,7 +200,7 @@ namespace Opc.Ua.Server
         {
             List<IEventMonitoredItem> eventMonitoredItems = new List<IEventMonitoredItem>();
 
-            lock (NodeManager?.Lock)
+            lock (NodeManager.Lock)
             {
                 if (EventMonitoredItems == null)
                 {
@@ -227,7 +227,7 @@ namespace Opc.Ua.Server
                     if (e is AuditEventState)
                     {
                         // check Server.Auditing flag and skip if false
-                        if ((bool)!NodeManager?.Server.EventManager.ServerAuditing)
+                        if (!NodeManager.Server.EventManager.ServerAuditing)
                         {
                             continue;
                         }
@@ -245,7 +245,7 @@ namespace Opc.Ua.Server
                     }
                     #endregion
 
-                    ServiceResult validationResult = NodeManager?.ValidateRolePermissions(new OperationContext(monitoredItem),
+                    ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
                         baseEventState?.EventType?.Value, PermissionType.ReceiveEvents);
 
 
@@ -255,7 +255,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    validationResult = NodeManager?.ValidateRolePermissions(new OperationContext(monitoredItem),
+                    validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
                         baseEventState?.SourceNode?.Value, PermissionType.ReceiveEvents);
 
                     if (ServiceResult.IsBad(validationResult))
@@ -265,7 +265,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                lock (NodeManager?.Lock)
+                lock (NodeManager.Lock)
                 {
                     // enqueue event
                     monitoredItem?.QueueEvent(e);
@@ -281,7 +281,7 @@ namespace Opc.Ua.Server
         /// <param name="changes">The mask indicating what changes have occurred.</param>
         public void OnMonitoredNodeChanged(ISystemContext context, NodeState node, NodeStateChangeMasks changes)
         {
-            lock (NodeManager?.Lock)
+            lock (NodeManager.Lock)
             {
                 if (DataChangeMonitoredItems == null)
                 {

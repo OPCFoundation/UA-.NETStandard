@@ -51,6 +51,14 @@ namespace Opc.Ua.Server
             m_server = server;
             m_monitoredItems = new Dictionary<uint,IEventMonitoredItem>();
             m_maxEventQueueSize = maxQueueSize;
+
+            m_ServerAuditing = new Lazy<bool>(() => {
+                // Extract the value of the ServerType_Auditing node
+                // Note: The value is cached and it is not updated dynamically
+                BaseVariableState auditing = m_server.NodeManager.DiagnosticsNodeManager.FindPredefinedNode(VariableIds.Server_Auditing,
+                    typeof(BaseVariableState)) as BaseVariableState;
+                return Convert.ToBoolean(auditing.Value, System.Globalization.CultureInfo.InvariantCulture);
+            });
         }
         #endregion
 
@@ -256,16 +264,12 @@ namespace Opc.Ua.Server
         {
             get{
 
-                if (m_bServerAuditing == null)
+                if (m_server.NodeManager == null)
                 {
-                    // Extract the value of the ServerType_Auditing node
-                    // Note: The value is cached and it is not updated dynamically
-                    BaseVariableState auditing = m_server.NodeManager?.DiagnosticsNodeManager.FindPredefinedNode(VariableIds.Server_Auditing,
-                        typeof(BaseVariableState)) as BaseVariableState;
-                    m_bServerAuditing = Convert.ToBoolean(auditing.Value, System.Globalization.CultureInfo.InvariantCulture);
+                    return false;
                 }
 
-                return (bool)m_bServerAuditing;
+                return m_ServerAuditing.Value;
             }
         }
         #endregion
@@ -275,7 +279,7 @@ namespace Opc.Ua.Server
         private IServerInternal m_server;
         private Dictionary<uint, IEventMonitoredItem> m_monitoredItems;
         private uint m_maxEventQueueSize;
-        private bool? m_bServerAuditing = null;
+        private Lazy<bool> m_ServerAuditing;
         #endregion
     }
 }
