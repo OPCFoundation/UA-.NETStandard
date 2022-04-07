@@ -57,7 +57,11 @@ namespace Opc.Ua.Server
                 // Note: The value is cached and it is not updated dynamically
                 BaseVariableState auditing = m_server.NodeManager.DiagnosticsNodeManager.FindPredefinedNode(VariableIds.Server_Auditing,
                     typeof(BaseVariableState)) as BaseVariableState;
-                return Convert.ToBoolean(auditing.Value, System.Globalization.CultureInfo.InvariantCulture);
+                if (auditing != null)
+                {
+                    return Convert.ToBoolean(auditing.Value, System.Globalization.CultureInfo.InvariantCulture);
+                }
+                return false;
             });
         }
         #endregion
