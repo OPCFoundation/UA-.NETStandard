@@ -209,13 +209,14 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         /// Test Nodeset2 import.
         /// </summary>
         [Test]
-        [TestCase("../../../../../Stack/Opc.Ua.Core/Schema/Opc.Ua.NodeSet2.xml")]
-        [TestCase("../../../../../Applications/Quickstarts.Servers/TestData/TestData.NodeSet2.xml")]
-        [TestCase("../../../../../Applications/Quickstarts.Servers/MemoryBuffer/MemoryBuffer.NodeSet2.xml")]
-        [TestCase("../../../../../Applications/Quickstarts.Servers/Boiler/Boiler.NodeSet2.xml")]
+        [TestCase("Stack/Opc.Ua.Core/Schema/Opc.Ua.NodeSet2.xml")]
+        [TestCase("Applications/Quickstarts.Servers/TestData/TestData.NodeSet2.xml")]
+        [TestCase("Applications/Quickstarts.Servers/MemoryBuffer/MemoryBuffer.NodeSet2.xml")]
+        [TestCase("Applications/Quickstarts.Servers/Boiler/Boiler.NodeSet2.xml")]
         public void Nodeset2ValidationTest(string nodeset2File)
         {
-            using (var importStream = new FileStream(nodeset2File, FileMode.Open))
+            var assetPath = Utils.GetAbsoluteFilePath("../../../../../" + nodeset2File, true, false, false);
+            using (var importStream = new FileStream(assetPath, FileMode.Open))
             {
                 var importedNodeSet = Export.UANodeSet.Read(importStream);
                 Assert.NotNull(importedNodeSet);
