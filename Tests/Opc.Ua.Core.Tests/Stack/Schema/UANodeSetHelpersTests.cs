@@ -28,9 +28,12 @@
  * ======================================================================*/
 
 
+using System;
 using System.IO;
 using System.Text;
+using System.Xml;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Schema
 {
@@ -42,6 +45,10 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
     [Parallelizable]
     public class UANodeSetHelpersTests
     {
+        #region DataPointSource
+        [DatapointSource]
+        public static readonly Nodeset2Asset[] Nodeset2AssetArray = new AssetCollection<Nodeset2Asset>(Ua.Tests.TestUtils.EnumerateTestAssets("*.NodeSet2.xml")).ToArray();
+        #endregion
 
         #region Test Setup
         [OneTimeSetUp]
@@ -71,7 +78,6 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         /// Test Structure Field ArrayDimensions attribute is correctly imported repsectively exported
         /// </summary>
         [Test]
-        [Category("UANodeSet")]
         public void ArrayDimensionsValidationTest()
         {
             var bufferPath = @"./ArrayDimensionsValidationTest.xml";
@@ -160,7 +166,8 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
                 // export the nodeSet to a file, reimport it and re-test.
                 importedNodeStates.SaveAsNodeSet2(localContext, new FileStream(bufferPath, FileMode.Create));
-                try {
+                try
+                {
                     using (var exportStream = new FileStream(bufferPath, FileMode.Open))
                     {
                         var exportedNodeSet = Opc.Ua.Export.UANodeSet.Read(exportStream);
@@ -196,6 +203,85 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                     File.Delete(bufferPath);
                 }
             }
+        }
+
+        /// <summary>
+        /// Test Nodeset2 import.
+        /// </summary>
+        [Test]
+        [TestCase("../../../../../Stack/Opc.Ua.Core/Schema/Opc.Ua.NodeSet2.xml")]
+        [TestCase("../../../../../Applications/Quickstarts.Servers/TestData/TestData.NodeSet2.xml")]
+        [TestCase("../../../../../Applications/Quickstarts.Servers/MemoryBuffer/MemoryBuffer.NodeSet2.xml")]
+        [TestCase("../../../../../Applications/Quickstarts.Servers/Boiler/Boiler.NodeSet2.xml")]
+        public void Nodeset2ValidationTest(string nodeset2File)
+        {
+            using (var importStream = new FileStream(nodeset2File, FileMode.Open))
+            {
+                var importedNodeSet = Export.UANodeSet.Read(importStream);
+                Assert.NotNull(importedNodeSet);
+
+                var importedNodeStates = new NodeStateCollection();
+                var localContext = new SystemContext();
+                localContext.NamespaceUris = new NamespaceTable();
+                if (importedNodeSet.NamespaceUris != null)
+                {
+                    foreach (var namespaceUri in importedNodeSet.NamespaceUris)
+                    {
+                        localContext.NamespaceUris.Append(namespaceUri);
+                    }
+                }
+                importedNodeSet.Import(localContext, importedNodeStates);
+            }
+        }
+
+        /// <summary>
+        /// Test Nodeset2 import. Requires test assets to be in the 'Assets' folder.
+        /// </summary>
+        [Theory]
+        public void Nodeset2ValidationTest(Nodeset2Asset nodeset2Asset)
+        {
+            using (var importStream = new MemoryStream(nodeset2Asset.Xml))
+            {
+                var importedNodeSet = Export.UANodeSet.Read(importStream);
+                Assert.NotNull(importedNodeSet);
+
+                var importedNodeStates = new NodeStateCollection();
+                var localContext = new SystemContext();
+                localContext.NamespaceUris = new NamespaceTable();
+                if (importedNodeSet.NamespaceUris != null)
+                {
+                    foreach (var namespaceUri in importedNodeSet.NamespaceUris)
+                    {
+                        localContext.NamespaceUris.Append(namespaceUri);
+                    }
+                }
+                importedNodeSet.Import(localContext, importedNodeStates);
+            }
+        }
+    }
+    #endregion
+
+    #region Asset helpers
+    /// <summary>
+    /// A Nodeset2 as test asset.
+    /// </summary>
+    public class Nodeset2Asset : IAsset, IFormattable
+    {
+        public Nodeset2Asset() { }
+
+        public string Path { get; private set; }
+        public byte[] Xml { get; private set; }
+
+        public void Initialize(byte[] blob, string path)
+        {
+            Path = path;
+            Xml = blob;
+        }
+
+        public string ToString(string format, IFormatProvider formatProvider)
+        {
+            var file = System.IO.Path.GetFileName(Path);
+            return $"{file}";
         }
     }
     #endregion
