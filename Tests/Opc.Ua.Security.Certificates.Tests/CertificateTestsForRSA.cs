@@ -494,10 +494,10 @@ namespace Opc.Ua.Security.Certificates.Tests
 #endif
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
-#endregion
+        #region Private Fields
+        #endregion
     }
 
 }
