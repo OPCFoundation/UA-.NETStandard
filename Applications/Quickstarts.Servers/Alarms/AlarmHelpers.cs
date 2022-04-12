@@ -28,13 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using Opc.Ua;
-using Opc.Ua.Server;
 
 
 namespace Alarms
@@ -48,7 +43,7 @@ namespace Alarms
         /// <summary>
         /// Create a mechanism to create a folder
         /// </summary>
-        public static FolderState CreateFolder(NodeState parent, ushort nameSpaceIndex, string path, string name )
+        public static FolderState CreateFolder(NodeState parent, ushort nameSpaceIndex, string path, string name)
         {
             FolderState folder = new FolderState(parent);
 
@@ -76,7 +71,7 @@ namespace Alarms
         public static BaseDataVariableState CreateVariable(NodeState parent, ushort nameSpaceIndex, string path, string name, bool boolValue = false)
         {
             uint dataTypeIdentifier = Opc.Ua.DataTypes.Int32;
-            if ( boolValue )
+            if (boolValue)
             {
                 dataTypeIdentifier = Opc.Ua.DataTypes.Boolean;
             }
@@ -98,7 +93,7 @@ namespace Alarms
             variable.DisplayName = new LocalizedText("en", name);
             variable.WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
             variable.UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
-            switch(dataTypeIdentifier)
+            switch (dataTypeIdentifier)
             {
                 case Opc.Ua.DataTypes.Boolean:
                     variable.DataType = DataTypeIds.Boolean;
@@ -109,7 +104,7 @@ namespace Alarms
                     variable.Value = AlarmDefines.NORMAL_START_VALUE;
                     break;
                 case Opc.Ua.DataTypes.Double:
-                    variable.DataType = DataTypeIds.Int32;
+                    variable.DataType = DataTypeIds.Double;
                     variable.Value = (double)AlarmDefines.NORMAL_START_VALUE;
                     break;
 

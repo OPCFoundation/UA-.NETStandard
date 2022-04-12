@@ -28,11 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using Opc.Ua;
 
@@ -118,7 +113,7 @@ namespace Alarms
                 alarm.SetShelvingState(SystemContext, shelved: false, oneShot: false, shelvingTime: Double.MaxValue);
                 alarm.ShelvingState.LastTransition.Value = new LocalizedText("");
                 alarm.ShelvingState.LastTransition.Id.Value = 0;
-                
+
                 alarm.OnShelve = OnShelve;
                 alarm.OnTimedUnshelve = OnTimedUnshelve;
                 alarm.UnshelveTimeUpdateRate = 2000;
@@ -155,15 +150,15 @@ namespace Alarms
                 setValue = true;
             }
 
-            if ( UpdateSuppression() )
+            if (UpdateSuppression())
             {
-                if ( message.Length <= 0 )
+                if (message.Length <= 0)
                 {
-                    message = "Updating due to Shelving State Update: " + alarm.ShelvingState.CurrentState.Value.ToString(); 
+                    message = "Updating due to Shelving State Update: " + alarm.ShelvingState.CurrentState.Value.ToString();
                 }
                 setValue = true;
             }
-            else if ( UpdateSuppression() )
+            else if (UpdateSuppression())
             {
                 if (message.Length <= 0)
                 {
@@ -222,11 +217,11 @@ namespace Alarms
         protected override bool UpdateSuppression()
         {
             bool update = false;
-            if ( Optional )
+            if (Optional)
             {
                 AlarmConditionState alarm = GetAlarm();
 
-                if ( m_alarmController.ShouldSuppress() )
+                if (m_alarmController.ShouldSuppress())
                 {
                     alarm.SetSuppressedState(SystemContext, true);
                     update = true;
@@ -269,9 +264,9 @@ namespace Alarms
             string shelved = "Shelved";
             string dueTo = "";
 
-            if ( shelving )
+            if (shelving)
             {
-                if ( oneShot )
+                if (oneShot)
                 {
                     dueTo = " due to OneShotShelve";
                 }
@@ -302,7 +297,7 @@ namespace Alarms
             alarm.Message.Value = "The timed shelving period expired.";
             alarm.SetShelvingState(context, false, false, 0);
 
-            base.SetValue(alarm.Message.Value.Text );
+            base.SetValue(alarm.Message.Value.Text);
 
             return ServiceResult.Good;
         }

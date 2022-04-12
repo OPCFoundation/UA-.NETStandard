@@ -68,7 +68,7 @@ namespace Alarms
 
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
-            Utils.LogInfo(Utils.TraceMasks.Information, "NonExclusiveLevelHolder alarm typedefinition " + m_alarm.TypeDefinitionId.ToString());
+            Utils.LogInfo("NonExclusiveLevelHolder alarm typedefinition {0}", m_alarm.TypeDefinitionId);
 
 
 

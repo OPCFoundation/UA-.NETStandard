@@ -60,7 +60,7 @@ namespace TestData
                 var nameSpaces = new StringCollection {
                     Namespaces.TestData,
                     Namespaces.TestData + "Instance"
-                };  
+                };
                 return nameSpaces;
             }
         }

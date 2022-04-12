@@ -45,7 +45,7 @@ namespace TestData
         protected override void OnAfterCreate(ISystemContext context, NodeState node)
         {
             base.OnAfterCreate(context, node);
-            
+
             InitializeVariable(context, SByteValue, TestData.Variables.AnalogScalarValueObjectType_SByteValue);
             InitializeVariable(context, ByteValue, TestData.Variables.AnalogScalarValueObjectType_ByteValue);
             InitializeVariable(context, Int16Value, TestData.Variables.AnalogScalarValueObjectType_Int16Value);
@@ -95,7 +95,7 @@ namespace TestData
             GenerateValue(system, UIntegerValue);
 
             return base.OnGenerateValues(context, method, objectId, count);
-        }  
+        }
         #endregion
     }
 }

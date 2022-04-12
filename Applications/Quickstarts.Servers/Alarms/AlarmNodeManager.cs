@@ -33,7 +33,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Opc.Ua;
-using Opc.Ua.Sample;
 using Opc.Ua.Server;
 
 namespace Alarms
@@ -73,17 +72,17 @@ namespace Alarms
             : base(server, configuration, "http://samples.org/UA/Alarms/")
         {
 
-           //string alarms = "http://samples.org/UA/Alarms/";
+            //string alarms = "http://samples.org/UA/Alarms/";
 
-           // List<string> namespaceUris = new List<string>();
-           // namespaceUris.Add(alarms);
-           // namespaceUris.Add(alarms + "Instance");
-           // NamespaceUris = namespaceUris;
+            // List<string> namespaceUris = new List<string>();
+            // namespaceUris.Add(alarms);
+            // namespaceUris.Add(alarms + "Instance");
+            // NamespaceUris = namespaceUris;
 
-           // m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
-           // m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
+            // m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
+            // m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
 
-           // AddEncodeableNodeManagerTypes(typeof(AlarmNodeManager).Assembly, typeof(AlarmNodeManager).Namespace);
+            // AddEncodeableNodeManagerTypes(typeof(AlarmNodeManager).Assembly, typeof(AlarmNodeManager).Namespace);
 
         }
         #endregion
@@ -349,8 +348,7 @@ namespace Alarms
                     }
                     catch (Exception ex)
                     {
-                        Utils.LogInfo("Loop Exception " + ex.Message);
-
+                        Utils.LogInfo(ex, "Alarm Loop Exception");
                     }
                 }
                 m_allowEntry = true;
@@ -360,7 +358,8 @@ namespace Alarms
                 if (m_success > 0)
                 {
                     m_missed++;
-                    Utils.LogInfo(DateTime.UtcNow.ToLocalTime().ToLongTimeString() + " Missed Loop " + m_missed.ToString() + " Success " + m_success.ToString());
+                    Utils.LogInfo("{0} Missed Loop {1} Success {2}",
+                        DateTime.UtcNow.ToLocalTime().ToLongTimeString(), m_missed, m_success);
                 }
             }
         }
@@ -383,7 +382,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInfo("Starting up alarm group " + GetUnitFromNodeId(node.NodeId));
+                Utils.LogInfo("Starting up alarm group {0}", GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
                 {
@@ -427,7 +426,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInfo("Starting up Branch for alarm group " + GetUnitFromNodeId(node.NodeId));
+                Utils.LogInfo("Starting up Branch for alarm group {0}", GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
                 {
@@ -471,7 +470,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInfo("Stopping alarm group " + GetUnitFromNodeId(node.NodeId));
+                Utils.LogInfo("Stopping alarm group {0}", GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
                 {
@@ -521,7 +520,7 @@ namespace Alarms
                     return StatusCodes.BadNodeIdUnknown;
                 }
 
-                Utils.LogInfo("Manual Write " + value.ToString() + " to " + node.NodeId.ToString());
+                Utils.LogInfo("Manual Write {0} to {1}", value, node.NodeId);
 
                 lock (m_alarms)
                 {
@@ -974,7 +973,6 @@ namespace Alarms
 
         private Timer m_simulationTimer;
         private UInt16 m_simulationInterval = 100;
-
         #endregion
 
     }

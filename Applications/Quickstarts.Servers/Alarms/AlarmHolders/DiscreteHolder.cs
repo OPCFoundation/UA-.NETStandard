@@ -28,10 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using Opc.Ua;
 
@@ -87,7 +83,7 @@ namespace Alarms
             bool active = m_alarmController.IsBooleanActive();
             int value = m_alarmController.GetValue();
 
-            if ( message.Length == 0 )
+            if (message.Length == 0)
             {
                 message = "Discrete Alarm analog value = " + value.ToString() + ", active = " + active.ToString();
             }

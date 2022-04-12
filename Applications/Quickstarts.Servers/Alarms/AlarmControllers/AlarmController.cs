@@ -28,10 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using Opc.Ua;
 
@@ -84,7 +80,7 @@ namespace Alarms
 
             m_nextTime = DateTime.Now;
             m_stopTime = DateTime.Now;
-            m_stopTime = m_stopTime.AddMinutes(3);
+            m_stopTime = m_stopTime.AddMinutes(120);
 
 
             m_allowChanges = true;
@@ -108,7 +104,7 @@ namespace Alarms
                 bool boolValue = false;
                 GetValue(ref value, ref boolValue);
 
-                Utils.LogInfo(Utils.TraceMasks.Information, "AlarmController Update Value = " + value.ToString());
+                Utils.LogInfo("AlarmController Update Value = {0}", value);
 
                 if (m_isBoolean)
                 {
@@ -134,24 +130,24 @@ namespace Alarms
             m_nextTime = m_nextTime.AddMilliseconds(m_interval);
         }
 
-        public void ManualWrite( object value )
+        public void ManualWrite(object value)
         {
-            if ( value.GetType().Name == "Int32" )
+            if (value.GetType().Name == "Int32")
             {
                 // Don't let anyone write a value out of range
                 Int32 potentialWrite = (Int32)value;
-                if ( potentialWrite >= AlarmDefines.MIN_VALUE && potentialWrite <= AlarmDefines.MAX_VALUE )
+                if (potentialWrite >= AlarmDefines.MIN_VALUE && potentialWrite <= AlarmDefines.MAX_VALUE)
                 {
                     m_value = potentialWrite;
                 }
                 else
                 {
-                    Utils.LogInfo(Utils.TraceMasks.Error, "AlarmController Received out of range manual write of " + value.ToString());
+                    Utils.LogError("AlarmController Received out of range manual write of {0}", value);
                 }
             }
             else
             {
-                if ((bool)value )
+                if ((bool)value)
                 {
                     m_value = 70;
                     m_increment = true;
@@ -167,7 +163,7 @@ namespace Alarms
         {
             bool setValue = false;
 
-            if ( DateTime.Now > m_stopTime )
+            if (DateTime.Now > m_stopTime)
             {
                 Stop();
                 m_stopTime = DateTime.Now;
@@ -201,7 +197,7 @@ namespace Alarms
             set { m_supportsBranching = value; }
         }
 
-        public virtual void SetBranchCount( int count )
+        public virtual void SetBranchCount(int count)
         {
             m_branchCount = count;
         }
@@ -218,10 +214,10 @@ namespace Alarms
                 m_value += incrementValue;
                 if (m_value >= maxValue)
                 {
-                    if ( m_validLastMaxValue )
+                    if (m_validLastMaxValue)
                     {
-                        Utils.LogInfo(Utils.TraceMasks.Information,
-                            "Cycle Time " + (DateTime.Now - m_lastMaxValue).ToString() + " Interval " + m_interval.ToString());
+                        Utils.LogInfo(
+                            "Cycle Time {0} Interval {1}", (DateTime.Now - m_lastMaxValue), m_interval);
                     }
                     m_lastMaxValue = DateTime.Now;
                     m_validLastMaxValue = true;
@@ -263,12 +259,12 @@ namespace Alarms
             return m_value;
         }
 
-        public int GetSine(int minValue, int maxValue )
+        public int GetSine(int minValue, int maxValue)
         {
             return CalcSine(minValue, maxValue, m_value);
         }
 
-        public int CalcSine( int minValue, int maxValue, int value )
+        public int CalcSine(int minValue, int maxValue, int value)
         {
             // What I want is a sawtooth compared against a sine value.
             // This calculates a simular sine value that will have predictable differences between value and sine
@@ -301,13 +297,11 @@ namespace Alarms
 
             double calculated = amplitude * (Math.Sin(period * (reducedPeriod + phase))) + verticalShift;
 
-            Utils.LogInfo(Utils.TraceMasks.Information,
-                " Phase " + String.Format("{0:0.00}", phase) +
-                " Value " + value.ToString() +
-                " Sine " + String.Format("{0:0.00}", calculated) +
-                " Offset Value " + String.Format("{0:0.00}", offsetValue) +
-                " Span " + String.Format("{0:0.00}", normalSpan) +
-                " Percentage of Range " + String.Format("{0:0.00}", percentageOfRange));
+            Utils.LogInfo(
+                " Phase {0:0.00} Value {1} Sine {2:0.00}" +
+                " Offset Value {3:0.00} Span {4:0.00}" +
+                " Percentage of Range {5:0.00}",
+                phase, value, calculated, offsetValue, normalSpan, percentageOfRange);
 
             return (int)calculated;
         }
