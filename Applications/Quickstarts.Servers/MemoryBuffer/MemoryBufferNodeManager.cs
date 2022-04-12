@@ -49,7 +49,7 @@ namespace MemoryBuffer
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new MemoryBufferNodeManager(server, configuration);
+            return new MemoryBufferNodeManager(server, configuration, NamespacesUris.ToArray());
         }
 
         /// <inheritdoc/>
@@ -75,15 +75,10 @@ namespace MemoryBuffer
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public MemoryBufferNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        public MemoryBufferNodeManager(IServerInternal server, ApplicationConfiguration configuration, string[] namespaceUris)
         :
             base(server)
         {
-            List<string> namespaceUris = new List<string>();
-
-            namespaceUris.Add(Namespaces.MemoryBuffer);
-            namespaceUris.Add(Namespaces.MemoryBuffer + "/Instance");
-
             NamespaceUris = namespaceUris;
 
             AddEncodeableNodeManagerTypes(typeof(MemoryBufferNodeManager).Assembly, typeof(MemoryBufferNodeManager).Namespace);

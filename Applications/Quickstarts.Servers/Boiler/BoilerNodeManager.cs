@@ -43,7 +43,7 @@ namespace Boiler
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new BoilerNodeManager(server, configuration);
+            return new BoilerNodeManager(server, configuration, NamespacesUris.ToArray());
         }
 
         /// <inheritdoc/>
@@ -70,14 +70,12 @@ namespace Boiler
         /// Initializes the node manager.
         /// </summary>
         public BoilerNodeManager(
-            Opc.Ua.Server.IServerInternal server,
-            ApplicationConfiguration configuration)
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string[] namespaceUris)
         :
             base(server)
         {
-            List<string> namespaceUris = new List<string>();
-            namespaceUris.Add(Namespaces.Boiler);
-            namespaceUris.Add(Namespaces.Boiler + "Instance");
             NamespaceUris = namespaceUris;
 
             m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);

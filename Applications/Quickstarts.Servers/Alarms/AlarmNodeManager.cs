@@ -37,11 +37,15 @@ using Opc.Ua.Server;
 
 namespace Alarms
 {
+    /// <summary>
+    /// The factory for the Alarm Node Manager.
+    /// </summary>
     public class AlarmNodeManagerFactory : INodeManagerFactory
     {
+        /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new AlarmNodeManager(server, configuration);
+            return new AlarmNodeManager(server, configuration, NamespacesUris.ToArray());
         }
 
         /// <inheritdoc/>
@@ -49,11 +53,9 @@ namespace Alarms
         {
             get
             {
-                var alarmName = "/Alarms/";
-                var uri = Quickstarts.ReferenceServer.Namespaces.ReferenceServer + alarmName;
+                var uri = Namespaces.Alarms;
                 var instanceUri = uri + "Instance";
-                var nameSpaces = new StringCollection { uri, instanceUri };
-                return nameSpaces;
+                return new StringCollection { uri, instanceUri };
             }
         }
 
@@ -68,22 +70,9 @@ namespace Alarms
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public AlarmNodeManager(IServerInternal server, ApplicationConfiguration configuration)
-            : base(server, configuration, "http://samples.org/UA/Alarms/")
+        public AlarmNodeManager(IServerInternal server, ApplicationConfiguration configuration, string[] namespaceUris) :
+            base(server, configuration, namespaceUris)
         {
-
-            //string alarms = "http://samples.org/UA/Alarms/";
-
-            // List<string> namespaceUris = new List<string>();
-            // namespaceUris.Add(alarms);
-            // namespaceUris.Add(alarms + "Instance");
-            // NamespaceUris = namespaceUris;
-
-            // m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
-            // m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
-
-            // AddEncodeableNodeManagerTypes(typeof(AlarmNodeManager).Assembly, typeof(AlarmNodeManager).Namespace);
-
         }
         #endregion
 
@@ -95,7 +84,11 @@ namespace Alarms
         {
             if (disposing)
             {
-                // TBD
+                if (m_simulationTimer != null)
+                {
+                    m_simulationTimer.Dispose();
+                    m_simulationTimer = null;
+                }
             }
         }
 
@@ -122,7 +115,6 @@ namespace Alarms
             return node.NodeId;
         }
         #endregion
-
 
         #region INodeManager Members
         /// <summary>

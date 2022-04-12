@@ -49,7 +49,7 @@ namespace TestData
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new TestDataNodeManager(server, configuration);
+            return new TestDataNodeManager(server, configuration, NamespacesUris.ToArray());
         }
 
         /// <inheritdoc/>
@@ -75,16 +75,11 @@ namespace TestData
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public TestDataNodeManager(Opc.Ua.Server.IServerInternal server, ApplicationConfiguration configuration)
+        public TestDataNodeManager(Opc.Ua.Server.IServerInternal server, ApplicationConfiguration configuration, string[] namespaceUris)
         :
             base(server, configuration)
         {
             // update the namespaces.
-            List<string> namespaceUris = new List<string>();
-
-            namespaceUris.Add(Namespaces.TestData);
-            namespaceUris.Add(Namespaces.TestData + "Instance");
-
             NamespaceUris = namespaceUris;
 
             Server.Factory.AddEncodeableTypes(typeof(TestDataNodeManager).Assembly.GetExportedTypes().Where(t => t.FullName.StartsWith(typeof(TestDataNodeManager).Namespace)));
