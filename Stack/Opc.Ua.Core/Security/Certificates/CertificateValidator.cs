@@ -424,7 +424,7 @@ namespace Opc.Ua
                         else
                         {
                             // report the rejected service result
-                            if (applicationErrorMsg.Equals(string.Empty))
+                            if (string.IsNullOrEmpty(applicationErrorMsg))
                             {
                                 se = new ServiceResultException(serviceResult);
                             }
