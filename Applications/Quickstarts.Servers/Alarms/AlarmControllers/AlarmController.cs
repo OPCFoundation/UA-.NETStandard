@@ -31,15 +31,17 @@ using System;
 
 using Opc.Ua;
 
-#pragma warning disable CS0219
 #pragma warning disable CS1591
 
 namespace Alarms
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class AlarmController
     {
         #region Variables
-
+        const int kDefaultCycleTime = 180;
         protected BaseDataVariableState m_variable = null;
         protected int m_value = 0;
         protected bool m_increment = true;
@@ -54,8 +56,6 @@ namespace Alarms
         private int m_branchCount = 0;
         private bool m_supportsBranching = false;
         protected int m_midpoint = AlarmDefines.NORMAL_START_VALUE;
-
-
         #endregion
 
 
@@ -72,22 +72,28 @@ namespace Alarms
             m_allowChanges = false;
         }
 
-        public virtual void Start()
+        /// <summary>
+        /// Start the Alarm cycles for n seconds.
+        /// </summary>
+        public virtual void Start(UInt32 seconds = 0)
         {
             Stop();
 
+            Utils.LogInfo("Start the Alarms for {0} seconds!", seconds);
+
             m_validLastMaxValue = false;
 
-            m_nextTime = DateTime.Now;
+            m_nextTime = 
             m_stopTime = DateTime.Now;
-            m_stopTime = m_stopTime.AddMinutes(120);
-
+            m_stopTime = m_stopTime.AddSeconds(seconds == 0 ? kDefaultCycleTime : seconds);
 
             m_allowChanges = true;
         }
 
         public virtual void Stop()
         {
+            Utils.LogInfo("Stop the Alarms!");
+
             m_value = m_midpoint;
             m_increment = true;
             m_allowChanges = false;
@@ -126,7 +132,6 @@ namespace Alarms
         protected virtual void SetNextInterval()
         {
             m_nextTime = DateTime.Now;
-
             m_nextTime = m_nextTime.AddMilliseconds(m_interval);
         }
 
@@ -166,8 +171,7 @@ namespace Alarms
             if (DateTime.Now > m_stopTime)
             {
                 Stop();
-                m_stopTime = DateTime.Now;
-                m_stopTime = m_stopTime.AddYears(5);
+                m_stopTime = DateTime.MaxValue;
             }
             else if (m_allowChanges || m_reset)
             {
@@ -295,9 +299,9 @@ namespace Alarms
             double phase = -0.25; // phaseShift;
             double verticalShift = median; // amplitude
 
-            double calculated = amplitude * (Math.Sin(period * (reducedPeriod + phase))) + verticalShift;
+            double calculated = (amplitude * Math.Sin(period * (reducedPeriod + phase))) + verticalShift;
 
-            Utils.LogInfo(
+            Utils.LogTrace(
                 " Phase {0:0.00} Value {1} Sine {2:0.00}" +
                 " Offset Value {3:0.00} Span {4:0.00}" +
                 " Percentage of Range {5:0.00}",

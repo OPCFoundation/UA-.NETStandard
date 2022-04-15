@@ -149,6 +149,25 @@ namespace Alarms
             return method;
         }
 
+        /// <summary>
+        /// Add the input parameter description for a Start method.
+        /// </summary>
+        public static void AddStartInputParameters(MethodState startMethod, ushort namespaceIndex)
+        {
+            // set input arguments
+            startMethod.InputArguments = new PropertyState<Argument[]>(startMethod);
+            startMethod.InputArguments.NodeId = new NodeId(startMethod.BrowseName.Name + "InArgs", namespaceIndex);
+            startMethod.InputArguments.BrowseName = BrowseNames.InputArguments;
+            startMethod.InputArguments.DisplayName = startMethod.InputArguments.BrowseName.Name;
+            startMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
+            startMethod.InputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            startMethod.InputArguments.DataType = DataTypeIds.Argument;
+            startMethod.InputArguments.ValueRank = ValueRanks.OneDimension;
 
+            startMethod.InputArguments.Value = new Argument[]
+            {
+                        new Argument() { Name = "Int32 value", Description = "Runtime of Alarms in minutes.",  DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
+            };
+        }
     }
 }

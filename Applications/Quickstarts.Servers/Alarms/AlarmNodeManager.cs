@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -84,11 +82,7 @@ namespace Alarms
         {
             if (disposing)
             {
-                if (m_simulationTimer != null)
-                {
-                    m_simulationTimer.Dispose();
-                    m_simulationTimer = null;
-                }
+                DisposeTimer();
             }
         }
 
@@ -152,7 +146,6 @@ namespace Alarms
                     string intervalString = interval.ToString();
 
                     int conditionTypeIndex = 0;
-
                     #endregion
 
                     #region Create Alarm Folder
@@ -166,22 +159,22 @@ namespace Alarms
                     #endregion
 
                     #region Create Methods
-
                     string startMethodName = "Start";
                     string startMethodNodeName = alarmsNodeName + "." + startMethodName;
                     MethodState startMethod = AlarmHelpers.CreateMethod(alarmsFolder, NamespaceIndex, startMethodNodeName, startMethodName);
+                    AlarmHelpers.AddStartInputParameters(startMethod, NamespaceIndex);
                     startMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnStart);
 
                     string startBranchMethodName = "StartBranch";
                     string startBranchMethodNodeName = alarmsNodeName + "." + startBranchMethodName;
                     MethodState startBranchMethod = AlarmHelpers.CreateMethod(alarmsFolder, NamespaceIndex, startBranchMethodNodeName, startBranchMethodName);
+                    AlarmHelpers.AddStartInputParameters(startBranchMethod, NamespaceIndex);
                     startBranchMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnStartBranch);
 
                     string endMethodName = "End";
                     string endMethodNodeName = alarmsNodeName + "." + endMethodName;
                     MethodState endMethod = AlarmHelpers.CreateMethod(alarmsFolder, NamespaceIndex, endMethodNodeName, endMethodName);
                     endMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnEnd);
-
                     #endregion
 
                     #region Create Variables
@@ -246,7 +239,7 @@ namespace Alarms
                     #endregion
 
                     AddPredefinedNode(SystemContext, alarmsFolder);
-                    m_simulationTimer = new Timer(DoSimulation, null, m_simulationInterval, m_simulationInterval);
+                    StartTimer();
                     m_allowEntry = true;
 
                 }
@@ -364,6 +357,22 @@ namespace Alarms
             IList<object> inputArguments,
             IList<object> outputArguments)
         {
+            // all arguments must be provided.
+            UInt32 seconds;
+            if (inputArguments.Count < 1)
+            {
+                return StatusCodes.BadArgumentsMissing;
+            }
+
+            try
+            {
+                seconds = (UInt32)inputArguments[0];
+            }
+            catch
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+
             ServiceResult result = ServiceResult.Good;
 
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
@@ -389,7 +398,7 @@ namespace Alarms
                             {
                                 AlarmHolder holder = m_alarms[identifier];
                                 holder.SetBranching(false);
-                                holder.Start();
+                                holder.Start(seconds);
                                 bool updated = holder.Controller.Update(SystemContext);
                                 holder.Update(updated);
                             }
@@ -397,7 +406,6 @@ namespace Alarms
                     }
                 }
             }
-
 
             return result;
         }
@@ -408,6 +416,22 @@ namespace Alarms
             IList<object> inputArguments,
             IList<object> outputArguments)
         {
+            // all arguments must be provided.
+            UInt32 seconds;
+            if (inputArguments.Count < 1)
+            {
+                return StatusCodes.BadArgumentsMissing;
+            }
+
+            try
+            {
+                seconds = (UInt32)inputArguments[0];
+            }
+            catch
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+
             ServiceResult result = ServiceResult.Good;
 
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
@@ -433,7 +457,7 @@ namespace Alarms
                             {
                                 AlarmHolder holder = m_alarms[identifier];
                                 holder.SetBranching(true);
-                                holder.Start();
+                                holder.Start(seconds);
                                 bool updated = holder.Controller.Update(SystemContext);
                                 holder.Update(updated);
                             }
@@ -441,7 +465,6 @@ namespace Alarms
                     }
                 }
             }
-
 
             return result;
         }
@@ -547,7 +570,6 @@ namespace Alarms
 
         private AlarmHolder GetAlarmHolder(NodeId node)
         {
-
             AlarmHolder alarmHolder = null;
 
             Type nodeIdType = node.Identifier.GetType();
@@ -659,9 +681,6 @@ namespace Alarms
             }
             return conditionType;
         }
-
-
-
         #endregion
 
 
@@ -870,11 +889,9 @@ namespace Alarms
             // all done.
             return ServiceResult.Good;
         }
-
-
-
         #endregion
 
+        #region Public Methods
         public NodeHandle FindBranchNodeHandle(ISystemContext systemContext, NodeHandle initialHandle, CallMethodRequest methodToCall)
         {
             NodeHandle nodeHandle = initialHandle;
@@ -918,7 +935,9 @@ namespace Alarms
                 alarmHolder.GetBranchesForConditionRefresh(events);
             }
         }
+        #endregion
 
+        #region Private Methods
         private bool IsAckConfirm(NodeId methodId)
         {
             bool isAckConfirm = false;
@@ -946,13 +965,29 @@ namespace Alarms
             return eventId;
         }
 
+        /// <summary>
+        /// Starts the timer to detect Alarms.
+        /// </summary>
+        private void StartTimer()
+        {
+            Utils.SilentDispose(m_simulationTimer);
+            m_simulationTimer = new Timer(DoSimulation, null, kSimulationInterval, kSimulationInterval);
+        }
+
+        /// <summary>
+        /// Disposes the timer.
+        /// </summary>
+        private void DisposeTimer()
+        {
+            Utils.SilentDispose(m_simulationTimer);
+            m_simulationTimer = null;
+        }
+        #endregion
+
         #region Private Fields
-
-        Dictionary<string, AlarmHolder> m_alarms = new Dictionary<string, AlarmHolder>();
-
-        Dictionary<string, SourceController> m_triggerMap =
+        private Dictionary<string, AlarmHolder> m_alarms = new Dictionary<string, AlarmHolder>();
+        private Dictionary<string, SourceController> m_triggerMap =
             new Dictionary<string, SourceController>();
-
         private bool m_allowEntry = false;
         private uint m_success = 0;
         private uint m_missed = 0;
@@ -963,8 +998,8 @@ namespace Alarms
                     new SupportedAlarmConditionType( "System", "SystemConditionClassType",  ObjectTypeIds.SystemConditionClassType ) };
 
 
+        private const UInt16 kSimulationInterval = 100;
         private Timer m_simulationTimer;
-        private UInt16 m_simulationInterval = 100;
         #endregion
 
     }

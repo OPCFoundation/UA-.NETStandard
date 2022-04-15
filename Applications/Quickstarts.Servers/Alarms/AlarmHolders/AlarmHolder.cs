@@ -182,7 +182,7 @@ namespace Alarms
             // Delayed events are expected events to be logged to file.
             while (m_delayedMessages.Count > 0)
             {
-                Utils.LogInfo("Delayed:{0} Event Time: {1}", m_delayedMessages[0], m_alarm.Time.Value);
+                Utils.LogWarning("Delayed:{0} Event Time: {1}", m_delayedMessages[0], m_alarm.Time.Value);
                 m_delayedMessages.RemoveAt(0);
             }
         }
@@ -208,10 +208,10 @@ namespace Alarms
             Utils.LogError("AlarmHolder.SetValue() - Should not be called");
         }
 
-        public void Start()
+        public void Start(UInt32 seconds)
         {
             ClearBranches();
-            m_alarmController.Start();
+            m_alarmController.Start(seconds);
         }
 
         public void Stop()

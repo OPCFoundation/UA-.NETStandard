@@ -72,7 +72,7 @@ namespace Alarms
             alarm.ConditionClassId.Value = m_alarmConditionType.Node;
             alarm.ConditionClassName.Value = new LocalizedText("", m_alarmConditionType.ConditionName);
             alarm.ConditionName.Value = m_alarmRootName;
-            Utils.LogInfo(Utils.TraceMasks.Information, "Alarm ConditionName = " + alarm.ConditionName.Value);
+            Utils.LogTrace("Alarm ConditionName = {0}", alarm.ConditionName.Value);
 
             alarm.BranchId.Value = new NodeId();
             alarm.Retain.Value = false;

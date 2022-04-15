@@ -47,7 +47,7 @@ namespace Alarms
         public const string OpcUaXsd = "http://opcfoundation.org/UA/2008/02/Types.xsd";
 
         /// <summary>
-        /// The URI for the TestData namespace (.NET code namespace is 'TestData').
+        /// The URI for the Alarms namespace (.NET code namespace is 'Alarms').
         /// </summary>
         public const string Alarms = "http://test.org/UA/Alarms/";
     }
