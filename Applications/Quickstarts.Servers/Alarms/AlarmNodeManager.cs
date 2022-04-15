@@ -258,17 +258,17 @@ namespace Alarms
         /// </summary>
         private FolderState CreateFolder(NodeState parent, string path, string name)
         {
-            FolderState folder = new FolderState(parent);
-
-            folder.SymbolicName = name;
-            folder.ReferenceTypeId = ReferenceTypes.Organizes;
-            folder.TypeDefinitionId = ObjectTypeIds.FolderType;
-            folder.NodeId = new NodeId(path, NamespaceIndex);
-            folder.BrowseName = new QualifiedName(path, NamespaceIndex);
-            folder.DisplayName = new LocalizedText("en", name);
-            folder.WriteMask = AttributeWriteMask.None;
-            folder.UserWriteMask = AttributeWriteMask.None;
-            folder.EventNotifier = EventNotifiers.None;
+            FolderState folder = new FolderState(parent) {
+                SymbolicName = name,
+                ReferenceTypeId = ReferenceTypes.Organizes,
+                TypeDefinitionId = ObjectTypeIds.FolderType,
+                NodeId = new NodeId(path, NamespaceIndex),
+                BrowseName = new QualifiedName(path, NamespaceIndex),
+                DisplayName = new LocalizedText("en", name),
+                WriteMask = AttributeWriteMask.None,
+                UserWriteMask = AttributeWriteMask.None,
+                EventNotifier = EventNotifiers.None
+            };
 
             if (parent != null)
             {
@@ -283,17 +283,17 @@ namespace Alarms
         /// </summary>
         private MethodState CreateMethod(NodeState parent, string path, string name)
         {
-            MethodState method = new MethodState(parent);
-
-            method.SymbolicName = name;
-            method.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            method.NodeId = new NodeId(path, NamespaceIndex);
-            method.BrowseName = new QualifiedName(path, NamespaceIndex);
-            method.DisplayName = new LocalizedText("en", name);
-            method.WriteMask = AttributeWriteMask.None;
-            method.UserWriteMask = AttributeWriteMask.None;
-            method.Executable = true;
-            method.UserExecutable = true;
+            MethodState method = new MethodState(parent) {
+                SymbolicName = name,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                NodeId = new NodeId(path, NamespaceIndex),
+                BrowseName = new QualifiedName(path, NamespaceIndex),
+                DisplayName = new LocalizedText("en", name),
+                WriteMask = AttributeWriteMask.None,
+                UserWriteMask = AttributeWriteMask.None,
+                Executable = true,
+                UserExecutable = true
+            };
 
             if (parent != null)
             {
@@ -343,8 +343,7 @@ namespace Alarms
                 if (m_success > 0)
                 {
                     m_missed++;
-                    Utils.LogInfo("{0} Missed Loop {1} Success {2}",
-                        DateTime.UtcNow.ToLocalTime().ToLongTimeString(), m_missed, m_success);
+                    Utils.LogInfo("Alarms: Missed Loop {1} Success {2}", m_missed, m_success);
                 }
             }
         }
@@ -683,11 +682,9 @@ namespace Alarms
         }
         #endregion
 
-
         #endregion
 
         #region Overrides
-
         /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
@@ -820,9 +817,8 @@ namespace Alarms
         }
 
         /// <summary>
-        /// Override ConditionRefresh
+        /// Override ConditionRefresh.
         /// </summary>
-
         public override ServiceResult ConditionRefresh(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems)

@@ -166,7 +166,7 @@ namespace Alarms
 
             startMethod.InputArguments.Value = new Argument[]
             {
-                        new Argument() { Name = "Int32 value", Description = "Runtime of Alarms in minutes.",  DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
+                        new Argument() { Name = "UInt32 value", Description = "Runtime of Alarms in seconds.",  DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
             };
         }
     }

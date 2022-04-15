@@ -154,6 +154,7 @@ namespace TestData
 
                 base.CreateAddressSpace(externalReferences);
 
+#if CONDITION_SAMPLES
                 // start monitoring the system status.
                 m_systemStatusCondition = (TestSystemConditionState)FindPredefinedNode(
                     new NodeId(Objects.Data_Conditions_SystemStatus, m_typeNamespaceIndex),
@@ -164,7 +165,7 @@ namespace TestData
                     m_systemStatusTimer = new Timer(OnCheckSystemStatus, null, 5000, 5000);
                     m_systemStatusCondition.Retain.Value = true;
                 }
-
+#endif
                 // link all conditions to the conditions folder.
                 NodeState conditionsFolder = (NodeState)FindPredefinedNode(
                     new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex),
@@ -636,12 +637,12 @@ namespace TestData
         }
         #endregion
 
+#if CONDITION_SAMPLES
         /// <summary>
         /// Peridically checks the system state.
         /// </summary>
         private void OnCheckSystemStatus(object state)
         {
-#if CONDITION_SAMPLES
             lock (Lock)
             {
                 try
@@ -709,10 +710,8 @@ namespace TestData
                     Utils.LogError(e, "Unexpected error monitoring system status.");
                 }
             }
-#endif
         }
 
-#if CONDITION_SAMPLES
         /// <summary>
         /// Handles a user response to a dialog.
         /// </summary>
@@ -737,10 +736,9 @@ namespace TestData
         private ushort m_typeNamespaceIndex;
         private TestDataSystem m_system;
         private long m_lastUsedId;
+#if CONDITION_SAMPLES
         private Timer m_systemStatusTimer;
         private TestSystemConditionState m_systemStatusCondition;
-
-#if CONDITION_SAMPLES
         private DialogConditionState m_dialog;
 #endif
         #endregion

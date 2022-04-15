@@ -37,16 +37,6 @@ namespace Alarms
     public static partial class Namespaces
     {
         /// <summary>
-        /// The URI for the OpcUa namespace (.NET code namespace is 'Opc.Ua').
-        /// </summary>
-        public const string OpcUa = "http://opcfoundation.org/UA/";
-
-        /// <summary>
-        /// The URI for the OpcUaXsd namespace (.NET code namespace is 'Opc.Ua').
-        /// </summary>
-        public const string OpcUaXsd = "http://opcfoundation.org/UA/2008/02/Types.xsd";
-
-        /// <summary>
         /// The URI for the Alarms namespace (.NET code namespace is 'Alarms').
         /// </summary>
         public const string Alarms = "http://test.org/UA/Alarms/";
