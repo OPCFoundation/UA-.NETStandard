@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using Opc.Ua;
@@ -46,7 +47,7 @@ namespace Quickstarts.Servers
         /// Applies custom settings to quickstart servers for CTT run.
         /// </summary>
         /// <param name="server"></param>
-        public static void ApplyCTTMode(StandardServer server)
+        public static void ApplyCTTMode(TextWriter output, StandardServer server)
         {
             var methodsToCall = new CallMethodRequestCollection();
             var index = server.CurrentInstance.NamespaceUris.GetIndex(Alarms.Namespaces.Alarms);
@@ -57,10 +58,10 @@ namespace Quickstarts.Servers
                     methodsToCall.Add(
                         // Start the Alarms with infinite runtime
                         new CallMethodRequest {
-                        MethodId = new NodeId("Alarms.Start", (ushort)index),
-                        ObjectId = new NodeId("Alarms", (ushort)index),
-                        InputArguments = new VariantCollection() { new Variant((UInt32)UInt32.MaxValue)}
-                    });
+                            MethodId = new NodeId("Alarms.Start", (ushort)index),
+                            ObjectId = new NodeId("Alarms", (ushort)index),
+                            InputArguments = new VariantCollection() { new Variant((UInt32)UInt32.MaxValue) }
+                        });
                     var requestHeader = new RequestHeader() {
                         Timestamp = DateTime.UtcNow,
                         TimeoutHint = 10000
@@ -74,6 +75,7 @@ namespace Quickstarts.Servers
                             Opc.Ua.Utils.LogError("Error calling method {0}.", result.StatusCode);
                         }
                     }
+                    output.WriteLine("The Alarms for CTT mode are active.");
                     return;
                 }
                 catch (Exception ex)
@@ -81,7 +83,7 @@ namespace Quickstarts.Servers
                     Opc.Ua.Utils.LogError(ex, "Failed to start alarms for CTT.");
                 }
             }
-            Opc.Ua.Utils.LogWarning("The alarms could not be enabled for CTT, the namespace does not exits.");
+            output.WriteLine("The alarms could not be enabled for CTT, the namespace does not exist.");
         }
 
         /// <summary>
