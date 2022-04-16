@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,39 +27,35 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
-
 using System;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates.BouncyCastle;
-using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.Pkcs;
-using Org.BouncyCastle.Asn1.Pkcs;
-
-namespace Opc.Ua.Security.Certificates
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Opc.Ua;
+namespace Alarms
 {
     /// <summary>
-    /// Write certificate data in PEM format.
+    /// 
     /// </summary>
-    public static partial class PEMWriter
+    public class AlarmCheck
     {
-        #region Public Methods
         /// <summary>
-        /// Returns a byte array containing the private key in PEM format.
+        /// Alarm name
         /// </summary>
-        public static byte[] ExportPrivateKeyAsPEM(
-            X509Certificate2 certificate,
-            string password = null
-            )
-        {
-            if (!String.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
-            RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetPrivateKeyParameter(certificate);
-            // write private key as PKCS#8
-            PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
-            byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
-            return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
-        }
-        #endregion
+        public string AlarmName { get; set; }
+        /// <summary>
+        /// MethodName
+        /// </summary>
+        public string MethodName { get; set; }
+        /// <summary>
+        /// ModellingRule
+        /// </summary>
+        public NodeId MethodDeclarationId { get; set; }
+        /// <summary>
+        /// ModellingRule Exists
+        /// </summary>
+        public bool Exists { get; set; }
+
     }
 }
-#endif

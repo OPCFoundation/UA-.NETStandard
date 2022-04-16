@@ -217,6 +217,27 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// Create a channel using the specified endpoint.
+        /// </summary>
+        /// <param name="endpoint">The configured endpoint</param>
+        /// <returns></returns>
+        public async Task<ITransportChannel> CreateChannelAsync(ConfiguredEndpoint endpoint)
+        {
+            return await Session.CreateChannelAsync(Config, null, endpoint, true, false).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Create a session using the specified channel.
+        /// </summary>
+        /// <param name="channel">The channel to use</param>
+        /// <param name="endpoint">The configured endpoint</param>
+        /// <returns></returns>
+        public Session CreateSession(ITransportChannel channel, ConfiguredEndpoint endpoint)
+        {
+            return Session.Create(Config, channel, endpoint, null);
+        }
+
+        /// <summary>
         /// Get configured endpoint from url with security profile.
         /// </summary>
         /// <param name="url"></param>
