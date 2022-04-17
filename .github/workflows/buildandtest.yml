@@ -57,6 +57,6 @@ jobs:
         directory: "TestResults-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
         env_vars: matrix.os,matrix.dotnet-version,matrix.configuration
         fail_ci_if_error: false
-        path_to_write_report: "./coverage/codecov_report-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}/"
+        #path_to_write_report: "./coverage/codecov_report-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}/"
         verbose: true      
       if: ${{ always() }}
