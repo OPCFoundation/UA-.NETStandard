@@ -23,7 +23,11 @@ jobs:
           - framework: 'net6.0'
             dotnet-version: '6.0.x'
             configuration: 'Release'
-            
+    env:
+      OS: ${{ matrix.os }}
+      DOTNET_VERSION: ${{ matrix.dotnet-version }}
+      CONFIGURATION:  ${{ matrix.configuration }}
+      
     steps:
     - uses: actions/checkout@v2
       with:
@@ -55,8 +59,7 @@ jobs:
         name: codecov-umbrella
         #token: ${{ secrets.CODECOV_TOKEN }}
         directory: "TestResults-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
-        env_vars: matrix.os,matrix.dotnet-version,matrix.configuration
+        env_vars: OS,DOTNET_VERSION,CONFIGURATION
         fail_ci_if_error: false
-        path_to_write_report: "./coverage/codecov_report-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}/"
+        #path_to_write_report: "./coverage/codecov_report-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}/"
         verbose: true      
-      if: ${{ always() }}
