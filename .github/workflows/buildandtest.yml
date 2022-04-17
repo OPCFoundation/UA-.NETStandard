@@ -59,4 +59,3 @@ jobs:
         fail_ci_if_error: false
         #path_to_write_report: "./coverage/codecov_report-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}/"
         verbose: true      
-      if: ${{ always() }}
