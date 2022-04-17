@@ -623,7 +623,7 @@ namespace Opc.Ua
         public static bool IsPathRooted(string path)
         {
             // allow for local file locations
-            return Path.IsPathRooted(path) || path[0] == '.';
+            return Path.IsPathRooted(path) || (path.Length >= 2 && path[0] == '.' && path[1] != '.');
         }
 
         /// <summary>

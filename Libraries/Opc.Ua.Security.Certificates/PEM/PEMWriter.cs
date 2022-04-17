@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
-
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
@@ -38,11 +36,19 @@ using System.Text;
 namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
-    /// Write certificate data in PEM format.
+    /// Write certificate/crl data in PEM format.
     /// </summary>
-    public static class PEMWriter
+    public static partial class PEMWriter
     {
         #region Public Methods
+        /// <summary>
+        /// Returns a byte array containing the CRL in PEM format.
+        /// </summary>
+        public static byte[] ExportCRLAsPEM(byte[] crl)
+        {
+            return EncodeAsPEM(crl, "X509 CRL");
+        }
+
         /// <summary>
         /// Returns a byte array containing the CSR in PEM format.
         /// </summary>
@@ -59,6 +65,7 @@ namespace Opc.Ua.Security.Certificates
             return EncodeAsPEM(certificate.RawData, "CERTIFICATE");
         }
 
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
         /// <summary>
         /// Returns a byte array containing the public key in PEM format.
         /// </summary>
@@ -90,6 +97,21 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
+        /// Returns a byte array containing the ECDsa private key in PEM format.
+        /// </summary>
+        public static byte[] ExportECDsaPrivateKeyAsPEM(
+            X509Certificate2 certificate)
+        {
+            byte[] exportedECPrivateKey = null;
+            using (ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
+            {
+                // write private key as PKCS#1
+                exportedECPrivateKey = ecdsaPrivateKey.ExportECPrivateKey();
+            }
+            return EncodeAsPEM(exportedECPrivateKey, "EC PRIVATE KEY");
+        }
+
+        /// <summary>
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
         public static byte[] ExportPrivateKeyAsPEM(
@@ -100,20 +122,42 @@ namespace Opc.Ua.Security.Certificates
             byte[] exportedPkcs8PrivateKey = null;
             using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
             {
-                // write private key as PKCS#8
-                exportedPkcs8PrivateKey = String.IsNullOrEmpty(password) ?
-                    rsaPrivateKey.ExportPkcs8PrivateKey() :
-                    rsaPrivateKey.ExportEncryptedPkcs8PrivateKey(password.ToCharArray(),
-                        new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000));
+                if (rsaPrivateKey != null)
+                {
+                    // write private key as PKCS#8
+                    exportedPkcs8PrivateKey = String.IsNullOrEmpty(password) ?
+                        rsaPrivateKey.ExportPkcs8PrivateKey() :
+                        rsaPrivateKey.ExportEncryptedPkcs8PrivateKey(password.ToCharArray(),
+                            new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000));
+                }
+                else
+                {
+                    using (ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
+                    {
+                        if (ecdsaPrivateKey != null)
+                        {
+                            // write private key as PKCS#8
+                            exportedPkcs8PrivateKey = String.IsNullOrEmpty(password) ?
+                            ecdsaPrivateKey.ExportPkcs8PrivateKey() :
+                            ecdsaPrivateKey.ExportEncryptedPkcs8PrivateKey(password.ToCharArray(),
+                                new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000));
+                        }
+                    }
+                }
             }
+
             return EncodeAsPEM(exportedPkcs8PrivateKey,
                 String.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
+#endif
         #endregion
 
         #region Private Methods
         private static byte[] EncodeAsPEM(byte[] content, string contentType)
         {
+            if (content == null) throw new ArgumentNullException(nameof(content));
+            if (String.IsNullOrEmpty(contentType)) throw new ArgumentNullException(nameof(contentType));
+
             const int LineLength = 64;
             string base64 = Convert.ToBase64String(content);
             using (TextWriter textWriter = new StringWriter())
@@ -121,7 +165,11 @@ namespace Opc.Ua.Security.Certificates
                 textWriter.WriteLine("-----BEGIN {0}-----", contentType);
                 while (base64.Length > LineLength)
                 {
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
                     textWriter.WriteLine(base64.AsSpan(0, LineLength));
+#else
+                    textWriter.WriteLine(base64.Substring(0, LineLength));
+#endif
                     base64 = base64.Substring(LineLength);
                 }
                 textWriter.WriteLine(base64);
@@ -129,7 +177,6 @@ namespace Opc.Ua.Security.Certificates
                 return Encoding.ASCII.GetBytes(textWriter.ToString());
             }
         }
-#endregion
+        #endregion
     }
 }
-#endif

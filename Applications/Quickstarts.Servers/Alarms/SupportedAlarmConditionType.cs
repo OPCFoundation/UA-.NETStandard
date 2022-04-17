@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,39 +27,43 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
-
 using System;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates.BouncyCastle;
-using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.Pkcs;
-using Org.BouncyCastle.Asn1.Pkcs;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Opc.Ua;
 
-namespace Opc.Ua.Security.Certificates
+#pragma warning disable CS1591
+
+namespace Alarms
 {
-    /// <summary>
-    /// Write certificate data in PEM format.
-    /// </summary>
-    public static partial class PEMWriter
+    public class SupportedAlarmConditionType
     {
-        #region Public Methods
-        /// <summary>
-        /// Returns a byte array containing the private key in PEM format.
-        /// </summary>
-        public static byte[] ExportPrivateKeyAsPEM(
-            X509Certificate2 certificate,
-            string password = null
-            )
+        public SupportedAlarmConditionType(string name, string conditionName, NodeId nodeId)
         {
-            if (!String.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
-            RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetPrivateKeyParameter(certificate);
-            // write private key as PKCS#8
-            PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
-            byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
-            return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
+            m_name = name;
+            m_conditionName = conditionName;
+            m_nodeId = nodeId;
         }
-        #endregion
+
+        public string Name
+        {
+            get { return m_name; }
+        }
+
+        public string ConditionName
+        {
+            get { return m_conditionName; }
+        }
+
+        public NodeId Node
+        {
+            get { return m_nodeId; }
+        }
+
+        private string m_name;
+        private string m_conditionName;
+        private NodeId m_nodeId;
     }
 }
-#endif

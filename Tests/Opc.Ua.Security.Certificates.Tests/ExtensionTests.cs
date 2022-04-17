@@ -32,6 +32,7 @@ using System.IO;
 using System.Numerics;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -198,12 +199,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(crlNumber, decodednumber.CrlNumber);
         }
 
-        #endregion
-
-        #region Private Methods
-        #endregion
-
-        #region Private Fields
         #endregion
     }
 
