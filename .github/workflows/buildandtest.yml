@@ -23,10 +23,6 @@ jobs:
           - framework: 'net6.0'
             dotnet-version: '6.0.x'
             configuration: 'Release'
-          - os: 'ubuntu-latest'
-            framework: 'netcoreapp3.1'
-            dotnet-version: '3.1.x'
-            configuration: 'Debug'
            
     env:
       OS: ${{ matrix.os }}
