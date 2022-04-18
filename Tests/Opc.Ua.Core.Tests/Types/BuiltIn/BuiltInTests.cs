@@ -38,7 +38,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
     /// <summary>
     /// Tests for the BuiltIn Types.
     /// </summary>
-    [TestFixture, Category("BuiltIn")]
+    [TestFixture, Category("BuiltInType")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
     public class BuiltInTests
@@ -103,33 +103,59 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// Initialize Variant with BuiltInType Scalar.
         /// </summary>
         [Theory]
-        [Category("BuiltInType"), Repeat(kRandomRepeats)]
+        [Repeat(kRandomRepeats)]
         public void VariantScalarFromBuiltInType(BuiltInType builtInType)
         {
             SetRepeatedRandomSeed();
             object randomData = DataGenerator.GetRandom(builtInType);
             Variant variant1 = new Variant(randomData);
+            Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
             Variant variant2 = new Variant(randomData, new TypeInfo(builtInType, ValueRanks.Scalar));
+            Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
+            Variant variant3 = new Variant(variant2);
+            Assert.AreEqual(builtInType, variant3.TypeInfo.BuiltInType);
+            // implicit
+            Variant variant4 = variant1;
         }
 
         /// <summary>
         /// Initialize Variant with BuiltInType Array.
         /// </summary>
         [Theory]
-        [Category("BuiltInType"), Repeat(kRandomRepeats)]
+        [Repeat(kRandomRepeats)]
         public void VariantArrayFromBuiltInType(BuiltInType builtInType, bool useBoundaryValues)
         {
             SetRepeatedRandomSeed();
             object randomData = DataGenerator.GetRandomArray(builtInType, useBoundaryValues, 100, false);
             Variant variant1 = new Variant(randomData);
+            if (builtInType == BuiltInType.Byte)
+            {
+                // Without hint, byte array can not be distinguished from bytestring
+                Assert.AreEqual(BuiltInType.ByteString, variant1.TypeInfo.BuiltInType);
+            }
+            else
+            {
+                Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
+            }
             Variant variant2 = new Variant(randomData, new TypeInfo(builtInType, ValueRanks.OneDimension));
+            Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
+        }
+
+        /// <summary>
+        /// Variant constructor.
+        /// </summary>
+        [Test]
+        public void VariantConstructor()
+        {
+            Uuid uuid = new Uuid(Guid.NewGuid());
+            Variant variant1 = new Variant(uuid);
+            Assert.AreEqual(BuiltInType.Guid, variant1.TypeInfo.BuiltInType);
         }
 
         /// <summary>
         /// Initialize Variant with Enum array.
         /// </summary>
         [Test]
-        [Category("BuiltInType")]
         public void VariantFromEnumArray()
         {
             // Enum Scalar
@@ -143,16 +169,16 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             // Enum 2-dim Array
             DayOfWeek[,] daysdays = new DayOfWeek[,] { { DayOfWeek.Monday, DayOfWeek.Tuesday }, { DayOfWeek.Monday, DayOfWeek.Tuesday } };
-            Variant variant4 = new Variant(daysdays, new TypeInfo(BuiltInType.Enumeration, ValueRanks.TwoDimensions));
+            Variant variant5 = new Variant(daysdays, new TypeInfo(BuiltInType.Enumeration, ValueRanks.TwoDimensions));
+
             // not supported
-            // Variant variant5 = new Variant(daysdays);
+            // Variant variant6 = new Variant(daysdays);
         }
 
         /// <summary>
         /// Validate ExtensionObject special cases and constructors.
         /// </summary>
         [Test]
-        [Category("BuiltInType")]
         public void ExtensionObject()
         {
             ExtensionObject extensionObject_null = null;
