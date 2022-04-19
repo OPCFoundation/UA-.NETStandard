@@ -28,10 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Opc.Ua;
 
 #pragma warning disable CS1591
@@ -68,7 +65,7 @@ namespace Alarms
                 BaseEventState alarm = GetAlarm();
 
                 alarm.EventId.Value = Guid.NewGuid().ToByteArray();
-                alarm.EventType.Value = new NodeId( alarmTypeIdentifier, GetNameSpaceIndex( alarmTypeIdentifier ) );
+                alarm.EventType.Value = new NodeId(alarmTypeIdentifier, GetNameSpaceIndex(alarmTypeIdentifier));
                 alarm.SourceNode.Value = m_trigger.NodeId;
                 alarm.SourceName.Value = m_trigger.SymbolicName;
                 alarm.Time.Value = DateTime.UtcNow;
@@ -85,7 +82,7 @@ namespace Alarms
 
         public override void SetValue(string message = "")
         {
-            
+
         }
 
         #endregion
@@ -94,7 +91,7 @@ namespace Alarms
 
         private BaseEventState GetAlarm(BaseEventState alarm = null)
         {
-            if ( alarm == null )
+            if (alarm == null)
             {
                 alarm = m_alarm;
             }
@@ -106,10 +103,10 @@ namespace Alarms
 
         #region Child Helpers
 
-        protected bool IsEvent( byte[] eventId )
+        protected bool IsEvent(byte[] eventId)
         {
             bool isEvent = false;
-            if (GetAlarm().EventId.Value.SequenceEqual(eventId) )
+            if (GetAlarm().EventId.Value.SequenceEqual(eventId))
             {
                 isEvent = true;
             }

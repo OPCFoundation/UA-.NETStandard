@@ -29,8 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-
-
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
 #pragma warning disable CS1591
@@ -179,41 +178,40 @@ namespace Alarms
 
         public virtual void DelayedEvents()
         {
-            // Method calls are done by the core.  Delayed events are expected events to be logged to file.
+            // Method calls are done by the core.
+            // Delayed events are expected events to be logged to file.
             while (m_delayedMessages.Count > 0)
             {
-                string message = GetMessage("Delayed:" + m_delayedMessages[0], " Event Time: " + m_alarm.Time.Value.ToString());
-                Utils.LogInfo(message);
+                Utils.LogWarning("Delayed:{0} Event Time: {1}", m_delayedMessages[0], m_alarm.Time.Value);
                 m_delayedMessages.RemoveAt(0);
             }
         }
 
         protected void Log(string caller, string message, BaseEventState alarm = null)
         {
-            Utils.LogInfo(GetMessage(caller, message));
+            LogMessage(LogLevel.Information, caller, message);
         }
 
         protected void LogError(string caller, string message, BaseEventState alarm = null)
         {
-            Utils.LogError(GetMessage(caller, message));
+            LogMessage(LogLevel.Error, caller, message);
         }
 
-        protected string GetMessage(string caller, string message)
+        protected void LogMessage(LogLevel logLevel, string caller, string message)
         {
-            return caller + ": " + m_mapName + " EventId " +
-                Utils.ToHexString(m_alarm.EventId.Value) + " " + message;
+            Utils.Log(logLevel, "{0}: {1} EventId {2} {3}", caller, m_mapName, Utils.ToHexString(m_alarm.EventId.Value), message);
         }
 
 
         public virtual void SetValue(string message = "")
         {
-            Utils.LogInfo(Utils.TraceMasks.Error, "AlarmHolder.SetValue() - Should not be called");
+            Utils.LogError("AlarmHolder.SetValue() - Should not be called");
         }
 
-        public void Start()
+        public void Start(UInt32 seconds)
         {
             ClearBranches();
-            m_alarmController.Start();
+            m_alarmController.Start(seconds);
         }
 
         public void Stop()
@@ -224,13 +222,13 @@ namespace Alarms
 
         protected virtual bool UpdateShelving()
         {
-            Utils.LogInfo(Utils.TraceMasks.Error, "AlarmHolder.UpdateShelving() - Should not be called");
+            Utils.LogError("AlarmHolder.UpdateShelving() - Should not be called");
             return false;
         }
 
         protected virtual bool UpdateSuppression()
         {
-            Utils.LogInfo(Utils.TraceMasks.Error, "AlarmHolder.UpdateSuppression() - Should not be called");
+            Utils.LogError("AlarmHolder.UpdateSuppression() - Should not be called");
             return false;
         }
 
@@ -240,7 +238,6 @@ namespace Alarms
         }
 
         #region Methods
-
         public ServiceResult OnWriteAlarmTrigger(
             ISystemContext context,
             NodeState node,
@@ -256,12 +253,8 @@ namespace Alarms
                 SetValue("Manual Write to trigger " + value.ToString());
             }
 
-
-
-
             return Opc.Ua.StatusCodes.Good;
         }
-
         #endregion
 
         #region Properties
@@ -325,7 +318,7 @@ namespace Alarms
             get { return m_supportsBranching; }
         }
 
-        public virtual void SetBranching( bool value )
+        public virtual void SetBranching(bool value)
         {
 
         }
@@ -489,7 +482,7 @@ namespace Alarms
         protected uint m_alarmTypeIdentifier = 0;
         protected string m_alarmTypeName = "";
         protected SupportedAlarmConditionType m_alarmConditionType = null;
-        protected List<string> m_delayedMessages = new List<string>(); 
+        protected List<string> m_delayedMessages = new List<string>();
         #endregion
 
 

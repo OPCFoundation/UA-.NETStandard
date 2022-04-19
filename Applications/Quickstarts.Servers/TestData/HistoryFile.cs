@@ -55,7 +55,7 @@ namespace TestData
             m_entries = entries;
         }
         #endregion
-        
+
         #region IHistoryReader Members
         /// <summary>
         /// Returns the next value in the archive.
@@ -68,7 +68,7 @@ namespace TestData
         public DataValue FirstRaw(DateTime startTime, bool isForward, bool isReadModified, out int position)
         {
             position = -1;
-            
+
             lock (m_lock)
             {
                 if (isForward)
@@ -84,7 +84,7 @@ namespace TestData
                 }
                 else
                 {
-                    for (int ii = m_entries.Count-1; ii >= 0; ii--)
+                    for (int ii = m_entries.Count - 1; ii >= 0; ii--)
                     {
                         if (m_entries[ii].Value.ServerTimestamp <= startTime)
                         {
@@ -111,7 +111,7 @@ namespace TestData
                 return value;
             }
         }
-        
+
         /// <summary>
         /// Returns the next value in the archive.
         /// </summary>
@@ -144,7 +144,7 @@ namespace TestData
             }
         }
         #endregion
-        
+
         #region Private Fields
         private object m_lock = new object();
         private List<HistoryEntry> m_entries;

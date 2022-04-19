@@ -119,7 +119,7 @@ namespace MemoryBuffer
             m_dataType = null;
         }
         #endregion
-        
+
         #region Public Properties
         /// <summary>
         /// The browse name for the instance.
@@ -158,7 +158,7 @@ namespace MemoryBuffer
         private string m_dataType;
         #endregion
     }
-    
+
     #region MemoryBufferInstanceCollection Class
     /// <summary>
     /// A collection of MemoryBufferInstances.
