@@ -27,22 +27,23 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using Opc.Ua;
-using Opc.Ua.Sample;
 using Opc.Ua.Server;
 
 namespace Alarms
 {
+    /// <summary>
+    /// The factory for the Alarm Node Manager.
+    /// </summary>
     public class AlarmNodeManagerFactory : INodeManagerFactory
     {
+        /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new AlarmNodeManager(server, configuration);
+            return new AlarmNodeManager(server, configuration, NamespacesUris.ToArray());
         }
 
         /// <inheritdoc/>
@@ -50,11 +51,9 @@ namespace Alarms
         {
             get
             {
-                var alarmName = "/Alarms/";
-                var uri = Quickstarts.ReferenceServer.Namespaces.ReferenceServer + alarmName;
+                var uri = Namespaces.Alarms;
                 var instanceUri = uri + "Instance";
-                var nameSpaces = new StringCollection { uri, instanceUri };
-                return nameSpaces;
+                return new StringCollection { uri, instanceUri };
             }
         }
 
@@ -69,22 +68,9 @@ namespace Alarms
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public AlarmNodeManager(IServerInternal server, ApplicationConfiguration configuration)
-            : base(server, configuration, "http://samples.org/UA/Alarms/")
+        public AlarmNodeManager(IServerInternal server, ApplicationConfiguration configuration, string[] namespaceUris) :
+            base(server, configuration, namespaceUris)
         {
-
-           //string alarms = "http://samples.org/UA/Alarms/";
-
-           // List<string> namespaceUris = new List<string>();
-           // namespaceUris.Add(alarms);
-           // namespaceUris.Add(alarms + "Instance");
-           // NamespaceUris = namespaceUris;
-
-           // m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
-           // m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
-
-           // AddEncodeableNodeManagerTypes(typeof(AlarmNodeManager).Assembly, typeof(AlarmNodeManager).Namespace);
-
         }
         #endregion
 
@@ -96,7 +82,7 @@ namespace Alarms
         {
             if (disposing)
             {
-                // TBD
+                DisposeTimer();
             }
         }
 
@@ -123,7 +109,6 @@ namespace Alarms
             return node.NodeId;
         }
         #endregion
-
 
         #region INodeManager Members
         /// <summary>
@@ -161,7 +146,6 @@ namespace Alarms
                     string intervalString = interval.ToString();
 
                     int conditionTypeIndex = 0;
-
                     #endregion
 
                     #region Create Alarm Folder
@@ -175,22 +159,22 @@ namespace Alarms
                     #endregion
 
                     #region Create Methods
-
                     string startMethodName = "Start";
                     string startMethodNodeName = alarmsNodeName + "." + startMethodName;
                     MethodState startMethod = AlarmHelpers.CreateMethod(alarmsFolder, NamespaceIndex, startMethodNodeName, startMethodName);
+                    AlarmHelpers.AddStartInputParameters(startMethod, NamespaceIndex);
                     startMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnStart);
 
                     string startBranchMethodName = "StartBranch";
                     string startBranchMethodNodeName = alarmsNodeName + "." + startBranchMethodName;
                     MethodState startBranchMethod = AlarmHelpers.CreateMethod(alarmsFolder, NamespaceIndex, startBranchMethodNodeName, startBranchMethodName);
+                    AlarmHelpers.AddStartInputParameters(startBranchMethod, NamespaceIndex);
                     startBranchMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnStartBranch);
 
                     string endMethodName = "End";
                     string endMethodNodeName = alarmsNodeName + "." + endMethodName;
                     MethodState endMethod = AlarmHelpers.CreateMethod(alarmsFolder, NamespaceIndex, endMethodNodeName, endMethodName);
                     endMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnEnd);
-
                     #endregion
 
                     #region Create Variables
@@ -255,7 +239,7 @@ namespace Alarms
                     #endregion
 
                     AddPredefinedNode(SystemContext, alarmsFolder);
-                    m_simulationTimer = new Timer(DoSimulation, null, m_simulationInterval, m_simulationInterval);
+                    StartTimer();
                     m_allowEntry = true;
 
                 }
@@ -274,17 +258,17 @@ namespace Alarms
         /// </summary>
         private FolderState CreateFolder(NodeState parent, string path, string name)
         {
-            FolderState folder = new FolderState(parent);
-
-            folder.SymbolicName = name;
-            folder.ReferenceTypeId = ReferenceTypes.Organizes;
-            folder.TypeDefinitionId = ObjectTypeIds.FolderType;
-            folder.NodeId = new NodeId(path, NamespaceIndex);
-            folder.BrowseName = new QualifiedName(path, NamespaceIndex);
-            folder.DisplayName = new LocalizedText("en", name);
-            folder.WriteMask = AttributeWriteMask.None;
-            folder.UserWriteMask = AttributeWriteMask.None;
-            folder.EventNotifier = EventNotifiers.None;
+            FolderState folder = new FolderState(parent) {
+                SymbolicName = name,
+                ReferenceTypeId = ReferenceTypes.Organizes,
+                TypeDefinitionId = ObjectTypeIds.FolderType,
+                NodeId = new NodeId(path, NamespaceIndex),
+                BrowseName = new QualifiedName(path, NamespaceIndex),
+                DisplayName = new LocalizedText("en", name),
+                WriteMask = AttributeWriteMask.None,
+                UserWriteMask = AttributeWriteMask.None,
+                EventNotifier = EventNotifiers.None
+            };
 
             if (parent != null)
             {
@@ -299,17 +283,17 @@ namespace Alarms
         /// </summary>
         private MethodState CreateMethod(NodeState parent, string path, string name)
         {
-            MethodState method = new MethodState(parent);
-
-            method.SymbolicName = name;
-            method.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            method.NodeId = new NodeId(path, NamespaceIndex);
-            method.BrowseName = new QualifiedName(path, NamespaceIndex);
-            method.DisplayName = new LocalizedText("en", name);
-            method.WriteMask = AttributeWriteMask.None;
-            method.UserWriteMask = AttributeWriteMask.None;
-            method.Executable = true;
-            method.UserExecutable = true;
+            MethodState method = new MethodState(parent) {
+                SymbolicName = name,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                NodeId = new NodeId(path, NamespaceIndex),
+                BrowseName = new QualifiedName(path, NamespaceIndex),
+                DisplayName = new LocalizedText("en", name),
+                WriteMask = AttributeWriteMask.None,
+                UserWriteMask = AttributeWriteMask.None,
+                Executable = true,
+                UserExecutable = true
+            };
 
             if (parent != null)
             {
@@ -349,8 +333,7 @@ namespace Alarms
                     }
                     catch (Exception ex)
                     {
-                        Utils.LogInfo("Loop Exception " + ex.Message);
-
+                        Utils.LogInfo(ex, "Alarm Loop Exception");
                     }
                 }
                 m_allowEntry = true;
@@ -360,7 +343,7 @@ namespace Alarms
                 if (m_success > 0)
                 {
                     m_missed++;
-                    Utils.LogInfo(DateTime.UtcNow.ToLocalTime().ToLongTimeString() + " Missed Loop " + m_missed.ToString() + " Success " + m_success.ToString());
+                    Utils.LogInfo("Alarms: Missed Loop {1} Success {2}", m_missed, m_success);
                 }
             }
         }
@@ -373,6 +356,22 @@ namespace Alarms
             IList<object> inputArguments,
             IList<object> outputArguments)
         {
+            // all arguments must be provided.
+            UInt32 seconds;
+            if (inputArguments.Count < 1)
+            {
+                return StatusCodes.BadArgumentsMissing;
+            }
+
+            try
+            {
+                seconds = (UInt32)inputArguments[0];
+            }
+            catch
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+
             ServiceResult result = ServiceResult.Good;
 
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
@@ -383,7 +382,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInfo("Starting up alarm group " + GetUnitFromNodeId(node.NodeId));
+                Utils.LogInfo("Starting up alarm group {0}", GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
                 {
@@ -398,7 +397,7 @@ namespace Alarms
                             {
                                 AlarmHolder holder = m_alarms[identifier];
                                 holder.SetBranching(false);
-                                holder.Start();
+                                holder.Start(seconds);
                                 bool updated = holder.Controller.Update(SystemContext);
                                 holder.Update(updated);
                             }
@@ -406,7 +405,6 @@ namespace Alarms
                     }
                 }
             }
-
 
             return result;
         }
@@ -417,6 +415,22 @@ namespace Alarms
             IList<object> inputArguments,
             IList<object> outputArguments)
         {
+            // all arguments must be provided.
+            UInt32 seconds;
+            if (inputArguments.Count < 1)
+            {
+                return StatusCodes.BadArgumentsMissing;
+            }
+
+            try
+            {
+                seconds = (UInt32)inputArguments[0];
+            }
+            catch
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+
             ServiceResult result = ServiceResult.Good;
 
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
@@ -427,7 +441,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInfo("Starting up Branch for alarm group " + GetUnitFromNodeId(node.NodeId));
+                Utils.LogInfo("Starting up Branch for alarm group {0}", GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
                 {
@@ -442,7 +456,7 @@ namespace Alarms
                             {
                                 AlarmHolder holder = m_alarms[identifier];
                                 holder.SetBranching(true);
-                                holder.Start();
+                                holder.Start(seconds);
                                 bool updated = holder.Controller.Update(SystemContext);
                                 holder.Update(updated);
                             }
@@ -450,7 +464,6 @@ namespace Alarms
                     }
                 }
             }
-
 
             return result;
         }
@@ -471,7 +484,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInfo("Stopping alarm group " + GetUnitFromNodeId(node.NodeId));
+                Utils.LogInfo("Stopping alarm group {0}", GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
                 {
@@ -521,7 +534,7 @@ namespace Alarms
                     return StatusCodes.BadNodeIdUnknown;
                 }
 
-                Utils.LogInfo("Manual Write " + value.ToString() + " to " + node.NodeId.ToString());
+                Utils.LogInfo("Manual Write {0} to {1}", value, node.NodeId);
 
                 lock (m_alarms)
                 {
@@ -556,7 +569,6 @@ namespace Alarms
 
         private AlarmHolder GetAlarmHolder(NodeId node)
         {
-
             AlarmHolder alarmHolder = null;
 
             Type nodeIdType = node.Identifier.GetType();
@@ -668,16 +680,11 @@ namespace Alarms
             }
             return conditionType;
         }
-
-
-
         #endregion
-
 
         #endregion
 
         #region Overrides
-
         /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
@@ -810,9 +817,8 @@ namespace Alarms
         }
 
         /// <summary>
-        /// Override ConditionRefresh
+        /// Override ConditionRefresh.
         /// </summary>
-
         public override ServiceResult ConditionRefresh(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems)
@@ -879,11 +885,9 @@ namespace Alarms
             // all done.
             return ServiceResult.Good;
         }
-
-
-
         #endregion
 
+        #region Public Methods
         public NodeHandle FindBranchNodeHandle(ISystemContext systemContext, NodeHandle initialHandle, CallMethodRequest methodToCall)
         {
             NodeHandle nodeHandle = initialHandle;
@@ -927,7 +931,9 @@ namespace Alarms
                 alarmHolder.GetBranchesForConditionRefresh(events);
             }
         }
+        #endregion
 
+        #region Private Methods
         private bool IsAckConfirm(NodeId methodId)
         {
             bool isAckConfirm = false;
@@ -955,13 +961,29 @@ namespace Alarms
             return eventId;
         }
 
+        /// <summary>
+        /// Starts the timer to detect Alarms.
+        /// </summary>
+        private void StartTimer()
+        {
+            Utils.SilentDispose(m_simulationTimer);
+            m_simulationTimer = new Timer(DoSimulation, null, kSimulationInterval, kSimulationInterval);
+        }
+
+        /// <summary>
+        /// Disposes the timer.
+        /// </summary>
+        private void DisposeTimer()
+        {
+            Utils.SilentDispose(m_simulationTimer);
+            m_simulationTimer = null;
+        }
+        #endregion
+
         #region Private Fields
-
-        Dictionary<string, AlarmHolder> m_alarms = new Dictionary<string, AlarmHolder>();
-
-        Dictionary<string, SourceController> m_triggerMap =
+        private Dictionary<string, AlarmHolder> m_alarms = new Dictionary<string, AlarmHolder>();
+        private Dictionary<string, SourceController> m_triggerMap =
             new Dictionary<string, SourceController>();
-
         private bool m_allowEntry = false;
         private uint m_success = 0;
         private uint m_missed = 0;
@@ -972,9 +994,8 @@ namespace Alarms
                     new SupportedAlarmConditionType( "System", "SystemConditionClassType",  ObjectTypeIds.SystemConditionClassType ) };
 
 
+        private const UInt16 kSimulationInterval = 100;
         private Timer m_simulationTimer;
-        private UInt16 m_simulationInterval = 100;
-
         #endregion
 
     }

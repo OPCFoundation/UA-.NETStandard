@@ -68,11 +68,9 @@ namespace Alarms
 
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
-            Utils.LogInfo(Utils.TraceMasks.Information, "NonExclusiveLevelHolder alarm typedefinition " + m_alarm.TypeDefinitionId.ToString());
-
-
-
+            Utils.LogTrace("NonExclusiveLevelHolder alarm typedefinition {0}", m_alarm.TypeDefinitionId);
         }
+
         public override void SetBranching(bool value)
         {
             m_supportsBranching = value;

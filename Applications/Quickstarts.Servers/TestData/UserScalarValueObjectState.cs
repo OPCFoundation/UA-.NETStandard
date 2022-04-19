@@ -113,7 +113,7 @@ namespace TestData
             GenerateValue(system, VariantValue);
 
             return base.OnGenerateValues(context, method, objectId, count);
-        }    
+        }
         #endregion
     }
 }
