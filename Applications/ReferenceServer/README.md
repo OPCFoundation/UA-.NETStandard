@@ -26,7 +26,7 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
 ## UACTT test certificates
 The reference server always rejects new client certificates and requires that the UACTT certificates are in appropriate folders. 
 - The console server certificates are stored in **%LocalApplicationData%/OPC Foundation/pki**.
-- The Windows .Net 4.6 server stores the certificates in **%CommonApplicationData%\OPC Foundation\pki**.
+- The Windows .NET framework server stores the certificates in **%CommonApplicationData%\OPC Foundation\pki**.
     - **%CommonApplicationData%** maps to the path set by the environment variable **ProgramData** on Windows.  
     - **%LocalApplicationData%** maps to a hidden location in the user home folder and depends on the target platform. See [Certificates](Certificates.md) for more information.
 
@@ -61,10 +61,15 @@ Note: Access to the UACTT is granted to OPC Foundation Corporate Members.
 ### UACTT sample configuration
 A sample configuration for the UACTT Version [1.04.9.398](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/) can be found in [UAReferenceServer.ctt.xml](../UAReferenceServer.ctt.xml). Originally the reference server was certified only against the **Standard UA Server** profile, the **Method Server Facet** and the **DataAccess Server Facet**, in addition to all security related profiles. During release testing all Conformance Units should be enabled / checked. 
 
+### Enabling Alarms & Conditions
+
+The address space for *Alarms* contains a *Start* method which needs to be called to produce alarms for CTT testing. The method is called from a connected client. 
+The **ConsoleReferenceServer** has also a command line option '-ctt' which starts the Alarms when the server is started. Currently only a limited set of Alarms is implemented ('ExclusiveLevel', 'NonExclusiveLevel', 'OffNormal').
+
 ### Known missing Tests and Issues ###
 
 Depending on the setup in the provided project configuration, unsupported profiles should be skipped. At the time of writing (1.4.368) the following tests, profiles or facets are not yet covered or not configured due to issues:
-- no support for events, historian and Alarms & Conditions. 
+- no support for events, historian and only a few basic Alarms & Conditions. 
 - Decimal type causes crash of CTT (needs investigation)
 - no Image / Enumeration scalar test cases
 - Arrays may not include Variant (needs investigation)
