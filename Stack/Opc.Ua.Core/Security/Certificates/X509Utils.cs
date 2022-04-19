@@ -565,5 +565,16 @@ namespace Opc.Ua
                 return HashAlgorithmName.SHA512;
             }
         }
+
+        /// <summary>
+        /// Create secure temporary passcode.
+        /// </summary>
+        internal static string GeneratePasscode()
+        {
+            const int kLength = 18;
+            byte[] tokenBuffer = Utils.Nonce.CreateNonce(kLength);
+            return Convert.ToBase64String(tokenBuffer);
+        }
+
     }
 }
