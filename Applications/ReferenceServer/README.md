@@ -64,7 +64,7 @@ A sample configuration for the UACTT Version [1.04.9.398](https://opcfoundation.
 ### Enabling Alarms & Conditions
 
 The address space for *Alarms* contains a *Start* method which needs to be called to produce alarms for CTT testing. The method is called from a connected client. 
-The **ConsoleReferenceServer** has also a command line option '-ctt' which starts the Alarms when the server is started. Currently only a limited set of Alarms is implemented ('ExclusiveLevel', 'NonExclusiveLevel', 'OffNormal').
+The **ConsoleReferenceServer** has also a command line option `-ctt` which starts the Alarms when the server is started. Currently only a limited set of Alarms is implemented (`ExclusiveLevel`, `NonExclusiveLevel`, `OffNormal`).
 
 ### Known missing Tests and Issues ###
 
