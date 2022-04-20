@@ -48,6 +48,7 @@ namespace Quickstarts
         public string Password { get; set; }
 
         public ExitCode ExitCode { get; private set; }
+        public T Server => m_server;
 
         /// <summary>
         /// Ctor of the server.

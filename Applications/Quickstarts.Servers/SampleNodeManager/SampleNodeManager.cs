@@ -33,7 +33,6 @@ using System.Threading;
 using System.Reflection;
 using Opc.Ua.Server;
 using System.Linq;
-using System.Diagnostics;
 
 namespace Opc.Ua.Sample
 {

@@ -124,7 +124,7 @@ namespace Opc.Ua
         {
             if (serverApplicationUri == null || !Uri.IsWellFormedUriString(serverApplicationUri, UriKind.Absolute))
             {
-                throw new ArgumentException("serverApplicationUri");
+                throw new ArgumentException("Invalid application Uri specified.", nameof(serverApplicationUri));
             }
 
             OAuth2CredentialCollection list = Load(configuration);
@@ -168,7 +168,7 @@ namespace Opc.Ua
         {
             if (authorityUrl == null || !Uri.IsWellFormedUriString(authorityUrl, UriKind.Absolute))
             {
-                throw new ArgumentException("authorityUrl");
+                throw new ArgumentException("The authority Url is invalid.", nameof(authorityUrl));
             }
 
             if (!authorityUrl.EndsWith("/"))
@@ -186,7 +186,7 @@ namespace Opc.Ua
                     // in a real system explicit host names would be used so this would have no effect.
                     var uri = ii.AuthorityUrl.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant());
 
-                    if (!uri.EndsWith("/"))
+                    if (!uri.EndsWith("/", StringComparison.Ordinal))
                     {
                         uri += "/";
                     }

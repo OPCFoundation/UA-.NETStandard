@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using Opc.Ua;
 
@@ -49,7 +48,7 @@ namespace Boiler
             m_random = new Random();
         }
         #endregion
-        
+
         #region IDisposeable Methods
         /// <summary>
         /// Cleans up when the object is disposed.
@@ -66,7 +65,7 @@ namespace Boiler
             }
         }
         #endregion
-                
+
         #region Private Methods
         /// <summary>
         /// Changes the state of the simulation.
@@ -110,7 +109,7 @@ namespace Boiler
                         m_simulationTimer.Dispose();
                         m_simulationTimer = null;
                     }
-                    
+
                     m_simulationContext = context;
                     break;
                 }
@@ -122,15 +121,15 @@ namespace Boiler
                         m_simulationTimer.Dispose();
                         m_simulationTimer = null;
                     }
-                    
+
                     m_simulationContext = context;
                     break;
                 }
             }
-                
+
             return ServiceResult.Good;
         }
-        
+
         /// <summary>
         /// Rounds a value to the significate digits specified and adds a random perturbation.
         /// </summary>
@@ -150,20 +149,20 @@ namespace Boiler
                     offsetToApply -= 1;
                 }
             }
-            
+
             // round value to significant digits.
             double perturbedValue = Math.Round(value * Math.Pow(10.0, offsetToApply));
-                        
+
             // apply the perturbation.
-            perturbedValue += (m_random.NextDouble()-0.5)*5;
+            perturbedValue += (m_random.NextDouble() - 0.5) * 5;
 
             // restore original exponent.
-            perturbedValue = Math.Round(perturbedValue)*Math.Pow(10.0, -offsetToApply);
+            perturbedValue = Math.Round(perturbedValue) * Math.Pow(10.0, -offsetToApply);
 
             // return value.
             return perturbedValue;
         }
-                
+
         /// <summary>
         /// Moves the value towards the target.
         /// </summary>
@@ -174,7 +173,7 @@ namespace Boiler
             {
                 step = step * range.Magnitude;
             }
-            
+
             double difference = target - value;
 
             if (difference < 0)
@@ -183,7 +182,7 @@ namespace Boiler
 
                 if (value < target)
                 {
-                   return target;
+                    return target;
                 }
             }
             else
@@ -192,13 +191,13 @@ namespace Boiler
 
                 if (value > target)
                 {
-                   return target;
+                    return target;
                 }
             }
 
             return value;
         }
-        
+
         /// <summary>
         /// Returns the value as a percentage of the range.
         /// </summary>
@@ -219,7 +218,7 @@ namespace Boiler
 
             return percentage;
         }
-        
+
         /// <summary>
         /// Returns the value as a percentage of the range.
         /// </summary>
@@ -242,37 +241,37 @@ namespace Boiler
             {
                 // adjust level.
                 m_drum.LevelIndicator.Output.Value = Adjust(
-                    m_drum.LevelIndicator.Output.Value, 
-                    m_levelController.SetPoint.Value, 
-                    0.1, 
+                    m_drum.LevelIndicator.Output.Value,
+                    m_levelController.SetPoint.Value,
+                    0.1,
                     m_drum.LevelIndicator.Output.EURange.Value);
-                 
+
                 // calculate inputs for custom controller. 
                 m_customController.Input1.Value = m_levelController.UpdateMeasurement(m_drum.LevelIndicator.Output);
                 m_customController.Input2.Value = GetPercentage(m_inputPipe.FlowTransmitter1.Output);
                 m_customController.Input3.Value = GetPercentage(m_outputPipe.FlowTransmitter2.Output);
-                                
+
                 // calculate output for custom controller. 
-                m_customController.ControlOut.Value = (m_customController.Input1.Value + m_customController.Input3.Value - m_customController.Input2.Value)/2;
-                
+                m_customController.ControlOut.Value = (m_customController.Input1.Value + m_customController.Input3.Value - m_customController.Input2.Value) / 2;
+
                 // update flow controller set point.
-                m_flowController.SetPoint.Value = GetValue((m_customController.ControlOut.Value+1)/2, m_inputPipe.FlowTransmitter1.Output.EURange.Value);
-                
+                m_flowController.SetPoint.Value = GetValue((m_customController.ControlOut.Value + 1) / 2, m_inputPipe.FlowTransmitter1.Output.EURange.Value);
+
                 double error = m_flowController.UpdateMeasurement(m_inputPipe.FlowTransmitter1.Output);
-                
+
                 // adjust the input valve.
-                m_inputPipe.Valve.Input.Value = Adjust(m_inputPipe.Valve.Input.Value, (error>0)?100:0, 10, null);
-                
+                m_inputPipe.Valve.Input.Value = Adjust(m_inputPipe.Valve.Input.Value, (error > 0) ? 100 : 0, 10, null);
+
                 // adjust the input flow.
                 m_inputPipe.FlowTransmitter1.Output.Value = Adjust(
-                    m_inputPipe.FlowTransmitter1.Output.Value, 
-                    m_flowController.SetPoint.Value, 
-                    0.6, 
+                    m_inputPipe.FlowTransmitter1.Output.Value,
+                    m_flowController.SetPoint.Value,
+                    0.6,
                     m_inputPipe.FlowTransmitter1.Output.EURange.Value);
-                     
+
                 // add pertubations.
-                m_drum.LevelIndicator.Output.Value         = RoundAndPerturb(m_drum.LevelIndicator.Output.Value, 3);
-                m_inputPipe.FlowTransmitter1.Output.Value  = RoundAndPerturb(m_inputPipe.FlowTransmitter1.Output.Value, 3);
+                m_drum.LevelIndicator.Output.Value = RoundAndPerturb(m_drum.LevelIndicator.Output.Value, 3);
+                m_inputPipe.FlowTransmitter1.Output.Value = RoundAndPerturb(m_inputPipe.FlowTransmitter1.Output.Value, 3);
                 m_outputPipe.FlowTransmitter2.Output.Value = RoundAndPerturb(m_outputPipe.FlowTransmitter2.Output.Value, 3);
 
                 this.ClearChangeMasks(m_simulationContext, true);
