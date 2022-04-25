@@ -232,17 +232,26 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Check for self signed certificate if there is match of the Subject/Issuer.
+        /// </summary>
+        /// <param name="certificate">The certificate to test.</param>
+        /// <returns>True if self signed.</returns>
+        public static bool IsSelfSigned(X509Certificate2 certificate)
+        {
+            return X509Utils.CompareDistinguishedName(certificate.SubjectName, certificate.IssuerName);
+        }
+
+        /// <summary>
         /// Compares two distinguished names.
         /// </summary>
         public static bool CompareDistinguishedName(X500DistinguishedName name1, X500DistinguishedName name2)
         {
             // check for simple binary equality.
-            if (name1.RawData.Equals(name2.RawData))
+            if (Utils.IsEqual(name1.RawData, name2.RawData))
             {
                 return true;
             }
-
-            return false; //CompareDistinguishedName(name1.Name, name2.Name);
+            return false;
         }
 
         /// <summary>

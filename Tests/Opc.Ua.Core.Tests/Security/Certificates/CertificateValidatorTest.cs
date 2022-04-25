@@ -58,7 +58,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public const string RootCASubject = "CN=Root CA Test Cert";
 
         /// <summary>
-        /// Set up a Global Discovery Server and Client instance and connect the session
+        /// Set up cert chains and validate.
         /// </summary>
         [OneTimeSetUp]
         protected void OneTimeSetUp()

@@ -680,7 +680,7 @@ namespace Opc.Ua
                     certificate = await issuer.Find(false).ConfigureAwait(false);
 
                     // check for root.
-                    if (X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
+                    if (X509Utils.IsSelfSigned(certificate))
                     {
                         break;
                     }
@@ -954,12 +954,12 @@ namespace Opc.Ua
             }
 
             // check whether the chain is complete (if there is a chain)
-            bool issuedByCA = !X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
+            bool issuedByCA = !X509Utils.IsSelfSigned(certificate);
             bool chainIncomplete = false;
             if (issuers.Count > 0)
             {
                 var rootCertificate = issuers[issuers.Count - 1].Certificate;
-                if (!X509Utils.CompareDistinguishedName(rootCertificate.Subject, rootCertificate.Issuer))
+                if (!X509Utils.IsSelfSigned(rootCertificate))
                 {
                     chainIncomplete = true;
                 }
@@ -1200,7 +1200,7 @@ namespace Opc.Ua
                     // .NET Core ChainStatus returns NotSignatureValid only on Windows, 
                     // so we have to do the extra cert signature check on all platforms
                     if (issuer == null && id.Certificate != null &&
-                        X509Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Issuer))
+                        X509Utils.IsSelfSigned(id.Certificate))
                     {
                         if (!IsSignatureValid(id.Certificate))
                         {
@@ -1230,7 +1230,7 @@ namespace Opc.Ua
                     }
 
                     // check for meaning less errors for self-signed certificates.
-                    if (id.Certificate != null && X509Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Subject))
+                    if (id.Certificate != null && X509Utils.IsSelfSigned(id.Certificate))
                     {
                         break;
                     }
