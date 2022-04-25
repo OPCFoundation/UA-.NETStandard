@@ -49,7 +49,7 @@ namespace Opc.Ua.Configuration.Tests
         public const string ApplicationName = "UA Configuration Test";
         public const string ApplicationUri = "urn:localhost:opcfoundation.org:ConfigurationTest";
         public const string ProductUri = "http://opcfoundation.org/UA/ConfigurationTest";
-        public const string SubjectName = "CN=UA Configuration Test";
+        public const string SubjectName = "CN=UA Configuration Test, C=US, S=Arizona, O=OPC Foundation";
         public const string EndpointUrl = "opc.tcp://localhost:51000";
         #endregion
 

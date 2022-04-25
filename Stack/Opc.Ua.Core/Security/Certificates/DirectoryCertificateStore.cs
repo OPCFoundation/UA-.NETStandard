@@ -91,8 +91,8 @@ namespace Opc.Ua
                     NoPrivateKeys = noPrivateKeys;
                     StorePath = location;
                     m_directory = new DirectoryInfo(trimmedLocation);
-                    m_certificateSubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "certs");
-                    m_privateKeySubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "private");
+                    m_certificateSubdir = new DirectoryInfo(Path.Combine(m_directory.FullName, "certs"));
+                    m_privateKeySubdir = new DirectoryInfo(Path.Combine(m_directory.FullName, "private"));
                     m_certificates.Clear();
                     m_lastDirectoryCheck = DateTime.MinValue;
                 }
@@ -353,7 +353,7 @@ namespace Opc.Ua
                                     continue;
                                 }
 
-                                if (!X509Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.OrdinalIgnoreCase)))
+                                if (!X509Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.Ordinal)))
                                 {
                                     continue;
                                 }

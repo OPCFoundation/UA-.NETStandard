@@ -234,6 +234,20 @@ namespace Opc.Ua
         /// <summary>
         /// Compares two distinguished names.
         /// </summary>
+        public static bool CompareDistinguishedName(X500DistinguishedName name1, X500DistinguishedName name2)
+        {
+            // check for simple binary equality.
+            if (name1.RawData.Equals(name2.RawData))
+            {
+                return true;
+            }
+
+            return false; //CompareDistinguishedName(name1.Name, name2.Name);
+        }
+
+        /// <summary>
+        /// Compares two distinguished names as strings.
+        /// </summary>
         public static bool CompareDistinguishedName(string name1, string name2)
         {
             // check for simple equality.
@@ -253,8 +267,8 @@ namespace Opc.Ua
             }
 
             // sort to ensure similar entries are compared
-            fields1.Sort(StringComparer.OrdinalIgnoreCase);
-            fields2.Sort(StringComparer.OrdinalIgnoreCase);
+            fields1.Sort(StringComparer.Ordinal);
+            fields2.Sort(StringComparer.Ordinal);
 
             // compare each.
             for (int ii = 0; ii < fields1.Count; ii++)
