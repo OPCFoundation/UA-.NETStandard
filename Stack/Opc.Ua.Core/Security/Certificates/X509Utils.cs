@@ -247,20 +247,20 @@ namespace Opc.Ua
         public static bool CompareDistinguishedName(X500DistinguishedName name1, X500DistinguishedName name2)
         {
             // check for simple binary equality.
-            if (Utils.IsEqual(name1.RawData, name2.RawData))
-            {
-                return true;
-            }
-            return false;
+            return Utils.IsEqual(name1.RawData, name2.RawData);
         }
 
         /// <summary>
         /// Compares two distinguished names as strings.
         /// </summary>
+        /// <remarks>
+        /// Where possible, distinguished names should be compared
+        /// by using the <see cref="X500DistinguishedName"/> version.
+        /// </remarks>
         public static bool CompareDistinguishedName(string name1, string name2)
         {
             // check for simple equality.
-            if (String.Equals(name1, name2, StringComparison.OrdinalIgnoreCase))
+            if (String.Equals(name1, name2, StringComparison.Ordinal))
             {
                 return true;
             }
@@ -275,14 +275,25 @@ namespace Opc.Ua
                 return false;
             }
 
-            // sort to ensure similar entries are compared
-            fields1.Sort(StringComparer.Ordinal);
-            fields2.Sort(StringComparer.Ordinal);
+            return CompareDistinguishedNameFields(fields1, fields2);
+        }
 
+        /// <summary>
+        /// Compares string fields of two distinguished names.
+        /// </summary>
+        private static bool CompareDistinguishedNameFields(IList<string> fields1, IList<string> fields2)
+        {
             // compare each.
             for (int ii = 0; ii < fields1.Count; ii++)
             {
-                if (!String.Equals(fields1[ii], fields2[ii], StringComparison.OrdinalIgnoreCase))
+                //var comparison = StringComparison.Ordinal;
+                var comparison = StringComparison.OrdinalIgnoreCase;
+                if (fields1[ii].StartsWith("DC=", StringComparison.Ordinal))
+                {
+                    // DC hostnames may have different case
+                    comparison = StringComparison.OrdinalIgnoreCase;
+                }
+                if (!String.Equals(fields1[ii], fields2[ii], comparison))
                 {
                     return false;
                 }
@@ -290,7 +301,6 @@ namespace Opc.Ua
 
             return true;
         }
-
         /// <summary>
         /// Compares two distinguished names.
         /// </summary>
@@ -311,20 +321,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            // sort to ensure similar entries are compared
-            parsedName.Sort(StringComparer.OrdinalIgnoreCase);
-            certificateName.Sort(StringComparer.OrdinalIgnoreCase);
-
-            // compare each entry
-            for (int ii = 0; ii < parsedName.Count; ii++)
-            {
-                if (!String.Equals(parsedName[ii], certificateName[ii], StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return CompareDistinguishedNameFields(parsedName, certificateName);
         }
 
         /// <summary>

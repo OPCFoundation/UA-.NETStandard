@@ -413,7 +413,7 @@ namespace Opc.Ua.Server
             }
 
             // self signed
-            bool selfSigned = X509Utils.CompareDistinguishedName(newCert.Subject, newCert.Issuer);
+            bool selfSigned = X509Utils.IsSelfSigned(newCert);
             if (selfSigned && newIssuerCollection.Count != 0)
             {
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer list not empty for self signed certificate.");

@@ -328,7 +328,7 @@ namespace Opc.Ua.Gds.Server
             )
         {
             X509CRL updatedCRL = null;
-            string subjectName = certificate.IssuerName.Name;
+            X500DistinguishedName subjectName = certificate.IssuerName;
             string keyId = null;
             string serialNumber = null;
 
@@ -350,8 +350,9 @@ namespace Opc.Ua.Gds.Server
 
             if (!isCACert)
             {
+                // TODO: use match here
                 if (serialNumber == certificate.SerialNumber ||
-                    X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
+                    X509Utils.IsSelfSigned(certificate))
                 {
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot revoke self signed certificates");
                 }
@@ -480,10 +481,10 @@ namespace Opc.Ua.Gds.Server
         }
         #endregion
 
-        #region Protected Fields
-        protected readonly string SubjectName;
-        protected readonly string AuthoritiesStorePath;
-        protected readonly string AuthoritiesStoreType;
+        #region Protected Properties
+        protected string SubjectName { get; }
+        protected string AuthoritiesStorePath { get; }
+        protected string AuthoritiesStoreType { get; }
         #endregion 
 
     }

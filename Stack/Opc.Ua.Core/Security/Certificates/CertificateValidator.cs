@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -633,6 +634,12 @@ namespace Opc.Ua
 
             do
             {
+                // check for root.
+                if (X509Utils.IsSelfSigned(certificate))
+                {
+                    break;
+                }
+
                 if (validationErrors != null)
                 {
                     (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
@@ -678,12 +685,6 @@ namespace Opc.Ua
                         validationErrors[certificate] = revocationStatus;
                     }
                     certificate = await issuer.Find(false).ConfigureAwait(false);
-
-                    // check for root.
-                    if (X509Utils.IsSelfSigned(certificate))
-                    {
-                        break;
-                    }
                 }
             }
             while (issuer != null);
@@ -694,11 +695,11 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the issuers for the certificates.
         /// </summary>
-        public async Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
+        public Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
         {
-            return await GetIssuersNoExceptionsOnGetIssuer(certificates, issuers,
-                null // ensures legacy behavior is respected
-                ).ConfigureAwait(false);
+            return GetIssuersNoExceptionsOnGetIssuer(
+                certificates, issuers, null // ensures legacy behavior is respected
+                );
         }
 
         /// <summary>
@@ -721,11 +722,10 @@ namespace Opc.Ua
             bool checkRecovationStatus)
         {
             ServiceResultException serviceResult = null;
-            // check if self-signed.
-            if (X509Utils.CompareDistinguishedName(certificate.SubjectName, certificate.IssuerName))
-            {
-                return (null, null);
-            }
+
+#if DEBUG // check if not self-signed, tested in outer loop
+            Debug.Assert(!X509Utils.IsSelfSigned(certificate));
+#endif
 
             X500DistinguishedName subjectName = certificate.IssuerName;
             string keyId = null;
@@ -843,6 +843,12 @@ namespace Opc.Ua
             CertificateStoreIdentifier certificateStore,
             bool checkRecovationStatus)
         {
+            // check for root.
+            if (X509Utils.IsSelfSigned(certificate))
+            {
+                return null;
+            }
+
             (CertificateIdentifier result, ServiceResultException srex) =
                 await GetIssuerNoException(certificate, explicitList, certificateStore, checkRecovationStatus
                 ).ConfigureAwait(false);
@@ -885,13 +891,14 @@ namespace Opc.Ua
             ServiceResult sresult = PopulateSresultWithValidationErrors(validationErrors);
 
             // setup policy chain
-            X509ChainPolicy policy = new X509ChainPolicy();
-            policy.RevocationFlag = X509RevocationFlag.EntireChain;
-            policy.RevocationMode = X509RevocationMode.NoCheck;
-            policy.VerificationFlags = X509VerificationFlags.NoFlag;
-#if NET50_OR_LATER
-            policy.DisableCertificateDownload = true;
+            X509ChainPolicy policy = new X509ChainPolicy() {
+                RevocationFlag = X509RevocationFlag.EntireChain,
+                RevocationMode = X509RevocationMode.NoCheck,
+                VerificationFlags = X509VerificationFlags.NoFlag,
+#if NET5_0_OR_GREATER
+                DisableCertificateDownloads = true,
 #endif
+            };
 
             foreach (CertificateIdentifier issuer in issuers)
             {
@@ -909,6 +916,7 @@ namespace Opc.Ua
             }
 
             // build chain.
+            bool chainIncomplete = false;
             using (X509Chain chain = new X509Chain())
             {
                 chain.ChainPolicy = policy;
@@ -922,45 +930,96 @@ namespace Opc.Ua
                     target = new CertificateIdentifier(certificate);
                 }
 
-                for (int ii = 0; ii < chain.ChainElements.Count; ii++)
+                foreach (X509ChainStatus chainStatus in chain.ChainStatus)
                 {
-                    X509ChainElement element = chain.ChainElements[ii];
-
-                    CertificateIdentifier issuer = null;
-
-                    if (ii < issuers.Count)
+                    switch (chainStatus.Status)
                     {
-                        issuer = issuers[ii];
+                        case X509ChainStatusFlags.NoError:
+                        case X509ChainStatusFlags.UntrustedRoot:
+                            break;
+                        case X509ChainStatusFlags.PartialChain:
+                            // mark incomplete, invalidate the issuer trust
+                            chainIncomplete = true;
+                            isIssuerTrusted = false;
+                            break;
+                        default:
+                            goto case X509ChainStatusFlags.NotSignatureValid;
+                        case X509ChainStatusFlags.NotSignatureValid:
+                            var result = ServiceResult.Create(
+                                StatusCodes.BadCertificateInvalid,
+                                "Certificate validation failed. {0}: {1}",
+                                chainStatus.Status,
+                                chainStatus.StatusInformation);
+                            sresult = new ServiceResult(result, sresult);
+                            break;
                     }
+                }
 
-                    // check for chain status errors.
-                    if (element.ChainElementStatus.Length > 0)
+                if (chainIncomplete ||
+                    issuers.Count + 1 != chain.ChainElements.Count)
+                {
+                    // abort processing, unexpected result from X509Chain results
+                    chainIncomplete = true;
+                    isIssuerTrusted = false;
+                }
+                else
+                {
+                    for (int ii = 0; ii < chain.ChainElements.Count; ii++)
                     {
-                        foreach (X509ChainStatus status in element.ChainElementStatus)
+                        X509ChainElement element = chain.ChainElements[ii];
+
+                        CertificateIdentifier issuer = null;
+
+                        if (ii < issuers.Count)
                         {
-                            ServiceResult result = CheckChainStatus(status, target, issuer, (ii != 0));
-                            if (ServiceResult.IsBad(result))
+                            issuer = issuers[ii];
+                        }
+
+                        // validate the issuer chain matches the chain elements
+                        if (ii + 1 < chain.ChainElements.Count)
+                        {
+                            var issuerCert = chain.ChainElements[ii + 1].Certificate;
+                            if (issuer == null ||
+                                !Utils.IsEqual(issuerCert.RawData, issuer.RawData))
                             {
-                                sresult = new ServiceResult(result, sresult);
+                                // the chain used for cert validation differs from the issuers provided
+                                Utils.LogWarning("An unexpected certificate was used in the certificate chain {0}.", issuerCert.Subject);
+                                chainIncomplete = true;
+                                isIssuerTrusted = false;
+                                break;
                             }
                         }
-                    }
 
-                    if (issuer != null)
-                    {
-                        target = issuer;
+                        // check for chain status errors.
+                        if (element.ChainElementStatus.Length > 0)
+                        {
+                            foreach (X509ChainStatus status in element.ChainElementStatus)
+                            {
+                                ServiceResult result = CheckChainStatus(status, target, issuer, (ii != 0));
+                                if (ServiceResult.IsBad(result))
+                                {
+                                    sresult = new ServiceResult(result, sresult);
+                                }
+                            }
+                        }
+
+                        if (issuer != null)
+                        {
+                            target = issuer;
+                        }
                     }
                 }
             }
 
+            // TODO: is this really needed?
             // check whether the chain is complete (if there is a chain)
             bool issuedByCA = !X509Utils.IsSelfSigned(certificate);
-            bool chainIncomplete = false;
             if (issuers.Count > 0)
             {
                 var rootCertificate = issuers[issuers.Count - 1].Certificate;
                 if (!X509Utils.IsSelfSigned(rootCertificate))
                 {
+                    Debug.Assert(chainIncomplete);
                     chainIncomplete = true;
                 }
             }
@@ -968,6 +1027,7 @@ namespace Opc.Ua
             {
                 if (issuedByCA)
                 {
+                    Debug.Assert(chainIncomplete);
                     // no issuer found at all
                     chainIncomplete = true;
                 }
