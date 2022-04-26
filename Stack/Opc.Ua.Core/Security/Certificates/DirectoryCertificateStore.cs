@@ -786,7 +786,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < names.Count; ii++)
             {
-                if (names[ii].StartsWith("CN="))
+                if (names[ii].StartsWith("CN=", StringComparison.Ordinal))
                 {
                     commonName = names[ii].Substring(3).Trim();
                     break;

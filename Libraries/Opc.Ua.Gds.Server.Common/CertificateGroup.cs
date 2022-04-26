@@ -253,7 +253,7 @@ namespace Opc.Ua.Gds.Server
                     return CertificateFactory.CreateCertificate(
                             application.ApplicationUri,
                             null,
-                            info.Subject.ToString(),
+                            X509Utils.ReverseDistinguishedNames(info.Subject.ToString()),
                             domainNames)
                         .SetNotBefore(yesterday)
                         .SetLifeTime(Configuration.DefaultCertificateLifetime)

@@ -50,7 +50,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     public class CertificateTestsForRSA
     {
         #region DataPointSources
-        public const string Subject = "CN=Test Cert Subject";
+        public const string Subject = "CN=Test Cert Subject, C=US, S=Arizona, O=OPC Foundation";
 
         [DatapointSource]
         public CertificateAsset[] CertificateTestCases = new AssetCollection<CertificateAsset>(TestUtils.EnumerateTestAssets("*.?er")).ToArray();

@@ -934,16 +934,27 @@ namespace Opc.Ua
                 {
                     switch (chainStatus.Status)
                     {
+                        // status codes that are handled in CheckChainStatus
+                        case X509ChainStatusFlags.RevocationStatusUnknown:
+                        case X509ChainStatusFlags.Revoked:
+                        case X509ChainStatusFlags.NotValidForUsage:
+                        case X509ChainStatusFlags.OfflineRevocation:
+                        case X509ChainStatusFlags.InvalidBasicConstraints:
+                        case X509ChainStatusFlags.NotTimeValid:
+                        case X509ChainStatusFlags.NotTimeNested:
                         case X509ChainStatusFlags.NoError:
+                            break;
+
+                        // by design, the trust root is not in the default store
                         case X509ChainStatusFlags.UntrustedRoot:
                             break;
+
+                        // mark incomplete, invalidate the issuer trust
                         case X509ChainStatusFlags.PartialChain:
-                            // mark incomplete, invalidate the issuer trust
                             chainIncomplete = true;
                             isIssuerTrusted = false;
                             break;
-                        default:
-                            goto case X509ChainStatusFlags.NotSignatureValid;
+
                         case X509ChainStatusFlags.NotSignatureValid:
                             var result = ServiceResult.Create(
                                 StatusCodes.BadCertificateInvalid,
@@ -952,6 +963,12 @@ namespace Opc.Ua
                                 chainStatus.StatusInformation);
                             sresult = new ServiceResult(result, sresult);
                             break;
+
+                        // unexpected error status
+                        default:
+                            Utils.LogWarning("Unexpected status {0} processing certificate chain.", chainStatus.Status);
+                            goto case X509ChainStatusFlags.NotSignatureValid;
+
                     }
                 }
 

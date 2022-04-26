@@ -55,7 +55,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     public class CertificateValidatorTest
     {
         #region Test Setup
-        public const string RootCASubject = "CN=Root CA Test Cert";
+        public const string RootCASubject = "CN=Root CA Test Cert, O=OPC Foundation";
 
         /// <summary>
         /// Set up cert chains and validate.
@@ -112,7 +112,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 if (keySize > 2048) { keySize -= 1024; }
                 if (hashSize > 256) { hashSize -= 128; }
-                var subject = $"CN=Sub CA {i} Test Cert";
+                var subject = $"CN=Sub CA {i} Test Cert, O=OPC Foundation";
                 var subCACert = CertificateFactory.CreateCertificate(subject)
                     .SetNotBefore(subCABaseTime)
                     .SetLifeTime(5 * 12)
@@ -906,7 +906,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task VerifySignedNotAfterInvalid(bool trusted)
         {
-            var subject = "CN=Signed App Test Cert";
+            var subject = "CN=Signed App Test Cert, O=OPC Foundation";
             var cert = CertificateFactory.CreateCertificate(
                 null, null, subject, null)
                 .SetNotBefore(DateTime.Today.AddDays(30))
@@ -975,7 +975,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 #if NET472_OR_GREATER || NETCOREAPP3_1_OR_GREATER
             Assert.Ignore("Create SHA1 certificates is unsupported on this .NET version");
 #endif
-            var cert = CertificateFactory.CreateCertificate(null, null, "CN=SHA1 signed", null)
+            var cert = CertificateFactory.CreateCertificate(null, null, "CN=SHA1 signed, O=OPC Foundation", null)
                 .SetHashAlgorithm(HashAlgorithmName.SHA1)
                 .CreateForRSA();
             var validator = TemporaryCertValidator.Create();
@@ -1024,7 +1024,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task TestInvalidKeyUsage(bool trusted)
         {
-            var subject = "CN=Invalid Signature Cert";
+            var subject = "CN=Invalid Signature Cert, O=OPC Foundation";
             // self signed but key usage is not valid for app cert
             var cert = CertificateFactory.CreateCertificate(null, null, subject, null)
                 .SetCAConstraint(0)
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task TestInvalidSignature(bool ca, bool trusted)
         {
-            const string subject = "CN=Invalid Signature Cert";
+            const string subject = "CN=Invalid Signature Cert, O=OPC Foundation";
             var certBase = CertificateFactory.CreateCertificate(null, null, subject, null)
                 .CreateForRSA();
 

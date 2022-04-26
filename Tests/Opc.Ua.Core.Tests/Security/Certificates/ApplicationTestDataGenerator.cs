@@ -97,7 +97,7 @@ namespace Opc.Ua.Core.Tests
                 ApplicationName = appName,
                 ApplicationUri = appUri,
                 DomainNames = domainNames,
-                Subject = String.Format("CN={0},DC={1},O=OPC Foundation", appName, localhost),
+                Subject = String.Format("CN={0},O=OPC Foundation,DC={1}", appName, localhost),
                 PrivateKeyFormat = privateKeyFormat
             };
             return testData;

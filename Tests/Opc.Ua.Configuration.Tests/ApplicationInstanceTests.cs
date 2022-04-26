@@ -49,7 +49,7 @@ namespace Opc.Ua.Configuration.Tests
         public const string ApplicationName = "UA Configuration Test";
         public const string ApplicationUri = "urn:localhost:opcfoundation.org:ConfigurationTest";
         public const string ProductUri = "http://opcfoundation.org/UA/ConfigurationTest";
-        public const string SubjectName = "CN=UA Configuration Test, C=US, S=Arizona, O=OPC Foundation";
+        public const string SubjectName = "CN=UA Configuration Test, O=OPC Foundation, C=US, S=Arizona";
         public const string EndpointUrl = "opc.tcp://localhost:51000";
         #endregion
 
@@ -607,7 +607,7 @@ namespace Opc.Ua.Configuration.Tests
                     break;
             }
 
-            string rootCASubjectName = "CN=Root CA Test";
+            string rootCASubjectName = "CN=Root CA Test, O=OPC Foundation, C=US, S=Arizona";
             var rootCA = CertificateFactory.CreateCertificate(rootCASubjectName)
                 .SetNotBefore(issuerNotBefore)
                 .SetNotAfter(issuerNotAfter)

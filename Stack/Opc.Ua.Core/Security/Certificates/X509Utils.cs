@@ -286,9 +286,8 @@ namespace Opc.Ua
             // compare each.
             for (int ii = 0; ii < fields1.Count; ii++)
             {
-                //var comparison = StringComparison.Ordinal;
-                var comparison = StringComparison.OrdinalIgnoreCase;
-                if (fields1[ii].StartsWith("DC=", StringComparison.Ordinal))
+                var comparison = StringComparison.Ordinal;
+                if (fields1[ii].StartsWith("DC=", StringComparison.OrdinalIgnoreCase))
                 {
                     // DC hostnames may have different case
                     comparison = StringComparison.OrdinalIgnoreCase;
@@ -298,9 +297,9 @@ namespace Opc.Ua
                     return false;
                 }
             }
-
             return true;
         }
+
         /// <summary>
         /// Compares two distinguished names.
         /// </summary>
@@ -322,6 +321,17 @@ namespace Opc.Ua
             }
 
             return CompareDistinguishedNameFields(parsedName, certificateName);
+        }
+
+        /// <summary>
+        /// Reverse distingushed names.
+        /// </summary>
+        public static string ReverseDistinguishedNames(string name)
+        {
+            // parse the name
+            List<string> names = ParseDistinguishedName(name);
+            names.Reverse();
+            return string.Join(",", names);
         }
 
         /// <summary>
