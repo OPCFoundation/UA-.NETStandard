@@ -1011,7 +1011,6 @@ namespace Opc.Ua
                 }
             }
 
-            // TODO: is this really needed?
             // check whether the chain is complete (if there is a chain)
             bool issuedByCA = !X509Utils.IsSelfSigned(certificate);
             if (issuers.Count > 0)
@@ -1019,7 +1018,6 @@ namespace Opc.Ua
                 var rootCertificate = issuers[issuers.Count - 1].Certificate;
                 if (!X509Utils.IsSelfSigned(rootCertificate))
                 {
-                    Debug.Assert(chainIncomplete);
                     chainIncomplete = true;
                 }
             }
@@ -1027,7 +1025,6 @@ namespace Opc.Ua
             {
                 if (issuedByCA)
                 {
-                    Debug.Assert(chainIncomplete);
                     // no issuer found at all
                     chainIncomplete = true;
                 }
