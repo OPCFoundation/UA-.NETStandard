@@ -679,11 +679,17 @@ namespace Opc.Ua
 
                 if (issuer != null)
                 {
-                    issuers.Add(issuer);
                     if (validationErrors != null)
                     {
                         validationErrors[certificate] = revocationStatus;
                     }
+
+                    if (issuers.Contains(issuer))
+                    {
+                        break;
+                    }
+                    issuers.Add(issuer);
+
                     certificate = await issuer.Find(false).ConfigureAwait(false);
                 }
             }
