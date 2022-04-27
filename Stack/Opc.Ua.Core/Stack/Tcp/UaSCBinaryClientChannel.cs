@@ -591,6 +591,7 @@ namespace Opc.Ua.Bindings
                 if (!TcpMessageType.IsFinal(messageType))
                 {
                     SaveIntermediateChunk(requestId, messageBody);
+                    ResetMessageLimitsExceeded(null, requestId);
                     return false;
                 }
 
@@ -1402,6 +1403,7 @@ namespace Opc.Ua.Bindings
                 if (!TcpMessageType.IsFinal(messageType))
                 {
                     SaveIntermediateChunk(requestId, messageBody);
+                    ResetMessageLimitsExceeded(null, requestId);
                     return true;
                 }
 

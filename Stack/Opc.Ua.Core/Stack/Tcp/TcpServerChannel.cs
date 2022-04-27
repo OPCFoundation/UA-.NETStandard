@@ -554,6 +554,8 @@ namespace Opc.Ua.Bindings
                 if (!TcpMessageType.IsFinal(messageType))
                 {
                     SaveIntermediateChunk(requestId, messageBody);
+                    ResetMessageLimitsExceeded(null, requestId);
+
                     return false;
                 }
 
@@ -807,6 +809,8 @@ namespace Opc.Ua.Bindings
                 if (!TcpMessageType.IsFinal(messageType))
                 {
                     SaveIntermediateChunk(requestId, messageBody);
+                    ResetMessageLimitsExceeded(token, requestId);
+
                     return false;
                 }
 
@@ -907,6 +911,8 @@ namespace Opc.Ua.Bindings
                 if (!TcpMessageType.IsFinal(messageType))
                 {
                     SaveIntermediateChunk(requestId, messageBody);
+                    ResetMessageLimitsExceeded(token, requestId);
+
                     return true;
                 }
 
@@ -952,6 +958,26 @@ namespace Opc.Ua.Bindings
                     chunksToProcess.Release(BufferManager, "ProcessRequestMessage");
                 }
             }
+        }
+
+        /// <summary>
+        /// Checks if the ChunkOrSizeLimitsExceeded is set, raises a servicefault and resets the flag
+        /// </summary>
+        protected override void ResetMessageLimitsExceeded(ChannelToken token, uint requestId)
+        {
+            if (ChunkOrSizeLimitsExceeded)
+            {
+                const string message = "MaxChunkCount or MaxMessageSize exceeded";
+                if (token != null)
+                {
+                    SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadResponseTooLarge, message));
+                }
+                else
+                {
+                    ForceChannelFault(StatusCodes.BadResponseTooLarge, message);
+                }
+            }
+            base.ResetMessageLimitsExceeded(token, requestId);
         }
         #endregion
 

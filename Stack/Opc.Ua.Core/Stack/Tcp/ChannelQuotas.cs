@@ -26,6 +26,8 @@ namespace Opc.Ua.Bindings
             m_messageContext = ServiceMessageContext.GlobalContext;
             m_maxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;
             m_maxBufferSize = TcpMessageLimits.DefaultMaxMessageSize;
+            m_maxRequestChunkCount = TcpMessageLimits.DefaultRequestMaxChunkCount;
+            m_maxResponseChunkCount = TcpMessageLimits.DefaultResponseMaxChunkCount;
             m_channelLifetime = TcpMessageLimits.DefaultChannelLifetime;
             m_securityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
         }
@@ -163,12 +165,62 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
+
+        /// <summary>
+        /// The maximum number of chunks in any request message (used in the Acknowledge Message).
+        /// The Client shall abort the Message with a Bad_RequestTooLarge StatusCode if a request Message exceeds this value.
+        /// A value of zero indicates that the Server has no limit.
+        /// </summary>
+        public int MaxRequestChunkCount
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_maxRequestChunkCount;
+                }
+            }
+
+            set
+            {
+                lock (m_lock)
+                {
+                    m_maxRequestChunkCount = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The maximum number of chunks in any response message (used in the Hello Message).
+        /// The Server shall abort the Message with a Bad_ResponseTooLarge Error Message if a response Message exceeds this value.
+        /// A value of zero indicates that the Client has no limit.
+        /// </summary>
+        public int MaxResponseChunkCount
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_maxResponseChunkCount;
+                }
+            }
+
+            set
+            {
+                lock (m_lock)
+                {
+                    m_maxResponseChunkCount = value;
+                }
+            }
+        }
         #endregion
 
         #region Private Fields
         private object m_lock = new object();
         private int m_maxMessageSize;
         private int m_maxBufferSize;
+        private int m_maxRequestChunkCount;
+        private int m_maxResponseChunkCount;
         private int m_channelLifetime;
         private int m_securityTokenLifetime;
         private IServiceMessageContext m_messageContext;
