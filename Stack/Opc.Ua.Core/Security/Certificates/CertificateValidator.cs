@@ -966,64 +966,60 @@ namespace Opc.Ua
 
                         // unexpected error status
                         default:
-                            Utils.LogWarning("Unexpected status {0} processing certificate chain.", chainStatus.Status);
+                            Utils.LogError("Unexpected status {0} processing certificate chain.", chainStatus.Status);
                             goto case X509ChainStatusFlags.NotSignatureValid;
-
                     }
                 }
 
-                if (chainIncomplete ||
-                    issuers.Count + 1 != chain.ChainElements.Count)
+                if (issuers.Count + 1 != chain.ChainElements.Count)
                 {
-                    // abort processing, unexpected result from X509Chain results
+                    // invalidate, unexpected result from X509Chain elements
                     chainIncomplete = true;
                     isIssuerTrusted = false;
                 }
-                else
+
+                for (int ii = 0; ii < chain.ChainElements.Count; ii++)
                 {
-                    for (int ii = 0; ii < chain.ChainElements.Count; ii++)
+                    X509ChainElement element = chain.ChainElements[ii];
+
+                    CertificateIdentifier issuer = null;
+
+                    if (ii < issuers.Count)
                     {
-                        X509ChainElement element = chain.ChainElements[ii];
+                        issuer = issuers[ii];
+                    }
 
-                        CertificateIdentifier issuer = null;
-
-                        if (ii < issuers.Count)
+                    // validate the issuer chain matches the chain elements
+                    if (ii + 1 < chain.ChainElements.Count)
+                    {
+                        var issuerCert = chain.ChainElements[ii + 1].Certificate;
+                        if (issuer == null ||
+                            !Utils.IsEqual(issuerCert.RawData, issuer.RawData))
                         {
-                            issuer = issuers[ii];
+                            // the chain used for cert validation differs from the issuers provided
+                            Utils.LogCertificate(Utils.TraceMasks.Security, "An unexpected certificate was used in the certificate chain.", issuerCert);
+                            chainIncomplete = true;
+                            isIssuerTrusted = false;
+                            break;
                         }
+                    }
 
-                        // validate the issuer chain matches the chain elements
-                        if (ii + 1 < chain.ChainElements.Count)
+                    // check for chain status errors.
+                    if (element.ChainElementStatus.Length > 0)
+                    {
+                        foreach (X509ChainStatus status in element.ChainElementStatus)
                         {
-                            var issuerCert = chain.ChainElements[ii + 1].Certificate;
-                            if (issuer == null ||
-                                !Utils.IsEqual(issuerCert.RawData, issuer.RawData))
+                            ServiceResult result = CheckChainStatus(status, target, issuer, (ii != 0));
+                            if (ServiceResult.IsBad(result))
                             {
-                                // the chain used for cert validation differs from the issuers provided
-                                Utils.LogWarning("An unexpected certificate was used in the certificate chain {0}.", issuerCert.Subject);
-                                chainIncomplete = true;
-                                isIssuerTrusted = false;
-                                break;
+                                sresult = new ServiceResult(result, sresult);
                             }
                         }
+                    }
 
-                        // check for chain status errors.
-                        if (element.ChainElementStatus.Length > 0)
-                        {
-                            foreach (X509ChainStatus status in element.ChainElementStatus)
-                            {
-                                ServiceResult result = CheckChainStatus(status, target, issuer, (ii != 0));
-                                if (ServiceResult.IsBad(result))
-                                {
-                                    sresult = new ServiceResult(result, sresult);
-                                }
-                            }
-                        }
-
-                        if (issuer != null)
-                        {
-                            target = issuer;
-                        }
+                    if (issuer != null)
+                    {
+                        target = issuer;
                     }
                 }
             }
@@ -1244,7 +1240,7 @@ namespace Opc.Ua
 
         #region Private Methods
         /// <summary>
-        /// Returns an error if the chain status indicates a fatal error.
+        /// Returns an error if the chain status elements indicate an error.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         private static ServiceResult CheckChainStatus(X509ChainStatus status, CertificateIdentifier id, CertificateIdentifier issuer, bool isIssuer)
@@ -1268,6 +1264,7 @@ namespace Opc.Ua
                 }
 
                 case X509ChainStatusFlags.PartialChain:
+                    goto case X509ChainStatusFlags.UntrustedRoot;
                 case X509ChainStatusFlags.UntrustedRoot:
                 {
                     // self signed cert signature validation 
