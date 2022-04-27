@@ -125,6 +125,11 @@ namespace Opc.Ua.Bindings
             m_maxRequestMessageSize = quotas.MaxMessageSize;
             m_maxResponseMessageSize = quotas.MaxMessageSize;
 
+            m_maxRequestChunkCount = quotas.MaxRequestChunkCount;
+            m_maxResponseChunkCount = quotas.MaxResponseChunkCount;
+
+            m_chunkOrSizeLimitsExceeded = false;
+
             CalculateSymmetricKeySizes();
         }
         #endregion
@@ -250,14 +255,23 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Saves an intermediate chunk for an incoming message.
         /// </summary>
-        protected void SaveIntermediateChunk(uint requestId, ArraySegment<byte> chunk)
+        protected void SaveIntermediateChunk(uint requestId, ArraySegment<byte> chunk, bool ignoreMessageLimits = false)
         {
             if (m_partialMessageChunks == null)
             {
                 m_partialMessageChunks = new BufferCollection();
             }
+            // If the method is called from a context in which the message limits are irrelevant
+            if (ignoreMessageLimits)
+            {
+                m_chunkOrSizeLimitsExceeded = false;
+            }
+            else
+            {
+                m_chunkOrSizeLimitsExceeded = MessageLimitsExceeded(true, m_partialMessageChunks.TotalSize, m_partialMessageChunks.Count);
+            }
 
-            if (m_partialRequestId != requestId)
+            if ((m_partialRequestId != requestId) || m_chunkOrSizeLimitsExceeded)
             {
                 if (m_partialMessageChunks.Count > 0)
                 {
@@ -279,10 +293,18 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected BufferCollection GetSavedChunks(uint requestId, ArraySegment<byte> chunk)
         {
-            SaveIntermediateChunk(requestId, chunk);
+            SaveIntermediateChunk(requestId, chunk, true);
             BufferCollection savedChunks = m_partialMessageChunks;
             m_partialMessageChunks = null;
             return savedChunks;
+        }
+
+        /// <summary>
+        /// Resets the message limits exceeded flag
+        /// </summary>
+        protected virtual void ResetMessageLimitsExceeded(ChannelToken token, uint requestId)
+        {
+            ChunkOrSizeLimitsExceeded = false;
         }
         #endregion
 
@@ -716,6 +738,22 @@ namespace Opc.Ua.Bindings
                 m_globalChannelId = Utils.Format("{0}-{1}", m_contextId, m_channelId);
             }
         }
+
+        /// <summary>
+        /// Signals if the message limits have been exceeded
+        /// </summary>
+        protected bool ChunkOrSizeLimitsExceeded
+        {
+            get
+            {
+                return m_chunkOrSizeLimitsExceeded;
+            }
+            set
+            {
+                m_chunkOrSizeLimitsExceeded = value;
+            }
+        }
+
         #endregion
 
         #region WriteOperation Class
@@ -781,6 +819,8 @@ namespace Opc.Ua.Bindings
         private BufferCollection m_partialMessageChunks;
 
         private TcpChannelStateEventHandler m_StateChanged;
+
+        private bool m_chunkOrSizeLimitsExceeded;
         #endregion
     }
 
