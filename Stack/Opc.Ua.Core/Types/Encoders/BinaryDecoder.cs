@@ -1522,6 +1522,17 @@ namespace Opc.Ua
                         }
                         length *= dimensions[ii];
                     }
+
+                    if (length > m_context.MaxArrayLength)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
+                            m_context.MaxArrayLength,
+                            length
+                            );
+                    }
+
                     // read the elements
                     Array elements = null;
                     if (encodeableTypeId != null)
@@ -2151,7 +2162,7 @@ namespace Opc.Ua
             if ((encodingByte & (byte)VariantArrayEncodingBits.Array) != 0)
             {
                 // read the array length.
-                int length = m_reader.ReadInt32();
+                int length = ReadArrayLength();
 
                 if (length < 0)
                 {
