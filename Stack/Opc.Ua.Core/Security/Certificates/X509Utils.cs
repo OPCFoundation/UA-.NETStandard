@@ -324,17 +324,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reverse distingushed names.
-        /// </summary>
-        public static string ReverseDistinguishedNames(string name)
-        {
-            // parse the name
-            List<string> names = ParseDistinguishedName(name);
-            names.Reverse();
-            return string.Join(",", names);
-        }
-
-        /// <summary>
         /// Parses a distingushed name.
         /// </summary>
         public static List<string> ParseDistinguishedName(string name)
@@ -519,14 +508,14 @@ namespace Opc.Ua
         /// </summary>
         public static async Task<X509Certificate2> FindIssuerCABySerialNumberAsync(
             ICertificateStore store,
-            string issuer,
+            X500DistinguishedName issuer,
             string serialnumber)
         {
             X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
 
             foreach (var certificate in certificates)
             {
-                if (X509Utils.CompareDistinguishedName(certificate.Subject, issuer) &&
+                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, issuer) &&
                     Utils.IsEqual(certificate.SerialNumber, serialnumber))
                 {
                     return certificate;

@@ -407,7 +407,7 @@ namespace Opc.Ua.Server
             }
 
             // validate new subject matches the previous subject
-            if (!X509Utils.CompareDistinguishedName(certificateGroup.ApplicationCertificate.SubjectName, newCert.SubjectName.Name))
+            if (!X509Utils.CompareDistinguishedName(certificateGroup.ApplicationCertificate.Certificate.SubjectName, newCert.SubjectName))
             {
                 throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Subject Name of new certificate doesn't match the application.");
             }

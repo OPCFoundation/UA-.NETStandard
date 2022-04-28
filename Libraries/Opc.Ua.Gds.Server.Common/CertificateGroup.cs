@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -246,14 +247,14 @@ namespace Opc.Ua.Gds.Server
                         domainNames = domainNameList.ToArray();
                     }
                 }
-
+                
                 DateTime yesterday = DateTime.Today.AddDays(-1);
                 using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty).ConfigureAwait(false))
                 {
                     return CertificateFactory.CreateCertificate(
                             application.ApplicationUri,
                             null,
-                            X509Utils.ReverseDistinguishedNames(info.Subject.ToString()),
+                            info.Subject.ToString(true, (IDictionary)Org.BouncyCastle.Asn1.X509.X509Name.DefaultSymbols),
                             domainNames)
                         .SetNotBefore(yesterday)
                         .SetLifeTime(Configuration.DefaultCertificateLifetime)
@@ -350,7 +351,6 @@ namespace Opc.Ua.Gds.Server
 
             if (!isCACert)
             {
-                // TODO: use match here
                 if (serialNumber == certificate.SerialNumber ||
                     X509Utils.IsSelfSigned(certificate))
                 {
@@ -365,7 +365,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     throw new ArgumentException("Invalid store path/type");
                 }
-                certCA = await X509Utils.FindIssuerCABySerialNumberAsync(store, certificate.Issuer, serialNumber).ConfigureAwait(false);
+                certCA = await X509Utils.FindIssuerCABySerialNumberAsync(store, certificate.IssuerName, serialNumber).ConfigureAwait(false);
 
                 if (certCA == null)
                 {

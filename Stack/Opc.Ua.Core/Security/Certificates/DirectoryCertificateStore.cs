@@ -478,7 +478,7 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    if (!X509Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
+                    if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
                     {
                         continue;
                     }
@@ -544,7 +544,7 @@ namespace Opc.Ua
             var crls = new X509CRLCollection();
             foreach (X509CRL crl in await EnumerateCRLs().ConfigureAwait(false))
             {
-                if (!X509Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
+                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
                 {
                     continue;
                 }
@@ -577,7 +577,7 @@ namespace Opc.Ua
             certificates = await Enumerate().ConfigureAwait(false);
             foreach (X509Certificate2 certificate in certificates)
             {
-                if (X509Utils.CompareDistinguishedName(certificate.Subject, crl.Issuer))
+                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName))
                 {
                     if (crl.VerifySignature(certificate, false))
                     {
