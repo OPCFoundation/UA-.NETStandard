@@ -239,19 +239,14 @@ namespace Opc.Ua.Bindings
         public const int DefaultMaxBufferSize = 65535;
 
         /// <summary>
-        /// The default maximum chunk count for Request messages.
+        /// The default maximum chunk count for Request and Response messages.
         /// </summary>
-        public const int DefaultRequestMaxChunkCount = 16;
-
-        /// <summary>
-        /// The default maximum chunk count for Response messages.
-        /// </summary>
-        public const int DefaultResponseMaxChunkCount = 16;
+        public const int DefaultMaxChunkCount = 16;
 
         /// <summary>
         /// The default maximum message size.
         /// </summary>
-        public const int DefaultMaxMessageSize = 16 * 65535;
+        public const int DefaultMaxMessageSize = DefaultMaxChunkCount * DefaultMaxBufferSize;
 
         /// <summary>
         /// How long a connection will remain in the server after it goes into a faulted state.

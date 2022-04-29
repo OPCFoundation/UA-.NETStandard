@@ -26,8 +26,8 @@ namespace Opc.Ua.Bindings
             m_messageContext = ServiceMessageContext.GlobalContext;
             m_maxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;
             m_maxBufferSize = TcpMessageLimits.DefaultMaxMessageSize;
-            m_maxRequestChunkCount = TcpMessageLimits.DefaultRequestMaxChunkCount;
-            m_maxResponseChunkCount = TcpMessageLimits.DefaultResponseMaxChunkCount;
+            m_maxRequestChunkCount = TcpMessageLimits.DefaultMaxChunkCount;
+            m_maxResponseChunkCount = TcpMessageLimits.DefaultMaxChunkCount;
             m_channelLifetime = TcpMessageLimits.DefaultChannelLifetime;
             m_securityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
         }
