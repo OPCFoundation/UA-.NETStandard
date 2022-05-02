@@ -65,7 +65,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            m_issuerCert = CertificateBuilder.Create("CN=Root CA")
+            m_issuerCert = CertificateBuilder.Create("CN=Root CA, O=OPC Foundation")
                 .SetCAConstraint()
                 .CreateForRSA();
         }
@@ -101,7 +101,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void CrlInternalBuilderTest()
         {
-            var dname = new X500DistinguishedName("CN=Test");
+            var dname = new X500DistinguishedName("CN=Test, O=OPC Foundation");
             var hash = HashAlgorithmName.SHA256;
             var crlBuilder = CrlBuilder.Create(dname, hash)
                 .SetNextUpdate(DateTime.Today.AddDays(30));

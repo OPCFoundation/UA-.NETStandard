@@ -411,13 +411,13 @@ namespace Opc.Ua.Server
             }
 
             // validate new subject matches the previous subject
-            if (!X509Utils.CompareDistinguishedName(certificateGroup.ApplicationCertificate.SubjectName, newCert.SubjectName.Name))
+            if (!X509Utils.CompareDistinguishedName(certificateGroup.ApplicationCertificate.Certificate.SubjectName, newCert.SubjectName))
             {
                 throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Subject Name of new certificate doesn't match the application.");
             }
 
             // self signed
-            bool selfSigned = X509Utils.CompareDistinguishedName(newCert.Subject, newCert.Issuer);
+            bool selfSigned = X509Utils.IsSelfSigned(newCert);
             if (selfSigned && newIssuerCollection.Count != 0)
             {
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer list not empty for self signed certificate.");

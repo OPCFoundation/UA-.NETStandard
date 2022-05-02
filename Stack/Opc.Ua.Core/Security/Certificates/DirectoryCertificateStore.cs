@@ -91,8 +91,8 @@ namespace Opc.Ua
                     NoPrivateKeys = noPrivateKeys;
                     StorePath = location;
                     m_directory = new DirectoryInfo(trimmedLocation);
-                    m_certificateSubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "certs");
-                    m_privateKeySubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "private");
+                    m_certificateSubdir = new DirectoryInfo(Path.Combine(m_directory.FullName, "certs"));
+                    m_privateKeySubdir = new DirectoryInfo(Path.Combine(m_directory.FullName, "private"));
                     m_certificates.Clear();
                     m_lastDirectoryCheck = DateTime.MinValue;
                 }
@@ -487,7 +487,7 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    if (!X509Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
+                    if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
                     {
                         continue;
                     }
@@ -553,7 +553,7 @@ namespace Opc.Ua
             var crls = new X509CRLCollection();
             foreach (X509CRL crl in await EnumerateCRLs().ConfigureAwait(false))
             {
-                if (!X509Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
+                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
                 {
                     continue;
                 }
@@ -586,7 +586,7 @@ namespace Opc.Ua
             certificates = await Enumerate().ConfigureAwait(false);
             foreach (X509Certificate2 certificate in certificates)
             {
-                if (X509Utils.CompareDistinguishedName(certificate.Subject, crl.Issuer))
+                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName))
                 {
                     if (crl.VerifySignature(certificate, false))
                     {
@@ -795,7 +795,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < names.Count; ii++)
             {
-                if (names[ii].StartsWith("CN="))
+                if (names[ii].StartsWith("CN=", StringComparison.Ordinal))
                 {
                     commonName = names[ii].Substring(3).Trim();
                     break;

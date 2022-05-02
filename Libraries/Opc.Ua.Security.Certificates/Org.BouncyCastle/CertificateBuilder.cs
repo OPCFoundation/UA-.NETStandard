@@ -239,7 +239,7 @@ namespace Opc.Ua.Security.Certificates
 
                 var pkcs10CertificationRequest = new Pkcs10CertificationRequest(
                     signatureFactory,
-                    new CertificateFactoryX509Name(false, certificate.Subject),
+                    new CertificateFactoryX509Name(true, certificate.Subject),
                     publicKey,
                     attributes);
 
