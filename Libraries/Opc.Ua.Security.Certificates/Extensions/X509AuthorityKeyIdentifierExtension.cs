@@ -94,25 +94,6 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Build the X509 Authority Key extension.
         /// </summary>
-        /// <param name="authorityName">The distinguished name of the issuer.</param>
-        /// <param name="serialNumber">The serial number of the issuer certificate as little endian byte array.</param>
-        public X509AuthorityKeyIdentifierExtension(
-            X500DistinguishedName authorityName,
-            byte[] serialNumber
-            )
-        {
-            if (authorityName == null) throw new ArgumentNullException(nameof(authorityName));
-            if (serialNumber == null) throw new ArgumentNullException(nameof(serialNumber));
-            m_issuer = authorityName;
-            m_serialNumber = serialNumber;
-            base.Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
-            base.Critical = false;
-            base.RawData = Encode();
-        }
-
-        /// <summary>
-        /// Build the X509 Authority Key extension.
-        /// </summary>
         /// <param name="subjectKeyIdentifier">The subject key identifier as a byte array.</param>
         /// <param name="authorityName">The distinguished name of the issuer.</param>
         /// <param name="serialNumber">The serial number of the issuer certificate as little endian byte array.</param>
