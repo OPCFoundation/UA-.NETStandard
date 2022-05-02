@@ -47,7 +47,7 @@ namespace Alarms
             Type controllerType,
             int interval,
             bool optional) :
-            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional )
+            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional)
         {
             m_alarmConditionType = alarmConditionType;
         }
@@ -56,7 +56,7 @@ namespace Alarms
             uint alarmTypeIdentifier,
             string name)
         {
-            if ( m_alarm == null )
+            if (m_alarm == null)
             {
                 // this is invalid
                 m_alarm = new ConditionState(m_parent);
@@ -72,7 +72,7 @@ namespace Alarms
             alarm.ConditionClassId.Value = m_alarmConditionType.Node;
             alarm.ConditionClassName.Value = new LocalizedText("", m_alarmConditionType.ConditionName);
             alarm.ConditionName.Value = m_alarmRootName;
-            Utils.LogInfo(Utils.TraceMasks.Information, "Alarm ConditionName = " + alarm.ConditionName.Value);
+            Utils.LogTrace("Alarm ConditionName = {0}", alarm.ConditionName.Value);
 
             alarm.BranchId.Value = new NodeId();
             alarm.Retain.Value = false;
@@ -92,7 +92,7 @@ namespace Alarms
         }
 
 
-        public BaseEventState FindBranch( )
+        public BaseEventState FindBranch()
         {
             BaseEventState state = null;
 
@@ -157,7 +157,7 @@ namespace Alarms
 
         public void ReportEvent(ConditionState alarm = null)
         {
-            if ( alarm == null )
+            if (alarm == null)
             {
                 alarm = GetAlarm();
             }
@@ -168,8 +168,8 @@ namespace Alarms
                 alarm.Time.Value = DateTime.UtcNow;
                 alarm.ReceiveTime.Value = alarm.Time.Value;
 
-                Log( "ReportEvent", " Value " + m_alarmController.GetValue().ToString() +
-                    " Message " + alarm.Message.Value.Text );
+                Log("ReportEvent", " Value " + m_alarmController.GetValue().ToString() +
+                    " Message " + alarm.Message.Value.Text);
 
                 alarm.ClearChangeMasks(SystemContext, true);
 
@@ -227,7 +227,7 @@ namespace Alarms
         protected bool IsActive()
         {
             bool isActive = false;
-            if ( GetSeverity() > AlarmDefines.INACTIVE_SEVERITY )
+            if (GetSeverity() > AlarmDefines.INACTIVE_SEVERITY)
             {
                 isActive = true;
             }
@@ -275,9 +275,9 @@ namespace Alarms
 
         protected bool IsEvent(string caller, byte[] eventId)
         {
-            bool isEvent = IsEvent( eventId );
+            bool isEvent = IsEvent(eventId);
 
-            if ( !isEvent )
+            if (!isEvent)
             {
                 LogError(caller, EventErrorMessage(eventId));
             }
@@ -303,17 +303,17 @@ namespace Alarms
 
             ConditionState alarm = GetAlarm();
 
-            if ( enabling != alarm.EnabledState.Id.Value )
+            if (enabling != alarm.EnabledState.Id.Value)
             {
                 alarm.SetEnableState(SystemContext, enabling);
-                alarm.Message.Value = enabling ? "Enabling": "Disabling" + " alarm " + MapName;
+                alarm.Message.Value = enabling ? "Enabling" : "Disabling" + " alarm " + MapName;
 
                 // if disabled, it will not fire
                 ReportEvent();
             }
             else
             {
-                if ( enabling )
+                if (enabling)
                 {
                     status = StatusCodes.BadConditionAlreadyEnabled;
                 }
@@ -335,7 +335,7 @@ namespace Alarms
             ConditionState alarm = GetAlarm();
 
             ConditionState alarmOrBranch = alarm.GetEventByEventId(eventId);
-            if ( alarmOrBranch == null )
+            if (alarmOrBranch == null)
             {
                 string errorMessage = "Unknown event id " + Utils.ToHexString(eventId);
                 alarm.Message.Value = "OnAddComment " + errorMessage;

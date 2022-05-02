@@ -65,9 +65,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
         }
 
         [Test(Description = "Validate url value")]
-#if !CUSTOM_TESTS
-        [Ignore("A network interface controller is necessary in order to run correctly.")]
-#endif
         public void ValidateUdpClientCreatorGetEndPoint()
         {
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(m_defaultUrl);
@@ -105,9 +102,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
         }
 
         [Test(Description = "Validate url hostname as ip address value")]
-#if !CUSTOM_TESTS
-        [Ignore("A network interface controller is necessary in order to run correctly.")]
-#endif
         public void ValidateUdpClientCreatorUrlIPAddress()
         {
             string urlHostNameChanged = "192.168.0.200";

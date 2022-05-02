@@ -188,7 +188,7 @@ namespace Alarms
         {
             string eventIdString = Utils.ToHexString(eventId);
 
-            if ( m_acked.Contains( eventIdString ))
+            if (m_acked.Contains(eventIdString))
             {
                 LogError("OnAcknowledge", EventErrorMessage(eventId) + " already acknowledged");
                 return StatusCodes.BadConditionBranchAlreadyAcked;
@@ -203,7 +203,7 @@ namespace Alarms
             }
 
             m_acked.Add(eventIdString);
-           
+
             if (alarm.AckedState.Id.Value)
             {
                 return StatusCodes.BadConditionBranchAlreadyAcked;
@@ -240,7 +240,7 @@ namespace Alarms
 
             string eventIdString = Utils.ToHexString(eventId);
 
-            Log("OnConfirm", "Called with eventId " + eventIdString + " Comment " + comment.Text );
+            Log("OnConfirm", "Called with eventId " + eventIdString + " Comment " + comment?.Text ?? "(empty)");
 
             if (m_confirmed.Contains(eventIdString))
             {
@@ -248,7 +248,7 @@ namespace Alarms
                 return StatusCodes.BadConditionBranchAlreadyConfirmed;
             }
 
-            AcknowledgeableConditionState alarm = GetAlarmOrBranch( eventId );
+            AcknowledgeableConditionState alarm = GetAlarmOrBranch(eventId);
 
             if (alarm == null)
             {

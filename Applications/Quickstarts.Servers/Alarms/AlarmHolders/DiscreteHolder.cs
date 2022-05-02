@@ -28,10 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using Opc.Ua;
 
@@ -56,10 +52,10 @@ namespace Alarms
             bool create = true) :
             base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional, maxShelveTime, false)
         {
-            Utils.LogInfo(name + " Discrete Constructor Optional = " + optional.ToString());
+            Utils.LogTrace("{0} Discrete Constructor Optional = {1}", name, optional);
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.DiscreteAlarmType, name, maxShelveTime);
+                Initialize(ObjectTypes.DiscreteAlarmType, name, maxShelveTime);
             }
         }
 
@@ -87,7 +83,7 @@ namespace Alarms
             bool active = m_alarmController.IsBooleanActive();
             int value = m_alarmController.GetValue();
 
-            if ( message.Length == 0 )
+            if (message.Length == 0)
             {
                 message = "Discrete Alarm analog value = " + value.ToString() + ", active = " + active.ToString();
             }
@@ -97,7 +93,6 @@ namespace Alarms
 
         #endregion
 
-
         #region Helpers
         private DiscreteAlarmState GetAlarm()
         {
@@ -105,9 +100,6 @@ namespace Alarms
         }
 
         #endregion
-
-
-
     }
 
 

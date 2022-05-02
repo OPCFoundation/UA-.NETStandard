@@ -104,7 +104,7 @@ namespace MemoryBuffer
                 {
                     return null;
                 }
-                
+
                 // enumerate components.
                 if (m_stage == Stage.Components)
                 {
@@ -162,7 +162,7 @@ namespace MemoryBuffer
                 }
 
                 m_position = Convert.ToUInt32(name, 16);
-                
+
                 // check for memory overflow.
                 if (m_position >= m_buffer.SizeInBytes.Value)
                 {

@@ -28,10 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using Opc.Ua;
 
@@ -64,7 +60,7 @@ namespace Alarms
             uint alarmTypeIdentifier,
             string name,
             double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
-            bool isLimit = true )
+            bool isLimit = true)
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 

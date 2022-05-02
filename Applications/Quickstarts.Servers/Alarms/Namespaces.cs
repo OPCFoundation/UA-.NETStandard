@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,56 +27,19 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using Opc.Ua;
-using Range = Opc.Ua.Range;
 
-namespace Boiler
+namespace Alarms
 {
+    #region Namespace Declarations
     /// <summary>
-    /// A object representing a generic controller.
+    /// Defines constants for all namespaces referenced by the model design.
     /// </summary>
-    public partial class GenericControllerState
+    public static partial class Namespaces
     {
-        #region Public Interface
         /// <summary>
-        /// Updates the measurement and calculates the new control output.
+        /// The URI for the Alarms namespace (.NET code namespace is 'Alarms').
         /// </summary>
-        public double UpdateMeasurement(AnalogItemState<double> source)
-        {
-            Range range = source.EURange.Value;
-            m_measurement.Value = source.Value;
-
-            // clamp the setpoint.
-            if (range != null)
-            {
-                if (m_setPoint.Value > range.High)
-                {
-                    m_setPoint.Value = range.High;
-                }
-
-                if (m_setPoint.Value < range.Low)
-                {
-                    m_setPoint.Value = range.Low;
-                }
-            }
-
-            // calculate error.
-            m_controlOut.Value = m_setPoint.Value - m_measurement.Value;
-
-            if (range != null)
-            {
-                m_controlOut.Value /= range.Magnitude;
-
-                if (Math.Abs(m_controlOut.Value) > 1.0)
-                {
-                    m_controlOut.Value = (m_controlOut.Value < 0) ? -1.0 : +1.0;
-                }
-            }
-
-            // return the new output.
-            return m_controlOut.Value;
-        }
-        #endregion
+        public const string Alarms = "http://test.org/UA/Alarms/";
     }
+    #endregion
 }

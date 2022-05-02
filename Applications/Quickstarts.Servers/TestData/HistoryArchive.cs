@@ -55,7 +55,7 @@ namespace TestData
         /// An overrideable version of the Dispose.
         /// </summary>
         protected virtual void Dispose(bool disposing)
-        {  
+        {
             if (disposing)
             {
                 if (m_updateTimer != null)
@@ -66,7 +66,7 @@ namespace TestData
             }
         }
         #endregion
-        
+
         #region Public Interface
         /// <summary>
         /// Returns an object that can be used to browse the archive.
@@ -86,7 +86,7 @@ namespace TestData
                 {
                     return null;
                 }
-                
+
                 return new HistoryFile(m_lock, record.RawData);
             }
         }
@@ -99,7 +99,7 @@ namespace TestData
             lock (m_lock)
             {
                 HistoryRecord record = new HistoryRecord();
-                
+
                 record.RawData = new List<HistoryEntry>();
                 record.Historizing = true;
                 record.DataType = dataType;
@@ -111,7 +111,7 @@ namespace TestData
                     HistoryEntry entry = new HistoryEntry();
 
                     entry.Value = new DataValue();
-                    entry.Value.ServerTimestamp = now.AddSeconds(-(ii*10));
+                    entry.Value.ServerTimestamp = now.AddSeconds(-(ii * 10));
                     entry.Value.SourceTimestamp = entry.Value.ServerTimestamp.AddMilliseconds(1234);
                     entry.IsModified = false;
 
@@ -129,7 +129,7 @@ namespace TestData
 
                 if (m_records == null)
                 {
-                    m_records = new Dictionary<NodeId,HistoryRecord>();
+                    m_records = new Dictionary<NodeId, HistoryRecord>();
                 }
 
                 m_records[nodeId] = record;
@@ -139,9 +139,9 @@ namespace TestData
                     m_updateTimer = new Timer(OnUpdate, null, 10000, 10000);
                 }
             }
-        }        
+        }
         #endregion
-        
+
         #region Private Methods
         /// <summary>
         /// Periodically adds new values into the archive.
@@ -160,7 +160,7 @@ namespace TestData
                         {
                             continue;
                         }
-                            
+
                         HistoryEntry entry = new HistoryEntry();
 
                         entry.Value = new DataValue();
@@ -172,8 +172,8 @@ namespace TestData
                         {
                             case BuiltInType.Int32:
                             {
-                                int lastValue = (int)record.RawData[record.RawData.Count-1].Value.Value;
-                                entry.Value.Value = lastValue+1;
+                                int lastValue = (int)record.RawData[record.RawData.Count - 1].Value.Value;
+                                entry.Value.Value = lastValue + 1;
                                 break;
                             }
                         }
@@ -192,10 +192,10 @@ namespace TestData
         #region Private Fields
         private object m_lock = new object();
         private Timer m_updateTimer;
-        private Dictionary<NodeId,HistoryRecord> m_records;
+        private Dictionary<NodeId, HistoryRecord> m_records;
         #endregion
     }
-        
+
     #region HistoryEntry Class
     /// <summary>
     /// A single entry in the archive.
@@ -206,7 +206,7 @@ namespace TestData
         public bool IsModified;
     }
     #endregion
-    
+
     #region HistoryRecord Class
     /// <summary>
     /// A record in the archive.
