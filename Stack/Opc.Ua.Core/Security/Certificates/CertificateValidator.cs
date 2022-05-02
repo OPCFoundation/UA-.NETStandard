@@ -684,7 +684,7 @@ namespace Opc.Ua
                         validationErrors[certificate] = revocationStatus;
                     }
 
-                    if (issuers.Contains(issuer))
+                    if (issuers.Find(iss => iss.Thumbprint == issuer.Thumbprint) != default(CertificateIdentifier))
                     {
                         break;
                     }
