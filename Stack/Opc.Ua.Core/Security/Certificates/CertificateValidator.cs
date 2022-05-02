@@ -626,10 +626,10 @@ namespace Opc.Ua
             ServiceResultException revocationStatus = null;
             X509Certificate2 certificate = certificates[0];
 
-            CertificateIdentifierCollection collection = new CertificateIdentifierCollection();
+            CertificateIdentifierCollection untrustedCollection = new CertificateIdentifierCollection();
             for (int ii = 1; ii < certificates.Count; ii++)
             {
-                collection.Add(new CertificateIdentifier(certificates[ii]));
+                untrustedCollection.Add(new CertificateIdentifier(certificates[ii]));
             }
 
             do
@@ -664,11 +664,11 @@ namespace Opc.Ua
                     {
                         if (validationErrors != null)
                         {
-                            (issuer, revocationStatus) = await GetIssuerNoException(certificate, collection, null, true).ConfigureAwait(false);
+                            (issuer, revocationStatus) = await GetIssuerNoException(certificate, untrustedCollection, null, true).ConfigureAwait(false);
                         }
                         else
                         {
-                            issuer = await GetIssuer(certificate, collection, null, true).ConfigureAwait(false);
+                            issuer = await GetIssuer(certificate, untrustedCollection, null, true).ConfigureAwait(false);
                         }
                     }
                 }
@@ -684,10 +684,11 @@ namespace Opc.Ua
                         validationErrors[certificate] = revocationStatus;
                     }
 
-                    if (issuers.Find(iss => iss.Thumbprint == issuer.Thumbprint) != default(CertificateIdentifier))
+                    if (issuers.Find(iss => string.Equals(iss.Thumbprint, issuer.Thumbprint, StringComparison.OrdinalIgnoreCase)) != default(CertificateIdentifier))
                     {
                         break;
                     }
+
                     issuers.Add(issuer);
 
                     certificate = await issuer.Find(false).ConfigureAwait(false);
@@ -825,7 +826,7 @@ namespace Opc.Ua
                                     }
                                 }
 
-                                return (new CertificateIdentifier(certificates[ii], options), serviceResult);
+                                return (new CertificateIdentifier(issuer, options), serviceResult);
                             }
                         }
                     }
@@ -918,6 +919,7 @@ namespace Opc.Ua
 
                 // we did the revocation check in the GetIssuers call. No need here.
                 policy.RevocationMode = X509RevocationMode.NoCheck;
+                policy.UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1);
                 policy.ExtraStore.Add(issuer.Certificate);
             }
 
