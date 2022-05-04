@@ -8,7 +8,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Tests.Stack.Types
+namespace Opc.Ua.Core.Tests.Stack.Transport
 {
     /// <summary>
     /// Tests for the BuiltIn Types.
