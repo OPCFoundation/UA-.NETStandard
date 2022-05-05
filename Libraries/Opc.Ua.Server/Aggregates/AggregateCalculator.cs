@@ -891,7 +891,7 @@ namespace Opc.Ua.Server
                 {
                     dataValue = SteppedInterpolate(timestamp, slice.EarlyBound.Value);
 
-                    if (slice.EarlyBound.Next == null || CompareTimestamps(timestamp, slice.EarlyBound.Next) >= 0)
+                    if (slice.EarlyBound.Next == null || CompareTimestamps(timestamp, slice.EarlyBound.Next) > 0)
                     {
                         UsingExtrapolation = true;
                         dataValue.StatusCode = dataValue.StatusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
@@ -1220,7 +1220,7 @@ namespace Opc.Ua.Server
                     break;
                 }
 
-                if (CompareTimestamps(slice.StartTime, ii) < 0)
+                if (CompareTimestamps(slice.StartTime, ii) <= 0)
                 {
                     values.Add(ii.Value);
                 }
@@ -1451,7 +1451,11 @@ namespace Opc.Ua.Server
             // bad if the bad duration is greater than or equal to the configured threshold.
             if ((badCount / totalCount) * 100 >= Configuration.PercentDataBad)
             {
-                statusCode = StatusCodes.Bad;
+                // if Configuration.PercentDataBad is equal to Configuration.PercentDataGood then PercentDataGood is used
+                if (Configuration.PercentDataBad != 50 && Configuration.PercentDataGood != 50)
+                {
+                    statusCode = StatusCodes.Bad;
+                }
             }
 
             return statusCode;
@@ -1499,7 +1503,9 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (StatusCode.IsGood(region.StatusCode))
+                // Take into account the Uncertain status code
+                if (StatusCode.IsGood(region.StatusCode)
+                    || (!Configuration.TreatUncertainAsBad && StatusCode.IsUncertain(region.StatusCode)))
                 {
                     goodDuration += region.Duration;
                 }
@@ -1515,9 +1521,12 @@ namespace Opc.Ua.Server
             }
 
             // bad if the bad duration is greater than or equal to the configured threshold.
-            if ((badDuration/totalDuration)*100 >= Configuration.PercentDataBad)
+            if ((badDuration / totalDuration) * 100 >= Configuration.PercentDataBad)
             {
-                statusCode = StatusCodes.Bad;
+                if (Configuration.PercentDataBad != 50 && Configuration.PercentDataGood != 50)
+                {
+                    statusCode = StatusCodes.Bad;
+                }
             }
 
             // always calculated.
