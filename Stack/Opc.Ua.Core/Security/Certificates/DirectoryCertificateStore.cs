@@ -353,7 +353,7 @@ namespace Opc.Ua
                                     continue;
                                 }
 
-                                if (!X509Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.OrdinalIgnoreCase)))
+                                if (!X509Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.Ordinal)))
                                 {
                                     continue;
                                 }
