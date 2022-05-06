@@ -1439,23 +1439,20 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // default to good.
-            statusCode = statusCode.SetCodeBits(StatusCodes.Good);
-
-            // uncertain if the good duration is less than the configured threshold.
-            if ((goodCount / totalCount) * 100 < Configuration.PercentDataGood)
+            if (totalCount == 0 || (goodCount / totalCount) * 100 >= Configuration.PercentDataGood)
             {
-                statusCode = statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                // good if the good count is greater than or equal to the configured threshold.
+                statusCode = statusCode.SetCodeBits(StatusCodes.Good);
             }
-
-            // bad if the bad duration is greater than or equal to the configured threshold.
-            if ((badCount / totalCount) * 100 >= Configuration.PercentDataBad)
+            else if ((badCount / totalCount) * 100 >= Configuration.PercentDataBad)
             {
-                // if Configuration.PercentDataBad is equal to Configuration.PercentDataGood then PercentDataGood is used
-                if (Configuration.PercentDataBad != 50 && Configuration.PercentDataGood != 50)
-                {
-                    statusCode = StatusCodes.Bad;
-                }
+                // bad if the bad count is greater than or equal to the configured threshold.
+                statusCode = StatusCodes.Bad;
+            }
+            else
+            {
+                // uncertain if did not meet the Good or Bad requirements
+                statusCode = statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
             }
 
             return statusCode;
@@ -1511,22 +1508,20 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // default to good.
-            statusCode = statusCode.SetCodeBits(StatusCodes.Good);
-
-            // uncertain if the good duration is less than the configured threshold.
-            if ((goodDuration/totalDuration)*100 < Configuration.PercentDataGood)
+            if (totalDuration == 0 || (goodDuration / totalDuration) * 100 >= Configuration.PercentDataGood)
             {
-                statusCode = statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                // good if the good duration is greater than or equal to the configured threshold.
+                statusCode = statusCode.SetCodeBits(StatusCodes.Good);
             }
-
-            // bad if the bad duration is greater than or equal to the configured threshold.
-            if ((badDuration / totalDuration) * 100 >= Configuration.PercentDataBad)
+            else if ((badDuration / totalDuration) * 100 >= Configuration.PercentDataBad)
             {
-                if (Configuration.PercentDataBad != 50 && Configuration.PercentDataGood != 50)
-                {
-                    statusCode = StatusCodes.Bad;
-                }
+                // bad if the bad duration is greater than or equal to the configured threshold.
+                statusCode = StatusCodes.Bad;
+            }
+            else
+            {
+                // uncertain if did not meet the Good or Bad requirements
+                statusCode = statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
             }
 
             // always calculated.
