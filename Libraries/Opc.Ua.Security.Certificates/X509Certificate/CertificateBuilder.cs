@@ -360,6 +360,7 @@ namespace Opc.Ua.Security.Certificates
                     m_serialNumber);
             request.CertificateExtensions.Add(authorityKeyIdentifier);
 
+            // Key usage extensions
             X509KeyUsageFlags keyUsageFlags;
             if (m_isCA)
             {
@@ -395,11 +396,11 @@ namespace Opc.Ua.Security.Certificates
             {
                 // Enhanced key usage 
                 request.CertificateExtensions.Add(
-                    new X509EnhancedKeyUsageExtension(
-                        new OidCollection {
+                new X509EnhancedKeyUsageExtension(
+                    new OidCollection {
                             new Oid(Oids.ServerAuthentication),
                             new Oid(Oids.ClientAuthentication)
-                        }, true));
+                    }, true));
             }
 
             foreach (var extension in m_extensions)
