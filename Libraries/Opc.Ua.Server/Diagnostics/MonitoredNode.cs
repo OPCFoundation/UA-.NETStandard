@@ -222,7 +222,7 @@ namespace Opc.Ua.Server
 
                 if (baseEventState != null)
                 {
-                    #region  Filter out audit events in case the ServerType_Auditing values is false or the channel is not encrypted
+                    #region  Filter out audit events in case the Server_Auditing values is false or the channel is not encrypted
                    
                     if (e is AuditEventState)
                     {

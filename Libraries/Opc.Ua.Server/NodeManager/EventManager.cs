@@ -53,7 +53,7 @@ namespace Opc.Ua.Server
             m_maxEventQueueSize = maxQueueSize;
 
             m_ServerAuditing = new Lazy<bool>(() => {
-                // Extract the value of the ServerType_Auditing node
+                // Extract the value of the Server_Auditing node
                 // Note: The value is cached and it is not updated dynamically
                 BaseVariableState auditing = m_server.NodeManager.DiagnosticsNodeManager.FindPredefinedNode(VariableIds.Server_Auditing,
                     typeof(BaseVariableState)) as BaseVariableState;
@@ -262,7 +262,7 @@ namespace Opc.Ua.Server
 
         #region Public Properties
         /// <summary>
-        /// Returns the cached read value of ServerType_Auditing
+        /// Returns the cached read value of Server_Auditing
         /// </summary>
         public bool ServerAuditing
         {
