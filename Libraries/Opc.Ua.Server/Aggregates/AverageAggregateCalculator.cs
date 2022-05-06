@@ -126,7 +126,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (IsGood(values[ii]))
+                if (StatusCode.IsGood(values[ii].StatusCode))
                 {
                     try
                     {
