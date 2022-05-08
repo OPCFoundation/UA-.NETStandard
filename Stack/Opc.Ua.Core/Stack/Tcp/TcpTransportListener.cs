@@ -123,6 +123,14 @@ namespace Opc.Ua.Bindings
                 m_quotas.MaxMessageSize = configuration.MaxMessageSize;
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
+
+                if (configuration.MaxBufferSize != 0)
+                {
+                    int maxChunkCount = configuration.MaxMessageSize / configuration.MaxBufferSize;
+                    m_quotas.MaxRequestChunkCount = maxChunkCount;
+                    m_quotas.MaxResponseChunkCount = maxChunkCount;
+                }
+
                 messageContext.MaxArrayLength = configuration.MaxArrayLength;
                 messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
                 messageContext.MaxMessageSize = configuration.MaxMessageSize;
