@@ -259,7 +259,9 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The maximum number of notifications per publish request.
+        /// The life time of of the subscription in counts of
+        /// publish interval.
+        /// LifetimeCount shall be at least 3*KeepAliveCount.
         /// </summary>
         [DataMember(Order = 4)]
         public uint LifetimeCount

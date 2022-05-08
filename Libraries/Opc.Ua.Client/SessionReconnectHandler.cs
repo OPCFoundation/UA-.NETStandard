@@ -110,6 +110,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async void OnReconnect(object state)
         {
+            DateTime reconnectStart = DateTime.UtcNow;
             try
             {
                 // check for exit.
@@ -144,7 +145,12 @@ namespace Opc.Ua.Client
             // schedule the next reconnect.
             lock (m_lock)
             {
-                m_reconnectTimer = new Timer(OnReconnect, null, m_reconnectPeriod, Timeout.Infinite);
+                int adjustedReconnectPeriod = m_reconnectPeriod - (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
+                if (adjustedReconnectPeriod <= 0)
+                {
+                    adjustedReconnectPeriod = 100;
+                }
+                m_reconnectTimer = new Timer(OnReconnect, null, adjustedReconnectPeriod, Timeout.Infinite);
             }
         }
 
@@ -153,11 +159,15 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task<bool> DoReconnect()
         {
+            // override operation timeout
+            var operationTimeout = m_session.OperationTimeout;
+
             // try a reconnect.
             if (!m_reconnectFailed)
             {
                 try
                 {
+                    m_session.OperationTimeout = m_reconnectPeriod;
                     if (m_reverseConnectManager != null)
                     {
                         var connection = await m_reverseConnectManager.WaitForConnection(
@@ -204,12 +214,17 @@ namespace Opc.Ua.Client
 
                     m_reconnectFailed = true;
                 }
+                finally
+                {
+                    m_session.OperationTimeout = operationTimeout;
+                }
             }
 
             // re-create the session.
             try
             {
                 Session session;
+                m_session.OperationTimeout = m_reconnectPeriod;
                 if (m_reverseConnectManager != null)
                 {
                     var connection = await m_reverseConnectManager.WaitForConnection(
@@ -231,6 +246,10 @@ namespace Opc.Ua.Client
             {
                 Utils.LogError("Could not reconnect the Session. {0}", exception.Message);
                 return false;
+            }
+            finally
+            {
+                m_session.OperationTimeout = operationTimeout;
             }
         }
         #endregion
