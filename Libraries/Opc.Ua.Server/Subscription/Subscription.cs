@@ -570,6 +570,35 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Initiates resending of all data monitored items in a Subscription
+        /// </summary>
+        /// <param name="context"></param>
+        public void ResendData(OperationContext context)
+        {
+            // check session.
+            VerifySession(context);
+            List<IDataChangeMonitoredItem2> dataChangeMonitoredItems = new List<IDataChangeMonitoredItem2>();
+
+            lock (m_lock)
+            {
+                var monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+                // process MI when MonitoringMode is set to Reporting
+                foreach (IMonitoredItem monitoredItem in monitoredItems)
+                {
+                    if ((monitoredItem.MonitoringMode == MonitoringMode.Reporting) &&
+                            ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0))
+                    {
+                        IDataChangeMonitoredItem2 dataChangeMonitoredItem = (IDataChangeMonitoredItem2)monitoredItem;
+                        dataChangeMonitoredItems.Add(dataChangeMonitoredItem);
+                    }
+                }
+                // propagate call to all NodeManagers
+                // directly operating on the MI is not correct since the context on which the MI's update their values might be changed
+                m_server.NodeManager.ResendData(context, dataChangeMonitoredItems);
+            }
+        }
+
+        /// <summary>
         /// Tells the subscription that the owning session is being closed.
         /// </summary>
         public void SessionClosed()
@@ -781,6 +810,7 @@ namespace Opc.Ua.Server
 
             return message;
         }
+
 
         /// <summary>
         /// Returns all available notifications.

@@ -43,7 +43,7 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public class CustomNodeManager2 : INodeManager2, INodeIdFactory, IDisposable
+    public class CustomNodeManager2 : NodeManagerCommon, INodeManager2, INodeIdFactory, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -4206,38 +4206,12 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> transferredItems = new List<IMonitoredItem>();
             lock (Lock)
             {
-                for (int ii = 0; ii < monitoredItems.Count; ii++)
-                {
-                    // skip items that have already been processed.
-                    if (processedItems[ii] || monitoredItems[ii] == null)
-                    {
-                        continue;
-                    }
-
-                    // check handle.
-                    NodeHandle handle = IsHandleInNamespace(monitoredItems[ii].ManagerHandle);
-                    if (handle == null)
-                    {
-                        continue;
-                    }
-
-                    // owned by this node manager.
-                    processedItems[ii] = true;
-                    var monitoredItem = monitoredItems[ii];
-                    transferredItems.Add(monitoredItem);
-
-                    if (sendInitialValues && !monitoredItem.IsReadyToPublish)
-                    {
-                        if (monitoredItem is IDataChangeMonitoredItem2 dataChangeMonitoredItem)
-                        {
-                            errors[ii] = ReadInitialValue(systemContext, handle, dataChangeMonitoredItem);
-                        }
-                    }
-                    else
-                    {
-                        errors[ii] = StatusCodes.Good;
-                    }
-                }
+                transferredItems = TransferMonitoredItems(
+                    systemContext,
+                    sendInitialValues,
+                    monitoredItems,
+                    processedItems,
+                    errors);
             }
 
             // do any post processing.
@@ -4255,6 +4229,74 @@ namespace Opc.Ua.Server
             )
         {
             // defined by the sub-class
+        }
+
+        /// <summary>
+        /// Initiates resending data for all monitored items
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="dataChangeMonitoredItems">The datachange monitored items for which resending is initiated</param>
+        public virtual void ResendData(OperationContext context, List<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
+        {
+            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            lock (Lock)
+            {
+                ResendData(systemContext, dataChangeMonitoredItems);
+            }
+        }
+
+        /// <summary>
+        /// ReadInitial values.  
+        /// </summary>
+        /// <param name="systemContext">The context</param>
+        /// <param name="monitoredItem">The datachange monitored items for which ReadInitialValue is initiated</param>
+        /// <param name="errorCode">Any errors</param>
+        /// <param name="processedItem">The bool stating if already processed.</param>
+        /// <param name="transferredItems">The transferred monitored items</param>
+        /// <returns></returns>
+        protected override Tuple<ServiceResult, bool, IList<IMonitoredItem>> DoReadInitialValue(
+           ServerSystemContext systemContext,
+           IMonitoredItem monitoredItem,
+           ServiceResult errorCode,
+           bool processedItem,
+           IList<IMonitoredItem> transferredItems)
+        {
+            Tuple<ServiceResult, bool, IList<IMonitoredItem>> result =
+                new Tuple<ServiceResult, bool, IList<IMonitoredItem>>(StatusCodes.BadMonitoredItemIdInvalid, false, transferredItems);
+
+            if (!monitoredItem.IsReadyToPublish)
+            {
+                bool rProcessedItem = false;
+                ServiceResult rError = StatusCodes.BadMonitoredItemIdInvalid;
+                if (monitoredItem is IDataChangeMonitoredItem2 dataChangeMonitoredItem)
+                {
+                    // check handle.
+                    NodeHandle handle = IsHandleInNamespace(monitoredItem.ManagerHandle);
+
+                    if (monitoredItem == null || processedItem || handle == null)
+                    {
+                        return result;
+                    }
+                    // owned by this node manager.       
+                    rProcessedItem = true;
+
+                    if (transferredItems != null)
+                    {
+                        transferredItems.Add(monitoredItem);
+                    }
+
+                    ServiceResult res = ReadInitialValue(systemContext, handle, dataChangeMonitoredItem);
+                    if (errorCode != null)
+                    {
+                        rError = res;
+                    }
+                    result = new Tuple<ServiceResult, bool, IList<IMonitoredItem>>(
+                            rError,
+                            rProcessedItem,
+                            transferredItems);
+                }
+            }
+            return result;
         }
 
         /// <summary>

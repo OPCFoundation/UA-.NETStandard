@@ -319,6 +319,13 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors);
 
         /// <summary>
+        /// Initiates resending data for all monitored items
+        /// </summary>
+        void ResendData(
+            OperationContext context,
+            List<IDataChangeMonitoredItem2> dataChangeMonitoredItems);
+
+        /// <summary>
         /// Changes the monitoring mode for a set of monitored items.
         /// </summary>
         void SetMonitoringMode(

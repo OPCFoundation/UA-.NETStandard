@@ -2508,6 +2508,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Initiates resending data for all monitored items
+        /// </summary>
+        public virtual void ResendData(OperationContext context, List<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
+        {
+            if (dataChangeMonitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(dataChangeMonitoredItems));
+            }
+
+            // call each node manager.
+            foreach (INodeManager nodeManager in m_nodeManagers)
+            {
+                nodeManager.ResendData(
+                    context,
+                    dataChangeMonitoredItems);
+            }
+        }
+
+        /// <summary>
         /// Deletes a set of monitored items.
         /// </summary>
         public virtual void DeleteMonitoredItems(

@@ -50,7 +50,7 @@ namespace Opc.Ua.Server
     /// It stores objects that implement ILocalNode and indexes them by NodeId.
     /// </remarks>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
-    public partial class CoreNodeManager : INodeManager, IDisposable
+    public partial class CoreNodeManager : NodeManagerCommon, INodeManager, IDisposable
     {        
         #region Constructors
         /// <summary>
@@ -69,8 +69,9 @@ namespace Opc.Ua.Server
             m_monitoredItems                 = new Dictionary<uint,MonitoredItem>();
             m_defaultMinimumSamplingInterval = 1000;
             m_namespaceUris                  = new List<string>();
-            m_dynamicNamespaceIndex          = dynamicNamespaceIndex; 
-            
+            m_dynamicNamespaceIndex = dynamicNamespaceIndex;
+            m_systemContext = m_server.DefaultSystemContext.Copy();
+
             // use namespace 1 if out of range.
             if (m_dynamicNamespaceIndex == 0 || m_dynamicNamespaceIndex >= server.NamespaceUris.Count)
             {
@@ -1512,52 +1513,94 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
-            if (context == null)        throw new ArgumentNullException(nameof(context));
-            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
-            if (processedItems == null) throw new ArgumentNullException(nameof(processedItems));
-
+            ServerSystemContext systemContext = m_systemContext.Copy(context);
             lock (m_lock)
             {
-                for (int ii = 0; ii < monitoredItems.Count; ii++)
+               TransferMonitoredItems(
+                   systemContext,
+                   sendInitialValues,
+                   monitoredItems,
+                   processedItems,
+                   errors);
+            }
+        }
+
+
+        /// <summary>
+        /// Initiates resending data for all monitored items
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="dataChangeMonitoredItems">The datachange monitored items for which resending is initiated</param>
+        public virtual void ResendData(OperationContext context,
+            List<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
+        {
+            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            lock (m_lock)
+            {
+                ResendData(systemContext, dataChangeMonitoredItems);
+            }
+        }
+
+        /// <summary>
+        /// Implementation for reading the initial value into the monitored node
+        /// </summary>
+        /// <param name="systemContext">The context.</param>
+        /// <param name="monitoredItem"></param>
+        /// <param name="errorCode"></param>
+        /// <param name="processedItem"></param>
+        /// <param name="transferredItems"></param>
+        /// <returns></returns>
+        protected override Tuple<ServiceResult, bool, IList<IMonitoredItem>> DoReadInitialValue(
+            ServerSystemContext systemContext,
+            IMonitoredItem monitoredItem,
+            ServiceResult errorCode,
+            bool processedItem,
+            IList<IMonitoredItem> transferredItems)
+        {
+            Tuple<ServiceResult, bool, IList<IMonitoredItem>> result =
+                new Tuple<ServiceResult, bool, IList<IMonitoredItem>>(StatusCodes.BadMonitoredItemIdInvalid, false, transferredItems);
+
+            if (!monitoredItem.IsReadyToPublish)
+            {
+                bool rProcessedItem = false;
+                ServiceResult rError = StatusCodes.BadMonitoredItemIdInvalid;
+                if (monitoredItem is IDataChangeMonitoredItem2 dataChangeMonitoredItem)
                 {
-                    // skip items that have already been processed.
-                    if (processedItems[ii] || monitoredItems[ii] == null)
-                    {
-                        continue;
-                    }
-                    
-                    // check if the node manager created the item.
-                    if (!Object.ReferenceEquals(this, monitoredItems[ii].NodeManager))
-                    {
-                        continue;
-                    }
-
-                    // owned by this node manager.
-                    processedItems[ii]  = true;
-
-                    // validate monitored item.
-                    IMonitoredItem monitoredItem = monitoredItems[ii];
 
                     // find the node being monitored.
                     ILocalNode node = monitoredItem.ManagerHandle as ILocalNode;
-                    if (node == null)
+
+                    if (monitoredItem == null ||
+                        processedItem ||
+                        node == null ||
+                        !ReferenceEquals(this, monitoredItem.NodeManager))
                     {
-                        continue;
+                        return result;
+                    }
+                    // owned by this node manager.       
+                    rProcessedItem = true;
+
+                    if (transferredItems != null)
+                    {
+                        transferredItems.Add(monitoredItem);
                     }
 
-                    if (sendInitialValues && !monitoredItem.IsReadyToPublish)
+                    ServiceResult res = ReadInitialValue(
+                        systemContext.OperationContext,
+                        node,
+                        dataChangeMonitoredItem);
+
+                    if (errorCode != null)
                     {
-                        if (monitoredItem is IDataChangeMonitoredItem2 dataChangeMonitoredItem)
-                        {
-                            errors[ii] = ReadInitialValue(context, node, dataChangeMonitoredItem);
-                        }
+                        rError = res;
                     }
-                    else
-                    {
-                        errors[ii] = StatusCodes.Good;
-                    }
+                    result = new Tuple<ServiceResult, bool, IList<IMonitoredItem>>(
+                            rError,
+                            rProcessedItem,
+                            transferredItems);
                 }
             }
+            return result;
         }
 
         /// <summary>
@@ -3272,6 +3315,7 @@ namespace Opc.Ua.Server
         #region Private Fields
         private object m_lock = new object();
         private IServerInternal m_server;
+        private ServerSystemContext m_systemContext;
         private NodeTable m_nodes;
         private long m_lastId;
         private SamplingGroupManager m_samplingGroupManager;

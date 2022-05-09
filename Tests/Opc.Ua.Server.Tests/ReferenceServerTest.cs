@@ -410,6 +410,140 @@ namespace Opc.Ua.Server.Tests
                 SecureChannelContext.Current = securityContext;
             }
         }
+
+
+        /// <summary>
+        /// Create a subscription with a monitored item.
+        /// Call ResendData.
+        /// </summary>
+        [Test]
+        public void ResendData()
+        {
+            var serverTestServices = new ServerTestServices(m_server);
+            // save old security context, test fixture can only work with one session
+            var securityContext = SecureChannelContext.Current;
+            try
+            {
+                var namespaceUris = m_server.CurrentInstance.NamespaceUris;
+                NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+                //Re-use method CreateSubscriptionForTransfer to create a subscription
+                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader,
+                    testSet, out var subscriptionIds);
+
+                RequestHeader resendDataRequestHeader = m_server.CreateAndActivateSession("ResendData");
+                var resendDataSecurityContext = SecureChannelContext.Current;
+
+                // After ResendData call there will be data to publish again
+                MethodState methodStateInstance = (MethodState)m_server.CurrentInstance.
+                   DiagnosticsNodeManager.FindPredefinedNode(MethodIds.Server_ResendData, typeof(MethodState));
+                var nodesToCall = new CallMethodRequestCollection();
+                nodesToCall.Add(new CallMethodRequest() {
+                    ObjectId = ObjectIds.Server,
+                    MethodId = MethodIds.Server_ResendData,
+                    InputArguments = new VariantCollection() { new Variant(subscriptionIds.Last()) }
+                });
+
+                //call ResendData method from the same session context
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                var response = m_server.Call(m_requestHeader,
+                    nodesToCall,
+                    out var results,
+                    out var diagnosticInfos);
+
+                Assert.IsTrue(StatusCode.IsGood(results[0].StatusCode));
+                ServerFixtureUtils.ValidateResponse(response);
+
+                // Make sure publish queue becomes empty by consuming it 
+                Assert.AreEqual(1, subscriptionIds.Count);
+                // Issue a Publish request
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                var acknoledgements = new SubscriptionAcknowledgementCollection();
+                response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                    out uint publishedId, out UInt32Collection availableSequenceNumbers,
+                    out bool moreNotifications, out NotificationMessage notificationMessage,
+                    out StatusCodeCollection _, out diagnosticInfos);
+
+                Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+                ServerFixtureUtils.ValidateResponse(response);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                Assert.AreEqual(subscriptionIds[0], publishedId);
+                Assert.AreEqual(1, notificationMessage.NotificationData.Count);
+
+                // Validate nothing to publish a few times
+                const int timesToCallPublish = 3;
+                for (int i = 0; i < timesToCallPublish; i++)
+                {
+                    m_requestHeader.Timestamp = DateTime.UtcNow;
+                    response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                        out publishedId, out availableSequenceNumbers,
+                        out moreNotifications, out notificationMessage,
+                        out StatusCodeCollection _, out diagnosticInfos);
+
+                    Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+                    ServerFixtureUtils.ValidateResponse(response);
+                    ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                    Assert.AreEqual(subscriptionIds[0], publishedId);
+                    Assert.AreEqual(0, notificationMessage.NotificationData.Count);
+                }
+
+                // Validate ResendData method call from same and different session contexts
+
+                //call ResendData method from different session context
+                resendDataRequestHeader.Timestamp = DateTime.UtcNow;
+                response = m_server.Call(resendDataRequestHeader,
+                    nodesToCall,
+                    out results,
+                    out diagnosticInfos);
+
+                Assert.AreEqual(results[0].StatusCode, StatusCodes.BadUserAccessDenied);
+                ServerFixtureUtils.ValidateResponse(response);
+
+                // Still nothing to publish since previous ResendData call did not execute
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                    out publishedId, out availableSequenceNumbers,
+                    out moreNotifications, out notificationMessage,
+                    out StatusCodeCollection _, out diagnosticInfos);
+
+                Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+                ServerFixtureUtils.ValidateResponse(response);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                Assert.AreEqual(subscriptionIds[0], publishedId);
+                Assert.AreEqual(0, notificationMessage.NotificationData.Count);
+
+                //call ResendData method from the same session context
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                response = m_server.Call(m_requestHeader,
+                    nodesToCall,
+                    out results,
+                    out diagnosticInfos);
+
+                Assert.IsTrue(StatusCode.IsGood(results[0].StatusCode));
+                ServerFixtureUtils.ValidateResponse(response);
+
+                // Data should be available for publishing now
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                    out publishedId, out availableSequenceNumbers,
+                    out moreNotifications, out notificationMessage,
+                    out StatusCodeCollection _, out diagnosticInfos);
+
+                Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+                ServerFixtureUtils.ValidateResponse(response);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                Assert.AreEqual(subscriptionIds[0], publishedId);
+                Assert.AreEqual(1, notificationMessage.NotificationData.Count);
+
+                resendDataRequestHeader.Timestamp = DateTime.UtcNow;
+                SecureChannelContext.Current = resendDataSecurityContext;
+                m_server.CloseSession(resendDataRequestHeader);
+            }
+            finally
+            {
+                //restore security context, that close connection can work
+                SecureChannelContext.Current = securityContext;
+            }
+        }
         #endregion
     }
 }
