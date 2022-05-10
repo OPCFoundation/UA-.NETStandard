@@ -644,7 +644,8 @@ namespace Opc.Ua.Bindings
                 m_reconnecting = false;
 
                 // enable reconnects.
-                m_waitBetweenReconnects = TcpMessageLimits.MinTimeBetweenReconnects;
+                m_waitBetweenReconnects = Timeout.Infinite;
+                //m_waitBetweenReconnects = TcpMessageLimits.MinTimeBetweenReconnects;
 
                 // schedule reconnect before token expires.
                 ScheduleTokenRenewal(CurrentToken);
