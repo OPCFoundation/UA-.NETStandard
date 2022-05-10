@@ -2975,7 +2975,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="dataChangeMonitoredItems">The datachange monitored items for which resending is initiated</param>
-        public virtual void ResendData(OperationContext context, List<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
+        public virtual void ResendData(OperationContext context, IList<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             lock (Lock)
@@ -2987,11 +2987,11 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// ReadInitial values.  
         /// </summary>
-        /// <param name="systemContext">The context</param>
-        /// <param name="monitoredItem">The datachange monitored items for which ReadInitialValue is initiated</param>
-        /// <param name="errorCode">Any errors</param>
+        /// <param name="systemContext">The context.</param>
+        /// <param name="monitoredItem">The datachange monitored item for which ReadInitialValue is initiated.</param>
+        /// <param name="errorCode">Any error.</param>
         /// <param name="processedItem">The bool stating if already processed.</param>
-        /// <param name="transferredItems">The transferred monitored items</param>
+        /// <param name="transferredItems">The transferred monitored items.</param>
         /// <returns></returns>
         protected override Tuple<ServiceResult, bool, IList<IMonitoredItem>> DoReadInitialValue(
            ServerSystemContext systemContext,

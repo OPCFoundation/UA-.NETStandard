@@ -29,9 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -43,11 +40,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Transfers a set of MonitoredItems
         /// </summary>
-        /// <param name="systemContext"></param>
-        /// <param name="sendInitialValues"></param>
-        /// <param name="monitoredItems"></param>
-        /// <param name="processedItems"></param>
-        /// <param name="errors"></param>
+        /// <param name="systemContext">The context.</param>
+        /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
+        /// <param name="monitoredItems">The set of monitoring items to update.</param>
+        /// <param name="processedItems">The list of bool with items that were already processed.</param>
+        /// <param name="errors">Any errors.</param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         protected virtual IList<IMonitoredItem> TransferMonitoredItems(
@@ -87,10 +84,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initiates resending data for all monitored items
         /// </summary>
-        /// <param name="systemContext">The context.</param>
+        /// <param name="systemContext">The context</param>
         /// <param name="dataChangeMonitoredItems">The datachange monitored items for which resending is initiated</param>
         /// <exception cref="ArgumentNullException"></exception>
-        protected virtual void ResendData(ISystemContext systemContext, List<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
+        protected virtual void ResendData(ISystemContext systemContext, IList<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
         {
             if (systemContext == null) throw new ArgumentNullException(nameof(systemContext));
             if (dataChangeMonitoredItems == null) throw new ArgumentNullException(nameof(dataChangeMonitoredItems));
@@ -110,11 +107,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// NodeManager specific implementation for reading the initial value into the monitored node
         /// </summary>
-        /// <param name="systemContext"></param>
-        /// <param name="monitoredItem"></param>
-        /// <param name="errorCode"></param>
-        /// <param name="processedItem"></param>
-        /// <param name="transferredItems"></param>
+        /// <param name="systemContext">The context.</param>
+        /// <param name="monitoredItem">The monitoring item to update.</param>
+        /// <param name="errorCode">Any error.</param>
+        /// <param name="processedItem">Has the item allready been processed.</param>
+        /// <param name="transferredItems">The transferred monitored items.</param>
         /// <returns></returns>
         protected abstract Tuple<ServiceResult, bool, IList<IMonitoredItem>> DoReadInitialValue(
             ServerSystemContext systemContext,

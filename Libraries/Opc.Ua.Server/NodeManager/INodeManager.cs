@@ -323,7 +323,7 @@ namespace Opc.Ua.Server
         /// </summary>
         void ResendData(
             OperationContext context,
-            List<IDataChangeMonitoredItem2> dataChangeMonitoredItems);
+            IList<IDataChangeMonitoredItem2> dataChangeMonitoredItems);
 
         /// <summary>
         /// Changes the monitoring mode for a set of monitored items.

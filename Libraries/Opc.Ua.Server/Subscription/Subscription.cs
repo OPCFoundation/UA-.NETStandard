@@ -535,11 +535,9 @@ namespace Opc.Ua.Server
         /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param> 
         public void TransferSession(OperationContext context, bool sendInitialValues)
         {
-            lock (m_lock)
-            {
-                m_session = context.Session;
-            }
-
+            // locked by caller
+            m_session = context.Session;
+            
             var monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
             var errors = new List<ServiceResult>(monitoredItems.Count);
             for (int ii = 0; ii < monitoredItems.Count; ii++)

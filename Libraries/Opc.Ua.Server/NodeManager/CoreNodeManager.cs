@@ -1532,7 +1532,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="dataChangeMonitoredItems">The datachange monitored items for which resending is initiated</param>
         public virtual void ResendData(OperationContext context,
-            List<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
+            IList<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             lock (m_lock)
@@ -1545,10 +1545,10 @@ namespace Opc.Ua.Server
         /// Implementation for reading the initial value into the monitored node
         /// </summary>
         /// <param name="systemContext">The context.</param>
-        /// <param name="monitoredItem"></param>
-        /// <param name="errorCode"></param>
-        /// <param name="processedItem"></param>
-        /// <param name="transferredItems"></param>
+        /// <param name="monitoredItem">The monitoring item to update.</param>
+        /// <param name="errorCode">Any error.</param>
+        /// <param name="processedItem">Has the item allready been processed.</param>
+        /// <param name="transferredItems">The transferred monitored items.</param>
         /// <returns></returns>
         protected override Tuple<ServiceResult, bool, IList<IMonitoredItem>> DoReadInitialValue(
             ServerSystemContext systemContext,

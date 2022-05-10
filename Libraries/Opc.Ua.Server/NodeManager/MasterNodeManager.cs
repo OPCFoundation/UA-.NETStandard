@@ -2510,7 +2510,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initiates resending data for all monitored items
         /// </summary>
-        public virtual void ResendData(OperationContext context, List<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
+        public virtual void ResendData(OperationContext context, IList<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
         {
             if (dataChangeMonitoredItems == null)
             {

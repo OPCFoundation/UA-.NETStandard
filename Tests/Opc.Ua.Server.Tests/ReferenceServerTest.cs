@@ -433,7 +433,7 @@ namespace Opc.Ua.Server.Tests
                 RequestHeader resendDataRequestHeader = m_server.CreateAndActivateSession("ResendData");
                 var resendDataSecurityContext = SecureChannelContext.Current;
 
-                // After ResendData call there will be data to publish again
+                // After the ResendData call there will be data to publish again
                 MethodState methodStateInstance = (MethodState)m_server.CurrentInstance.
                    DiagnosticsNodeManager.FindPredefinedNode(MethodIds.Server_ResendData, typeof(MethodState));
                 var nodesToCall = new CallMethodRequestCollection();
