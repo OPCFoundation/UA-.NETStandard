@@ -54,8 +54,8 @@ namespace TestData
         /// Reads the value for the MonitoredNodeCount.
         /// </summary>
         protected virtual ServiceResult OnReadMonitoredNodeCount(
-            ISystemContext context, 
-            NodeState node, 
+            ISystemContext context,
+            NodeState node,
             ref object value)
         {
             TestDataSystem system = context?.SystemHandle as TestDataSystem;

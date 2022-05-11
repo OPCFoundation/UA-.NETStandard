@@ -29,15 +29,11 @@
 
 
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -53,10 +49,10 @@ namespace Opc.Ua.Security.Certificates.Tests
         public const string Subject = "CN=Test Cert Subject, C=US, S=Arizona, O=OPC Foundation";
 
         [DatapointSource]
-        public CertificateAsset[] CertificateTestCases = new AssetCollection<CertificateAsset>(TestUtils.EnumerateTestAssets("*.?er")).ToArray();
+        public static readonly CertificateAsset[] CertificateTestCases = new AssetCollection<CertificateAsset>(TestUtils.EnumerateTestAssets("*.?er")).ToArray();
 
         [DatapointSource]
-        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection {
+        public static readonly KeyHashPair[] KeyHashPairs = new KeyHashPairCollection {
             { 2048, HashAlgorithmName.SHA256 },
             { 3072, HashAlgorithmName.SHA384 },
             { 4096, HashAlgorithmName.SHA512 } }.ToArray();
@@ -513,8 +509,25 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
         #endregion
 
-        #region Private Fields
-        #endregion
+        private void CheckPEMWriter(X509Certificate2 certificate, string password = null)
+        {
+            PEMWriter.ExportCertificateAsPEM(certificate);
+            if (certificate.HasPrivateKey)
+            {
+#if NETFRAMEWORK || NETCOREAPP2_1
+                // The implementation based on bouncy castle has no support to export with password
+                password = null;
+#endif
+                PEMWriter.ExportPrivateKeyAsPEM(certificate, password);
+#if NETCOREAPP3_1_OR_GREATER
+                PEMWriter.ExportRSAPrivateKeyAsPEM(certificate);
+#endif
+            }
+        }
+#endregion
+
+#region Private Fields
+#endregion
     }
 
 }

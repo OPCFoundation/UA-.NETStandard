@@ -416,6 +416,7 @@ namespace Opc.Ua
                 if (EventsMonitored())
                 {
                     InstanceStateSnapshot snapshot = new InstanceStateSnapshot();
+                    snapshot.Handle = this;
                     snapshot.Initialize(context, this);
                     ReportEvent(context, snapshot);
                 }
@@ -585,7 +586,7 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                AuditConditionCommentEventState e = new AuditConditionCommentEventState(null);
+                AuditConditionEnableEventState e = new AuditConditionEnableEventState(null);
 
                 TranslationInfo info = new TranslationInfo(
                     "AuditConditionEnable",

@@ -235,7 +235,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads the contents of a data dictionary.
         /// </summary>
-        internal byte[] ReadDictionary(NodeId dictionaryId)
+        public byte[] ReadDictionary(NodeId dictionaryId)
         {
             // create item to read.
             ReadValueId itemToRead = new ReadValueId();

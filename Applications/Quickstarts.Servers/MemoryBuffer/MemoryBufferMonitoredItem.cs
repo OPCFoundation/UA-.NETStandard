@@ -40,28 +40,28 @@ namespace MemoryBuffer
     /// </summary>
     public class MemoryBufferMonitoredItem : MonitoredItem
     {
-		/// <summary>
-		/// Initializes the object with its node type.
-		/// </summary>
+        /// <summary>
+        /// Initializes the object with its node type.
+        /// </summary>
         public MemoryBufferMonitoredItem(
-            IServerInternal     server,
-            INodeManager        nodeManager,
-            object              mangerHandle,
-            uint                offset,
-            uint                subscriptionId,
-            uint                id,
-            ReadValueId         itemToMonitor,
-            DiagnosticsMasks    diagnosticsMasks,
-            TimestampsToReturn  timestampsToReturn,
-            MonitoringMode      monitoringMode,
-            uint                clientHandle,
-            MonitoringFilter    originalFilter,
-            MonitoringFilter    filterToUse,
-            Opc.Ua.Range        range,
-            double              samplingInterval,
-            uint                queueSize,
-            bool                discardOldest,
-            double              minimumSamplingInterval)
+            IServerInternal server,
+            INodeManager nodeManager,
+            object mangerHandle,
+            uint offset,
+            uint subscriptionId,
+            uint id,
+            ReadValueId itemToMonitor,
+            DiagnosticsMasks diagnosticsMasks,
+            TimestampsToReturn timestampsToReturn,
+            MonitoringMode monitoringMode,
+            uint clientHandle,
+            MonitoringFilter originalFilter,
+            MonitoringFilter filterToUse,
+            Opc.Ua.Range range,
+            double samplingInterval,
+            uint queueSize,
+            bool discardOldest,
+            double minimumSamplingInterval)
         :
             base(
                 server,
@@ -81,7 +81,7 @@ namespace MemoryBuffer
                 queueSize,
                 discardOldest,
                 minimumSamplingInterval)
-		{
+        {
             m_offset = offset;
         }
 

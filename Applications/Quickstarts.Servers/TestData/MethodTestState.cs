@@ -58,7 +58,7 @@ namespace TestData
             this.UserArrayMethod2.OnCall = OnUserArrayValue2;
         }
         #endregion
-        
+
         private ServiceResult OnScalarValue1(
             ISystemContext context,
             MethodState method,
@@ -100,7 +100,7 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-        
+
         private ServiceResult OnScalarValue2(
             ISystemContext context,
             MethodState method,
@@ -199,7 +199,7 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-                
+
         private ServiceResult OnArrayValue2(
             ISystemContext context,
             MethodState method,
@@ -239,7 +239,7 @@ namespace TestData
             return ServiceResult.Good;
         }
 
-        private ServiceResult OnArrayValue3(       
+        private ServiceResult OnArrayValue3(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -255,8 +255,8 @@ namespace TestData
             structureOut = structureIn;
 
             return ServiceResult.Good;
-        }        
-                
+        }
+
         private ServiceResult OnUserScalarValue1(
             ISystemContext context,
             MethodState method,
@@ -301,7 +301,7 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-        
+
         private ServiceResult OnUserScalarValue2(
             ISystemContext context,
             MethodState method,
@@ -385,7 +385,7 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-                
+
         private ServiceResult OnUserArrayValue2(
             ISystemContext context,
             MethodState method,
