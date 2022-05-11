@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -105,6 +106,7 @@ namespace Opc.Ua.Client
                 m_defaultItem = (MonitoredItem)template.m_defaultItem.MemberwiseClone();
                 m_handle = template.m_handle;
                 m_disableMonitoredItemCache = template.m_disableMonitoredItemCache;
+                m_transferId = template.m_transferId;
 
                 if (copyEventHandlers)
                 {
@@ -817,17 +819,27 @@ namespace Opc.Ua.Client
         {
             if (Created)
             {
+                // handle the case when the client has the subscription template and reconnects
                 if (id != m_id)
                 {
                     return false;
                 }
 
+                // remove the subscription from disconnected session
                 if (m_session?.RemoveTransferredSubscription(this) != true)
                 {
                     Utils.LogError("SubscriptionId {0}: Failed to remove transferred subscription from owner SessionId={1}.", Id, m_session?.SessionId);
                     return false;
                 }
 
+                // remove default subscription template which was copied in Session.Create()
+                var subscriptionsToRemove = session.Subscriptions.Where(s => !s.Created && s.TransferId == this.Id).ToList();
+                foreach (var subscription in subscriptionsToRemove)
+                {
+                    session.RemoveSubscription(subscription);
+                }
+
+                // add transferreded subscription to session
                 if (!session.AddSubscription(this))
                 {
                     Utils.LogError("SubscriptionId {0}: Failed to add transferred subscription to SessionId={1}.", Id, session.SessionId);
@@ -836,6 +848,7 @@ namespace Opc.Ua.Client
             }
             else
             {
+                // handle the case when the client restarts and loads the saved subscriptions from storage
                 if (!GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles))
                 {
                     Utils.LogError("SubscriptionId {0}: The server failed to respond to GetMonitoredItems after transfer.", Id);
@@ -1802,6 +1815,12 @@ namespace Opc.Ua.Client
             // ensure the lifetime is sensible given the sampling interval.
             if (m_publishingInterval > 0)
             {
+                if (m_minLifetimeInterval > 0 && m_minLifetimeInterval < m_session.SessionTimeout)
+                {
+                    Utils.LogWarning("A smaller lifeTime {0}ms than session timeout {1}ms configured for subscription {2}.",
+                        m_minLifetimeInterval, m_session.SessionTimeout, Id);
+                }
+
                 uint minLifetimeCount = (uint)(m_minLifetimeInterval / m_publishingInterval);
 
                 if (lifetimeCount < minLifetimeCount)

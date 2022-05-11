@@ -38,6 +38,15 @@ namespace Opc.Ua.Client
     /// </summary>
     public class SessionReconnectHandler : IDisposable
     {
+        /// <summary>
+        /// Create a reconnect handler.
+        /// </summary>
+        /// <param name="reconnectAbort">Set to <c>true</c> to allow reconnect abort if keep alive recovered.</param>
+        public SessionReconnectHandler(bool reconnectAbort = false)
+        {
+            m_reconnectAbort = reconnectAbort;
+        }
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -119,8 +128,22 @@ namespace Opc.Ua.Client
                     return;
                 }
 
+                bool keepaliveRecovered = false;
+
+                // preserve legacy behavior if reconnectAbort is not set
+                if (m_session != null && m_reconnectAbort &&
+                    m_session.Connected && !m_session.KeepAliveStopped)
+                {
+                    keepaliveRecovered = true;
+                    // breaking change, the callback must only assign the new
+                    // session if the property is != null
+                    m_session = null;
+                    Utils.LogInfo("Reconnect aborted, KeepAlive recovered.");
+                }
+
                 // do the reconnect.
-                if (await DoReconnect().ConfigureAwait(false))
+                if (keepaliveRecovered ||
+                    await DoReconnect().ConfigureAwait(false))
                 {
                     lock (m_lock)
                     {
@@ -258,6 +281,7 @@ namespace Opc.Ua.Client
         private object m_lock = new object();
         private Session m_session;
         private bool m_reconnectFailed;
+        private bool m_reconnectAbort;
         private int m_reconnectPeriod;
         private Timer m_reconnectTimer;
         private EventHandler m_callback;

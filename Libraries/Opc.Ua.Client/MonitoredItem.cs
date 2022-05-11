@@ -600,6 +600,9 @@ namespace Opc.Ua.Client
         {
             lock (m_cache)
             {
+                // only validate timestamp on first sample
+                bool validateTimestamp = m_lastNotification == null;
+
                 m_lastNotification = newValue;
 
                 if (m_dataCache != null)
@@ -608,25 +611,32 @@ namespace Opc.Ua.Client
 
                     if (datachange != null)
                     {
-                        var now = DateTime.UtcNow;
-                        // validate the ServerTimestamp of the notification.
-                        if (datachange.Value != null && datachange.Value.ServerTimestamp > now)
+                        if (datachange.Value != null)
                         {
-                            Utils.LogWarning("Received ServerTimestamp {0} is in the future for MonitoredItemId {1}",
-                                datachange.Value.ServerTimestamp.ToLocalTime(), ClientHandle);
-                        }
+                            if (validateTimestamp)
+                            {
+                                var now = DateTime.UtcNow;
 
-                        // validate SourceTimestamp of the notification.
-                        if (datachange.Value != null && datachange.Value.SourceTimestamp > now)
-                        {
-                            Utils.LogWarning("Received SourceTimestamp {0} is in the future for MonitoredItemId {1}",
-                                datachange.Value.SourceTimestamp.ToLocalTime(), ClientHandle);
-                        }
+                                // validate the ServerTimestamp of the notification.
+                                if (datachange.Value.ServerTimestamp > now)
+                                {
+                                    Utils.LogWarning("Received ServerTimestamp {0} is in the future for MonitoredItemId {1}",
+                                        datachange.Value.ServerTimestamp.ToLocalTime(), ClientHandle);
+                                }
 
-                        if (datachange.Value != null && datachange.Value.StatusCode.Overflow)
-                        {
-                            Utils.LogWarning("Overflow bit set for data change with ServerTimestamp {0} and value {1} for MonitoredItemId {2}",
-                                datachange.Value.ServerTimestamp.ToLocalTime(), datachange.Value.Value, ClientHandle);
+                                // validate SourceTimestamp of the notification.
+                                if (datachange.Value.SourceTimestamp > now)
+                                {
+                                    Utils.LogWarning("Received SourceTimestamp {0} is in the future for MonitoredItemId {1}",
+                                        datachange.Value.SourceTimestamp.ToLocalTime(), ClientHandle);
+                                }
+                            }
+
+                            if (datachange.Value.StatusCode.Overflow)
+                            {
+                                Utils.LogWarning("Overflow bit set for data change with ServerTimestamp {0} and value {1} for MonitoredItemId {2}",
+                                    datachange.Value.ServerTimestamp.ToLocalTime(), datachange.Value.Value, ClientHandle);
+                            }
                         }
 
                         m_dataCache.OnNotification(datachange);
