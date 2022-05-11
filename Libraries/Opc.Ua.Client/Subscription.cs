@@ -839,7 +839,7 @@ namespace Opc.Ua.Client
                     session.RemoveSubscription(subscription);
                 }
 
-                // add transferreded subscription to session
+                // add transferred subscription to session
                 if (!session.AddSubscription(this))
                 {
                     Utils.LogError("SubscriptionId {0}: Failed to add transferred subscription to SessionId={1}.", Id, session.SessionId);

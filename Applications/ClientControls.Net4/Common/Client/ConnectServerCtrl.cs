@@ -707,9 +707,9 @@ namespace Opc.Ua.Client.Controls
                     return;
                 }
 
+                // only apply session if reconnect was required
                 if (m_reconnectHandler.Session != null)
                 {
-                    Utils.SilentDispose(m_session);
                     m_session = m_reconnectHandler.Session;
                 }
 
