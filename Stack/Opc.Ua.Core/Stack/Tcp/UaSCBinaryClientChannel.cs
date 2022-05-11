@@ -643,8 +643,9 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Open;
                 m_reconnecting = false;
 
-                // enable reconnects.
-                m_waitBetweenReconnects = TcpMessageLimits.MinTimeBetweenReconnects;
+                // enable reconnects. DO NOT USE! 
+                // m_waitBetweenReconnects = TcpMessageLimits.MinTimeBetweenReconnects;
+                m_waitBetweenReconnects = Timeout.Infinite;
 
                 // schedule reconnect before token expires.
                 ScheduleTokenRenewal(CurrentToken);

@@ -45,7 +45,7 @@
   <TransportConfigurations></TransportConfigurations>
   
   <TransportQuotas>
-    <OperationTimeout>600000</OperationTimeout>
+    <OperationTimeout>120000</OperationTimeout>
     <MaxStringLength>1048576</MaxStringLength>
     <MaxByteStringLength>1048576</MaxByteStringLength>
     <MaxArrayLength>65535</MaxArrayLength>
