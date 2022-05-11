@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2021 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -623,7 +623,7 @@ namespace Opc.Ua
         public static bool IsPathRooted(string path)
         {
             // allow for local file locations
-            return Path.IsPathRooted(path) || path[0] == '.';
+            return Path.IsPathRooted(path) || (path.Length >= 2 && path[0] == '.' && path[1] != '.');
         }
 
         /// <summary>
@@ -2801,12 +2801,26 @@ namespace Opc.Ua
         /// DtdProcessing Prohibited, XmlResolver disabled and
         /// ConformanceLevel Document.
         /// </summary>
-        internal static XmlReaderSettings DefaultXmlReaderSettings()
+        public static XmlReaderSettings DefaultXmlReaderSettings()
         {
             return new XmlReaderSettings() {
                 DtdProcessing = DtdProcessing.Prohibit,
                 XmlResolver = null,
                 ConformanceLevel = ConformanceLevel.Document
+            };
+        }
+
+        /// <summary>
+        /// Returns a XmlWriterSetting with deterministic defaults across .NET versions.
+        /// </summary>
+        public static XmlWriterSettings DefaultXmlWriterSettings()
+        {
+            return new XmlWriterSettings() {
+                Encoding = Encoding.UTF8,
+                Indent = true,
+                ConformanceLevel = ConformanceLevel.Document,
+                IndentChars = "  ",
+                CloseOutput = false,
             };
         }
 

@@ -7,6 +7,8 @@
     <RootNamespace>Opc.Ua.PubSub</RootNamespace>
     <Description>OPC UA PubSub Class Library</Description>
     <IsPackable>true</IsPackable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   

@@ -35,6 +35,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -48,10 +49,10 @@ namespace Opc.Ua.Security.Certificates.Tests
     {
         #region DataPointSources
         [DatapointSource]
-        public CRLAsset[] CRLTestCases = new AssetCollection<CRLAsset>(TestUtils.EnumerateTestAssets("*.crl")).ToArray();
+        public static readonly CRLAsset[] CRLTestCases = new AssetCollection<CRLAsset>(TestUtils.EnumerateTestAssets("*.crl")).ToArray();
 
         [DatapointSource]
-        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection {
+        public static readonly KeyHashPair[] KeyHashPairs = new KeyHashPairCollection {
             { 2048, HashAlgorithmName.SHA256 },
             { 3072, HashAlgorithmName.SHA384 },
             { 4096, HashAlgorithmName.SHA512 } }.ToArray();
