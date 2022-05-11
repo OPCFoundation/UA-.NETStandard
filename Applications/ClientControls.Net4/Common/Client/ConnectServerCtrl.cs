@@ -434,7 +434,7 @@ namespace Opc.Ua.Client.Controls
                 UseSecurityCK.Checked = useSecurity;
             }
 
-            return await Task.Run(() => Connect(serverUrl, useSecurity, sessionTimeout));
+            return await Connect(serverUrl, useSecurity, sessionTimeout);
         }
 
         /// <summary>
