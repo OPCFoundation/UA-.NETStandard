@@ -283,7 +283,6 @@ namespace Quickstarts
                 // if session recovered, Session property is null
                 if (m_reconnectHandler.Session != null)
                 {
-                    Utils.SilentDispose(m_session);
                     m_session = m_reconnectHandler.Session;
                 }
 
