@@ -178,7 +178,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             samples.WriteNodes(uaClient.Session);
                             samples.Browse(uaClient.Session);
                             samples.CallMethod(uaClient.Session);
-                            samples.SubscribeToDataChanges(uaClient.Session);
+                            samples.SubscribeToDataChanges(uaClient.Session, 120_000);
 
                             // Wait for some DataChange notifications from MonitoredItems
                             quit = quitEvent.WaitOne(timeout > 0 ? waitTime : 30_000);

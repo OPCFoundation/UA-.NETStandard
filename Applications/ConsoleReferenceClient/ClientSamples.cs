@@ -268,7 +268,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Create Subscription and MonitoredItems for DataChanges
         /// </summary>
-        public void SubscribeToDataChanges(Session session)
+        public void SubscribeToDataChanges(Session session, uint minLifeTime)
         {
             if (session == null || session.Connected == false)
             {
@@ -285,7 +285,8 @@ namespace Quickstarts.ConsoleReferenceClient
                     DisplayName = "Console ReferenceClient Subscription",
                     PublishingEnabled = true,
                     PublishingInterval = 1000,
-                    MinLifetimeInterval = 120000
+                    LifetimeCount = 0,
+                    MinLifetimeInterval = minLifeTime,
                 };
 
                 session.AddSubscription(subscription);
