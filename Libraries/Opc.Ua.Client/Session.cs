@@ -1223,8 +1223,9 @@ namespace Opc.Ua.Client
 
                 Utils.LogInfo("Session RE-ACTIVATING session.");
 
+                RequestHeader header = new RequestHeader() { TimeoutHint = kReconnectTimeout };
                 IAsyncResult result = BeginActivateSession(
-                    null,
+                    header,
                     clientSignature,
                     null,
                     m_preferredLocales,
@@ -1233,7 +1234,7 @@ namespace Opc.Ua.Client
                     null,
                     null);
 
-                if (!result.AsyncWaitHandle.WaitOne(5000))
+                if (!result.AsyncWaitHandle.WaitOne(kReconnectTimeout / 2))
                 {
                     Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
                 }
@@ -4807,6 +4808,7 @@ namespace Opc.Ua.Client
         private Timer m_keepAliveTimer;
         private long m_keepAliveCounter;
         private bool m_reconnecting;
+        private const int kReconnectTimeout = 15000;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
