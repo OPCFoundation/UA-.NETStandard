@@ -185,7 +185,8 @@ namespace Opc.Ua.Server
 
             if (configuration.UseServerCapabilitiesDefaults)
             {
-                configuration = m_defaultConfiguration;
+                // ensure the configuration is initialized
+                configuration = GetDefaultConfiguration(null); 
             }
 
             IAggregateCalculator calculator = factory(aggregateId, startTime, endTime, processingInterval, stepped, configuration);
