@@ -125,8 +125,8 @@ namespace Opc.Ua.Bindings
             m_maxRequestMessageSize = quotas.MaxMessageSize;
             m_maxResponseMessageSize = quotas.MaxMessageSize;
 
-            m_maxRequestChunkCount = quotas.MaxRequestChunkCount;
-            m_maxResponseChunkCount = quotas.MaxResponseChunkCount;
+            m_maxRequestChunkCount = CalculateChunkCount(m_maxRequestMessageSize, m_sendBufferSize);
+            m_maxResponseChunkCount = CalculateChunkCount(m_maxResponseMessageSize, m_receiveBufferSize);
 
             CalculateSymmetricKeySizes();
         }
@@ -561,7 +561,7 @@ namespace Opc.Ua.Bindings
         {
             if (isRequest)
             {
-                if (this.MaxRequestChunkCount > 0 && this.MaxRequestChunkCount <= chunkCount)
+                if (this.MaxRequestChunkCount > 0 && this.MaxRequestChunkCount < chunkCount)
                 {
                     return true;
                 }
@@ -573,7 +573,7 @@ namespace Opc.Ua.Bindings
             }
             else
             {
-                if (this.MaxResponseChunkCount > 0 && this.MaxResponseChunkCount <= chunkCount)
+                if (this.MaxResponseChunkCount > 0 && this.MaxResponseChunkCount < chunkCount)
                 {
                     return true;
                 }
@@ -775,6 +775,28 @@ namespace Opc.Ua.Bindings
             private uint m_requestId;
             private IEncodeable m_messageBody;
             #endregion
+        }
+        #endregion
+
+        #region Protected Methods
+        /// <summary>
+        /// Calculate the chunk count which can be used for messages based on buffer size. 
+        /// </summary>
+        /// <param name="messageSize">The message size to be used.</param>
+        /// <param name="bufferSize">The buffer available for a message.</param>
+        /// <returns>The chunk count.</returns>
+        protected static int CalculateChunkCount(int messageSize, int bufferSize)
+        {
+            if (bufferSize > 0)
+            {
+                int chunkCount = messageSize / bufferSize;
+                if (chunkCount * bufferSize < messageSize)
+                {
+                    chunkCount++;
+                }
+                return chunkCount;
+            }
+            return 1;
         }
         #endregion
 

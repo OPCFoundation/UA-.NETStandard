@@ -403,14 +403,6 @@ namespace Opc.Ua.Bindings
             m_quotas.MaxMessageSize = m_settings.Configuration.MaxMessageSize;
             m_quotas.ChannelLifetime = m_settings.Configuration.ChannelLifetime;
             m_quotas.SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime;
-
-            if (m_settings.Configuration.MaxBufferSize != 0)
-            {
-                int maxChunkCount = m_settings.Configuration.MaxMessageSize / m_settings.Configuration.MaxBufferSize;
-                m_quotas.MaxRequestChunkCount = maxChunkCount;
-                m_quotas.MaxResponseChunkCount = maxChunkCount;
-            }
-
             m_quotas.MessageContext = new ServiceMessageContext() {
                 MaxArrayLength = m_settings.Configuration.MaxArrayLength,
                 MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,

@@ -174,7 +174,7 @@ namespace Opc.Ua.Bindings
         public const int MinBodySize = 1;
 
         /// <summary>
-        /// The minimum send or receive buffer size.
+        /// The maximum send or receive buffer size.
         /// </summary>
         public const int MaxBufferSize = 8192 * 18;
 
