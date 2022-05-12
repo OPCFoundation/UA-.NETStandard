@@ -123,14 +123,6 @@ namespace Opc.Ua.Bindings
                 m_quotas.MaxMessageSize = configuration.MaxMessageSize;
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
-
-                if (configuration.MaxBufferSize != 0)
-                {
-                    int maxChunkCount = configuration.MaxMessageSize / configuration.MaxBufferSize;
-                    m_quotas.MaxRequestChunkCount = maxChunkCount;
-                    m_quotas.MaxResponseChunkCount = maxChunkCount;
-                }
-
                 messageContext.MaxArrayLength = configuration.MaxArrayLength;
                 messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
                 messageContext.MaxMessageSize = configuration.MaxMessageSize;
@@ -226,7 +218,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public void CreateReverseConnection(Uri url, int timeout)
         {
             TcpServerChannel channel = new TcpServerChannel(
@@ -673,10 +665,10 @@ namespace Opc.Ua.Bindings
             Socket = socket;
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public override object Handle => Socket;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         internal IMessageSocket Socket { get; }
     }
 }

@@ -95,7 +95,9 @@ namespace Opc.Ua.Bindings
             public IMessageSocket Socket;
         }
 
-        /// <remarks/>
+        /// <summary>
+        /// Begin a reverse connect.
+        /// </summary>
         public IAsyncResult BeginReverseConnect(uint channelId, Uri endpointUrl, AsyncCallback callback, object callbackData, int timeout)
         {
             ChannelId = channelId;
@@ -114,7 +116,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// 
+        /// End the reverse connect.
         /// </summary>
         public void EndReverseConnect(IAsyncResult result)
         {
@@ -415,6 +417,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 // update the max chunk count.
+                MaxResponseChunkCount = CalculateChunkCount(MaxResponseMessageSize, SendBufferSize);
+
                 if (maxChunkCount > 0 && maxChunkCount < MaxResponseChunkCount)
                 {
                     MaxResponseChunkCount = (int)maxChunkCount;
