@@ -424,6 +424,8 @@ namespace Opc.Ua.Bindings
                     MaxResponseChunkCount = (int)maxChunkCount;
                 }
 
+                MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, ReceiveBufferSize);
+
                 // send acknowledge.
                 byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "ProcessHelloMessage");
 

@@ -439,6 +439,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // update the max chunk count.
+                MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, SendBufferSize);
                 if (maxChunkCount > 0 && maxChunkCount < MaxRequestChunkCount)
                 {
                     MaxRequestChunkCount = (int)maxChunkCount;
