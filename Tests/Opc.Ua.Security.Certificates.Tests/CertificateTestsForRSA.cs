@@ -46,7 +46,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     public class CertificateTestsForRSA
     {
         #region DataPointSources
-        public const string Subject = "CN=Test Cert Subject";
+        public const string Subject = "CN=Test Cert Subject, C=US, S=Arizona, O=OPC Foundation";
 
         [DatapointSource]
         public static readonly CertificateAsset[] CertificateTestCases = new AssetCollection<CertificateAsset>(TestUtils.EnumerateTestAssets("*.?er")).ToArray();
@@ -102,6 +102,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                     Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
                     X509PfxUtils.VerifyRSAKeyPair(cert, cert, true);
                     Assert.True(X509Utils.VerifySelfSigned(cert));
+                    Assert.AreEqual(cert.SubjectName.Name, cert.IssuerName.Name);
+                    Assert.AreEqual(cert.SubjectName.RawData, cert.IssuerName.RawData);
                     CheckPEMWriter(cert);
                 }
             }
@@ -129,6 +131,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Assert.AreEqual(X509Defaults.RSAKeySize, publicKey.KeySize);
                 publicKey.ExportParameters(false);
             }
+            Assert.AreEqual(cert.SubjectName.Name, cert.IssuerName.Name);
+            Assert.AreEqual(cert.SubjectName.RawData, cert.IssuerName.RawData);
             Assert.AreEqual(X509Defaults.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
             Assert.GreaterOrEqual(DateTime.UtcNow, cert.NotBefore);
             Assert.GreaterOrEqual(DateTime.UtcNow.AddMonths(X509Defaults.LifeTime), cert.NotAfter.ToUniversalTime());
@@ -155,6 +159,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             var basicConstraintsExtension = X509Extensions.FindExtension<X509BasicConstraintsExtension>(cert.Extensions);
             Assert.NotNull(basicConstraintsExtension);
             Assert.True(basicConstraintsExtension.CertificateAuthority);
+            Assert.AreEqual(cert.SubjectName.Name, cert.IssuerName.Name);
+            Assert.AreEqual(cert.SubjectName.RawData, cert.IssuerName.RawData);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
             Assert.True(X509Utils.VerifySelfSigned(cert));
         }
@@ -382,6 +388,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .CreateForRSA(generator))
                 {
                     Assert.NotNull(appCert);
+                    Assert.AreEqual(issuer.SubjectName.Name, appCert.IssuerName.Name);
+                    Assert.AreEqual(issuer.SubjectName.RawData, appCert.IssuerName.RawData);
                     WriteCertificate(appCert, "Signed RSA app cert");
                     CheckPEMWriter(appCert);
                 }
@@ -412,6 +420,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                         .CreateForRSA(generator))
                     {
                         Assert.NotNull(cert);
+                        Assert.AreEqual(issuer.SubjectName.Name, cert.IssuerName.Name);
+                        Assert.AreEqual(issuer.SubjectName.RawData, cert.IssuerName.RawData);
                         WriteCertificate(cert, "Default signed RSA cert");
                         CheckPEMWriter(cert);
                     }
@@ -430,7 +440,6 @@ namespace Opc.Ua.Security.Certificates.Tests
                     {
                         Assert.NotNull(cert);
                         WriteCertificate(cert, "Default signed RSA cert with Public Key");
-                        CheckPEMWriter(cert);
                     }
                 }
 
@@ -446,6 +455,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                     {
                         Assert.NotNull(cert);
                         WriteCertificate(cert, "Default signed RSA cert");
+                        Assert.AreEqual(issuer.SubjectName.Name, cert.IssuerName.Name);
+                        Assert.AreEqual(issuer.SubjectName.RawData, cert.IssuerName.RawData);
                         CheckPEMWriter(cert);
                     }
                 }
@@ -462,7 +473,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     }
                 });
 
-                CheckPEMWriter(signingCert, "123");
+                CheckPEMWriter(signingCert, password: "123");
             }
         }
         #endregion
@@ -493,10 +504,10 @@ namespace Opc.Ua.Security.Certificates.Tests
 #endif
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
-#endregion
+        #region Private Fields
+        #endregion
     }
 
 }
