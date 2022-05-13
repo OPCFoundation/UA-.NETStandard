@@ -25,6 +25,7 @@ pr:
 
 variables:
   FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsFork'], 'False')) }}
+  ScheduledBuild: ${{ eq(variables['Build.Reason'], 'Schedule') }}
 
 stages:
 - stage: build
@@ -68,6 +69,11 @@ stages:
       configuration: Release
       framework: netcoreapp3.1
       jobnamesuffix: core3
+- stage: test6release
+  dependsOn: [build]
+  displayName: 'Test .NET 6 Core and SDK Release'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
@@ -77,7 +83,7 @@ stages:
 - stage: testreleasepr
   dependsOn: []
   displayName: 'Fast PR Test Core and SDK Release'
-  condition: eq(variables.FullBuild, 'False')
+  condition: and(eq(variables.FullBuild, 'False'), eq(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -88,7 +94,7 @@ stages:
 - stage: testdebug
   dependsOn: [build]
   displayName: 'Test Core and SDK Debug'
-  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -97,7 +103,7 @@ stages:
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
-  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/testcc.yml
     parameters:

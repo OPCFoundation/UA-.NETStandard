@@ -179,7 +179,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
                 new byte[] { 0x55, 0xDD, 0xEE, 0x88 },
                 new byte[] { 0x99, 0xAA, 0xBB, 0xCC }
             }, updatedValue);
-            
+
         }
 
     }

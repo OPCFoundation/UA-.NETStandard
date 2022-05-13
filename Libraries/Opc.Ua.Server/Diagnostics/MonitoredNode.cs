@@ -222,8 +222,32 @@ namespace Opc.Ua.Server
 
                 if (baseEventState != null)
                 {
+                    #region  Filter out audit events in case the Server_Auditing values is false or the channel is not encrypted
+                   
+                    if (e is AuditEventState)
+                    {
+                        // check Server.Auditing flag and skip if false
+                        if (!NodeManager.Server.EventManager.ServerAuditing)
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            // check if channel is not encrypted and skip if so
+                            OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
+                            if (operationContext != null &&
+                                operationContext.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
+                                operationContext.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport)
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                    #endregion
+
                     ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
                         baseEventState?.EventType?.Value, PermissionType.ReceiveEvents);
+
 
                     if (ServiceResult.IsBad(validationResult))
                     {

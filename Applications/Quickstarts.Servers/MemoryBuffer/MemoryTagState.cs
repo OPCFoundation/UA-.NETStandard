@@ -75,7 +75,7 @@ namespace MemoryBuffer
             m_offset = offet;
         }
         #endregion
-        
+
         #region Public Properties
         /// <summary>
         /// The offset of the tag address in the memory buffer.

@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -15,6 +15,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -53,6 +54,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -824,10 +826,19 @@ namespace Opc.Ua
                 {
                     if (description.SecurityMode == MessageSecurityMode.None)
                     {
-                        // ensure a security policy is specified for user tokens.
-                        clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+                        if (clone.TokenType == UserTokenType.Anonymous)
+                        {
+                            // no need for security with anonymous token
+                            clone.SecurityPolicyUri = SecurityPolicies.None;
+                        }
+                        else
+                        {
+                            // ensure a security policy is specified for user tokens.
+                            clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+                        }
                     }
                 }
+
                 // ensure each policy has a unique id within the context of the Server
                 clone.PolicyId = Utils.Format("{0}", ++m_userTokenPolicyId);
                 
@@ -849,7 +860,7 @@ namespace Opc.Ua
             // substitute the computer name for localhost if localhost used by client.
             if (Utils.AreDomainsEqual(hostname, "localhost"))
             {
-                return computerName.ToUpper();
+                return computerName.ToUpper(CultureInfo.InvariantCulture);
             }
 
             // check if client is using an ip address.
@@ -859,7 +870,7 @@ namespace Opc.Ua
             {
                 if (IPAddress.IsLoopback(address))
                 {
-                    return computerName.ToUpper();
+                    return computerName.ToUpper(CultureInfo.InvariantCulture);
                 }
 
                 // substitute the computer name for any local IP if an IP is used by client.
@@ -869,12 +880,12 @@ namespace Opc.Ua
                 {
                     if (addresses[ii].Equals(address))
                     {
-                        return computerName.ToUpper();
+                        return computerName.ToUpper(CultureInfo.InvariantCulture);
                     }
                 }
 
                 // not a localhost IP address.
-                return hostname.ToUpper();
+                return hostname.ToUpper(CultureInfo.InvariantCulture);
             }
 
             // check for aliases.
@@ -895,13 +906,13 @@ namespace Opc.Ua
                 {
                     if (Utils.AreDomainsEqual(hostname, entry.Aliases[ii]))
                     {
-                        return computerName.ToUpper();
+                        return computerName.ToUpper(CultureInfo.InvariantCulture);
                     }
                 }
             }
 
             // return normalized hostname.
-            return hostname.ToUpper();
+            return hostname.ToUpper(CultureInfo.InvariantCulture);
         }
 
         /// <summary>

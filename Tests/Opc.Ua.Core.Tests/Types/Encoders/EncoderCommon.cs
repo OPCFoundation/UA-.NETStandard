@@ -50,9 +50,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [SetCulture("en-us")]
     public class EncoderCommon
     {
-        protected const int RandomStart = 4840;
-        protected const int RandomRepeats = 100;
-        protected const string ApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
+        protected const int kRandomStart = 4840;
+        protected const int kRandomRepeats = 100;
+        protected const string kApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
         protected IServiceMessageContext Context { get; private set; }
@@ -66,7 +66,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Context = new ServiceMessageContext();
             NameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
-            NameSpaceUris.GetIndexOrAppend(ApplicationUri);
+            NameSpaceUris.GetIndexOrAppend(kApplicationUri);
             NameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
             ServerUris = new StringTable();
         }
@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void SetUp()
         {
             // ensure tests are reproducible, reset for every test
-            RandomSource = new RandomSource(RandomStart);
+            RandomSource = new RandomSource(kRandomStart);
             DataGenerator = new DataGenerator(RandomSource);
         }
 
@@ -94,7 +94,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected void SetRepeatedRandomSeed()
         {
-            int randomSeed = TestContext.CurrentContext.Random.Next() + RandomStart;
+            int randomSeed = TestContext.CurrentContext.Random.Next() + kRandomStart;
             RandomSource = new RandomSource(randomSeed);
             DataGenerator = new DataGenerator(RandomSource);
         }
@@ -104,14 +104,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected void SetRandomSeed(int randomSeed)
         {
-            RandomSource = new RandomSource(randomSeed + RandomStart);
+            RandomSource = new RandomSource(randomSeed + kRandomStart);
             DataGenerator = new DataGenerator(RandomSource);
         }
         #endregion
 
         #region DataPointSources
         [DatapointSource]
-        public static BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
+        public static readonly BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
             .ToList().Where(b =>
                 (b != BuiltInType.Variant) &&
                 (b != BuiltInType.DiagnosticInfo) &&
@@ -120,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
              ).ToArray();
 
         [DatapointSource]
-        public static EncodingType[] EncoderTypes = (EncodingType[])Enum.GetValues(typeof(EncodingType));
+        public static readonly EncodingType[] EncoderTypes = (EncodingType[])Enum.GetValues(typeof(EncodingType));
         #endregion
 
         #region Protected Methods
@@ -691,14 +691,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             public void Encode(IEncoder encoder)
             {
-                encoder.PushNamespace(ApplicationUri);
+                encoder.PushNamespace(kApplicationUri);
                 encoder.WriteString(FieldName, Foo);
                 encoder.PopNamespace();
             }
 
             public void Decode(IDecoder decoder)
             {
-                decoder.PushNamespace(ApplicationUri);
+                decoder.PushNamespace(kApplicationUri);
                 Foo = decoder.ReadString(FieldName);
                 decoder.PopNamespace();
             }

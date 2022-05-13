@@ -28,20 +28,11 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Reflection;
-using System.Threading;
 using Opc.Ua;
-using Opc.Ua.Server;
 using Range = Opc.Ua.Range;
 
 namespace Boiler
-{       
+{
     /// <summary>
     /// A object representing a generic controller.
     /// </summary>
@@ -63,11 +54,11 @@ namespace Boiler
                 {
                     m_setPoint.Value = range.High;
                 }
-                
+
                 if (m_setPoint.Value < range.Low)
                 {
                     m_setPoint.Value = range.Low;
-                }                
+                }
             }
 
             // calculate error.
@@ -79,12 +70,12 @@ namespace Boiler
 
                 if (Math.Abs(m_controlOut.Value) > 1.0)
                 {
-                    m_controlOut.Value = (m_controlOut.Value < 0)?-1.0:+1.0;
+                    m_controlOut.Value = (m_controlOut.Value < 0) ? -1.0 : +1.0;
                 }
             }
 
             // return the new output.
-            return m_controlOut.Value;            
+            return m_controlOut.Value;
         }
         #endregion
     }

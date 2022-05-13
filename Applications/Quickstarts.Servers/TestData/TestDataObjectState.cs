@@ -153,7 +153,7 @@ namespace TestData
             }
             catch (Exception)
             {
-                throw ;
+                throw;
             }
         }
 

@@ -33,7 +33,6 @@ using System.Threading;
 using System.Reflection;
 using Opc.Ua.Server;
 using System.Linq;
-using System.Diagnostics;
 
 namespace Opc.Ua.Sample
 {
@@ -72,6 +71,7 @@ namespace Opc.Ua.Sample
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -845,7 +845,7 @@ namespace Opc.Ua.Sample
             NodeId referenceTypeId,
             bool isInverse,
             ExpandedNodeId targetId,
-            bool deleteBiDirectional)
+            bool deleteBidirectional)
         {
             lock (Lock)
             {
@@ -859,7 +859,7 @@ namespace Opc.Ua.Sample
 
                 source.RemoveReference(referenceTypeId, isInverse, targetId);
 
-                if (deleteBiDirectional)
+                if (deleteBidirectional)
                 {
                     // check if the target is also managed by the node manager.
                     if (!targetId.IsAbsolute)

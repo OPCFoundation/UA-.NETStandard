@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -33,14 +33,14 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -55,10 +55,10 @@ namespace Opc.Ua
 
         #region Overridden Methods
         /// <summary>
-        /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// Returns a <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
         /// </summary>
         /// <returns>
-        /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// A <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
         /// </returns>
         public override string ToString()
         {
