@@ -123,7 +123,7 @@ namespace TestData
             GenerateValue(system, UIntegerValue);
 
             return base.OnGenerateValues(context, method, objectId, count);
-        }    
+        }
         #endregion
     }
 }

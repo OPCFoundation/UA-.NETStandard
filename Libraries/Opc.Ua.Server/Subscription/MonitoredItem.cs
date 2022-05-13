@@ -919,7 +919,7 @@ namespace Opc.Ua.Server
 
                     if (text != null)
                     {
-                        value = m_server.ResourceManager.Translate(Session.PreferredLocales, text);
+                        value = m_server.ResourceManager.Translate(Session?.PreferredLocales, text);
                     }
 
                     // add value.
@@ -990,7 +990,7 @@ namespace Opc.Ua.Server
                 }
 
                 // construct the context to use for the event filter.
-                FilterContext context = new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session.PreferredLocales);
+                FilterContext context = new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session?.PreferredLocales);
 
                 // event filter must be specified.
                 EventFilter filter = m_filterToUse as EventFilter;
@@ -1161,7 +1161,11 @@ namespace Opc.Ua.Server
                     // place event at the beginning of the queue.
                     if (overflowEvent != null && m_discardOldest)
                     {
-                        notifications.Enqueue(overflowEvent);
+                        if (!ServiceResult.IsBad(ValidateRolePermissions(overflowEvent)))
+                        {
+                            // skip event reporting for EventType without permissions
+                            notifications.Enqueue(overflowEvent);
+                        }
                     }
 
                     for (int ii = 0; ii < m_events.Count; ii++)
@@ -1180,8 +1184,13 @@ namespace Opc.Ua.Server
                                 result.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
                             }
                         }
+                        if (ServiceResult.IsBad(ValidateRolePermissions(m_events[ii])))
+                        {
+                            // skip event reporting for EventType without permissions
+                            continue;
+                        }
 
-                        notifications.Enqueue((EventFieldList)m_events[ii]);
+                        notifications.Enqueue(m_events[ii]);
                     }
 
                     m_events.Clear();
@@ -1189,7 +1198,11 @@ namespace Opc.Ua.Server
                     // place event at the end of the queue.
                     if (overflowEvent != null && !m_discardOldest)
                     {
-                        notifications.Enqueue(overflowEvent);
+                        if (!ServiceResult.IsBad(ValidateRolePermissions(overflowEvent)))
+                        {
+                            // skip event reporting for EventType without permissions
+                            notifications.Enqueue(overflowEvent);
+                        }
                     }
 
                     Utils.LogTrace(Utils.TraceMasks.OperationDetail, "MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
@@ -1779,6 +1792,33 @@ namespace Opc.Ua.Server
         private void QueueOverflowHandler()
         {
             m_subscription?.QueueOverflowHandler();
+        }
+
+        /// <summary>
+        /// Validates the role permitions for given event
+        /// </summary>
+        /// <param name="eventFieldList"></param>
+        /// <returns></returns>
+        private ServiceResult ValidateRolePermissions(EventFieldList eventFieldList)
+        {
+            ServiceResult validationResult = ServiceResult.Good;
+            if (NodeManager is CustomNodeManager2 CustomNodeManager2)
+            {
+                NodeId sourceNode = null;
+                if (eventFieldList.Handle is BaseEventState baseEventState)
+                {
+                    sourceNode = baseEventState.NodeId;
+                }
+                else if (eventFieldList.Handle is InstanceStateSnapshot snapshot)
+                {
+                    ConditionState conditionState = (ConditionState)snapshot.Handle;
+                    sourceNode = conditionState?.NodeId;
+                }
+                validationResult = CustomNodeManager2.ValidateRolePermissions(new OperationContext(this),
+                     sourceNode, PermissionType.ReceiveEvents);
+            }
+
+            return validationResult;
         }
         #endregion
 

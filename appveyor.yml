@@ -4,11 +4,14 @@
 #---------------------------------#
 
 # version format
-version: 1.4.364.{build}-{branch}
+version: 1.4.369.{build}-{branch}
 
 
 # branches to build
 branches:
+  # whitelist
+  only:
+    - appveyor
   # blacklist
   except:
     - gh-pages
@@ -41,7 +44,7 @@ environment:
 
 # this is how to allow failing jobs in the matrix
 matrix:
-  fast_finish: false     # set this flag to immediately finish build once one of the jobs fails.
+  fast_finish: true     # set this flag to immediately finish build once one of the jobs fails.
 
 # scripts to run before build
 before_build:

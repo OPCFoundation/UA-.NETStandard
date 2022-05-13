@@ -154,7 +154,7 @@ namespace Opc.Ua.Server
 
             // find start value.
             DataValue start = null;
-            double startValue = 0;
+            double startValue = Double.NaN;
             TypeInfo originalType = null;
             bool badDataSkipped = false;
 
@@ -162,7 +162,7 @@ namespace Opc.Ua.Server
             {
                 start = values[ii];
 
-                if (StatusCode.IsGood(start.StatusCode))
+                if (IsGood(start))
                 {
                     try
                     {
@@ -182,13 +182,13 @@ namespace Opc.Ua.Server
 
             // find end value.
             DataValue end = null;
-            double endValue = 0;
+            double endValue = Double.NaN;
 
             for (int ii = values.Count - 1; ii >= 0; ii--)
             {
                 end = values[ii];
 
-                if (StatusCode.IsGood(end.StatusCode))
+                if (IsGood(end))    
                 {
                     try
                     {
@@ -270,6 +270,11 @@ namespace Opc.Ua.Server
                 value = values[values.Count - 1];
             }
 
+            if (!IsGood(value))
+            {
+                value.StatusCode = StatusCodes.BadNoData;
+            }
+
             if (returnEnd)
             {
                 value.SourceTimestamp = GetTimestamp(slice);
@@ -302,7 +307,7 @@ namespace Opc.Ua.Server
             DataValue end = values[values.Count-1];
 
             // check for bad bounds.
-            if (StatusCode.IsBad(start.StatusCode) || StatusCode.IsBad(end.StatusCode))
+            if (!IsGood(start) || !IsGood(end))
             {
                 return GetNoDataValue(slice);
             }
@@ -342,7 +347,7 @@ namespace Opc.Ua.Server
             value.SourceTimestamp = GetTimestamp(slice);
             value.ServerTimestamp = GetTimestamp(slice);
 
-            if (StatusCode.IsNotGood(start.StatusCode) || StatusCode.IsNotGood(end.StatusCode))
+            if (!IsGood(start) || !IsGood(end))
             {
                 value.StatusCode = StatusCodes.UncertainDataSubNormal;
             }

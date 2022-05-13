@@ -314,6 +314,15 @@ namespace Opc.Ua.Bindings
         public int Handle => m_socket != null ? m_socket.GetHashCode() : -1;
 
         /// <summary>
+        /// Gets the local endpoint.
+        /// </summary>
+        /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
+        /// See the Remarks section for more information.</exception>
+        /// <exception cref="System.ObjectDisposedException">The System.Net.Sockets.Socket has been closed.</exception>
+        /// <returns>The System.Net.EndPoint that the System.Net.Sockets.Socket is using for communications.</returns>
+        public EndPoint LocalEndpoint => m_socket.LocalEndPoint;
+        
+        /// <summary>
         /// Gets the transport channel features implemented by this message socket.
         /// </summary>
         /// <value>The transport channel feature.</value>

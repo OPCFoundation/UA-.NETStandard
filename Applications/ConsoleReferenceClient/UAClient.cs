@@ -56,40 +56,12 @@ namespace Quickstarts
 
         #region IDisposable
         /// <summary>
-        /// Default dispose implementation.
-        /// </summary>
-        /// <param name="disposing"></param>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!m_disposed)
-            {
-                if (disposing)
-                {
-                    // dispose managed state (managed objects)
-                    Utils.SilentDispose(m_session);
-                }
-
-                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-                // TODO: set large fields to null
-                m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
-                m_disposed = true;
-            }
-        }
-
-        ~UAClient()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: false);
-        }
-
-        /// <summary>
-        /// Dispose 
+        /// Dispose objects.
         /// </summary>
         public void Dispose()
         {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
+            Utils.SilentDispose(m_session);
+            m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
         }
         #endregion
 
@@ -332,7 +304,6 @@ namespace Quickstarts
         private object m_lock = new object();
         private ApplicationConfiguration m_configuration;
         private Session m_session;
-        private bool m_disposed;
         private SessionReconnectHandler m_reconnectHandler;
         private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;

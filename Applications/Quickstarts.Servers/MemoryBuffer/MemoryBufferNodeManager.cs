@@ -49,7 +49,7 @@ namespace MemoryBuffer
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new MemoryBufferNodeManager(server, configuration);
+            return new MemoryBufferNodeManager(server, configuration, NamespacesUris.ToArray());
         }
 
         /// <inheritdoc/>
@@ -75,15 +75,10 @@ namespace MemoryBuffer
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public MemoryBufferNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        public MemoryBufferNodeManager(IServerInternal server, ApplicationConfiguration configuration, string[] namespaceUris)
         :
             base(server)
         {
-            List<string> namespaceUris = new List<string>();
-         
-            namespaceUris.Add(Namespaces.MemoryBuffer);
-            namespaceUris.Add(Namespaces.MemoryBuffer + "/Instance");
-            
             NamespaceUris = namespaceUris;
 
             AddEncodeableNodeManagerTypes(typeof(MemoryBufferNodeManager).Assembly, typeof(MemoryBufferNodeManager).Namespace);
@@ -115,14 +110,14 @@ namespace MemoryBuffer
             lock (Lock)
             {
                 base.CreateAddressSpace(externalReferences);
-                
+
                 // create the nodes from configuration.
                 ushort namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.MemoryBuffer);
 
                 BaseInstanceState root = (BaseInstanceState)FindPredefinedNode(
-                    new NodeId(Objects.MemoryBuffers, namespaceIndex), 
+                    new NodeId(Objects.MemoryBuffers, namespaceIndex),
                     typeof(BaseInstanceState));
-                        
+
                 // create the nodes from configuration.
                 namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.MemoryBuffer + "/Instance");
 
@@ -137,12 +132,12 @@ namespace MemoryBuffer
 
                         // assign node ids.
                         bufferNode.Create(
-                            SystemContext, 
-                            new NodeId(bufferNode.SymbolicName, namespaceIndex), 
+                            SystemContext,
+                            new NodeId(bufferNode.SymbolicName, namespaceIndex),
                             new QualifiedName(bufferNode.SymbolicName, namespaceIndex),
-                            null, 
+                            null,
                             true);
-                        
+
                         bufferNode.CreateBuffer(instance.DataType, instance.TagCount);
                         bufferNode.InitializeMonitoring(Server, this);
 
@@ -185,7 +180,7 @@ namespace MemoryBuffer
         /// NodeManager it should return a handle that does not require the NodeId to be validated again when
         /// the handle is passed into other methods such as 'Read' or 'Write'.
         /// </remarks>
-        protected override object GetManagerHandle(ISystemContext context, NodeId nodeId, IDictionary<NodeId,NodeState> cache)
+        protected override object GetManagerHandle(ISystemContext context, NodeId nodeId, IDictionary<NodeId, NodeState> cache)
         {
             lock (Lock)
             {
@@ -200,14 +195,14 @@ namespace MemoryBuffer
                 {
                     // check for a reference to the buffer.
                     MemoryBufferState buffer = null;
- 
+
                     if (m_buffers.TryGetValue(id, out buffer))
                     {
                         return buffer;
                     }
 
                     // tag ids have the syntax <bufferName>[<address>]
-                    if (id[id.Length-1] != ']')
+                    if (id[id.Length - 1] != ']')
                     {
                         return null;
                     }
@@ -228,7 +223,7 @@ namespace MemoryBuffer
                     }
 
                     // validate the address.
-                    string offsetText = id.Substring(index+1, id.Length-index-2);
+                    string offsetText = id.Substring(index + 1, id.Length - index - 2);
 
                     for (int ii = 0; ii < offsetText.Length; ii++)
                     {
@@ -245,7 +240,7 @@ namespace MemoryBuffer
                     {
                         return null;
                     }
-                    
+
                     // the tags contain all of the metadata required to support the UA
                     // operations and pointers to functions in the buffer object that
                     // allow the value to be accessed. These tags are ephemeral and are
@@ -308,7 +303,7 @@ namespace MemoryBuffer
             {
                 return StatusCodes.BadFilterNotAllowed;
             }
-            
+
             // index range not supported.
             if (itemToCreate.ItemToMonitor.ParsedIndexRange != NumericRange.Empty)
             {
@@ -359,7 +354,7 @@ namespace MemoryBuffer
             {
                 samplingInterval = publishingInterval;
             }
-            
+
             // create the item.
             MemoryBufferMonitoredItem datachangeItem = buffer.CreateDataChangeItem(
                 context as ServerSystemContext,
@@ -439,7 +434,7 @@ namespace MemoryBuffer
                 itemToModify.RequestedParameters.SamplingInterval);
 
             return ServiceResult.Good;
-        }       
+        }
 
         /// <summary>
         /// Deletes a monitored item.
@@ -485,7 +480,7 @@ namespace MemoryBuffer
         protected override ServiceResult SetMonitoringMode(
             ISystemContext context,
             IMonitoredItem monitoredItem,
-            MonitoringMode monitoringMode, 
+            MonitoringMode monitoringMode,
             out bool processed)
         {
             processed = false;
@@ -515,7 +510,7 @@ namespace MemoryBuffer
 
             // delete the item.
             MonitoringMode previousMode = datachangeItem.SetMonitoringMode(monitoringMode);
-            
+
             // need to provide an immediate update after enabling.
             if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
             {
@@ -525,7 +520,7 @@ namespace MemoryBuffer
                 initialValue.ServerTimestamp = DateTime.UtcNow;
                 initialValue.SourceTimestamp = DateTime.MinValue;
                 initialValue.StatusCode = StatusCodes.Good;
-                
+
                 MemoryTagState tag = new MemoryTagState(buffer, datachangeItem.Offset);
 
                 ServiceResult error = tag.ReadAttribute(
@@ -537,7 +532,7 @@ namespace MemoryBuffer
 
                 datachangeItem.QueueValue(initialValue, error);
             }
-            
+
             return ServiceResult.Good;
         }
         #endregion
