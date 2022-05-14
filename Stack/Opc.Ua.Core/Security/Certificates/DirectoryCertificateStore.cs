@@ -35,7 +35,7 @@ namespace Opc.Ua
         public DirectoryCertificateStore()
         {
             m_certificates = new Dictionary<string, Entry>();
-            _pemResolverService = InvokePemResolver.GetPemResolver();
+            m_pemResolverService = InvokePemResolver.GetPemResolver();
         }
         #endregion
 
@@ -360,6 +360,7 @@ namespace Opc.Ua
                                 }
                             }
                         }
+
                         // skip if not RSA certificate
                         if (X509Utils.GetRSAPublicKeySize(certificate) < 0)
                         {
@@ -394,7 +395,7 @@ namespace Opc.Ua
                                         flag);
                                     if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                                     {
-                                        Utils.LogInfo(Utils.TraceMasks.Security, "Imported the private key for [{0}].", certificate.Thumbprint);
+                                        Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PFX private key for [{0}].", certificate.Thumbprint);
                                         return certificate;
                                     }
                                 }
@@ -411,15 +412,18 @@ namespace Opc.Ua
                             certificateFound = true;
                             try
                             {
-                                if (_pemResolverService == null)
+                                if (m_pemResolverService == null || !m_pemResolverService.Active)
                                 {
-                                    throw new Exception("\nPem Resolver not implemented. ");
+                                    byte[] pemDataBlob = File.ReadAllBytes(privateKeyFilePem.FullName);
+                                    certificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, password);
                                 }
-
-                                certificate = _pemResolverService.LoadPrivateKeyFromPem(file, privateKeyFilePem, password);
+                                else
+                                {
+                                    certificate = m_pemResolverService.LoadPrivateKeyFromPem(file, privateKeyFilePem, password);
+                                }
                                 if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                                 {
-                                    Utils.LogInfo(Utils.TraceMasks.Security, "Imported the private key for [{0}].", certificate.Thumbprint);
+                                    Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PEM private key for [{0}].", certificate.Thumbprint);
                                     return certificate;
                                 }
                             }
@@ -916,7 +920,7 @@ namespace Opc.Ua
         private DirectoryInfo m_privateKeySubdir;
         private Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
-        private IPemResolver _pemResolverService;
+        private IPemResolver m_pemResolverService;
         #endregion
     }
 }
