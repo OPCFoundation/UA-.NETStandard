@@ -95,6 +95,11 @@ namespace Opc.Ua.Server
         bool IsReadyToTrigger { get; set; }
 
         /// <summary>
+        /// Gets or Sets a value indicating whether the item is in ResendData state
+        /// </summary>
+        bool IsResendData { get; set; }
+
+        /// <summary>
         /// Returns the result after creating the monitor item.
         /// </summary>
         ServiceResult GetCreateResult(out MonitoredItemCreateResult result);

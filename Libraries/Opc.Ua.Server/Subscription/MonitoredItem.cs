@@ -304,6 +304,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets or Sets a value indicating whether the item is in ResendData state
+        /// </summary>
+        public bool IsResendData { get; set; }
+
+        /// <summary>
         /// Sets a flag indicating that the item has been triggered and should publish.
         /// </summary>
         public bool SetTriggered()
@@ -748,6 +753,11 @@ namespace Opc.Ua.Server
                 if ((m_typeMask & MonitoredItemTypeMask.DataChange) == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);
+                }
+
+                if(IsResendData)
+                {
+                    return;
                 }
 
                 // check monitoring mode.
@@ -1226,7 +1236,7 @@ namespace Opc.Ua.Server
                 }
 
                 // only publish if reporting.
-                if (!IsReadyToPublish)
+                if (!IsReadyToPublish && !IsResendData)
                 {
                     return false;
                 }
@@ -1248,8 +1258,11 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // go to the next sampling interval.
-                IncrementSampleTime();
+                if (!IsResendData)
+                {
+                    // go to the next sampling interval.
+                    IncrementSampleTime();
+                }
 
                 // check if queueing enabled.
                 if (m_queue != null)
@@ -1267,6 +1280,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
+                    //Utils.Trace(4, "Publish last data: {0} ", m_lastValue.WrappedValue);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
 

@@ -493,8 +493,9 @@ namespace Opc.Ua.Server
                             {
                                 m_itemsToCheck.Remove(current);
                                 m_itemsToPublish.AddLast(current);
+                                monitoredItem.IsResendData = false;
                             }
-
+                            
                             current = next;
                         }
                     }
@@ -587,7 +588,12 @@ namespace Opc.Ua.Server
                             ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0))
                     {
                         IDataChangeMonitoredItem2 dataChangeMonitoredItem = (IDataChangeMonitoredItem2)monitoredItem;
+                        dataChangeMonitoredItem.IsResendData = true;
                         dataChangeMonitoredItems.Add(dataChangeMonitoredItem);
+                        if (!monitoredItem.IsReadyToPublish)
+                        {
+                            m_itemsToPublish.AddLast(dataChangeMonitoredItem);
+                        }
                     }
                 }
                 // propagate call to all NodeManagers
@@ -724,6 +730,8 @@ namespace Opc.Ua.Server
                         m_diagnostics.PublishRequestCount++;
                     }
 
+                    //Utils.Trace(4, string.Format("Publish subscription in: {0} ", m_id));
+                    //Utils.Trace(4, string.Format("Publish m_itemsToPublish.Count {0}", m_itemsToPublish.Count));
                     message = InnerPublish(context, out availableSequenceNumbers, out moreNotifications);
 
                     lock (DiagnosticsWriteLock)
@@ -823,9 +831,18 @@ namespace Opc.Ua.Server
 
             // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH");
 
-            // check if a keep alive should be sent if there is no data.
-            bool keepAliveIfNoData = (m_keepAliveCounter >= m_maxKeepAliveCount);
+            //Utils.Trace(4, string.Format("InnerPublish m_keepAliveCounter {0}", m_keepAliveCounter));
+            //Utils.Trace(4, string.Format("InnerPublish m_maxKeepAliveCount {0}", m_maxKeepAliveCount));
 
+            // check if a keep alive should be sent if there is no data.
+            bool keepAliveIfNoData = m_keepAliveCounter >= m_maxKeepAliveCount;
+            //Utils.Trace(4, string.Format("InnerPublish keepAliveIfNoData: {0}", keepAliveIfNoData));
+            
+            
+            //Utils.Trace(4, string.Format("InnerPublish m_sentMessages.Count {0}", m_sentMessages.Count));
+            //Utils.Trace(4, string.Format("InnerPublish m_itemsToPublish.Count {0}", m_itemsToPublish.Count));
+            //Utils.Trace(4, string.Format("InnerPublish m_publishingEnabled {0}", m_publishingEnabled));
+            
             availableSequenceNumbers = new UInt32Collection();
 
             moreNotifications = false;
@@ -863,6 +880,7 @@ namespace Opc.Ua.Server
                     LinkedListNode<IMonitoredItem> next = current.Next;
                     IMonitoredItem monitoredItem = current.Value;
 
+                    //Utils.Trace(4, string.Format("InnerPublish datachanges: {0} MonitoredItemType: {1}", datachanges.Count, monitoredItem.MonitoredItemType));
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
                         ((IDataChangeMonitoredItem)monitoredItem).Publish(context, datachanges, datachangeDiagnostics);

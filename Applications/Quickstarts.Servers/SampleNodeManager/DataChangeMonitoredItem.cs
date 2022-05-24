@@ -466,6 +466,11 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
+        /// Gets or Sets a value indicating whether the item is in ResendData state
+        /// </summary>
+        public bool IsResendData { get; set; }
+        
+        /// <summary>
         /// Returns the results for the create request.
         /// </summary>
         public ServiceResult GetCreateResult(out MonitoredItemCreateResult result)
