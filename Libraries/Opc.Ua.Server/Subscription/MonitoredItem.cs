@@ -30,10 +30,23 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua.Server
 {
+    /// <summary>
+    /// Specifies the values of the ResendData state for a monitored item
+    /// The state is set on the ResendData method call
+    /// </summary>
+    internal enum ResendDataState : int
+    {
+        ///<summary>The Monitored item does not participate in the ResendData</summary>
+        NonResendData = 0,
+        ///<summary>The Monitored item participates in ResendData</summary>
+        ResendData = 1
+    }
+
     /// <summary>
     /// A handle that describes how to access a node/attribute via an i/o manager.
     /// </summary>
@@ -194,6 +207,7 @@ namespace Opc.Ua.Server
             m_readyToTrigger = false;
             m_sourceSamplingInterval = 0;
             m_samplingError = ServiceResult.Good;
+            m_resendDataState = (int)ResendDataState.NonResendData;
         }
         #endregion
 
@@ -264,7 +278,7 @@ namespace Opc.Ua.Server
                     // re-queue if too little time has passed since the last publish.
                     long now = HiResClock.TickCount64;
 
-                    if (m_nextSamplingTime > now)
+                    if ((m_nextSamplingTime > now) && (IsResendData == (int)ResendDataState.NonResendData))
                     {
                         ServerUtils.EventLog.MonitoredItemReady(m_id, Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
                         return false;
@@ -306,7 +320,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or Sets a value indicating whether the item is in ResendData state
         /// </summary>
-        public bool IsResendData { get; set; }
+        public int IsResendData
+        {
+            get
+            {
+                return m_resendDataState;
+            }
+            set
+            {
+                m_resendDataState = value;
+            }
+        }
 
         /// <summary>
         /// Sets a flag indicating that the item has been triggered and should publish.
@@ -755,11 +779,6 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
 
-                if(IsResendData)
-                {
-                    return;
-                }
-
                 // check monitoring mode.
                 if (m_monitoringMode == MonitoringMode.Disabled)
                 {
@@ -891,7 +910,6 @@ namespace Opc.Ua.Server
             m_lastValue = value;
             m_lastError = error;
             m_readyToPublish = true;
-
             ServerUtils.EventLog.QueueValue(m_id, m_lastValue.WrappedValue, m_lastValue.StatusCode);
         }
 
@@ -1235,8 +1253,9 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                // only publish if reporting.
-                if (!IsReadyToPublish && !IsResendData)
+                // only publish if reporting or resending data
+                ResendDataState selectedToResendData = (ResendDataState)Interlocked.CompareExchange(ref m_resendDataState, (int)ResendDataState.NonResendData, (int)ResendDataState.ResendData);
+                if (!IsReadyToPublish && (selectedToResendData == ResendDataState.NonResendData))
                 {
                     return false;
                 }
@@ -1258,11 +1277,8 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (!IsResendData)
-                {
-                    // go to the next sampling interval.
-                    IncrementSampleTime();
-                }
+                // go to the next sampling interval.
+                IncrementSampleTime();
 
                 // check if queueing enabled.
                 if (m_queue != null)
@@ -1280,7 +1296,6 @@ namespace Opc.Ua.Server
                 else
                 {
                     ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
-                    //Utils.Trace(4, "Publish last data: {0} ", m_lastValue.WrappedValue);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
 
@@ -1836,6 +1851,7 @@ namespace Opc.Ua.Server
         private ServiceResult m_samplingError;
         private IAggregateCalculator m_calculator;
         private bool m_triggered;
+        private int m_resendDataState;
         #endregion
     }
 }

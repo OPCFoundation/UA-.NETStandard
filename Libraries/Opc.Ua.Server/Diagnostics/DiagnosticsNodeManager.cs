@@ -1949,11 +1949,8 @@ namespace Opc.Ua.Server
 
                         value.ServerTimestamp = DateTime.UtcNow;
 
-                        if (!monitoredItem.IsResendData)
-                        {
-                            // queue the value.
-                            monitoredItem.QueueValue(value, error);
-                        }
+                        // queue the value.
+                        monitoredItem.QueueValue(value, error);
                     }
                 }
             }

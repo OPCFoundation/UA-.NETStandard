@@ -35,6 +35,8 @@ using System.Threading;
 
 namespace Opc.Ua.Server
 {
+
+
     /// <summary>
     /// Manages a monitored item created by a client.
     /// </summary>
@@ -96,8 +98,10 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Gets or Sets a value indicating whether the item is in ResendData state
+        /// 0 means the MI is not in ResendData state
+        /// 1 means the MI is in ResendData state
         /// </summary>
-        bool IsResendData { get; set; }
+        int IsResendData { get; set; }
 
         /// <summary>
         /// Returns the result after creating the monitor item.
