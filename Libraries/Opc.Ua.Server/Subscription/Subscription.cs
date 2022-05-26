@@ -575,8 +575,6 @@ namespace Opc.Ua.Server
         {
             // check session.
             VerifySession(context);
-            List<IDataChangeMonitoredItem2> dataChangeMonitoredItems = new List<IDataChangeMonitoredItem2>();
-
             lock (m_lock)
             {
                 var monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
@@ -588,12 +586,8 @@ namespace Opc.Ua.Server
                     {
                         IDataChangeMonitoredItem2 dataChangeMonitoredItem = (IDataChangeMonitoredItem2)monitoredItem;
                         dataChangeMonitoredItem.IsResendData = (int)ResendDataState.ResendData;
-                        dataChangeMonitoredItems.Add(dataChangeMonitoredItem);
                     }
                 }
-                // propagate call to all NodeManagers
-                // directly operating on the MI is not correct since the context on which the MI's update their values might be changed
-                m_server.NodeManager.ResendData(context, dataChangeMonitoredItems);
             }
         }
 

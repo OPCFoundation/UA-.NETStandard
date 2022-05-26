@@ -2971,20 +2971,6 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
-        /// Initiates resending data for all monitored items
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="dataChangeMonitoredItems">The datachange monitored items for which resending is initiated</param>
-        public virtual void ResendData(OperationContext context, IList<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
-        {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
-            lock (Lock)
-            {
-                ResendData(systemContext, dataChangeMonitoredItems);
-            }
-        }
-
-        /// <summary>
         /// ReadInitial values.  
         /// </summary>
         /// <param name="systemContext">The context.</param>

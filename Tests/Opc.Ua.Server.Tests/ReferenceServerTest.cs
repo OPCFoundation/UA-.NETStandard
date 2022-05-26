@@ -443,6 +443,8 @@ namespace Opc.Ua.Server.Tests
                     InputArguments = new VariantCollection() { new Variant(subscriptionIds.Last()) }
                 });
 
+                Thread.Sleep(5000);
+
                 //call ResendData method from the same session context
                 m_requestHeader.Timestamp = DateTime.UtcNow;
                 var response = m_server.Call(m_requestHeader,
@@ -452,6 +454,8 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.IsTrue(StatusCode.IsGood(results[0].StatusCode));
                 ServerFixtureUtils.ValidateResponse(response);
+
+                Thread.Sleep(1000);
 
                 // Make sure publish queue becomes empty by consuming it 
                 Assert.AreEqual(1, subscriptionIds.Count);

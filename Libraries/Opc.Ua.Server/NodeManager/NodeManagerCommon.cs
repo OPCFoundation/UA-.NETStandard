@@ -82,29 +82,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Initiates resending data for all monitored items
-        /// </summary>
-        /// <param name="systemContext">The context</param>
-        /// <param name="dataChangeMonitoredItems">The datachange monitored items for which resending is initiated</param>
-        /// <exception cref="ArgumentNullException"></exception>
-        protected virtual void ResendData(ISystemContext systemContext, IList<IDataChangeMonitoredItem2> dataChangeMonitoredItems)
-        {
-            if (systemContext == null) throw new ArgumentNullException(nameof(systemContext));
-            if (dataChangeMonitoredItems == null) throw new ArgumentNullException(nameof(dataChangeMonitoredItems));
-
-            for (int ii = 0; ii < dataChangeMonitoredItems.Count; ii++)
-            {
-                DoReadInitialValue(
-                    (ServerSystemContext)systemContext,
-                    dataChangeMonitoredItems[ii],
-                    null,
-                    false,
-                    null);
-            }
-        }
-
-
-        /// <summary>
         /// NodeManager specific implementation for reading the initial value into the monitored node
         /// </summary>
         /// <param name="systemContext">The context.</param>

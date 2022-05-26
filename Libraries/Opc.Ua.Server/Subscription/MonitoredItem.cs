@@ -252,8 +252,8 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // check if not ready to publish.
-                if (!m_readyToPublish)
+                // check if not ready to publish in case it doesn't ResendData
+                if (!m_readyToPublish && (IsResendData == (int)ResendDataState.NonResendData))
                 {
                     ServerUtils.EventLog.MonitoredItemReady(m_id, "FALSE");
                     return false;
@@ -275,7 +275,7 @@ namespace Opc.Ua.Server
 
                 if (m_sourceSamplingInterval == 0)
                 {
-                    // re-queue if too little time has passed since the last publish.
+                    // re-queue if too little time has passed since the last publish, in case it doesn't ResendData
                     long now = HiResClock.TickCount64;
 
                     if ((m_nextSamplingTime > now) && (IsResendData == (int)ResendDataState.NonResendData))
@@ -1281,7 +1281,7 @@ namespace Opc.Ua.Server
                 IncrementSampleTime();
 
                 // check if queueing enabled.
-                if (m_queue != null)
+                if (m_queue != null && m_queue.ItemsInQueue != 0)
                 {
                     DataValue value = null;
                     ServiceResult error = null;
@@ -1292,7 +1292,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // publish last value if no queuing.
+                // publish last value if no queuing or no items are queued
                 else
                 {
                     ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
