@@ -433,7 +433,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Could not load private key for certificate {0}", subjectName, e.Message);
+                        Utils.LogError(e, "Could not load private key for certificate {0}", subjectName);
                     }
                 }
 
