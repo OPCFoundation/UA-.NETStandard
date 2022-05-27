@@ -35,7 +35,6 @@ namespace Opc.Ua
         public DirectoryCertificateStore()
         {
             m_certificates = new Dictionary<string, Entry>();
-            m_pemResolverService = InvokePemResolver.GetPemResolver();
         }
         #endregion
 
@@ -412,15 +411,8 @@ namespace Opc.Ua
                             certificateFound = true;
                             try
                             {
-                                if (m_pemResolverService == null || !m_pemResolverService.Active)
-                                {
-                                    byte[] pemDataBlob = File.ReadAllBytes(privateKeyFilePem.FullName);
-                                    certificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, password);
-                                }
-                                else
-                                {
-                                    certificate = m_pemResolverService.LoadPrivateKeyFromPem(file, privateKeyFilePem, password);
-                                }
+                                byte[] pemDataBlob = File.ReadAllBytes(privateKeyFilePem.FullName);
+                                certificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, password);
                                 if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                                 {
                                     Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PEM private key for [{0}].", certificate.Thumbprint);
@@ -920,7 +912,6 @@ namespace Opc.Ua
         private DirectoryInfo m_privateKeySubdir;
         private Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
-        private IPemResolver m_pemResolverService;
         #endregion
     }
 }
