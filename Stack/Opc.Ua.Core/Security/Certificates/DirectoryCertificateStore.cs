@@ -308,7 +308,7 @@ namespace Opc.Ua
         public bool SupportsLoadPrivateKey => true;
 
         /// <summary>
-        /// Loads the private key from a PFX file in the certificate store.
+        /// Loads the private key from a PFX/PEM file in the certificate store.
         /// </summary>
         public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
         {
@@ -359,6 +359,7 @@ namespace Opc.Ua
                                 }
                             }
                         }
+
                         // skip if not RSA certificate
                         if (X509Utils.GetRSAPublicKeySize(certificate) < 0)
                         {
@@ -377,35 +378,57 @@ namespace Opc.Ua
                             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet
                         };
 
-                        FileInfo privateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
-                        if (!privateKeyFile.Exists)
-                        {
-                            Utils.LogError(Utils.TraceMasks.Security, "A private key for the certificate with thumbprint [{0}] does not exist.", certificate.Thumbprint);
-                            continue;
-                        }
-
-                        certificateFound = true;
+                        FileInfo privateKeyFilePfx = new FileInfo(filePath + ".pfx");
+                        FileInfo privateKeyFilePem = new FileInfo(filePath + ".pem");
                         password = password ?? String.Empty;
-                        foreach (var flag in storageFlags)
+                        if (privateKeyFilePfx.Exists)
                         {
+                            certificateFound = true;
+                            foreach (var flag in storageFlags)
+                            {
+                                try
+                                {
+                                    certificate = new X509Certificate2(
+                                        privateKeyFilePfx.FullName,
+                                        password,
+                                        flag);
+                                    if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                                    {
+                                        Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PFX private key for [{0}].", certificate.Thumbprint);
+                                        return certificate;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    importException = ex;
+                                    certificate?.Dispose();
+                                }
+                            }
+                        }
+                        // if PFX file doesn't exist, check for PEM file.
+                        else if (privateKeyFilePem.Exists)
+                        {
+                            certificateFound = true;
                             try
                             {
-                                certificate = new X509Certificate2(
-                                    privateKeyFile.FullName,
-                                    password,
-                                    flag);
+                                byte[] pemDataBlob = File.ReadAllBytes(privateKeyFilePem.FullName);
+                                certificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, password);
                                 if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                                 {
-                                    Utils.LogInfo(Utils.TraceMasks.Security, "Imported the private key for [{0}].", certificate.Thumbprint);
+                                    Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PEM private key for [{0}].", certificate.Thumbprint);
                                     return certificate;
                                 }
                             }
-                            catch (Exception ex)
+                            catch (Exception exception)
                             {
-                                importException = ex;
                                 certificate?.Dispose();
-                                certificate = null;
+                                importException = exception;
                             }
+                        }
+                        else
+                        {
+                            Utils.LogError(Utils.TraceMasks.Security, "A private key for the certificate with thumbprint [{0}] does not exist.", certificate.Thumbprint);
+                            continue;
                         }
                     }
                     catch (Exception e)
