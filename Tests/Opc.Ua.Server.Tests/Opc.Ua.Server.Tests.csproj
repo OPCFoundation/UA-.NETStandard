@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.WebSockets\Opc.Ua.Bindings.WebSockets.csproj" />
   </ItemGroup>
 
 </Project>
