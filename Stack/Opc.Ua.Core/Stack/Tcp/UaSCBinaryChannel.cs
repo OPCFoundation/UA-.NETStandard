@@ -507,7 +507,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Writes an error to a stream.
         /// </summary>
-        protected static void WriteErrorMessageBody(BinaryEncoder encoder, ServiceResult error)
+        public static void WriteErrorMessageBody(BinaryEncoder encoder, ServiceResult error)
         {
             string reason = (error.LocalizedText != null) ? error.LocalizedText.Text : null;
 

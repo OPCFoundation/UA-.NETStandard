@@ -378,6 +378,13 @@ namespace Opc.Ua
                         address.DiscoveryUrl = address.Url;
                         break;
                     }
+
+                    case Utils.UriSchemeOpcWss:
+                    {
+                        address.ProfileUri = Profiles.WssJsonTransport;
+                        address.DiscoveryUrl = address.Url;
+                        break;
+                    }
                 }
 
                 BaseAddresses.Add(address);

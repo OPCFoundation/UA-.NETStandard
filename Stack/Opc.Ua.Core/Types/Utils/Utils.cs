@@ -26,6 +26,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Net;
 using System.Collections.ObjectModel;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -76,7 +77,8 @@ namespace Opc.Ua
         public static readonly string[] DefaultUriSchemes = new string[]
         {
             Utils.UriSchemeOpcTcp,
-            Utils.UriSchemeHttps
+            Utils.UriSchemeHttps,
+            Utils.UriSchemeOpcWss
         };
 
         /// <summary>
@@ -139,7 +141,8 @@ namespace Opc.Ua
         /// </summary>
         public static readonly ReadOnlyDictionary<string, string> DefaultBindings = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>() {
-                { Utils.UriSchemeHttps, "Opc.Ua.Bindings.Https"}
+                { Utils.UriSchemeHttps, "Opc.Ua.Bindings.Https"},
+                { Utils.UriSchemeOpcWss, "Opc.Ua.Bindings.WebSockets"}
             });
         #endregion
 

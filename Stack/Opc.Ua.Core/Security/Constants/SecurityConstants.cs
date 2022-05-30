@@ -104,9 +104,14 @@ namespace Opc.Ua
         public const string UaTcpTransport = "http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary";
 
         /// <summary>
-        /// Communicates with UA TCP over secure Websockets, UA Security and UA Binary.
+        /// Communicates with UA JSON over WebSockets.
         /// </summary>
-        public const string UaWssTransport = "http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary";
+        public const string WssJsonTransport = "http://opcfoundation.org/UA-Profile/Transport/wss-uajson";
+
+        /// <summary>
+        /// Communicates with UA JSON over WebSockets.
+        /// </summary>
+        public const string WssBinaryTransport = "http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary";
 
         /// <summary>
         /// Communicates with UA Binary over HTTPS.

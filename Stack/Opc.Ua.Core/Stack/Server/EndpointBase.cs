@@ -359,6 +359,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="exception"></param>
+        /// <returns></returns>
+        public static ServiceFault CreateServiceFault(IServiceRequest request, Exception exception)
+        {
+            return CreateFault(request, exception);
+        }
+
+        /// <summary>
         /// Creates a fault message.
         /// </summary>
         /// <param name="request">The request.</param>

@@ -18,19 +18,36 @@ using System.Security.Cryptography.X509Certificates;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Defines internal functions to implement RSA cryptography.
+    /// Defines public functions to implement RSA cryptography.
     /// </summary>
-    internal static class RsaUtils
+    public static class RsaUtils
     {
         #region Public Enum
+        /// <summary>
+        /// 
+        /// </summary>
         public enum Padding
         {
+            /// <summary>
+            /// 
+            /// </summary>
             Pkcs1,
+            /// <summary>
+            /// 
+            /// </summary>
             OaepSHA1,
+            /// <summary>
+            /// 
+            /// </summary>
             OaepSHA256
         };
 
-        internal static RSAEncryptionPadding GetRSAEncryptionPadding(Padding padding)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="padding"></param>
+        /// <returns></returns>
+        public static RSAEncryptionPadding GetRSAEncryptionPadding(Padding padding)
         {
             switch (padding)
             {
@@ -46,7 +63,7 @@ namespace Opc.Ua
         /// <summary>
         /// Return the plaintext block size for RSA OAEP encryption.
         /// </summary>
-        internal static int GetPlainTextBlockSize(X509Certificate2 encryptingCertificate, Padding padding)
+        public static int GetPlainTextBlockSize(X509Certificate2 encryptingCertificate, Padding padding)
         {
             using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
@@ -57,7 +74,7 @@ namespace Opc.Ua
         /// <summary>
         /// Return the plaintext block size for RSA OAEP encryption.
         /// </summary>
-        internal static int GetPlainTextBlockSize(RSA rsa, Padding padding)
+        public static int GetPlainTextBlockSize(RSA rsa, Padding padding)
         {
             if (rsa != null)
             {
@@ -74,7 +91,7 @@ namespace Opc.Ua
         /// <summary>
         /// Return the ciphertext block size for RSA OAEP encryption.
         /// </summary>
-        internal static int GetCipherTextBlockSize(X509Certificate2 encryptingCertificate, Padding padding)
+        public static int GetCipherTextBlockSize(X509Certificate2 encryptingCertificate, Padding padding)
         {
             using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
@@ -85,7 +102,7 @@ namespace Opc.Ua
         /// <summary>
         /// Return the ciphertext block size for RSA OAEP encryption.
         /// </summary>
-        internal static int GetCipherTextBlockSize(RSA rsa, Padding padding)
+        public static int GetCipherTextBlockSize(RSA rsa, Padding padding)
         {
             if (rsa != null)
             {
@@ -97,7 +114,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the length of a RSA PKCS#1 v1.5 signature of a digest.
         /// </summary>
-        internal static int GetSignatureLength(X509Certificate2 signingCertificate)
+        public static int GetSignatureLength(X509Certificate2 signingCertificate)
         {
             using (RSA rsa = signingCertificate.GetRSAPublicKey())
             {
@@ -112,7 +129,7 @@ namespace Opc.Ua
         /// <summary>
         /// Computes a RSA signature.
         /// </summary>
-        internal static byte[] Rsa_Sign(
+        public static byte[] Rsa_Sign(
             ArraySegment<byte> dataToSign,
             X509Certificate2 signingCertificate,
             HashAlgorithmName hashAlgorithm,
@@ -134,7 +151,7 @@ namespace Opc.Ua
         /// <summary>
         /// Verifies a RSA signature.
         /// </summary>
-        internal static bool Rsa_Verify(
+        public static bool Rsa_Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
             X509Certificate2 signingCertificate,
@@ -157,7 +174,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encrypts the data using RSA encryption.
         /// </summary>
-        internal static byte[] Encrypt(
+        public static byte[] Encrypt(
             byte[] dataToEncrypt,
             X509Certificate2 encryptingCertificate,
             Padding padding)
@@ -240,7 +257,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decrypts the data using RSA encryption.
         /// </summary>
-        internal static byte[] Decrypt(
+        public static byte[] Decrypt(
             ArraySegment<byte> dataToDecrypt,
             X509Certificate2 encryptingCertificate,
             Padding padding)
@@ -322,7 +339,7 @@ namespace Opc.Ua
         /// <summary>
         /// Helper to test for RSASignaturePadding.Pss support, some platforms do not support it.
         /// </summary>
-        internal static bool TryVerifyRSAPssSign(RSA publicKey, RSA privateKey)
+        public static bool TryVerifyRSAPssSign(RSA publicKey, RSA privateKey)
         {
             try
             {
@@ -342,7 +359,7 @@ namespace Opc.Ua
         /// <summary>
         /// Lazy helper to allow runtime to check for Pss support.
         /// </summary>
-        internal static readonly Lazy<bool> IsSupportingRSAPssSign = new Lazy<bool>(() => {
+        public static readonly Lazy<bool> IsSupportingRSAPssSign = new Lazy<bool>(() => {
 #if NETFRAMEWORK
             // The Pss check returns false on .Net4.6/4.7, although it is always supported with certs.
             // but not supported with Mono
