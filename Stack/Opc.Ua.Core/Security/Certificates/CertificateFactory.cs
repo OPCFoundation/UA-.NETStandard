@@ -548,7 +548,7 @@ namespace Opc.Ua
                 // use the common name as the application name.
                 for (int ii = 0; ii < subjectNameEntries.Count; ii++)
                 {
-                    if (subjectNameEntries[ii].StartsWith("CN="))
+                    if (subjectNameEntries[ii].StartsWith("CN=", StringComparison.Ordinal))
                     {
                         applicationName = subjectNameEntries[ii].Substring(3).Trim();
                         break;

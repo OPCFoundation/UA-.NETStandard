@@ -500,8 +500,19 @@ namespace Opc.Ua
         /// NodeId = "hello123"<br/>
         /// NamespaceUri = "http://mycompany/"<br/>
         /// <br/> This would translate into:<br/>
-        /// nsu=http://mycompany/;str=hello123
-        /// <br/></para>
+        /// nsu=http://mycompany/;s=hello123
+        /// <br/>
+        /// </para>
+        /// <para>
+        /// NodeId = 5<br/>
+        /// NamespaceIndex = 2<br/>
+        /// <br/> This would translate into:<br/>
+        /// ns=2;i=5
+        /// <br/>
+        /// </para>
+        /// <para>
+        /// Note: Only information already included in the ExpandedNodeId-Instance will be included in the result
+        /// </para>
         /// </remarks>
         public string Format()
         {

@@ -988,6 +988,11 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(browsePaths, OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
 
+                foreach (BrowsePath bp in browsePaths)
+                {
+                    ValidateOperationLimits(bp.RelativePath.Elements.Count, OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
+                }
+
                 m_serverInternal.NodeManager.TranslateBrowsePathsToNodeIds(
                     context,
                     browsePaths,

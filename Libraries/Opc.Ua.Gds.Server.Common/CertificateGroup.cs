@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -246,14 +247,14 @@ namespace Opc.Ua.Gds.Server
                         domainNames = domainNameList.ToArray();
                     }
                 }
-
+                
                 DateTime yesterday = DateTime.Today.AddDays(-1);
                 using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty).ConfigureAwait(false))
                 {
                     return CertificateFactory.CreateCertificate(
                             application.ApplicationUri,
                             null,
-                            info.Subject.ToString(),
+                            info.Subject.ToString(true, (IDictionary)Org.BouncyCastle.Asn1.X509.X509Name.DefaultSymbols),
                             domainNames)
                         .SetNotBefore(yesterday)
                         .SetLifeTime(Configuration.DefaultCertificateLifetime)
@@ -328,7 +329,7 @@ namespace Opc.Ua.Gds.Server
             )
         {
             X509CRL updatedCRL = null;
-            string subjectName = certificate.IssuerName.Name;
+            X500DistinguishedName subjectName = certificate.IssuerName;
             string keyId = null;
             string serialNumber = null;
 
@@ -351,7 +352,7 @@ namespace Opc.Ua.Gds.Server
             if (!isCACert)
             {
                 if (serialNumber == certificate.SerialNumber ||
-                    X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
+                    X509Utils.IsSelfSigned(certificate))
                 {
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot revoke self signed certificates");
                 }
@@ -364,7 +365,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     throw new ArgumentException("Invalid store path/type");
                 }
-                certCA = await X509Utils.FindIssuerCABySerialNumberAsync(store, certificate.Issuer, serialNumber).ConfigureAwait(false);
+                certCA = await X509Utils.FindIssuerCABySerialNumberAsync(store, certificate.IssuerName, serialNumber).ConfigureAwait(false);
 
                 if (certCA == null)
                 {
@@ -480,10 +481,10 @@ namespace Opc.Ua.Gds.Server
         }
         #endregion
 
-        #region Protected Fields
-        protected readonly string SubjectName;
-        protected readonly string AuthoritiesStorePath;
-        protected readonly string AuthoritiesStoreType;
+        #region Protected Properties
+        protected string SubjectName { get; }
+        protected string AuthoritiesStorePath { get; }
+        protected string AuthoritiesStoreType { get; }
         #endregion 
 
     }

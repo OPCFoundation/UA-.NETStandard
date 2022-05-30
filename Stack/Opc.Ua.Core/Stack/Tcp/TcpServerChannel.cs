@@ -79,7 +79,9 @@ namespace Opc.Ua.Bindings
             public IMessageSocket Socket;
         }
 
-        /// <remarks/>
+        /// <summary>
+        /// Begin a reverse connect.
+        /// </summary>
         public IAsyncResult BeginReverseConnect(uint channelId, Uri endpointUrl, AsyncCallback callback, object callbackData, int timeout)
         {
             ChannelId = channelId;
@@ -98,7 +100,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// 
+        /// End the reverse connect.
         /// </summary>
         public void EndReverseConnect(IAsyncResult result)
         {
@@ -399,10 +401,14 @@ namespace Opc.Ua.Bindings
                 }
 
                 // update the max chunk count.
+                MaxResponseChunkCount = CalculateChunkCount(MaxResponseMessageSize, SendBufferSize);
+
                 if (maxChunkCount > 0 && maxChunkCount < MaxResponseChunkCount)
                 {
                     MaxResponseChunkCount = (int)maxChunkCount;
                 }
+
+                MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, ReceiveBufferSize);
 
                 // send acknowledge.
                 byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "ProcessHelloMessage");
@@ -537,7 +543,7 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody);
+                    SaveIntermediateChunk(requestId, messageBody, true);
                     return false;
                 }
 
@@ -548,7 +554,7 @@ namespace Opc.Ua.Bindings
                 token.ServerNonce = CreateNonce(ServerCertificate);
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 OpenSecureChannelRequest request = (OpenSecureChannelRequest)BinaryDecoder.DecodeMessage(
                     new ArraySegmentStream(chunksToProcess),
@@ -790,12 +796,12 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody);
+                    SaveIntermediateChunk(requestId, messageBody, true);
                     return false;
                 }
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 CloseSecureChannelRequest request = BinaryDecoder.DecodeMessage(
                     new ArraySegmentStream(chunksToProcess),
@@ -883,21 +889,21 @@ namespace Opc.Ua.Bindings
                 if (TcpMessageType.IsAbort(messageType))
                 {
                     Utils.LogWarning(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessRequestMessage RequestId {1} was aborted.", ChannelId, requestId);
-                    chunksToProcess = GetSavedChunks(requestId, messageBody);
+                    chunksToProcess = GetSavedChunks(requestId, messageBody, true);
                     return true;
                 }
 
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody);
+                    SaveIntermediateChunk(requestId, messageBody, true);
                     return true;
                 }
 
                 // Utils.LogTrace("ChannelId {0}: ProcessRequestMessage RequestId {1}", ChannelId, requestId);
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 // decode the request.
                 IServiceRequest request = BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) as IServiceRequest;
@@ -936,6 +942,15 @@ namespace Opc.Ua.Bindings
                     chunksToProcess.Release(BufferManager, "ProcessRequestMessage");
                 }
             }
+        }
+
+        /// <summary>
+        /// Closes the channel in case the message limits have been exceeded
+        /// </summary>
+        protected override void DoMessageLimitsExceeded()
+        {
+            base.DoMessageLimitsExceeded();
+            ChannelClosed();
         }
         #endregion
 
