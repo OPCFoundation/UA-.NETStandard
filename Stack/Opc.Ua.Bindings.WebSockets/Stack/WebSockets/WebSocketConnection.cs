@@ -55,17 +55,17 @@ namespace Opc.Ua.Bindings
         {
             if (client == null)
             {
-                throw new ArgumentNullException("client");
+                throw new ArgumentNullException(nameof(client));
             }
 
             if (stream == null)
             {
-                throw new ArgumentNullException("stream");
+                throw new ArgumentNullException(nameof(stream));
             }
 
             if (bufferManager == null)
             {
-                throw new ArgumentNullException("bufferManager");
+                throw new ArgumentNullException(nameof(bufferManager));
             }
 
             m_client = client;

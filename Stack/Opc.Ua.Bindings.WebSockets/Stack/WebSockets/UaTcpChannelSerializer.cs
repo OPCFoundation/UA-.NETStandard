@@ -74,8 +74,8 @@ namespace Opc.Ua.Bindings
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection endpoints)
         {
-            if (bufferManager == null) throw new ArgumentNullException("bufferManager");
-            if (quotas == null) throw new ArgumentNullException("quotas");
+            if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
+            if (quotas == null) throw new ArgumentNullException(nameof(quotas));
 
             m_bufferManager = bufferManager;
             m_quotas = quotas;
@@ -119,13 +119,13 @@ namespace Opc.Ua.Bindings
                 {
                     if (endpoint.SecurityMode != MessageSecurityMode.None)
                     {
-                        if (serverCertificate == null) throw new ArgumentNullException("serverCertificate");
+                        if (serverCertificate == null) throw new ArgumentNullException(nameof(serverCertificate));
 
                         if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
                         {
                             throw new ArgumentException(
                                 Utils.Format("The DER encoded certificate may not be more than {0} bytes.", TcpMessageLimits.MaxCertificateSize),
-                                "serverCertificate");
+                                nameof(serverCertificate));
                         }
 
                         if (clientCertificate != null)
@@ -134,7 +134,7 @@ namespace Opc.Ua.Bindings
                             {
                                 throw new ArgumentException(
                                     Utils.Format("The DER encoded certificate may not be more than {0} bytes.", TcpMessageLimits.MaxCertificateSize),
-                                    "clientCertificate");
+                                    nameof(clientCertificate));
                             }
                         }
 
@@ -1416,7 +1416,7 @@ namespace Opc.Ua.Bindings
         {
             if (offset >= Int32.MaxValue - 4)
             {
-                throw new ArgumentOutOfRangeException("offset");
+                throw new ArgumentOutOfRangeException(nameof(offset));
             }
 
             offset += 4;
