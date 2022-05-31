@@ -135,10 +135,14 @@ namespace Opc.Ua.Server
             DataValue value = new DataValue();
             value.WrappedValue = new Variant(count, TypeInfo.Scalars.Int32);
             value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);           
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.ServerTimestamp = GetTimestamp(slice);     
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 
+            if (!StatusCode.IsBad(value.StatusCode))
+            {
+                // set aggregate bits fon non Bad values
+                value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            }
             // return result.
             return value;
         }
@@ -222,9 +226,9 @@ namespace Opc.Ua.Server
             DataValue value = new DataValue();
             value.WrappedValue = new Variant(duration, TypeInfo.Scalars.Double);
             value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.ServerTimestamp = GetTimestamp(slice);            
             value.StatusCode = GetTimeBasedStatusCode(regions, value.StatusCode);
+            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
             // return result.
             return value;

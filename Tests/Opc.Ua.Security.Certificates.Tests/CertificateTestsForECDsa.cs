@@ -46,7 +46,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     public class CertificateTestsForECDsa
     {
         #region DataPointSources
-        public const string Subject = "CN=Test Cert Subject";
+        public const string Subject = "CN=Test Cert Subject, O=OPC Foundation";
 
         [DatapointSource]
         public static readonly CertificateAsset[] CertificateTestCases =

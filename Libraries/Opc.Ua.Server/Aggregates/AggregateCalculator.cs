@@ -891,7 +891,7 @@ namespace Opc.Ua.Server
                 {
                     dataValue = SteppedInterpolate(timestamp, slice.EarlyBound.Value);
 
-                    if (slice.EarlyBound.Next == null || CompareTimestamps(timestamp, slice.EarlyBound.Next) >= 0)
+                    if (slice.EarlyBound.Next == null || CompareTimestamps(timestamp, slice.EarlyBound.Next) > 0)
                     {
                         UsingExtrapolation = true;
                         dataValue.StatusCode = dataValue.StatusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
@@ -1220,7 +1220,7 @@ namespace Opc.Ua.Server
                     break;
                 }
 
-                if (CompareTimestamps(slice.StartTime, ii) < 0)
+                if (CompareTimestamps(slice.StartTime, ii) <= 0)
                 {
                     values.Add(ii.Value);
                 }
@@ -1439,19 +1439,20 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // default to good.
-            statusCode = statusCode.SetCodeBits(StatusCodes.Good);
-
-            // uncertain if the good duration is less than the configured threshold.
-            if ((goodCount / totalCount) * 100 < Configuration.PercentDataGood)
+            if (totalCount == 0 || (goodCount / totalCount) * 100 >= Configuration.PercentDataGood)
             {
-                statusCode = statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                // good if the good count is greater than or equal to the configured threshold.
+                statusCode = statusCode.SetCodeBits(StatusCodes.Good);
             }
-
-            // bad if the bad duration is greater than or equal to the configured threshold.
-            if ((badCount / totalCount) * 100 >= Configuration.PercentDataBad)
+            else if ((badCount / totalCount) * 100 >= Configuration.PercentDataBad)
             {
+                // bad if the bad count is greater than or equal to the configured threshold.
                 statusCode = StatusCodes.Bad;
+            }
+            else
+            {
+                // uncertain if did not meet the Good or Bad requirements
+                statusCode = statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
             }
 
             return statusCode;
@@ -1499,25 +1500,28 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (StatusCode.IsGood(region.StatusCode))
+                // Take into account the Uncertain status code
+                if (StatusCode.IsGood(region.StatusCode)
+                    || (!Configuration.TreatUncertainAsBad && StatusCode.IsUncertain(region.StatusCode)))
                 {
                     goodDuration += region.Duration;
                 }
             }
 
-            // default to good.
-            statusCode = statusCode.SetCodeBits(StatusCodes.Good);
-
-            // uncertain if the good duration is less than the configured threshold.
-            if ((goodDuration/totalDuration)*100 < Configuration.PercentDataGood)
+            if (totalDuration == 0 || (goodDuration / totalDuration) * 100 >= Configuration.PercentDataGood)
             {
-                statusCode = statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                // good if the good duration is greater than or equal to the configured threshold.
+                statusCode = statusCode.SetCodeBits(StatusCodes.Good);
             }
-
-            // bad if the bad duration is greater than or equal to the configured threshold.
-            if ((badDuration/totalDuration)*100 >= Configuration.PercentDataBad)
+            else if ((badDuration / totalDuration) * 100 >= Configuration.PercentDataBad)
             {
+                // bad if the bad duration is greater than or equal to the configured threshold.
                 statusCode = StatusCodes.Bad;
+            }
+            else
+            {
+                // uncertain if did not meet the Good or Bad requirements
+                statusCode = statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
             }
 
             // always calculated.

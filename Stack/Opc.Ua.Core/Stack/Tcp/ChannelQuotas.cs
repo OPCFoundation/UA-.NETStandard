@@ -25,7 +25,7 @@ namespace Opc.Ua.Bindings
         {
             m_messageContext = ServiceMessageContext.GlobalContext;
             m_maxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;
-            m_maxBufferSize = TcpMessageLimits.DefaultMaxMessageSize;
+            m_maxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
             m_channelLifetime = TcpMessageLimits.DefaultChannelLifetime;
             m_securityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
         }
