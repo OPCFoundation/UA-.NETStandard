@@ -2964,7 +2964,7 @@ namespace Opc.Ua.Server
                     }
 
                     // validate the role permissions for method to be executed,
-                    // it may diferent from the specified MethidId in the MethodId i nthe method call
+                    // it may be a diferent MethodState that does not have the MethodId specified in the method call
                     errors[ii] = ValidateRolePermissions(context,
                         method.NodeId,
                         PermissionType.Call);
