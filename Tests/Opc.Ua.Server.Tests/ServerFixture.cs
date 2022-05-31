@@ -90,6 +90,11 @@ namespace Opc.Ua.Server.Tests
                     .AddSignPolicies()
                     .AddSignAndEncryptPolicies();
             }
+            else if (endpointUrl.StartsWith(Utils.UriSchemeOpcWss, StringComparison.InvariantCultureIgnoreCase))
+            {
+                serverConfig
+                    .AddSignAndEncryptPolicies();
+            }
 
             if (OperationLimits)
             {
