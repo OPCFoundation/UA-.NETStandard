@@ -2962,6 +2962,17 @@ namespace Opc.Ua.Server
                             continue;
                         }
                     }
+
+                    // validate the role permissions for method to be executed,
+                    // it may diferent from the specified MethidId in the MethodId i nthe method call
+                    errors[ii] = ValidateRolePermissions(context,
+                        method.NodeId,
+                        PermissionType.Call);
+
+                    if (ServiceResult.IsBad(errors[ii]))
+                    {
+                        continue;
+                    }
                 }
 
                 // call the method.
