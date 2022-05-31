@@ -42,6 +42,7 @@ namespace Opc.Ua
         {
             m_typeDefinitionId = state.TypeDefinitionId;
             m_snapshot = CreateChildNode(context, state);
+            m_handle = state;
         }
 
         /// <summary>
