@@ -83,10 +83,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
             uint nodeId = 100;
 
-            var structure = new StructureDefinition() {
+            var structure = new StructureDefinition()
+            {
                 BaseDataType = DataTypeIds.Structure
             };
-            var field = new StructureField() {
+            var field = new StructureField()
+            {
                 Name = "Make",
                 Description = new LocalizedText("The make"),
                 DataType = DataTypeIds.String,
@@ -96,7 +98,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 IsOptional = false
             };
             structure.Fields.Add(field);
-            field = new StructureField() {
+            field = new StructureField()
+            {
                 Name = "Model",
                 Description = new LocalizedText("The model"),
                 DataType = DataTypeIds.String,
@@ -106,7 +109,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 IsOptional = false
             };
             structure.Fields.Add(field);
-            field = new StructureField() {
+            field = new StructureField()
+            {
                 Name = "Engine",
                 Description = new LocalizedText("The engine"),
                 DataType = DataTypeIds.String,
@@ -116,7 +120,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 IsOptional = false
             };
             structure.Fields.Add(field);
-            field = new StructureField() {
+            field = new StructureField()
+            {
                 Name = "NoOfPassengers",
                 Description = new LocalizedText("The number of passengers"),
                 DataType = DataTypeIds.UInt32,
@@ -127,7 +132,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             structure.Fields.Add(field);
 
-            var dataTypeNode = new DataTypeNode() {
+            var dataTypeNode = new DataTypeNode()
+            {
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
                 BrowseName = new QualifiedName("CarType", nameSpaceIndex),
@@ -137,7 +143,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
 
             // binary encoding
-            var description = new ReferenceDescription() {
+            var description = new ReferenceDescription()
+            {
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
                 BrowseName = BrowseNames.DefaultBinary,
