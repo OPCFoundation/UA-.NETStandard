@@ -40,7 +40,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Transfers a set of MonitoredItems
         /// </summary>
-        /// <param name="systemContext">The context.</param>
         /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
         /// <param name="monitoredItems">The set of monitoring items to update.</param>
         /// <param name="processedItems">The list of bool with items that were already processed.</param>
@@ -48,13 +47,11 @@ namespace Opc.Ua.Server
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         protected virtual IList<IMonitoredItem> TransferMonitoredItems(
-            ISystemContext systemContext,
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
-            if (systemContext == null) throw new ArgumentNullException(nameof(systemContext));
             if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
             if (processedItems == null) throw new ArgumentNullException(nameof(processedItems));
 
@@ -64,36 +61,30 @@ namespace Opc.Ua.Server
             {
                 if (sendInitialValues)
                 {
-                    (errors[ii], processedItems[ii], transferredItems) = DoReadInitialValue(
-                        (ServerSystemContext)systemContext,
+                    processedItems[ii] = DoCollectTransferredMonitoredItems(
                         monitoredItems[ii],
-                        errors[ii],
                         processedItems[ii],
                         transferredItems);
                 }
-                else
+
+                if (processedItems[ii] == true)
                 {
                     errors[ii] = StatusCodes.Good;
                 }
             }
 
             return transferredItems;
-
         }
 
         /// <summary>
         /// NodeManager specific implementation for reading the initial value into the monitored node
         /// </summary>
-        /// <param name="systemContext">The context.</param>
         /// <param name="monitoredItem">The monitoring item to update.</param>
-        /// <param name="errorCode">Any error.</param>
         /// <param name="processedItem">Has the item allready been processed.</param>
         /// <param name="transferredItems">The transferred monitored items.</param>
         /// <returns></returns>
-        protected abstract Tuple<ServiceResult, bool, IList<IMonitoredItem>> DoReadInitialValue(
-            ServerSystemContext systemContext,
+        protected abstract bool DoCollectTransferredMonitoredItems(
             IMonitoredItem monitoredItem,
-            ServiceResult errorCode,
             bool processedItem,
             IList<IMonitoredItem> transferredItems);
     }

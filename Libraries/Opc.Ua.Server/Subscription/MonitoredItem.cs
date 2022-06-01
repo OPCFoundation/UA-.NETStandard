@@ -252,8 +252,12 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                bool isResendData = (int)ResendDataState.ResendData == Interlocked.CompareExchange(ref m_resendDataState,
+                    (int)ResendDataState.ResendData,
+                    (int)ResendDataState.ResendData);
+
                 // check if not ready to publish in case it doesn't ResendData
-                if (!m_readyToPublish && (IsResendData == (int)ResendDataState.NonResendData))
+                if (!m_readyToPublish && (!isResendData))
                 {
                     ServerUtils.EventLog.MonitoredItemReady(m_id, "FALSE");
                     return false;
@@ -278,7 +282,7 @@ namespace Opc.Ua.Server
                     // re-queue if too little time has passed since the last publish, in case it doesn't ResendData
                     long now = HiResClock.TickCount64;
 
-                    if ((m_nextSamplingTime > now) && (IsResendData == (int)ResendDataState.NonResendData))
+                    if ((m_nextSamplingTime > now) && !isResendData)
                     {
                         ServerUtils.EventLog.MonitoredItemReady(m_id, Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
                         return false;
@@ -318,18 +322,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets or Sets a value indicating whether the item is in ResendData state
+        /// Setup the resend data trigger by setting the monitor item in ResendData state
         /// </summary>
-        public int IsResendData
+        public void SetupResendDataTrigger()
         {
-            get
-            {
-                return m_resendDataState;
-            }
-            set
-            {
-                m_resendDataState = value;
-            }
+            int originalValue = Interlocked.CompareExchange(ref m_resendDataState, (int)ResendDataState.ResendData, (int)ResendDataState.NonResendData);
         }
 
         /// <summary>
@@ -1255,7 +1252,9 @@ namespace Opc.Ua.Server
 
                 // only publish if reporting or resending data
                 ResendDataState selectedToResendData = (ResendDataState)Interlocked.CompareExchange(ref m_resendDataState, (int)ResendDataState.NonResendData, (int)ResendDataState.ResendData);
-                if (!IsReadyToPublish && (selectedToResendData == ResendDataState.NonResendData))
+                bool isResendData = selectedToResendData == ResendDataState.ResendData;
+
+                if (!IsReadyToPublish && !isResendData)
                 {
                     return false;
                 }
@@ -1280,23 +1279,55 @@ namespace Opc.Ua.Server
                 // go to the next sampling interval.
                 IncrementSampleTime();
 
-                // check if queueing enabled.
-                if (m_queue != null && m_queue.ItemsInQueue != 0)
+                if (isResendData)
                 {
-                    DataValue value = null;
-                    ServiceResult error = null;
-
-                    while (m_queue.Publish(out value, out error))
+                    // check if queueing enabled.
+                    if (m_queue != null && m_queue.ItemsInQueue != 0)
                     {
-                        Publish(context, notifications, diagnostics, value, error);
+                        DataValue value = null;
+                        ServiceResult error = null;
+
+                        if (m_queue.ItemsInQueue > 1)
+                        {
+                            // pop the first value
+                            m_queue.Publish(out value, out error);
+                            // publish the next
+                            m_queue.Publish(out value, out error);
+                            Publish(context, notifications, diagnostics, value, error);
+                        }
+                        else // m_queue.ItemsInQueue == 1
+                        {
+                            m_queue.Publish(out value, out error);
+                            Publish(context, notifications, diagnostics, value, error);
+                        }
+                    }
+                    // publish last value if no queuing or no items are queued
+                    else
+                    {
+                        ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
+                        Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                     }
                 }
-
-                // publish last value if no queuing or no items are queued
                 else
                 {
-                    ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
-                    Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
+                    // check if queueing enabled.
+                    if (m_queue != null)
+                    {
+                        DataValue value = null;
+                        ServiceResult error = null;
+
+                        while (m_queue.Publish(out value, out error))
+                        {
+                            Publish(context, notifications, diagnostics, value, error);
+                        }
+                    }
+
+                    // publish last value if no queuing or no items are queued
+                    else
+                    {
+                        ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
+                        Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
+                    }
                 }
 
                 // reset state variables.

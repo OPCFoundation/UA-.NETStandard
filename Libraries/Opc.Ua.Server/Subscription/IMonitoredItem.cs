@@ -97,11 +97,9 @@ namespace Opc.Ua.Server
         bool IsReadyToTrigger { get; set; }
 
         /// <summary>
-        /// Gets or Sets a value indicating whether the item is in ResendData state
-        /// 0 means the MI is not in ResendData state
-        /// 1 means the MI is in ResendData state
+        /// Setup the resend data trigger by setting the monitor item in ResendData state
         /// </summary>
-        int IsResendData { get; set; }
+        void SetupResendDataTrigger();
 
         /// <summary>
         /// Returns the result after creating the monitor item.

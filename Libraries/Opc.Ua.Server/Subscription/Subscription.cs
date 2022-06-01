@@ -585,7 +585,7 @@ namespace Opc.Ua.Server
                             ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0))
                     {
                         IDataChangeMonitoredItem2 dataChangeMonitoredItem = (IDataChangeMonitoredItem2)monitoredItem;
-                        dataChangeMonitoredItem.IsResendData = (int)ResendDataState.ResendData;
+                        dataChangeMonitoredItem.SetupResendDataTrigger();
                     }
                 }
             }

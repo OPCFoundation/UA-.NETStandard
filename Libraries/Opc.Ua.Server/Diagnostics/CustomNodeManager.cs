@@ -4207,7 +4207,6 @@ namespace Opc.Ua.Server
             lock (Lock)
             {
                 transferredItems = TransferMonitoredItems(
-                    systemContext,
                     sendInitialValues,
                     monitoredItems,
                     processedItems,
@@ -4234,55 +4233,29 @@ namespace Opc.Ua.Server
         /// <summary>
         /// ReadInitial values.  
         /// </summary>
-        /// <param name="systemContext">The context</param>
         /// <param name="monitoredItem">The datachange monitored items for which ReadInitialValue is initiated</param>
-        /// <param name="errorCode">Any errors</param>
         /// <param name="processedItem">The bool stating if already processed.</param>
         /// <param name="transferredItems">The transferred monitored items</param>
         /// <returns></returns>
-        protected override Tuple<ServiceResult, bool, IList<IMonitoredItem>> DoReadInitialValue(
-           ServerSystemContext systemContext,
+        protected override bool DoCollectTransferredMonitoredItems(
            IMonitoredItem monitoredItem,
-           ServiceResult errorCode,
            bool processedItem,
            IList<IMonitoredItem> transferredItems)
         {
-            Tuple<ServiceResult, bool, IList<IMonitoredItem>> result =
-                new Tuple<ServiceResult, bool, IList<IMonitoredItem>>(StatusCodes.BadMonitoredItemIdInvalid, false, transferredItems);
+            // check handle.
+            NodeHandle handle = IsHandleInNamespace(monitoredItem.ManagerHandle);
 
-            if (!monitoredItem.IsReadyToPublish)
+            if (monitoredItem == null || processedItem || handle == null)
             {
-                bool rProcessedItem = false;
-                ServiceResult rError = StatusCodes.BadMonitoredItemIdInvalid;
-                if (monitoredItem is IDataChangeMonitoredItem2 dataChangeMonitoredItem)
-                {
-                    // check handle.
-                    NodeHandle handle = IsHandleInNamespace(monitoredItem.ManagerHandle);
-
-                    if (monitoredItem == null || processedItem || handle == null)
-                    {
-                        return result;
-                    }
-                    // owned by this node manager.       
-                    rProcessedItem = true;
-
-                    if (transferredItems != null)
-                    {
-                        transferredItems.Add(monitoredItem);
-                    }
-
-                    ServiceResult res = ReadInitialValue(systemContext, handle, dataChangeMonitoredItem);
-                    if (errorCode != null)
-                    {
-                        rError = res;
-                    }
-                    result = new Tuple<ServiceResult, bool, IList<IMonitoredItem>>(
-                            rError,
-                            rProcessedItem,
-                            transferredItems);
-                }
+                return false;
             }
-            return result;
+            // owned by this node manager.       
+            if (transferredItems != null)
+            {
+                transferredItems.Add(monitoredItem);
+            }
+
+            return true;
         }
 
         /// <summary>

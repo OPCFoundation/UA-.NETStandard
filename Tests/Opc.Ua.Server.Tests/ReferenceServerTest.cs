@@ -443,8 +443,6 @@ namespace Opc.Ua.Server.Tests
                     InputArguments = new VariantCollection() { new Variant(subscriptionIds.Last()) }
                 });
 
-                Thread.Sleep(5000);
-
                 //call ResendData method from the same session context
                 m_requestHeader.Timestamp = DateTime.UtcNow;
                 var response = m_server.Call(m_requestHeader,
