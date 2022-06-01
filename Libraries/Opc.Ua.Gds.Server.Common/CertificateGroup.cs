@@ -241,7 +241,7 @@ namespace Opc.Ua.Gds.Server
                                 urisFound.Append($"{uri}{Environment.NewLine}");
                             }
                             throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid,
-                                $"CSR AltNameExtensions found:{Environment.NewLine}{urisFound}{Environment.NewLine}None matched:{Environment.NewLine}{application.ApplicationUri}");
+                                $"CSR AltNameExtensions found:{Environment.NewLine}{urisFound.ToString()}{Environment.NewLine}None matched:{Environment.NewLine}{application.ApplicationUri}");
                         }
                     }
 
