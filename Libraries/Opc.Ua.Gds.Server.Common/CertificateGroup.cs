@@ -238,7 +238,7 @@ namespace Opc.Ua.Gds.Server
                             StringBuilder urisFound = new StringBuilder();
                             foreach (string uri in altNameExtension.Uris)
                             {
-                                urisFound.Append($"{uri}{Environment.NewLine}");
+                                urisFound.AppendLine($"{uri}");
                             }
                             throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid,
                                 $"CSR AltNameExtensions found:{Environment.NewLine}{urisFound.ToString()}{Environment.NewLine}None matched:{Environment.NewLine}{application.ApplicationUri}");
