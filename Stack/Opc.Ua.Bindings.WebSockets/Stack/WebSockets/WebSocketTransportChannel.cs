@@ -447,7 +447,7 @@ namespace Opc.Ua.Bindings
 
             if (ar == null)
             {
-                throw new ArgumentException("Invalid result object passed.", "result");
+                throw new ArgumentException("Invalid result object passed.", nameof(result));
             }
 
             try
