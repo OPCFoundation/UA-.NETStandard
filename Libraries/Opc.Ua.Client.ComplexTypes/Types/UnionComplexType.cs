@@ -66,7 +66,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public UInt32 SwitchField => m_switchField;
 
-        /// <summary cref="IStructureTypeInfo.StructureType" />
+        /// <inheritdoc/>
         public override StructureType StructureType => StructureType.Union;
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace Opc.Ua.Client.ComplexTypes
             return clone;
         }
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(XmlNamespace);
@@ -119,7 +119,7 @@ namespace Opc.Ua.Client.ComplexTypes
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(XmlNamespace);
@@ -141,7 +141,7 @@ namespace Opc.Ua.Client.ComplexTypes
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable equalValue)
         {
             if (Object.ReferenceEquals(this, equalValue))
@@ -185,15 +185,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion Public Properties
 
         #region IFormattable Members
-        /// <summary>
-        /// Returns the string representation of the complex type.
-        /// </summary>
-        /// <param name="format">(Unused). Leave this as null</param>
-        /// <param name="formatProvider">The provider of a mechanism for retrieving an object to control formatting.</param>
-        /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current embeded instance in the specified format.
-        /// </returns>
-        /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is not null</exception>
+        /// <inheritdoc/>
         public override string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)

@@ -86,16 +86,16 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion Constructors
 
         #region Public Properties
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public ExpandedNodeId TypeId { get; set; }
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public ExpandedNodeId BinaryEncodingId { get; set; }
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public ExpandedNodeId XmlEncodingId { get; set; }
 
-        /// <summary cref="IStructureTypeInfo.StructureType" />
+        /// <inheritdoc/>
         public virtual StructureType StructureType => StructureType.Structure;
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.ComplexTypes
             return clone;
         }
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(XmlNamespace);
@@ -135,7 +135,7 @@ namespace Opc.Ua.Client.ComplexTypes
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(XmlNamespace);
@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.ComplexTypes
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -178,7 +178,7 @@ namespace Opc.Ua.Client.ComplexTypes
             return true;
         }
 
-        /// <summary cref="object.ToString()" />
+        /// <inheritdoc/>
         public override string ToString()
         {
             return ToString(null, null);
@@ -224,45 +224,39 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion IFormattable Members
 
         #region IComplexTypeProperties
-        /// <summary cref="IComplexTypeProperties.GetPropertyCount()" />
+        /// <inheritdoc/>
         public virtual int GetPropertyCount()
         {
             return m_propertyList.Count;
         }
 
-        /// <summary cref="IComplexTypeProperties.GetPropertyNames()" />
+        /// <inheritdoc/>
         public virtual IList<string> GetPropertyNames()
         {
             return m_propertyList.Select(p => p.Name).ToList();
         }
 
-        /// <summary cref="IComplexTypeProperties.GetPropertyTypes()" />
+        /// <inheritdoc/>
         public virtual IList<Type> GetPropertyTypes()
         {
             return m_propertyList.Select(p => p.PropertyType).ToList();
         }
 
-        /// <summary>
-        /// Access property values by index.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual object this[int index]
         {
             get => m_propertyList.ElementAt(index).GetValue(this);
             set => m_propertyList.ElementAt(index).SetValue(this, value);
         }
 
-        /// <summary>
-        /// Access property values by name.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual object this[string name]
         {
             get => m_propertyDict[name].GetValue(this);
             set => m_propertyDict[name].SetValue(this, value);
         }
 
-        /// <summary>
-        /// Ordered enumerator for properties.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual IEnumerable<ComplexTypePropertyAttribute> GetPropertyEnumerator()
         {
             return m_propertyList;
@@ -938,7 +932,6 @@ namespace Opc.Ua.Client.ComplexTypes
         }
         #endregion Private Members
 
-
         #region Protected Properties
 
         /// <summary>
@@ -964,6 +957,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The list of properties of this complex type.
         /// </summary>
         protected IList<ComplexTypePropertyAttribute> m_propertyList;
+
         /// <summary>
         /// The list of properties as dictionary.
         /// </summary>
@@ -975,6 +969,5 @@ namespace Opc.Ua.Client.ComplexTypes
         private StructureBaseDataType m_structureBaseType;
         private XmlQualifiedName m_xmlName;
         #endregion Private Fields
-
     }
 }//namespace

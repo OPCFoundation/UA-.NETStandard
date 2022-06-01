@@ -60,7 +60,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
         #region Public Properties
 
-        /// <summary cref="IStructureTypeInfo.StructureType" />
+        /// <inheritdoc/>
         public override StructureType StructureType => StructureType.StructureWithOptionalFields;
 
         /// <summary>
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.ComplexTypes
             return clone;
         }
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(XmlNamespace);
@@ -106,7 +106,7 @@ namespace Opc.Ua.Client.ComplexTypes
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(XmlNamespace);
@@ -128,7 +128,7 @@ namespace Opc.Ua.Client.ComplexTypes
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -173,15 +173,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion Public Properties
 
         #region IFormattable Members
-        /// <summary>
-        /// Returns the string representation of the complex type.
-        /// </summary>
-        /// <param name="format">(Unused). Leave this as null</param>
-        /// <param name="formatProvider">The provider of a mechanism for retrieving an object to control formatting.</param>
-        /// <returns>
-        /// A <see cref="System.String"/> containing the value of the current embedded instance in the specified format.
-        /// </returns>
-        /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is not null</exception>
+        /// <inheritdoc/>
         public override string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -219,9 +211,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion IFormattable Members
 
         #region IComplexTypeProperties Members
-        /// <summary>
-        /// Access property values by index.
-        /// </summary>
+        /// <inheritdoc/>
         public override object this[int index]
         {
             get
@@ -252,9 +242,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
         }
 
-        /// <summary>
-        /// Access property values by name.
-        /// </summary>
+        /// <inheritdoc/>
         public override object this[string name]
         {
             get

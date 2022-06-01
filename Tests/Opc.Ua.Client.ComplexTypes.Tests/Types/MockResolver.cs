@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -36,7 +35,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {
     /// <summary>
-    /// Implements the complex type resolver for a Session using NodeCache.
+    /// Implements the mock complex type resolver for testing.
     /// </summary>
     public class MockResolver : IComplexTypeResolver
     {
@@ -116,23 +115,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         /// <inheritdoc/>
-        public INode BrowseForSingleProperty(ExpandedNodeId nodeId)
-        {
-#if MIST
-            var references = m_session.NodeCache.FindReferences(
-                nodeId,
-                ReferenceTypeIds.HasProperty,
-                false,
-                false
-                );
-            return references.FirstOrDefault();
-#endif
-            return null;
-        }
-
-        /// <inheritdoc/>
         public bool BrowseTypeIdsForDictionaryComponent(
-            NodeId nodeId,
+            ExpandedNodeId nodeId,
             out ExpandedNodeId typeId,
             out ExpandedNodeId encodingId,
             out DataTypeNode dataTypeNode)
@@ -238,8 +222,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             return m_dataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)];
         }
 
+
         /// <inheritdoc/>
-        public DataValue ReadValue(ExpandedNodeId nodeId)
+        public object GetEnumTypeArray(ExpandedNodeId nodeId)
         {
             return null;
         }

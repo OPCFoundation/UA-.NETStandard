@@ -814,15 +814,14 @@ namespace Opc.Ua.Client.ComplexTypes
                             }
                             else
                             {
-                                // browse for EnumFields or EnumStrings property
-                                var property = m_complexTypeResolver.BrowseForSingleProperty(enumType.NodeId);
-                                var enumArray = m_complexTypeResolver.ReadValue(property.NodeId);
-                                if (enumArray.Value is ExtensionObject[] extensionObject)
+                                // get the EnumFields or EnumStrings property
+                                object enumTypeArray = m_complexTypeResolver.GetEnumTypeArray(enumType.NodeId);
+                                if (enumTypeArray is ExtensionObject[] extensionObject)
                                 {
                                     // 3. use EnumValues
                                     newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, extensionObject);
                                 }
-                                else if (enumArray.Value is LocalizedText[] localizedText)
+                                else if (enumTypeArray is LocalizedText[] localizedText)
                                 {
                                     // 4. use EnumStrings
                                     newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, localizedText);
@@ -886,20 +885,16 @@ namespace Opc.Ua.Client.ComplexTypes
                 else
                 {
                     // browse for EnumFields or EnumStrings property
-                    var property = m_complexTypeResolver.BrowseForSingleProperty(enumTypeNode.NodeId);
-                    if (property != null)
+                    object enumTypeArray = m_complexTypeResolver.GetEnumTypeArray(enumTypeNode.NodeId);
+                    if (enumTypeArray is ExtensionObject[] extensionObject)
                     {
-                        var enumArray = m_complexTypeResolver.ReadValue(property.NodeId);
-                        if (enumArray.Value is ExtensionObject[] extensionObject)
-                        {
-                            // 2. use EnumValues
-                            newType = complexTypeBuilder.AddEnumType(name, extensionObject);
-                        }
-                        else if (enumArray.Value is LocalizedText[] localizedText)
-                        {
-                            // 3. use EnumStrings
-                            newType = complexTypeBuilder.AddEnumType(name, localizedText);
-                        }
+                        // 2. use EnumValues
+                        newType = complexTypeBuilder.AddEnumType(name, extensionObject);
+                    }
+                    else if (enumTypeArray is LocalizedText[] localizedText)
+                    {
+                        // 3. use EnumStrings
+                        newType = complexTypeBuilder.AddEnumType(name, localizedText);
                     }
                 }
             }
@@ -1039,7 +1034,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private NodeId GetBuiltInSuperType(NodeId dataType)
         {
-            var superType = dataType;
+            NodeId superType = dataType;
             while (true)
             {
                 superType = m_complexTypeResolver.FindSuperType(superType);

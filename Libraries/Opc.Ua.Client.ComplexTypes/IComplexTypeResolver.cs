@@ -74,20 +74,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="dataTypeNode"></param>
         /// <returns>true if successful, false otherwise</returns>
         bool BrowseTypeIdsForDictionaryComponent(
-            NodeId nodeId,
+            ExpandedNodeId nodeId,
             out ExpandedNodeId typeId,
             out ExpandedNodeId encodingId,
             out DataTypeNode dataTypeNode);
-
-        /// <summary>
-        /// Browse for the property.
-        /// </summary>
-        /// <remarks>
-        /// Browse for property (type description) of an enum datatype.
-        /// </remarks>
-        /// <param name="nodeId"></param>
-        INode BrowseForSingleProperty(
-            ExpandedNodeId nodeId);
 
         /// <summary>
         /// Browse for the encodings of a type.
@@ -119,10 +109,19 @@ namespace Opc.Ua.Client.ComplexTypes
         INode Find(ExpandedNodeId nodeId);
 
         /// <summary>
-        /// Reads the value for a node.
+        /// Reads the enum type array of a enum type definition node.
         /// </summary>
-        /// <param name="nodeId">The node Id.</param>
-        DataValue ReadValue(ExpandedNodeId nodeId);
+        /// <remarks>
+        /// The enum array is stored as the Value in the property
+        /// reference of the enum type NodeId
+        /// </remarks>
+        /// <param name="nodeId">The enum type nodeId which has an enum array in the property.</param>
+        /// <returns>
+        /// The value of the nodeId, which can be an array of
+        /// <see cref="ExtensionObject"/> or of <see cref="LocalizedText"/>.
+        /// <c>null</c> if the enum type array does not exist. 
+        /// </returns>
+        object GetEnumTypeArray(ExpandedNodeId nodeId);
 
         /// <summary>
         /// Returns the immediate supertype for the type.

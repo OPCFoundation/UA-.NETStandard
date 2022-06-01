@@ -91,20 +91,8 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public INode BrowseForSingleProperty(ExpandedNodeId nodeId)
-        {
-            var references = m_session.NodeCache.FindReferences(
-                nodeId,
-                ReferenceTypeIds.HasProperty,
-                false,
-                false
-                );
-            return references.FirstOrDefault();
-        }
-
-        /// <inheritdoc/>
         public bool BrowseTypeIdsForDictionaryComponent(
-            NodeId nodeId,
+            ExpandedNodeId nodeId,
             out ExpandedNodeId typeId,
             out ExpandedNodeId encodingId,
             out DataTypeNode dataTypeNode)
@@ -202,9 +190,23 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public DataValue ReadValue(ExpandedNodeId nodeId)
+        public object GetEnumTypeArray(ExpandedNodeId nodeId)
         {
-            return m_session.ReadValue(ExpandedNodeId.ToNodeId(nodeId,NamespaceUris));
+            // find the property reference for the enum type
+            var references = m_session.NodeCache.FindReferences(
+                nodeId,
+                ReferenceTypeIds.HasProperty,
+                false,
+                false
+                );
+            var property = references.FirstOrDefault();
+            if (property != null)
+            {
+                // read the enum type array
+                DataValue value = m_session.ReadValue(ExpandedNodeId.ToNodeId(nodeId, NamespaceUris));
+                return value?.Value;
+            }
+            return null;
         }
 
         /// <inheritdoc/>
