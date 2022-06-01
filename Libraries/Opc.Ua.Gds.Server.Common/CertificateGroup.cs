@@ -234,8 +234,13 @@ namespace Opc.Ua.Gds.Server
                     {
                         if (!altNameExtension.Uris.Contains(application.ApplicationUri))
                         {
+                            string urisFound = "";
+                            foreach (var uri in altNameExtension.Uris)
+                            {
+                                urisFound += $"{uri}{Environment.NewLine}";
+                            }
                             throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid,
-                                "CSR AltNameExtension does not match " + application.ApplicationUri);
+                                $"CSR AltNameExtensions found:{Environment.NewLine}{urisFound}{Environment.NewLine}Mone matched:{Environment.NewLine}{application.ApplicationUri}");
                         }
                     }
 
