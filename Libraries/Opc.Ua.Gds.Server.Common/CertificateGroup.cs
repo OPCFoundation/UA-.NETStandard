@@ -235,13 +235,16 @@ namespace Opc.Ua.Gds.Server
                     {
                         if (!altNameExtension.Uris.Contains(application.ApplicationUri))
                         {
-                            StringBuilder urisFound = new StringBuilder();
+                            var applicationUriMissing = new StringBuilder();
+                            applicationUriMissing.AppendLine("Expected AltNameExtension (ApplicationUri):");
+                            applicationUriMissing.AppendLine(application.ApplicationUri);
+                            applicationUriMissing.AppendLine("CSR AltNameExtensions found:");
                             foreach (string uri in altNameExtension.Uris)
                             {
-                                urisFound.AppendLine($"{uri}");
+                                applicationUriMissing.AppendLine(uri);
                             }
                             throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid,
-                                $"CSR AltNameExtensions found:{Environment.NewLine}{urisFound.ToString()}{Environment.NewLine}None matched:{Environment.NewLine}{application.ApplicationUri}");
+                                applicationUriMissing.ToString());
                         }
                     }
 
