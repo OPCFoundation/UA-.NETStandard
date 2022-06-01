@@ -65,6 +65,11 @@ namespace Opc.Ua.Server
                         monitoredItems[ii],
                         processedItems[ii],
                         transferredItems);
+
+                    if (processedItems[ii] == true)
+                    {
+                        monitoredItems[ii].SetupResendDataTrigger();
+                    }
                 }
 
                 if (processedItems[ii] == true)
@@ -77,7 +82,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// NodeManager specific implementation for reading the initial value into the monitored node
+        /// NodeManager specific implementation for collecting the transferred monitored items.
         /// </summary>
         /// <param name="monitoredItem">The monitoring item to update.</param>
         /// <param name="processedItem">Has the item allready been processed.</param>

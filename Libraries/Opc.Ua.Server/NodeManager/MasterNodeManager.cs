@@ -2505,15 +2505,6 @@ namespace Opc.Ua.Server
                     processedItems,
                     errors);
             }
-
-            // Setup the monitored items to trigger resending data
-            if (sendInitialValues == true)
-            {
-                foreach (IMonitoredItem monitoredItem in monitoredItems)
-                {
-                    monitoredItem.SetupResendDataTrigger();
-                }
-            }
         }
 
         /// <summary>
