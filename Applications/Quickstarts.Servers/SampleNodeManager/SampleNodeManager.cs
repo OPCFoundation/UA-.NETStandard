@@ -39,7 +39,7 @@ namespace Opc.Ua.Sample
     /// <summary>
     /// A node manager for a variety of test data.
     /// </summary>
-    public class SampleNodeManager : NodeManagerCommon, INodeManager, INodeIdFactory, IDisposable
+    public class SampleNodeManager : INodeManager, INodeIdFactory, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -2945,11 +2945,34 @@ namespace Opc.Ua.Sample
             IList<IMonitoredItem> transferredItems = new List<IMonitoredItem>();
             lock (Lock)
             {
-                transferredItems = TransferMonitoredItems(
-                    sendInitialValues,
-                    monitoredItems,
-                    processedItems,
-                    errors);
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    // skip items that have already been processed.
+                    if (processedItems[ii] || monitoredItems[ii] == null)
+                    {
+                        continue;
+                    }
+
+                    // check handle.
+                    // check for valid handle.
+                    MonitoredNode monitoredNode = monitoredItems[ii].ManagerHandle as MonitoredNode;
+
+                    if (monitoredNode == null)
+                    {
+                        continue;
+                    }
+
+                    // owned by this node manager.
+                    processedItems[ii] = true;
+                    transferredItems.Add(monitoredItems[ii]);
+
+                    if (sendInitialValues)
+                    {
+                        monitoredItems[ii].SetupResendDataTrigger();
+                    }
+
+                    errors[ii] = StatusCodes.Good;
+                }
             }
 
             // do any post processing.
@@ -2969,32 +2992,6 @@ namespace Opc.Ua.Sample
             // does nothing.
         }
 
-        /// <summary>
-        /// ReadInitial values.  
-        /// </summary>
-        /// <param name="monitoredItem">The datachange monitored item for which value resend is initiated.</param>
-        /// <param name="processedItem">The bool stating if already processed.</param>
-        /// <param name="transferredItems">The transferred monitored items.</param>
-        /// <returns></returns>
-        protected override bool DoCollectTransferredMonitoredItems(
-           IMonitoredItem monitoredItem,
-           bool processedItem,
-           IList<IMonitoredItem> transferredItems)
-        {
-            MonitoredNode monitoredNode = monitoredItem.ManagerHandle as MonitoredNode;
-
-            if (monitoredNode == null || processedItem)
-            {
-                return false;
-            }
-            // owned by this node manager.       
-            if (transferredItems != null)
-            {
-                transferredItems.Add(monitoredItem);
-            }
-
-            return true;
-        }
 
         /// <summary>
         /// Changes the monitoring mode for a set of monitored items.

@@ -50,7 +50,7 @@ namespace Opc.Ua.Server
     /// It stores objects that implement ILocalNode and indexes them by NodeId.
     /// </remarks>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
-    public partial class CoreNodeManager : NodeManagerCommon, INodeManager, IDisposable
+    public partial class CoreNodeManager : INodeManager, IDisposable
     {        
         #region Constructors
         /// <summary>
@@ -1513,46 +1513,47 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+            if (processedItems == null) throw new ArgumentNullException(nameof(processedItems));
+
             lock (m_lock)
             {
-               TransferMonitoredItems(
-                   sendInitialValues,
-                   monitoredItems,
-                   processedItems,
-                   errors);
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    // skip items that have already been processed.
+                    if (processedItems[ii] || monitoredItems[ii] == null)
+                    {
+                        continue;
+                    }
+
+                    // check if the node manager created the item.
+                    if (!Object.ReferenceEquals(this, monitoredItems[ii].NodeManager))
+                    {
+                        continue;
+                    }
+
+                    // owned by this node manager.
+                    processedItems[ii] = true;
+
+                    // validate monitored item.
+                    IMonitoredItem monitoredItem = monitoredItems[ii];
+
+                    // find the node being monitored.
+                    ILocalNode node = monitoredItem.ManagerHandle as ILocalNode;
+                    if (node == null)
+                    {
+                        continue;
+                    }
+
+                    if (sendInitialValues)
+                    {
+                        monitoredItem.SetupResendDataTrigger();
+                    }
+
+                    errors[ii] = StatusCodes.Good;
+                }
             }
-        }
-
-        /// <summary>
-        /// Implementation for reading the initial value into the monitored node
-        /// </summary>
-        /// <param name="monitoredItem">The monitoring item to update.</param>
-        /// <param name="processedItem">Has the item allready been processed.</param>
-        /// <param name="transferredItems">The transferred monitored items.</param>
-        /// <returns></returns>
-        protected override bool DoCollectTransferredMonitoredItems(
-            IMonitoredItem monitoredItem,
-            bool processedItem,
-            IList<IMonitoredItem> transferredItems)
-        {
-            // find the node being monitored.
-            ILocalNode node = monitoredItem.ManagerHandle as ILocalNode;
-
-            if (monitoredItem == null ||
-                processedItem ||
-                node == null ||
-                !ReferenceEquals(this, monitoredItem.NodeManager))
-            {
-                return false;
-            }
-            // owned by this node manager.       
-
-            if (transferredItems != null)
-            {
-                transferredItems.Add(monitoredItem);
-            }
-
-            return true;
         }
 
         /// <summary>

@@ -43,7 +43,7 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public class CustomNodeManager2 : NodeManagerCommon, INodeManager2, INodeIdFactory, IDisposable
+    public class CustomNodeManager2 : INodeManager2, INodeIdFactory, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -4206,11 +4206,32 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> transferredItems = new List<IMonitoredItem>();
             lock (Lock)
             {
-                transferredItems = TransferMonitoredItems(
-                    sendInitialValues,
-                    monitoredItems,
-                    processedItems,
-                    errors);
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    // skip items that have already been processed.
+                    if (processedItems[ii] || monitoredItems[ii] == null)
+                    {
+                        continue;
+                    }
+
+                    // check handle.
+                    NodeHandle handle = IsHandleInNamespace(monitoredItems[ii].ManagerHandle);
+                    if (handle == null)
+                    {
+                        continue;
+                    }
+
+                    // owned by this node manager.
+                    processedItems[ii] = true;
+                    transferredItems.Add(monitoredItems[ii]);
+
+                    if (sendInitialValues)
+                    {
+                        monitoredItems[ii].SetupResendDataTrigger();
+                    }
+
+                    errors[ii] = StatusCodes.Good;
+                }
             }
 
             // do any post processing.
@@ -4228,34 +4249,6 @@ namespace Opc.Ua.Server
             )
         {
             // defined by the sub-class
-        }
-
-        /// <summary>
-        /// ReadInitial values.  
-        /// </summary>
-        /// <param name="monitoredItem">The datachange monitored items for which ReadInitialValue is initiated</param>
-        /// <param name="processedItem">The bool stating if already processed.</param>
-        /// <param name="transferredItems">The transferred monitored items</param>
-        /// <returns></returns>
-        protected override bool DoCollectTransferredMonitoredItems(
-           IMonitoredItem monitoredItem,
-           bool processedItem,
-           IList<IMonitoredItem> transferredItems)
-        {
-            // check handle.
-            NodeHandle handle = IsHandleInNamespace(monitoredItem.ManagerHandle);
-
-            if (monitoredItem == null || processedItem || handle == null)
-            {
-                return false;
-            }
-            // owned by this node manager.       
-            if (transferredItems != null)
-            {
-                transferredItems.Add(monitoredItem);
-            }
-
-            return true;
         }
 
         /// <summary>
