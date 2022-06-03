@@ -28,14 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.Threading;
-using System.Reflection;
-using System.IO;
-using System.Diagnostics;
 using System.Threading.Tasks;
 
 #pragma warning disable 0618
@@ -70,7 +63,6 @@ namespace Opc.Ua.Server
             m_defaultMinimumSamplingInterval = 1000;
             m_namespaceUris                  = new List<string>();
             m_dynamicNamespaceIndex = dynamicNamespaceIndex;
-            m_systemContext = m_server.DefaultSystemContext.Copy();
 
             // use namespace 1 if out of range.
             if (m_dynamicNamespaceIndex == 0 || m_dynamicNamespaceIndex >= server.NamespaceUris.Count)
@@ -3268,7 +3260,6 @@ namespace Opc.Ua.Server
         #region Private Fields
         private object m_lock = new object();
         private IServerInternal m_server;
-        private ServerSystemContext m_systemContext;
         private NodeTable m_nodes;
         private long m_lastId;
         private SamplingGroupManager m_samplingGroupManager;

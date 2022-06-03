@@ -326,7 +326,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void SetupResendDataTrigger()
         {
-            int originalValue = Interlocked.CompareExchange(ref m_resendDataState, (int)ResendDataState.ResendData, (int)ResendDataState.NonResendData);
+            Interlocked.Exchange(ref m_resendDataState, (int)ResendDataState.ResendData);
         }
 
         /// <summary>

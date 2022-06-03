@@ -490,14 +490,14 @@ namespace Opc.Ua.Server.Tests
 
                 // Validate ResendData method call from same and different session contexts
 
-                //call ResendData method from different session context
+                // call ResendData method from different session context
                 resendDataRequestHeader.Timestamp = DateTime.UtcNow;
                 response = m_server.Call(resendDataRequestHeader,
                     nodesToCall,
                     out results,
                     out diagnosticInfos);
 
-                Assert.AreEqual(results[0].StatusCode, StatusCodes.BadUserAccessDenied);
+                Assert.AreEqual(StatusCodes.BadUserAccessDenied, results[0].StatusCode.Code);
                 ServerFixtureUtils.ValidateResponse(response);
 
                 // Still nothing to publish since previous ResendData call did not execute
@@ -535,6 +535,35 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(1, notificationMessage.NotificationData.Count);
+
+                // Call ResendData method with invalid subscription Id
+                nodesToCall = new CallMethodRequestCollection();
+                nodesToCall.Add(new CallMethodRequest() {
+                    ObjectId = ObjectIds.Server,
+                    MethodId = MethodIds.Server_ResendData,
+                    InputArguments = new VariantCollection() { new Variant(subscriptionIds.Last() + 20) }
+                });
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                response = m_server.Call(m_requestHeader,
+                    nodesToCall,
+                    out results,
+                    out diagnosticInfos);
+
+                Assert.AreEqual(StatusCodes.BadSubscriptionIdInvalid, results[0].StatusCode.Code);
+                ServerFixtureUtils.ValidateResponse(response);
+
+                // Nothing to publish since previous ResendData call did not execute
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                    out publishedId, out availableSequenceNumbers,
+                    out moreNotifications, out notificationMessage,
+                    out StatusCodeCollection _, out diagnosticInfos);
+
+                Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+                ServerFixtureUtils.ValidateResponse(response);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                Assert.AreEqual(subscriptionIds[0], publishedId);
+                Assert.AreEqual(0, notificationMessage.NotificationData.Count);
 
                 resendDataRequestHeader.Timestamp = DateTime.UtcNow;
                 SecureChannelContext.Current = resendDataSecurityContext;
