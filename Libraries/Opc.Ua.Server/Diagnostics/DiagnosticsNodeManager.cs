@@ -199,6 +199,17 @@ namespace Opc.Ua.Server
                     }
                 }
 #endif
+
+                // hookup server ResendData method.
+
+                ResendDataMethodState resendData = (ResendDataMethodState)FindPredefinedNode(
+                    MethodIds.Server_ResendData,
+                    typeof(ResendDataMethodState));
+
+                if (resendData != null)
+                {
+                    resendData.OnCallMethod = OnResendData;
+                }
             }
         }
 
@@ -274,6 +285,46 @@ namespace Opc.Ua.Server
 
                     outputArguments[0] = serverHandles;
                     outputArguments[1] = clientHandles;
+
+                    return ServiceResult.Good;
+                }
+            }
+
+            return StatusCodes.BadSubscriptionIdInvalid;
+        }
+
+        /// <summary>
+        /// Called when a client initiates resending of all data monitored items in a Subscription.
+        /// </summary>
+        public ServiceResult OnResendData(
+            ISystemContext context,
+            MethodState method,
+            IList<object> inputArguments,
+            IList<object> outputArguments)
+        {
+            if (inputArguments == null || inputArguments.Count != 1)
+            {
+                return StatusCodes.BadInvalidArgument;
+            }
+
+            uint? subscriptionId = inputArguments[0] as uint?;
+
+            if (subscriptionId == null)
+            {
+                return StatusCodes.BadInvalidArgument;
+            }
+
+            foreach (Subscription subscription in Server.SubscriptionManager.GetSubscriptions())
+            {
+                if (subscription.Id == subscriptionId)
+                {
+                    if (subscription.SessionId != context.SessionId)
+                    {
+                        // user tries to access subscription of different session
+                        return StatusCodes.BadUserAccessDenied;
+                    }
+
+                    subscription.ResendData((OperationContext)((SystemContext)context)?.OperationContext);
 
                     return ServiceResult.Good;
                 }
