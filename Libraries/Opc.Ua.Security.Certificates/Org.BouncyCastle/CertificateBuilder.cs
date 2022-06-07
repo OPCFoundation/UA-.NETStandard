@@ -98,7 +98,7 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                string passcode = Guid.NewGuid().ToString();
+                string passcode = X509Utils.GeneratePasscode();
                 return X509PfxUtils.CreateCertificateFromPKCS12(CreatePfxForRSA(passcode), passcode);
             }
         }
@@ -114,7 +114,7 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                string passcode = Guid.NewGuid().ToString();
+                string passcode = X509Utils.GeneratePasscode();
                 return X509PfxUtils.CreateCertificateFromPKCS12(CreatePfxForRSA(passcode, signatureFactory), passcode);
             }
         }
