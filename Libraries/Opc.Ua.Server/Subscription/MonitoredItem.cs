@@ -1871,8 +1871,8 @@ namespace Opc.Ua.Server
                 }
                 else if (eventFieldList.Handle is InstanceStateSnapshot snapshot)
                 {
-                    ConditionState conditionState = (ConditionState)snapshot.Handle;
-                    sourceNode = conditionState?.NodeId;
+                    BaseEventState eventState = snapshot.Handle as BaseEventState;
+                    sourceNode = eventState?.NodeId;
                 }
                 validationResult = CustomNodeManager2.ValidateRolePermissions(new OperationContext(this),
                      sourceNode, PermissionType.ReceiveEvents);
