@@ -234,10 +234,8 @@ namespace Opc.Ua.Server
                         else
                         {
                             // check if channel is not encrypted and skip if so
-                            OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
-                            if (operationContext != null &&
-                                operationContext.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                                operationContext.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport)
+                            if (monitoredItem?.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
+                                monitoredItem?.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport)
                             {
                                 continue;
                             }
@@ -245,7 +243,9 @@ namespace Opc.Ua.Server
                     }
                     #endregion
 
-                    ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
+                    OperationContext operationContext = new OperationContext(monitoredItem);
+
+                    ServiceResult validationResult = NodeManager.ValidateRolePermissions(operationContext,
                         baseEventState?.EventType?.Value, PermissionType.ReceiveEvents);
 
 
@@ -255,7 +255,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
+                    validationResult = NodeManager.ValidateRolePermissions(operationContext,
                         baseEventState?.SourceNode?.Value, PermissionType.ReceiveEvents);
 
                     if (ServiceResult.IsBad(validationResult))
