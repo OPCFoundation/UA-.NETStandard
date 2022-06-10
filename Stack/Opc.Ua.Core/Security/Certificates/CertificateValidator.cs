@@ -1015,7 +1015,6 @@ namespace Opc.Ua
                             break;
 
                         // unexpected error status
-                        case X509ChainStatusFlags.Cyclic:
                         default:
                             Utils.LogError("Unexpected status {0} processing certificate chain.", chainStatus.Status);
                             goto case X509ChainStatusFlags.NotSignatureValid;
@@ -1105,10 +1104,10 @@ namespace Opc.Ua
             // check if certificate is trusted.
             if (trustedCertificate == null && !isIssuerTrusted)
             {
-                //bool isApplicationCertificate = false;
                 // TODO ECC cert
-                //if (isApplicationCertificate)
-                if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
+                bool isApplicationCertificate = false;
+                if (isApplicationCertificate)
+                //if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
                 {
                     var message = "Certificate is not trusted.";
                     sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
