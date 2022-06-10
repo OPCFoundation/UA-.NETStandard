@@ -1005,6 +1005,7 @@ namespace Opc.Ua
                             chainIncomplete = true;
                             isIssuerTrusted = false;
                             break;
+
                         case X509ChainStatusFlags.NotSignatureValid:
                             var result = ServiceResult.Create(
                                 StatusCodes.BadCertificateInvalid,
