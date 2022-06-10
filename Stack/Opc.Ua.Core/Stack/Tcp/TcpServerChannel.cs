@@ -489,9 +489,10 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                const string errorSecurityChecksFailed = "Could not verify security on OpenSecureChannel request.";
                 ServiceResultException innerException = e.InnerException as ServiceResultException;
 
-                // If the certificate structre, signature and trust list checks pass,
+                // If the certificate structure, signature and trust list checks pass,
                 // return the other specific validation errors instead of BadSecurityChecksFailed
                 if (innerException != null)
                 {
@@ -502,7 +503,7 @@ namespace Opc.Ua.Bindings
                         innerException.StatusCode == StatusCodes.BadCertificatePolicyCheckFailed ||
                         (innerException.InnerResult != null && innerException.InnerResult.StatusCode == StatusCodes.BadCertificateUntrusted))
                     {
-                        ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
+                        ForceChannelFault(StatusCodes.BadSecurityChecksFailed, errorSecurityChecksFailed);
                         return false;
                     }
                     else if (innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
@@ -520,7 +521,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                ForceChannelFault(StatusCodes.BadSecurityChecksFailed, "Could not verify security on OpenSecureChannel request.");
+                ForceChannelFault(StatusCodes.BadSecurityChecksFailed, errorSecurityChecksFailed);
                 return false;
             }
 

@@ -414,7 +414,7 @@ namespace Opc.Ua
                 throw new NotSupportedException("The public and the private key pair doesn't match.");
             }
 
-            string passcode = Guid.NewGuid().ToString();
+            string passcode = X509Utils.GeneratePasscode();
             using (RSA rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey())
             {
                 byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
@@ -438,7 +438,7 @@ namespace Opc.Ua
                 throw new ServiceResultException("PEM data blob does not contain a private key.");
             }
 
-            string passcode = Guid.NewGuid().ToString();
+            string passcode = X509Utils.GeneratePasscode();
             byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
                 certificate, certificate.FriendlyName, privateKey, passcode);
             return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);

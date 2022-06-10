@@ -416,7 +416,6 @@ namespace Opc.Ua
                 if (EventsMonitored())
                 {
                     InstanceStateSnapshot snapshot = new InstanceStateSnapshot();
-                    snapshot.Handle = this;
                     snapshot.Initialize(context, this);
                     ReportEvent(context, snapshot);
                 }

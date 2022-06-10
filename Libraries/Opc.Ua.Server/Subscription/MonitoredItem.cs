@@ -30,10 +30,23 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua.Server
 {
+    /// <summary>
+    /// Specifies the values of the ResendData state for a monitored item
+    /// The state is set on the ResendData method call
+    /// </summary>
+    internal enum ResendDataState : int
+    {
+        ///<summary>The Monitored item does not participate in the ResendData</summary>
+        NonResendData = 0,
+        ///<summary>The Monitored item participates in ResendData</summary>
+        ResendData = 1
+    }
+
     /// <summary>
     /// A handle that describes how to access a node/attribute via an i/o manager.
     /// </summary>
@@ -194,6 +207,7 @@ namespace Opc.Ua.Server
             m_readyToTrigger = false;
             m_sourceSamplingInterval = 0;
             m_samplingError = ServiceResult.Good;
+            m_resendDataState = (int)ResendDataState.NonResendData;
         }
         #endregion
 
@@ -238,8 +252,12 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // check if not ready to publish.
-                if (!m_readyToPublish)
+                bool isResendData = (int)ResendDataState.ResendData == Interlocked.CompareExchange(ref m_resendDataState,
+                    (int)ResendDataState.ResendData,
+                    (int)ResendDataState.ResendData);
+
+                // check if not ready to publish in case it doesn't ResendData
+                if (!m_readyToPublish && (!isResendData))
                 {
                     ServerUtils.EventLog.MonitoredItemReady(m_id, "FALSE");
                     return false;
@@ -261,10 +279,10 @@ namespace Opc.Ua.Server
 
                 if (m_sourceSamplingInterval == 0)
                 {
-                    // re-queue if too little time has passed since the last publish.
+                    // re-queue if too little time has passed since the last publish, in case it doesn't ResendData
                     long now = HiResClock.TickCount64;
 
-                    if (m_nextSamplingTime > now)
+                    if ((m_nextSamplingTime > now) && !isResendData)
                     {
                         ServerUtils.EventLog.MonitoredItemReady(m_id, Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
                         return false;
@@ -301,6 +319,14 @@ namespace Opc.Ua.Server
                     m_readyToTrigger = value;
                 }
             }
+        }
+
+        /// <summary>
+        /// Setup the resend data trigger by setting the monitor item in ResendData state
+        /// </summary>
+        public void SetupResendDataTrigger()
+        {
+            Interlocked.Exchange(ref m_resendDataState, (int)ResendDataState.ResendData);
         }
 
         /// <summary>
@@ -881,7 +907,6 @@ namespace Opc.Ua.Server
             m_lastValue = value;
             m_lastError = error;
             m_readyToPublish = true;
-
             ServerUtils.EventLog.QueueValue(m_id, m_lastValue.WrappedValue, m_lastValue.StatusCode);
         }
 
@@ -1238,8 +1263,11 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                // only publish if reporting.
-                if (!IsReadyToPublish)
+                // only publish if reporting or resending data
+                ResendDataState selectedToResendData = (ResendDataState)Interlocked.CompareExchange(ref m_resendDataState, (int)ResendDataState.NonResendData, (int)ResendDataState.ResendData);
+                bool isResendData = selectedToResendData == ResendDataState.ResendData;
+
+                if (!IsReadyToPublish && !isResendData)
                 {
                     return false;
                 }
@@ -1264,23 +1292,55 @@ namespace Opc.Ua.Server
                 // go to the next sampling interval.
                 IncrementSampleTime();
 
-                // check if queueing enabled.
-                if (m_queue != null)
+                if (isResendData)
                 {
-                    DataValue value = null;
-                    ServiceResult error = null;
-
-                    while (m_queue.Publish(out value, out error))
+                    // check if queueing enabled.
+                    if (m_queue != null && m_queue.ItemsInQueue != 0)
                     {
-                        Publish(context, notifications, diagnostics, value, error);
+                        DataValue value = null;
+                        ServiceResult error = null;
+
+                        if (m_queue.ItemsInQueue > 1)
+                        {
+                            // pop the first value
+                            m_queue.Publish(out value, out error);
+                            // publish the next
+                            m_queue.Publish(out value, out error);
+                            Publish(context, notifications, diagnostics, value, error);
+                        }
+                        else // m_queue.ItemsInQueue == 1
+                        {
+                            m_queue.Publish(out value, out error);
+                            Publish(context, notifications, diagnostics, value, error);
+                        }
+                    }
+                    // publish last value if no queuing or no items are queued
+                    else
+                    {
+                        ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
+                        Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                     }
                 }
-
-                // publish last value if no queuing.
                 else
                 {
-                    ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
-                    Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
+                    // check if queueing enabled.
+                    if (m_queue != null)
+                    {
+                        DataValue value = null;
+                        ServiceResult error = null;
+
+                        while (m_queue.Publish(out value, out error))
+                        {
+                            Publish(context, notifications, diagnostics, value, error);
+                        }
+                    }
+
+                    // publish last value if no queuing or no items are queued
+                    else
+                    {
+                        ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
+                        Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
+                    }
                 }
 
                 // reset state variables.
@@ -1811,8 +1871,8 @@ namespace Opc.Ua.Server
                 }
                 else if (eventFieldList.Handle is InstanceStateSnapshot snapshot)
                 {
-                    ConditionState conditionState = (ConditionState)snapshot.Handle;
-                    sourceNode = conditionState?.NodeId;
+                    BaseEventState eventState = snapshot.Handle as BaseEventState;
+                    sourceNode = eventState?.NodeId;
                 }
                 validationResult = CustomNodeManager2.ValidateRolePermissions(new OperationContext(this),
                      sourceNode, PermissionType.ReceiveEvents);
@@ -1862,6 +1922,7 @@ namespace Opc.Ua.Server
         private ServiceResult m_samplingError;
         private IAggregateCalculator m_calculator;
         private bool m_triggered;
+        private int m_resendDataState;
         #endregion
     }
 }

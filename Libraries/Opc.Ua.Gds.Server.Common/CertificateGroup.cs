@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
@@ -234,8 +235,16 @@ namespace Opc.Ua.Gds.Server
                     {
                         if (!altNameExtension.Uris.Contains(application.ApplicationUri))
                         {
+                            var applicationUriMissing = new StringBuilder();
+                            applicationUriMissing.AppendLine("Expected AltNameExtension (ApplicationUri):");
+                            applicationUriMissing.AppendLine(application.ApplicationUri);
+                            applicationUriMissing.AppendLine("CSR AltNameExtensions found:");
+                            foreach (string uri in altNameExtension.Uris)
+                            {
+                                applicationUriMissing.AppendLine(uri);
+                            }
                             throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid,
-                                "CSR AltNameExtension does not match " + application.ApplicationUri);
+                                applicationUriMissing.ToString());
                         }
                     }
 

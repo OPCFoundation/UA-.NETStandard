@@ -557,6 +557,10 @@ namespace Opc.Ua
                 // append process and timestamp.
                 message.AppendFormat(CultureInfo.InvariantCulture, "{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
                 message.Append(formatter(state, exception));
+                if (exception != null)
+                {
+                    message.Append(TraceExceptionMessage(exception, String.Empty, null));
+                }
             }
             catch (Exception)
             {
