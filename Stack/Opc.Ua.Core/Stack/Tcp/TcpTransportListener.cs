@@ -218,7 +218,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public void CreateReverseConnection(Uri url, int timeout)
         {
             TcpServerChannel channel = new TcpServerChannel(
@@ -665,10 +665,10 @@ namespace Opc.Ua.Bindings
             Socket = socket;
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public override object Handle => Socket;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         internal IMessageSocket Socket { get; }
     }
 }

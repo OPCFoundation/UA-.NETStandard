@@ -222,8 +222,32 @@ namespace Opc.Ua.Server
 
                 if (baseEventState != null)
                 {
-                    ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
+                    #region  Filter out audit events in case the Server_Auditing values is false or the channel is not encrypted
+                   
+                    if (e is AuditEventState)
+                    {
+                        // check Server.Auditing flag and skip if false
+                        if (!NodeManager.Server.EventManager.ServerAuditing)
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            // check if channel is not encrypted and skip if so
+                            if (monitoredItem?.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
+                                monitoredItem?.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport)
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                    #endregion
+
+                    OperationContext operationContext = new OperationContext(monitoredItem);
+
+                    ServiceResult validationResult = NodeManager.ValidateRolePermissions(operationContext,
                         baseEventState?.EventType?.Value, PermissionType.ReceiveEvents);
+
 
                     if (ServiceResult.IsBad(validationResult))
                     {
@@ -231,7 +255,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
+                    validationResult = NodeManager.ValidateRolePermissions(operationContext,
                         baseEventState?.SourceNode?.Value, PermissionType.ReceiveEvents);
 
                     if (ServiceResult.IsBad(validationResult))

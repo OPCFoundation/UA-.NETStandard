@@ -145,7 +145,7 @@ namespace Opc.Ua
                         (Environment.OSVersion.Platform == PlatformID.Win32NT))
                     {
                         // see https://github.com/dotnet/runtime/issues/29144
-                        var temp = Guid.NewGuid().ToString();
+                        var temp = X509Utils.GeneratePasscode();
                         using (var persistable = new X509Certificate2(certificate.Export(X509ContentType.Pfx, temp), temp,
                             X509KeyStorageFlags.PersistKeySet))
                         {

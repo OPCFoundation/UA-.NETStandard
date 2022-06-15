@@ -502,10 +502,7 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void ReportEvent(IFilterTarget e)
         {
-            if (m_serverObject != null)
-            {
-                m_serverObject.ReportEvent(this.DefaultSystemContext, e);
-            }
+            ReportEvent(DefaultSystemContext, e);
         }
 
         /// <summary>
@@ -515,6 +512,12 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void ReportEvent(ISystemContext context, IFilterTarget e)
         {
+            if (e is AuditEventState && (EventManager?.ServerAuditing == false))
+            {
+                // do not report auditing events if server Auditing flag is false
+                return;
+            }
+
             if (m_serverObject != null)
             {
                 m_serverObject.ReportEvent(context, e);

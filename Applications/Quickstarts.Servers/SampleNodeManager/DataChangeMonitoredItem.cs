@@ -465,6 +465,11 @@ namespace Opc.Ua.Sample
             }
         }
 
+        public void SetupResendDataTrigger()
+        {
+            // Does nothing since this type of Monitored Item does not support Resend data functionality
+        }
+        
         /// <summary>
         /// Returns the results for the create request.
         /// </summary>

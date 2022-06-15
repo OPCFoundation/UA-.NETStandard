@@ -98,7 +98,7 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                string passcode = Guid.NewGuid().ToString();
+                string passcode = X509Utils.GeneratePasscode();
                 return X509PfxUtils.CreateCertificateFromPKCS12(CreatePfxForRSA(passcode), passcode);
             }
         }
@@ -114,7 +114,7 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                string passcode = Guid.NewGuid().ToString();
+                string passcode = X509Utils.GeneratePasscode();
                 return X509PfxUtils.CreateCertificateFromPKCS12(CreatePfxForRSA(passcode, signatureFactory), passcode);
             }
         }
@@ -239,7 +239,7 @@ namespace Opc.Ua.Security.Certificates
 
                 var pkcs10CertificationRequest = new Pkcs10CertificationRequest(
                     signatureFactory,
-                    new CertificateFactoryX509Name(false, certificate.Subject),
+                    new CertificateFactoryX509Name(true, certificate.Subject),
                     publicKey,
                     attributes);
 
@@ -303,9 +303,12 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="subjectPublicKey">The public key to use for the extensions.</param>
         private void CreateExtensions(X509V3CertificateGenerator cg, AsymmetricKeyParameter subjectPublicKey)
         {
-            // Subject key identifier
-            cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectKeyIdentifier.Id, false,
+            if (X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(m_extensions) == null)
+            {
+                // Subject key identifier
+                cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectKeyIdentifier.Id, false,
                 new SubjectKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(subjectPublicKey)));
+            }
 
             // Basic constraints
             BasicConstraints basicConstraints = new BasicConstraints(m_isCA);
@@ -317,7 +320,11 @@ namespace Opc.Ua.Security.Certificates
             {   // self-signed
                 basicConstraints = new BasicConstraints(0);
             }
-            cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.BasicConstraints.Id, true, basicConstraints);
+
+            if (X509Extensions.FindExtension<X509BasicConstraintsExtension>(m_extensions) == null)
+            {
+                cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.BasicConstraints.Id, true, basicConstraints);
+            }
 
             // Authority Key identifier references the issuer cert or itself when self signed
             AsymmetricKeyParameter issuerPublicKey;
@@ -333,9 +340,13 @@ namespace Opc.Ua.Security.Certificates
                 issuerSerialNumber = new BigInteger(1, m_serialNumber.Reverse().ToArray());
             }
 
-            cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.AuthorityKeyIdentifier.Id, false,
+            // Authority Key Identifier
+            if (X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(m_extensions) == null)
+            {
+                cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.AuthorityKeyIdentifier.Id, false,
                 new AuthorityKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(issuerPublicKey),
                     new GeneralNames(new GeneralName(m_issuerIssuerAKI)), issuerSerialNumber));
+            }
 
             if (!m_isCA)
             {
@@ -346,21 +357,31 @@ namespace Opc.Ua.Security.Certificates
                 {   // only self signed certs need KeyCertSign flag.
                     keyUsage |= KeyUsage.KeyCertSign;
                 }
-                cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.KeyUsage, true,
-                    new KeyUsage(keyUsage));
+
+                if (X509Extensions.FindExtension<X509KeyUsageExtension>(m_extensions) == null)
+                {
+                    cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.KeyUsage, true,
+                        new KeyUsage(keyUsage));
+                }
 
                 // Extended Key usage
-                cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.ExtendedKeyUsage, true,
+                if (X509Extensions.FindExtension<X509EnhancedKeyUsageExtension>(m_extensions) == null)
+                {
+                    cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.ExtendedKeyUsage, true,
                     new ExtendedKeyUsage(new List<DerObjectIdentifier>() {
                     new DerObjectIdentifier(Oids.ServerAuthentication), // server auth
                     new DerObjectIdentifier(Oids.ClientAuthentication), // client auth
                     }));
+                }
             }
             else
             {
-                // Key usage CA
-                cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.KeyUsage, true,
+                if (X509Extensions.FindExtension<X509KeyUsageExtension>(m_extensions) == null)
+                {
+                    // Key usage CA
+                    cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.KeyUsage, true,
                     new KeyUsage(KeyUsage.CrlSign | KeyUsage.DigitalSignature | KeyUsage.KeyCertSign));
+                }
             }
 
             foreach (var extension in m_extensions)

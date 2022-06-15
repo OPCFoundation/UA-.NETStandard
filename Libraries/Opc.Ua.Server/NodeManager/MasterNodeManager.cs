@@ -2874,12 +2874,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadStructureMissing;
             }
 
-            // passed basic validation. check also access rights and permissions
-            return ValidatePermissions(operationContext,
-                callMethodRequest.MethodId,
-                PermissionType.Call,
-                null,
-                true);
+            return StatusCodes.Good;
         }
 
         /// <summary>

@@ -13,7 +13,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPCFoundation/own</StorePath>
-      <SubjectName>CN=UA Configuration Test</SubjectName>
+      <SubjectName>CN=UA Configuration Test, O=OPC Foundation, C=US, S=Arizona</SubjectName>
     </ApplicationCertificate>
 
     <TrustedIssuerCertificates>

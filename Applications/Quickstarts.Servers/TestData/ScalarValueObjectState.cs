@@ -45,7 +45,7 @@ namespace TestData
         protected override void OnAfterCreate(ISystemContext context, NodeState node)
         {
             base.OnAfterCreate(context, node);
-            
+
             InitializeVariable(context, BooleanValue, TestData.Variables.ScalarValueObjectType_BooleanValue);
             InitializeVariable(context, SByteValue, TestData.Variables.ScalarValueObjectType_SByteValue);
             InitializeVariable(context, ByteValue, TestData.Variables.ScalarValueObjectType_ByteValue);
@@ -123,7 +123,7 @@ namespace TestData
             GenerateValue(system, UIntegerValue);
 
             return base.OnGenerateValues(context, method, objectId, count);
-        }  
+        }
         #endregion
     }
 }

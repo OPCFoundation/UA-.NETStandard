@@ -450,6 +450,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns the session's endpoint
+        /// </summary>
+        public EndpointDescription EndpointDescription
+        {
+            get
+            {
+                return m_endpoint;
+            }
+        }
+
+        /// <summary>
         /// Validates the request.
         /// </summary>
         public virtual void ValidateRequest(RequestHeader requestHeader, RequestType requestType)
