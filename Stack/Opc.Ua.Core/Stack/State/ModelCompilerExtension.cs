@@ -68,6 +68,9 @@ namespace Opc.Ua
                 nodeSet.LastModifiedSpecified = true;
             }
 
+            nodeSet.NamespaceUris = (context.NamespaceUris != null) ? context.NamespaceUris.ToArray() : Array.Empty<string>();
+            nodeSet.ServerUris = (context.ServerUris != null) ? context.ServerUris.ToArray() : null;
+
             if (model != null)
             {
                 nodeSet.Models = new Export.ModelTableEntry[] { model };
