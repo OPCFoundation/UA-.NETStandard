@@ -468,25 +468,32 @@ namespace Opc.Ua.Server
 
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
+            INodeManager[] nodeManagers = null;
 
             lock (m_namespaceManagers.SyncRoot)
             {
                 // check if node managers are registered - use the core node manager if unknown.
-                if (index >= m_namespaceManagers.Length || m_namespaceManagers[index] == null)
+                if (index < m_namespaceManagers.Length && m_namespaceManagers[index] != null)
                 {
-                    handle = m_nodeManagers[1].GetManagerHandle(nodeId);
+                    nodeManagers = m_namespaceManagers[index];
+                }
+            }
 
-                    if (handle != null)
-                    {
-                        nodeManager = m_nodeManagers[1];
-                        return handle;
-                    }
+            if (nodeManagers == null)
+            {
+                handle = m_nodeManagers[1].GetManagerHandle(nodeId);
 
-                    return null;
+                if (handle != null)
+                {
+                    nodeManager = m_nodeManagers[1];
+                    return handle;
                 }
 
-                // check each of the registered node managers.
-                INodeManager[] nodeManagers = m_namespaceManagers[index];
+                return null;
+
+            }
+            else
+            {
 
                 for (int ii = 0; ii < nodeManagers.Length; ii++)
                 {
