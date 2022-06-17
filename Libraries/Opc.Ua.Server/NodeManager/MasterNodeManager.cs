@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Diagnostics;
 
 namespace Opc.Ua.Server
@@ -469,23 +468,29 @@ namespace Opc.Ua.Server
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
             INodeManager[] nodeManagers = null;
+            INodeManager coreNodeManager = null;
+
 
             lock (m_namespaceManagers.SyncRoot)
             {
                 // check if node managers are registered - use the core node manager if unknown.
                 if (index < m_namespaceManagers.Length && m_namespaceManagers[index] != null)
                 {
-                    nodeManagers = m_namespaceManagers[index];
+                    nodeManagers = m_namespaceManagers[index].Clone() as INodeManager[];
+                }
+                if (nodeManagers == null)
+                {
+                    coreNodeManager = m_nodeManagers[1];
                 }
             }
 
-            if (nodeManagers == null)
+            if (coreNodeManager != null)
             {
-                handle = m_nodeManagers[1].GetManagerHandle(nodeId);
+                handle = coreNodeManager.GetManagerHandle(nodeId);
 
                 if (handle != null)
                 {
-                    nodeManager = m_nodeManagers[1];
+                    nodeManager = coreNodeManager;
                     return handle;
                 }
 
