@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Controls
         /// <summary>
         /// Creates a form which displays the status for a UA server.
         /// </summary>
-        public ServerForm(StandardServer server, ApplicationConfiguration configuration, bool showCertificateValidationDialog = false)
+        public ServerForm(StandardServer server, ApplicationConfiguration configuration, bool showCertificateValidationDialog = true)
         {
             InitializeComponent();
 
