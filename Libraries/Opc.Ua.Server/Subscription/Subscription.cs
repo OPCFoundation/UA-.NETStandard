@@ -450,7 +450,7 @@ namespace Opc.Ua.Server
                         IMonitoredItem monitoredItem = current.Value;
 
                         // check if the item is ready to publish.
-                        if (monitoredItem.IsReadyToPublish)
+                        if (monitoredItem.IsReadyToPublish || monitoredItem.IsResendData)
                         {
                             m_itemsToCheck.Remove(current);
                             m_itemsToPublish.AddLast(current);
@@ -494,7 +494,7 @@ namespace Opc.Ua.Server
                                 m_itemsToCheck.Remove(current);
                                 m_itemsToPublish.AddLast(current);
                             }
-                            
+
                             current = next;
                         }
                     }
@@ -537,7 +537,7 @@ namespace Opc.Ua.Server
         {
             // locked by caller
             m_session = context.Session;
-            
+
             var monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
             var errors = new List<ServiceResult>(monitoredItems.Count);
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -578,15 +578,9 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 var monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
-                // process MI when MonitoringMode is set to Reporting
                 foreach (IMonitoredItem monitoredItem in monitoredItems)
                 {
-                    if ((monitoredItem.MonitoringMode == MonitoringMode.Reporting) &&
-                            ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0))
-                    {
-                        IDataChangeMonitoredItem2 dataChangeMonitoredItem = (IDataChangeMonitoredItem2)monitoredItem;
-                        dataChangeMonitoredItem.SetupResendDataTrigger();
-                    }
+                    monitoredItem.SetupResendDataTrigger();
                 }
             }
         }
@@ -820,7 +814,7 @@ namespace Opc.Ua.Server
 
             // check if a keep alive should be sent if there is no data.
             bool keepAliveIfNoData = m_keepAliveCounter >= m_maxKeepAliveCount;
-            
+
             availableSequenceNumbers = new UInt32Collection();
 
             moreNotifications = false;

@@ -69,7 +69,7 @@ namespace Opc.Ua.Sample
             m_nextSampleTime = DateTime.UtcNow.Ticks;
             m_readyToPublish = false;
             m_readyToTrigger = false;
-            m_sendInitialValue = false;
+            m_resendData = false;
             m_alwaysReportUpdates = alwaysReportUpdates;
         }
 
@@ -106,7 +106,7 @@ namespace Opc.Ua.Sample
             m_nextSampleTime = DateTime.UtcNow.Ticks;
             m_readyToPublish = false;
             m_readyToTrigger = false;
-            m_sendInitialValue = false;
+            m_resendData = false;
             m_queue = null;
             m_filter = filter;
             m_range = 0;
@@ -468,6 +468,18 @@ namespace Opc.Ua.Sample
             }
         }
 
+        /// <inheritdoc/>
+        public bool IsResendData
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_resendData;
+                }
+            }
+        }
+
         /// <summary>
         /// Returns the results for the create request.
         /// </summary>
@@ -520,7 +532,10 @@ namespace Opc.Ua.Sample
         {
             lock (m_lock)
             {
-                m_sendInitialValue = true;
+                if (m_monitoringMode == MonitoringMode.Reporting)
+                {
+                    m_resendData = true;
+                }
             }
         }
         #endregion
@@ -689,7 +704,7 @@ namespace Opc.Ua.Sample
                 // check if not ready to publish.
                 if (!IsReadyToPublish)
                 {
-                    if (!m_sendInitialValue)
+                    if (!m_resendData)
                     {
                         return false;
                     }
@@ -705,7 +720,7 @@ namespace Opc.Ua.Sample
                 m_readyToTrigger = false;
 
                 // check if queuing is enabled.
-                if (m_queue == null)
+                if (m_queue == null || m_queue.ItemsInQueue == 0)
                 {
                     Publish(context, m_lastValue, m_lastError, notifications, diagnostics);
                 }
@@ -714,20 +729,18 @@ namespace Opc.Ua.Sample
                     DataValue value = null;
                     ServiceResult error = null;
 
-                    int publishedItems = 0;
                     while (m_queue.Publish(out value, out error))
                     {
                         Publish(context, value, error, notifications, diagnostics);
-                        publishedItems++;
-                    }
 
-                    if (m_sendInitialValue && publishedItems == 0)
-                    {
-                        Publish(context, m_lastValue, m_lastError, notifications, diagnostics);
+                        if (m_resendData)
+                        {
+                            break;
+                        }
                     }
                 }
 
-                m_sendInitialValue = false;
+                m_resendData = false;
 
                 return true;
             }
@@ -843,9 +856,9 @@ namespace Opc.Ua.Sample
         private bool m_readyToPublish;
         private bool m_readyToTrigger;
         private bool m_alwaysReportUpdates;
-        private bool m_sendInitialValue;
         private bool m_semanticsChanged;
         private bool m_structureChanged;
+        private bool m_resendData;
         #endregion
     }
 }
