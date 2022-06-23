@@ -720,11 +720,7 @@ namespace Opc.Ua.Sample
                 m_readyToTrigger = false;
 
                 // check if queuing is enabled.
-                if (m_queue == null || m_queue.ItemsInQueue == 0)
-                {
-                    Publish(context, m_lastValue, m_lastError, notifications, diagnostics);
-                }
-                else
+                if (m_queue != null && (!m_resendData || m_queue.ItemsInQueue != 0))
                 {
                     DataValue value = null;
                     ServiceResult error = null;
@@ -738,6 +734,10 @@ namespace Opc.Ua.Sample
                             break;
                         }
                     }
+                }
+                else
+                {
+                    Publish(context, m_lastValue, m_lastError, notifications, diagnostics);
                 }
 
                 m_resendData = false;

@@ -1294,7 +1294,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check if queueing enabled.
-                if (m_queue != null && m_queue.ItemsInQueue != 0)
+                if (m_queue != null && (!m_resendData || m_queue.ItemsInQueue != 0))
                 {
                     DataValue value = null;
                     ServiceResult error = null;
