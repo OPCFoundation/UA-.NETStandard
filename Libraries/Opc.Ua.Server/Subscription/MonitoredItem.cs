@@ -1187,11 +1187,7 @@ namespace Opc.Ua.Server
                     // place event at the beginning of the queue.
                     if (overflowEvent != null && m_discardOldest)
                     {
-                        if (!ServiceResult.IsBad(ValidateRolePermissions(overflowEvent)))
-                        {
-                            // skip event reporting for EventType without permissions
-                            notifications.Enqueue(overflowEvent);
-                        }
+                        notifications.Enqueue(overflowEvent);
                     }
 
                     for (int ii = 0; ii < m_events.Count; ii++)
@@ -1210,11 +1206,6 @@ namespace Opc.Ua.Server
                                 result.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
                             }
                         }
-                        if (ServiceResult.IsBad(ValidateRolePermissions(m_events[ii])))
-                        {
-                            // skip event reporting for EventType without permissions
-                            continue;
-                        }
 
                         notifications.Enqueue(m_events[ii]);
                     }
@@ -1224,11 +1215,7 @@ namespace Opc.Ua.Server
                     // place event at the end of the queue.
                     if (overflowEvent != null && !m_discardOldest)
                     {
-                        if (!ServiceResult.IsBad(ValidateRolePermissions(overflowEvent)))
-                        {
-                            // skip event reporting for EventType without permissions
-                            notifications.Enqueue(overflowEvent);
-                        }
+                        notifications.Enqueue(overflowEvent);
                     }
 
                     Utils.LogTrace(Utils.TraceMasks.OperationDetail, "MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
@@ -1828,32 +1815,6 @@ namespace Opc.Ua.Server
             m_subscription?.QueueOverflowHandler();
         }
 
-        /// <summary>
-        /// Validates the role permitions for given event
-        /// </summary>
-        /// <param name="eventFieldList"></param>
-        /// <returns></returns>
-        private ServiceResult ValidateRolePermissions(EventFieldList eventFieldList)
-        {
-            ServiceResult validationResult = ServiceResult.Good;
-            if (NodeManager is CustomNodeManager2 CustomNodeManager2)
-            {
-                NodeId sourceNode = null;
-                if (eventFieldList.Handle is BaseEventState baseEventState)
-                {
-                    sourceNode = baseEventState.NodeId;
-                }
-                else if (eventFieldList.Handle is InstanceStateSnapshot snapshot)
-                {
-                    BaseEventState eventState = snapshot.Handle as BaseEventState;
-                    sourceNode = eventState?.NodeId;
-                }
-                validationResult = CustomNodeManager2.ValidateRolePermissions(new OperationContext(this),
-                     sourceNode, PermissionType.ReceiveEvents);
-            }
-
-            return validationResult;
-        }
         #endregion
 
         #region Private Members
