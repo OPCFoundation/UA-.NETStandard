@@ -611,8 +611,6 @@ namespace Opc.Ua.Server.Tests
         private CallMethodRequestCollection ResendDataCall(StatusCode expectedStatus, UInt32Collection subscriptionIds)
         {
             // Find the ResendData method
-            MethodState methodStateInstance = (MethodState)m_server.CurrentInstance.
-               DiagnosticsNodeManager.FindPredefinedNode(MethodIds.Server_ResendData, typeof(MethodState));
             var nodesToCall = new CallMethodRequestCollection();
             foreach (var subscriptionId in subscriptionIds)
             {

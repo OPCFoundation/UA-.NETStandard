@@ -74,9 +74,9 @@ namespace Opc.Ua.Server.Tests
             new ExpandedNodeId("Scalar_Simulation_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            // static variables from namespace MemoryBuffer
+            // dynamic variables from namespace MemoryBuffer
             new ExpandedNodeId("UInt32[64]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"),
-            new ExpandedNodeId("Double[40]", MemoryBuffer.Namespaces.MemoryBuffer+ "/Instance"),
+            new ExpandedNodeId("Double[40]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"),
         };
         #endregion
 
@@ -618,7 +618,7 @@ namespace Opc.Ua.Server.Tests
             uint subscriptionId, NodeId nodeId,
             uint clientHandle,
             uint queueSize,
-            int samplingInterval 
+            int samplingInterval
             )
         {
             var itemsToCreate = new MonitoredItemCreateRequestCollection {
