@@ -717,7 +717,6 @@ namespace Opc.Ua.Sample
 
                 // update publish flag.
                 m_readyToPublish = false;
-                m_readyToTrigger = false;
 
                 // check if queuing is enabled.
                 if (m_queue != null && (!m_resendData || m_queue.ItemsInQueue != 0))
@@ -731,6 +730,7 @@ namespace Opc.Ua.Sample
 
                         if (m_resendData)
                         {
+                            m_readyToPublish = m_queue.ItemsInQueue > 0;
                             break;
                         }
                     }
@@ -740,6 +740,7 @@ namespace Opc.Ua.Sample
                     Publish(context, m_lastValue, m_lastError, notifications, diagnostics);
                 }
 
+                // update flags
                 m_resendData = false;
 
                 return true;

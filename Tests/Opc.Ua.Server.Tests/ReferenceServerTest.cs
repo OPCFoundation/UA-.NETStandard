@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
+using Opc.Ua.Test;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
@@ -54,6 +55,9 @@ namespace Opc.Ua.Server.Tests
         RequestHeader m_requestHeader;
         OperationLimits m_operationLimits;
         ReferenceDescriptionCollection m_referenceDescriptions;
+        RandomSource m_random;
+        DataGenerator m_generator;
+
 
         #region Test Setup
         /// <summary>
@@ -90,6 +94,8 @@ namespace Opc.Ua.Server.Tests
             m_requestHeader = m_server.CreateAndActivateSession(TestContext.CurrentContext.Test.Name);
             m_requestHeader.Timestamp = DateTime.UtcNow;
             m_requestHeader.TimeoutHint = kTimeoutHint;
+            m_random = new RandomSource(999);
+            m_generator = new DataGenerator(m_random);
         }
 
         /// <summary>
@@ -280,6 +286,19 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Update static Nodes, read modify write.
+        /// </summary>
+        [Test, Order(350)]
+        public void ReadWriteUpdateNodes()
+        {
+            // Nodes
+            var namespaceUris = m_server.CurrentInstance.NamespaceUris;
+            NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+
+            UpdateValues(testSet);
+        }
+
+        /// <summary>
         /// Browse full address space.
         /// </summary>
         [Test, Order(400)]
@@ -415,9 +434,11 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Create a subscription with a monitored item.
         /// Call ResendData.
+        /// Ensure only a single value per monitored item is returned after ResendData was called.
         /// </summary>
-        [Test]
-        public void ResendData()
+        [Theory]
+        [NonParallelizable]
+        public void ResendData(bool updateValues)
         {
             var serverTestServices = new ServerTestServices(m_server);
             // save old security context, test fixture can only work with one session
@@ -426,6 +447,7 @@ namespace Opc.Ua.Server.Tests
             {
                 var namespaceUris = m_server.CurrentInstance.NamespaceUris;
                 NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+
                 //Re-use method CreateSubscriptionForTransfer to create a subscription
                 CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader,
                     testSet, out var subscriptionIds);
@@ -433,37 +455,22 @@ namespace Opc.Ua.Server.Tests
                 RequestHeader resendDataRequestHeader = m_server.CreateAndActivateSession("ResendData");
                 var resendDataSecurityContext = SecureChannelContext.Current;
 
+                SecureChannelContext.Current = securityContext;
                 // After the ResendData call there will be data to publish again
-                MethodState methodStateInstance = (MethodState)m_server.CurrentInstance.
-                   DiagnosticsNodeManager.FindPredefinedNode(MethodIds.Server_ResendData, typeof(MethodState));
-                var nodesToCall = new CallMethodRequestCollection();
-                nodesToCall.Add(new CallMethodRequest() {
-                    ObjectId = ObjectIds.Server,
-                    MethodId = MethodIds.Server_ResendData,
-                    InputArguments = new VariantCollection() { new Variant(subscriptionIds.Last()) }
-                });
-
-                //call ResendData method from the same session context
-                m_requestHeader.Timestamp = DateTime.UtcNow;
-                var response = m_server.Call(m_requestHeader,
-                    nodesToCall,
-                    out var results,
-                    out var diagnosticInfos);
-
-                Assert.IsTrue(StatusCode.IsGood(results[0].StatusCode));
-                ServerFixtureUtils.ValidateResponse(response);
+                var nodesToCall = ResendDataCall(StatusCodes.Good, subscriptionIds);
 
                 Thread.Sleep(1000);
 
                 // Make sure publish queue becomes empty by consuming it 
                 Assert.AreEqual(1, subscriptionIds.Count);
+
                 // Issue a Publish request
                 m_requestHeader.Timestamp = DateTime.UtcNow;
                 var acknoledgements = new SubscriptionAcknowledgementCollection();
-                response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                var response = serverTestServices.Publish(m_requestHeader, acknoledgements,
                     out uint publishedId, out UInt32Collection availableSequenceNumbers,
                     out bool moreNotifications, out NotificationMessage notificationMessage,
-                    out StatusCodeCollection _, out diagnosticInfos);
+                    out StatusCodeCollection _, out DiagnosticInfoCollection diagnosticInfos);
 
                 Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                 ServerFixtureUtils.ValidateResponse(response);
@@ -488,14 +495,17 @@ namespace Opc.Ua.Server.Tests
                     Assert.AreEqual(0, notificationMessage.NotificationData.Count);
                 }
 
-                // Validate ResendData method call from same and different session contexts
+                // Validate ResendData method call returns error from different session contexts
 
                 // call ResendData method from different session context
+                SecureChannelContext.Current = resendDataSecurityContext;
                 resendDataRequestHeader.Timestamp = DateTime.UtcNow;
                 response = m_server.Call(resendDataRequestHeader,
                     nodesToCall,
-                    out results,
+                    out var results,
                     out diagnosticInfos);
+
+                SecureChannelContext.Current = securityContext;
 
                 Assert.AreEqual(StatusCodes.BadUserAccessDenied, results[0].StatusCode.Code);
                 ServerFixtureUtils.ValidateResponse(response);
@@ -513,15 +523,17 @@ namespace Opc.Ua.Server.Tests
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(0, notificationMessage.NotificationData.Count);
 
-                //call ResendData method from the same session context
-                m_requestHeader.Timestamp = DateTime.UtcNow;
-                response = m_server.Call(m_requestHeader,
-                    nodesToCall,
-                    out results,
-                    out diagnosticInfos);
+                if (updateValues)
+                {
+                    // fill queues, but only a single value per resend publish shall be returned
+                    for (int i = 0; i < CommonTestWorkers.MonitoredItemsQueueSize; i++)
+                    {
+                        UpdateValues(testSet);
+                    }
+                }
 
-                Assert.IsTrue(StatusCode.IsGood(results[0].StatusCode));
-                ServerFixtureUtils.ValidateResponse(response);
+                // call ResendData method from the same session context
+                ResendDataCall(StatusCodes.Good, subscriptionIds);
 
                 // Data should be available for publishing now
                 m_requestHeader.Timestamp = DateTime.UtcNow;
@@ -535,22 +547,35 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(1, notificationMessage.NotificationData.Count);
+                var items = notificationMessage.NotificationData.FirstOrDefault();
+                Assert.IsTrue(items.Body is Opc.Ua.DataChangeNotification);
+                var monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
+                Assert.AreEqual(testSet.Length, monitoredItemsCollection.Count);
+
+                Thread.Sleep(1000);
+
+                if (updateValues)
+                {
+                    // remaining queue Data should be sent in this publish
+                    m_requestHeader.Timestamp = DateTime.UtcNow;
+                    response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                        out publishedId, out availableSequenceNumbers,
+                        out moreNotifications, out notificationMessage,
+                        out StatusCodeCollection _, out diagnosticInfos);
+
+                    Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+                    ServerFixtureUtils.ValidateResponse(response);
+                    ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                    Assert.AreEqual(subscriptionIds[0], publishedId);
+                    Assert.AreEqual(1, notificationMessage.NotificationData.Count);
+                    items = notificationMessage.NotificationData.FirstOrDefault();
+                    Assert.IsTrue(items.Body is Opc.Ua.DataChangeNotification);
+                    monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
+                    Assert.AreEqual(testSet.Length * (CommonTestWorkers.MonitoredItemsQueueSize - 1), monitoredItemsCollection.Count, testSet.Length);
+                }
 
                 // Call ResendData method with invalid subscription Id
-                nodesToCall = new CallMethodRequestCollection();
-                nodesToCall.Add(new CallMethodRequest() {
-                    ObjectId = ObjectIds.Server,
-                    MethodId = MethodIds.Server_ResendData,
-                    InputArguments = new VariantCollection() { new Variant(subscriptionIds.Last() + 20) }
-                });
-                m_requestHeader.Timestamp = DateTime.UtcNow;
-                response = m_server.Call(m_requestHeader,
-                    nodesToCall,
-                    out results,
-                    out diagnosticInfos);
-
-                Assert.AreEqual(StatusCodes.BadSubscriptionIdInvalid, results[0].StatusCode.Code);
-                ServerFixtureUtils.ValidateResponse(response);
+                ResendDataCall(StatusCodes.BadSubscriptionIdInvalid, new UInt32Collection() { subscriptionIds.Last() + 20 });
 
                 // Nothing to publish since previous ResendData call did not execute
                 m_requestHeader.Timestamp = DateTime.UtcNow;
@@ -574,6 +599,81 @@ namespace Opc.Ua.Server.Tests
                 //restore security context, that close connection can work
                 SecureChannelContext.Current = securityContext;
             }
+        }
+        #endregion
+
+        #region Private Methods
+        private CallMethodRequestCollection ResendDataCall(StatusCode expectedStatus, UInt32Collection subscriptionIds)
+        {
+            // Find the ResendData method
+            MethodState methodStateInstance = (MethodState)m_server.CurrentInstance.
+               DiagnosticsNodeManager.FindPredefinedNode(MethodIds.Server_ResendData, typeof(MethodState));
+            var nodesToCall = new CallMethodRequestCollection();
+            foreach (var subscriptionId in subscriptionIds)
+            {
+                nodesToCall.Add(new CallMethodRequest() {
+                    ObjectId = ObjectIds.Server,
+                    MethodId = MethodIds.Server_ResendData,
+                    InputArguments = new VariantCollection() { new Variant(subscriptionId) }
+                });
+            }
+
+            //call ResendData method with subscription ids
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            var response = m_server.Call(m_requestHeader,
+                nodesToCall,
+                out var results,
+                out var diagnosticInfos);
+
+            Assert.AreEqual(expectedStatus, results[0].StatusCode.Code);
+            ServerFixtureUtils.ValidateResponse(response);
+
+            return nodesToCall;
+        }
+
+        /// <summary>
+        /// Read Values of NodeIds, determine types, write back new random values.
+        /// </summary>
+        /// <param name="testSet">The nodeIds to modify.</param>
+        private void UpdateValues(NodeId[] testSet)
+        {
+            // Read values
+            var requestHeader = m_requestHeader;
+            var nodesToRead = new ReadValueIdCollection();
+            foreach (NodeId nodeId in testSet)
+            {
+                nodesToRead.Add(new ReadValueId() { NodeId = nodeId, AttributeId = Attributes.Value });
+            }
+            var response = m_server.Read(requestHeader, kMaxAge, TimestampsToReturn.Neither, nodesToRead,
+                out var readDataValues, out var diagnosticInfos);
+
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, readDataValues);
+            Assert.AreEqual(testSet.Length, readDataValues.Count);
+
+            var modifiedValues = new DataValueCollection();
+            foreach (var dataValue in readDataValues)
+            {
+                var typeInfo = TypeInfo.Construct(dataValue.Value);
+                Assert.IsNotNull(typeInfo);
+                var value = m_generator.GetRandom(typeInfo.BuiltInType);
+                modifiedValues.Add(new DataValue() { WrappedValue = new Variant(value) });
+            }
+
+            int ii = 0;
+            var nodesToWrite = new WriteValueCollection();
+            foreach (NodeId nodeId in testSet)
+            {
+                nodesToWrite.Add(new WriteValue() { NodeId = nodeId, AttributeId = Attributes.Value, Value = modifiedValues[ii] });
+                ii++;
+            }
+
+            // Write Nodes
+            requestHeader.Timestamp = DateTime.UtcNow;
+            response = m_server.Write(requestHeader, nodesToWrite,
+                out var writeDataValues, out diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, writeDataValues);
         }
         #endregion
     }

@@ -1280,6 +1280,8 @@ namespace Opc.Ua.Server
                     IncrementSampleTime();
                 }
 
+                m_readyToPublish = false;
+
                 // check if queueing enabled.
                 if (m_queue != null && (!m_resendData || m_queue.ItemsInQueue != 0))
                 {
@@ -1291,6 +1293,7 @@ namespace Opc.Ua.Server
                         Publish(context, notifications, diagnostics, value, error);
                         if (m_resendData)
                         {
+                            m_readyToPublish = m_queue.ItemsInQueue > 0;
                             break;
                         }
                     }
@@ -1305,7 +1308,6 @@ namespace Opc.Ua.Server
 
                 // reset state variables.
                 m_overflow = false;
-                m_readyToPublish = false;
                 m_readyToTrigger = false;
                 m_resendData = false;
                 m_triggered = false;

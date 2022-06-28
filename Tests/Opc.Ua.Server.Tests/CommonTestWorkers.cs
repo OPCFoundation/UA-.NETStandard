@@ -39,6 +39,8 @@ namespace Opc.Ua.Server.Tests
     /// </summary>
     public static class CommonTestWorkers
     {
+        public const int MonitoredItemsQueueSize = 5;
+
         #region Public Test Sets
         public static readonly ExpandedNodeId[] NodeIdTestSetStatic =
         {
@@ -436,9 +438,10 @@ namespace Opc.Ua.Server.Tests
             // start time
             requestHeader.Timestamp = DateTime.UtcNow;
             uint subscriptionId = CreateSubscription(services, requestHeader);
+            uint clientHandle = 1;
             foreach (NodeId testNode in testNodes)
             {
-                CreateMonitoredItem(services, requestHeader, subscriptionId, testNode);
+                CreateMonitoredItem(services, requestHeader, subscriptionId, testNode, clientHandle++);
             }
 
             subscriptionIds = new UInt32Collection();
@@ -516,6 +519,13 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
             Assert.AreEqual(subscriptionIds[0], publishedId);
             Assert.AreEqual(sendInitialData ? 1 : 0, notificationMessage.NotificationData.Count);
+            if (sendInitialData)
+            {
+                var items = notificationMessage.NotificationData.FirstOrDefault();
+                Assert.IsTrue(items.Body is Opc.Ua.DataChangeNotification);
+                var monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
+                Assert.IsNotEmpty(monitoredItemsCollection);
+            }
             //Assert.AreEqual(0, availableSequenceNumbers.Count);
 
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -592,9 +602,9 @@ namespace Opc.Ua.Server.Tests
 
         private static void CreateMonitoredItem(
             IServerTestServices services, RequestHeader requestHeader,
-            uint subscriptionId, NodeId nodeId)
+            uint subscriptionId, NodeId nodeId, uint clientHandle)
         {
-            uint queueSize = 5;
+            uint queueSize = MonitoredItemsQueueSize;
             var itemsToCreate = new MonitoredItemCreateRequestCollection {
                 // add item
                 new MonitoredItemCreateRequest {
@@ -604,8 +614,8 @@ namespace Opc.Ua.Server.Tests
                     },
                     MonitoringMode = MonitoringMode.Reporting,
                     RequestedParameters = new MonitoringParameters {
-                        ClientHandle = 1u,
-                        SamplingInterval = -1,
+                        ClientHandle = clientHandle,
+                        SamplingInterval = 0,
                         Filter = null,
                         DiscardOldest = true,
                         QueueSize = queueSize
