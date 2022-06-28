@@ -55,7 +55,11 @@ namespace Opc.Ua.Server.Tests
             new ExpandedNodeId("Scalar_Static_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Static_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Static_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            // static variables from namespace TestData
+        };
+
+        // static variables from namespace TestData
+        public static readonly ExpandedNodeId[] NodeIdTestDataSetStatic =
+        {
             new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_Int16Value, TestData.Namespaces.TestData),
             new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_Int32Value, TestData.Namespaces.TestData),
             new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_UInt16Value, TestData.Namespaces.TestData),
@@ -74,6 +78,10 @@ namespace Opc.Ua.Server.Tests
             new ExpandedNodeId("Scalar_Simulation_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+        };
+
+        public static readonly ExpandedNodeId[] NodeIdMemoryBufferSimulation =
+        {
             // dynamic variables from namespace MemoryBuffer
             new ExpandedNodeId("UInt32[64]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"),
             new ExpandedNodeId("Double[40]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"),

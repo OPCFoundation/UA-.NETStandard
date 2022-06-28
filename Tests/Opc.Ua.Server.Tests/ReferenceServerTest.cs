@@ -450,7 +450,9 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 var namespaceUris = m_server.CurrentInstance.NamespaceUris;
-                NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+                NodeIdCollection testSetCollection = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+                testSetCollection.AddRange(CommonTestWorkers.NodeIdTestDataSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray());
+                NodeId[] testSet = testSetCollection.ToArray();
 
                 //Re-use method CreateSubscriptionForTransfer to create a subscription
                 var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader, testSet, queueSize, 0);
