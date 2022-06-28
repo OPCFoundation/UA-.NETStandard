@@ -687,7 +687,7 @@ namespace Opc.Ua.Client.Tests
                 var namespaceUris = Session.NamespaceUris;
                 NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
                 var clientTestServices = new ClientTestServices(Session);
-                CommonTestWorkers.CreateSubscriptionForTransfer(clientTestServices, requestHeader, testSet, out var subscriptionIds);
+                var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(clientTestServices, requestHeader, testSet, 0, -1);
 
                 TestContext.Out.WriteLine("Transfer SubscriptionIds: {0}", subscriptionIds[0]);
 

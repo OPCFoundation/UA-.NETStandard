@@ -50,6 +50,8 @@ namespace Opc.Ua.Server.Tests
     {
         const double kMaxAge = 10000;
         const uint kTimeoutHint = 10000;
+        const uint kQueueSize = 5;
+
         ServerFixture<ReferenceServer> m_fixture;
         ReferenceServer m_server;
         RequestHeader m_requestHeader;
@@ -363,8 +365,7 @@ namespace Opc.Ua.Server.Tests
                 var namespaceUris = m_server.CurrentInstance.NamespaceUris;
                 NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
-                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, transferRequestHeader,
-                    testSet, out var subscriptionIds);
+                var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, transferRequestHeader, testSet, kQueueSize, -1);
 
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
                 m_server.CloseSession(transferRequestHeader, false);
@@ -405,8 +406,7 @@ namespace Opc.Ua.Server.Tests
             {
                 var namespaceUris = m_server.CurrentInstance.NamespaceUris;
                 NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
-                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader,
-                    testSet, out var subscriptionIds);
+                var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader, testSet, kQueueSize, -1);
 
                 RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("TransferSession", useSecurity);
                 var transferSecurityContext = SecureChannelContext.Current;
@@ -436,9 +436,13 @@ namespace Opc.Ua.Server.Tests
         /// Call ResendData.
         /// Ensure only a single value per monitored item is returned after ResendData was called.
         /// </summary>
-        [Theory]
+        [Test]
         [NonParallelizable]
-        public void ResendData(bool updateValues)
+        [TestCase(true, kQueueSize)]
+        [TestCase(false, kQueueSize)]
+        [TestCase(true, 0U)]
+        [TestCase(false, 0U)]
+        public void ResendData(bool updateValues, uint queueSize)
         {
             var serverTestServices = new ServerTestServices(m_server);
             // save old security context, test fixture can only work with one session
@@ -449,8 +453,7 @@ namespace Opc.Ua.Server.Tests
                 NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
 
                 //Re-use method CreateSubscriptionForTransfer to create a subscription
-                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader,
-                    testSet, out var subscriptionIds);
+                var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader, testSet, queueSize, 0);
 
                 RequestHeader resendDataRequestHeader = m_server.CreateAndActivateSession("ResendData");
                 var resendDataSecurityContext = SecureChannelContext.Current;
@@ -525,8 +528,10 @@ namespace Opc.Ua.Server.Tests
 
                 if (updateValues)
                 {
+                    UpdateValues(testSet);
+
                     // fill queues, but only a single value per resend publish shall be returned
-                    for (int i = 0; i < CommonTestWorkers.MonitoredItemsQueueSize; i++)
+                    for (int i = 1; i < queueSize; i++)
                     {
                         UpdateValues(testSet);
                     }
@@ -554,7 +559,7 @@ namespace Opc.Ua.Server.Tests
 
                 Thread.Sleep(1000);
 
-                if (updateValues)
+                if (updateValues && queueSize > 1)
                 {
                     // remaining queue Data should be sent in this publish
                     m_requestHeader.Timestamp = DateTime.UtcNow;
@@ -571,7 +576,7 @@ namespace Opc.Ua.Server.Tests
                     items = notificationMessage.NotificationData.FirstOrDefault();
                     Assert.IsTrue(items.Body is Opc.Ua.DataChangeNotification);
                     monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
-                    Assert.AreEqual(testSet.Length * (CommonTestWorkers.MonitoredItemsQueueSize - 1), monitoredItemsCollection.Count, testSet.Length);
+                    Assert.AreEqual(testSet.Length * (queueSize - 1), monitoredItemsCollection.Count, testSet.Length);
                 }
 
                 // Call ResendData method with invalid subscription Id
