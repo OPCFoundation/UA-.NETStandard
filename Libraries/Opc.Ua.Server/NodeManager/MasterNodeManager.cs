@@ -29,8 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Diagnostics;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
@@ -419,8 +419,10 @@ namespace Opc.Ua.Server
             // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
             INodeManager[][] namespaceManagers = new INodeManager[m_server.NamespaceUris.Count][];
 
-            lock (m_namespaceManagers.SyncRoot)
+            try
             {
+                m_readWriterLockSlim.EnterWriteLock();
+
                 // copy existing values.
                 for (int ii = 0; ii < m_namespaceManagers.Length; ii++)
                 {
@@ -449,6 +451,11 @@ namespace Opc.Ua.Server
 
                 // replace the table.
                 m_namespaceManagers = namespaceManagers;
+
+            }
+            finally
+            {
+                m_readWriterLockSlim.ExitWriteLock();
             }
         }
 
@@ -458,7 +465,7 @@ namespace Opc.Ua.Server
         public virtual object GetManagerHandle(NodeId nodeId, out INodeManager nodeManager)
         {
             nodeManager = null;
-            object handle = null;
+            object handle;
 
             // null node ids have no manager.
             if (NodeId.IsNull(nodeId))
@@ -469,8 +476,10 @@ namespace Opc.Ua.Server
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
 
-            lock (m_namespaceManagers.SyncRoot)
+            try
             {
+                m_readWriterLockSlim.EnterReadLock();
+           
                 // check if node managers are registered - use the core node manager if unknown.
                 if (index >= m_namespaceManagers.Length || m_namespaceManagers[index] == null)
                 {
@@ -498,6 +507,10 @@ namespace Opc.Ua.Server
                         return handle;
                     }
                 }
+            }
+            finally
+            {
+                m_readWriterLockSlim.ExitReadLock();
             }
 
             // node not recognized.
@@ -3250,6 +3263,7 @@ namespace Opc.Ua.Server
         private long m_lastMonitoredItemId;
         private INodeManager[][] m_namespaceManagers;
         private uint m_maxContinuationPointsPerBrowse;
+        private ReaderWriterLockSlim m_readWriterLockSlim = new ReaderWriterLockSlim();
         #endregion
     }
 
