@@ -499,7 +499,7 @@ namespace Opc.Ua.Server
                     {
                         foreach (var cert in certCollection)
                         {
-                            if (X509Utils.CompareDistinguishedName(cert.Subject, crl.Issuer) &&
+                            if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
                                 crl.VerifySignature(cert, false))
                             {
                                 crlsToDelete.Add(crl);

@@ -450,7 +450,7 @@ namespace Opc.Ua.Server
                         IMonitoredItem monitoredItem = current.Value;
 
                         // check if the item is ready to publish.
-                        if (monitoredItem.IsReadyToPublish)
+                        if (monitoredItem.IsReadyToPublish || monitoredItem.IsResendData)
                         {
                             m_itemsToCheck.Remove(current);
                             m_itemsToPublish.AddLast(current);
@@ -535,10 +535,8 @@ namespace Opc.Ua.Server
         /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param> 
         public void TransferSession(OperationContext context, bool sendInitialValues)
         {
-            lock (m_lock)
-            {
-                m_session = context.Session;
-            }
+            // locked by caller
+            m_session = context.Session;
 
             var monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
             var errors = new List<ServiceResult>(monitoredItems.Count);
@@ -566,6 +564,24 @@ namespace Opc.Ua.Server
             lock (DiagnosticsWriteLock)
             {
                 m_diagnostics.SessionId = m_session.Id;
+            }
+        }
+
+        /// <summary>
+        /// Initiates resending of all data monitored items in a Subscription
+        /// </summary>
+        /// <param name="context"></param>
+        public void ResendData(OperationContext context)
+        {
+            // check session.
+            VerifySession(context);
+            lock (m_lock)
+            {
+                var monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+                foreach (IMonitoredItem monitoredItem in monitoredItems)
+                {
+                    monitoredItem.SetupResendDataTrigger();
+                }
             }
         }
 
@@ -782,6 +798,7 @@ namespace Opc.Ua.Server
             return message;
         }
 
+
         /// <summary>
         /// Returns all available notifications.
         /// </summary>
@@ -796,7 +813,7 @@ namespace Opc.Ua.Server
             // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH");
 
             // check if a keep alive should be sent if there is no data.
-            bool keepAliveIfNoData = (m_keepAliveCounter >= m_maxKeepAliveCount);
+            bool keepAliveIfNoData = m_keepAliveCounter >= m_maxKeepAliveCount;
 
             availableSequenceNumbers = new UInt32Collection();
 

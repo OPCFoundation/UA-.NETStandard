@@ -107,6 +107,7 @@ namespace Opc.Ua.Client
 
             m_defaultSubscription = template.m_defaultSubscription;
             m_deleteSubscriptionsOnClose = template.m_deleteSubscriptionsOnClose;
+            m_transferSubscriptionsOnReconnect = template.m_transferSubscriptionsOnReconnect;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
             m_preferredLocales = template.m_preferredLocales;
@@ -115,6 +116,10 @@ namespace Opc.Ua.Client
             m_identity = template.m_identity;
             m_keepAliveInterval = template.m_keepAliveInterval;
             m_checkDomain = template.m_checkDomain;
+            if (template.OperationTimeout > 0)
+            {
+                OperationTimeout = template.OperationTimeout;
+            }
 
             if (copyEventHandlers)
             {
@@ -253,10 +258,11 @@ namespace Opc.Ua.Client
             m_latestAcknowledgementsSent = new Dictionary<uint, uint>();
             m_identityHistory = new List<IUserIdentity>();
             m_outstandingRequests = new LinkedList<AsyncRequestState>();
-            m_keepAliveInterval = 50000;
+            m_keepAliveInterval = 5000;
             m_tooManyPublishRequests = 0;
             m_sessionName = "";
             m_deleteSubscriptionsOnClose = true;
+            m_transferSubscriptionsOnReconnect = false;
 
             m_defaultSubscription = new Subscription {
                 DisplayName = "Subscription",
@@ -347,22 +353,6 @@ namespace Opc.Ua.Client
                 }
             }
         }
-
-        /// <summary>
-        /// Dispose and stop the keep alive timer.
-        /// </summary>
-        private void DisposeKeepAliveTimer()
-        {
-            lock (SyncRoot)
-            {
-                // stop the keep alive timer.
-                if (m_keepAliveTimer != null)
-                {
-                    Utils.SilentDispose(m_keepAliveTimer);
-                    m_keepAliveTimer = null;
-                }
-            }
-        }
         #endregion
 
         #region IDisposable Members
@@ -373,7 +363,8 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
-                DisposeKeepAliveTimer();
+                Utils.SilentDispose(m_keepAliveTimer);
+                m_keepAliveTimer = null;
 
                 Utils.SilentDispose(m_defaultSubscription);
                 m_defaultSubscription = null;
@@ -628,6 +619,19 @@ namespace Opc.Ua.Client
         {
             get { return m_deleteSubscriptionsOnClose; }
             set { m_deleteSubscriptionsOnClose = value; }
+        }
+
+        /// <summary>
+        /// If the subscriptions are transferred when a session is reconnected. 
+        /// </summary>
+        /// <remarks>
+        /// Default <c>false</c>, set to <c>true</c> if subscriptions should
+        /// be transferred after reconnect. Service must be supported by server.
+        /// </remarks>   
+        public bool TransferSubscriptionsOnReconnect
+        {
+            get { return m_transferSubscriptionsOnReconnect; }
+            set { m_transferSubscriptionsOnReconnect = value; }
         }
 
         /// <summary>
@@ -1045,15 +1049,7 @@ namespace Opc.Ua.Client
                     template.m_preferredLocales,
                     template.m_checkDomain);
 
-                // try transfer
-                if (!session.TransferSubscriptions(new SubscriptionCollection(template.Subscriptions), false))
-                {
-                    // if transfer failed, create the subscriptions.
-                    foreach (Subscription subscription in session.Subscriptions)
-                    {
-                        subscription.Create();
-                    }
-                }
+                session.RecreateSubscriptions(template.Subscriptions);
             }
             catch (Exception e)
             {
@@ -1099,15 +1095,7 @@ namespace Opc.Ua.Client
                     template.m_preferredLocales,
                     template.m_checkDomain);
 
-                // try transfer
-                if (!session.TransferSubscriptions(new SubscriptionCollection(template.Subscriptions), false))
-                {
-                    // if transfer failed, create the subscriptions.
-                    foreach (Subscription subscription in session.Subscriptions)
-                    {
-                        subscription.Create();
-                    }
-                }
+                session.RecreateSubscriptions(template.Subscriptions);
             }
             catch (Exception e)
             {
@@ -1208,7 +1196,8 @@ namespace Opc.Ua.Client
                     m_reconnecting = true;
 
                     // stop keep alives.
-                    DisposeKeepAliveTimer();
+                    Utils.SilentDispose(m_keepAliveTimer);
+                    m_keepAliveTimer = null;
                 }
 
                 // create the client signature.
@@ -1320,8 +1309,9 @@ namespace Opc.Ua.Client
 
                 Utils.LogInfo("Session RE-ACTIVATING session.");
 
+                RequestHeader header = new RequestHeader() { TimeoutHint = kReconnectTimeout };
                 IAsyncResult result = BeginActivateSession(
-                    null,
+                    header,
                     clientSignature,
                     null,
                     m_preferredLocales,
@@ -1330,7 +1320,7 @@ namespace Opc.Ua.Client
                     null,
                     null);
 
-                if (!result.AsyncWaitHandle.WaitOne(5000))
+                if (!result.AsyncWaitHandle.WaitOne(kReconnectTimeout / 2))
                 {
                     Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
                 }
@@ -3318,7 +3308,9 @@ namespace Opc.Ua.Client
 
             StatusCode result = StatusCodes.Good;
 
-            DisposeKeepAliveTimer();
+            // stop the keep alive timer.
+            Utils.SilentDispose(m_keepAliveTimer);
+            m_keepAliveTimer = null;
 
             // check if currectly connected.
             bool connected = Connected;
@@ -3562,7 +3554,7 @@ namespace Opc.Ua.Client
                             failedSubscriptionIds.Add(subscriptions[ii].TransferId);
                         }
                     }
-                    if(failedSubscriptionIds.Count > 0)
+                    if (failedSubscriptionIds.Count > 0)
                     {
                         return false;
                     }
@@ -3571,7 +3563,6 @@ namespace Opc.Ua.Client
                 {
                     Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
                 }
-
             }
 
             return true;
@@ -3931,7 +3922,8 @@ namespace Opc.Ua.Client
             // restart the publish timer.
             lock (SyncRoot)
             {
-                DisposeKeepAliveTimer();
+                Utils.SilentDispose(m_keepAliveTimer);
+                m_keepAliveTimer = null;
 
                 // start timer.
                 m_keepAliveTimer = new Timer(OnKeepAlive, nodesToRead, keepAliveInterval, keepAliveInterval);
@@ -4735,6 +4727,43 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Recreate the subscriptions in a reconnected session.
+        /// Uses Transfer service if <see cref="TransferSubscriptionsOnReconnect"/> is set to <c>true</c>.
+        /// </summary>
+        /// <param name="subscriptionsTemplate">The template for the subscriptions.</param>
+        private void RecreateSubscriptions(IEnumerable<Subscription> subscriptionsTemplate)
+        {
+            bool transferred = false;
+            if (TransferSubscriptionsOnReconnect)
+            {
+                try
+                {
+                    transferred = TransferSubscriptions(new SubscriptionCollection(subscriptionsTemplate), false);
+                }
+                catch (ServiceResultException sre)
+                {
+                    Utils.LogError(sre, "Transfer subscriptions failed.");
+                }
+                catch (Exception ex)
+                {
+                    Utils.LogError(ex, "Unexpected Transfer subscriptions error.");
+                }
+            }
+
+            if (!transferred)
+            {
+                // Create the subscriptions which were not transferred.
+                foreach (Subscription subscription in Subscriptions)
+                {
+                    if (!subscription.Created)
+                    {
+                        subscription.Create();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Raises an event indicating that publish has returned a notification.
         /// </summary>
         private void OnRaisePublishNotification(object state)
@@ -4899,6 +4928,7 @@ namespace Opc.Ua.Client
         private Dictionary<NodeId, DataDictionary> m_dictionaries;
         private Subscription m_defaultSubscription;
         private bool m_deleteSubscriptionsOnClose;
+        private bool m_transferSubscriptionsOnReconnect;
         private uint m_maxRequestMessageSize;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
@@ -4918,6 +4948,7 @@ namespace Opc.Ua.Client
         private Timer m_keepAliveTimer;
         private long m_keepAliveCounter;
         private bool m_reconnecting;
+        private const int kReconnectTimeout = 15000;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;

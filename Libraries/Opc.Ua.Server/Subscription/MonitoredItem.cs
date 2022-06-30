@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua.Server
@@ -194,6 +195,7 @@ namespace Opc.Ua.Server
             m_readyToTrigger = false;
             m_sourceSamplingInterval = 0;
             m_samplingError = ServiceResult.Good;
+            m_resendData = false;
         }
         #endregion
 
@@ -238,7 +240,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // check if not ready to publish.
+                // check if not ready to publish in case it doesn't ResendData
                 if (!m_readyToPublish)
                 {
                     ServerUtils.EventLog.MonitoredItemReady(m_id, "FALSE");
@@ -261,7 +263,7 @@ namespace Opc.Ua.Server
 
                 if (m_sourceSamplingInterval == 0)
                 {
-                    // re-queue if too little time has passed since the last publish.
+                    // re-queue if too little time has passed since the last publish, in case it doesn't ResendData
                     long now = HiResClock.TickCount64;
 
                     if (m_nextSamplingTime > now)
@@ -299,6 +301,31 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     m_readyToTrigger = value;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool IsResendData
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_resendData;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public void SetupResendDataTrigger()
+        {
+            lock (m_lock)
+            {
+                if (m_monitoringMode == MonitoringMode.Reporting &&
+                    (m_typeMask & MonitoredItemTypeMask.DataChange) != 0)
+                {
+                    m_resendData = true;
                 }
             }
         }
@@ -881,7 +908,6 @@ namespace Opc.Ua.Server
             m_lastValue = value;
             m_lastError = error;
             m_readyToPublish = true;
-
             ServerUtils.EventLog.QueueValue(m_id, m_lastValue.WrappedValue, m_lastValue.StatusCode);
         }
 
@@ -1161,11 +1187,7 @@ namespace Opc.Ua.Server
                     // place event at the beginning of the queue.
                     if (overflowEvent != null && m_discardOldest)
                     {
-                        if (!ServiceResult.IsBad(ValidateRolePermissions(overflowEvent)))
-                        {
-                            // skip event reporting for EventType without permissions
-                            notifications.Enqueue(overflowEvent);
-                        }
+                        notifications.Enqueue(overflowEvent);
                     }
 
                     for (int ii = 0; ii < m_events.Count; ii++)
@@ -1184,11 +1206,6 @@ namespace Opc.Ua.Server
                                 result.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
                             }
                         }
-                        if (ServiceResult.IsBad(ValidateRolePermissions(m_events[ii])))
-                        {
-                            // skip event reporting for EventType without permissions
-                            continue;
-                        }
 
                         notifications.Enqueue(m_events[ii]);
                     }
@@ -1198,11 +1215,7 @@ namespace Opc.Ua.Server
                     // place event at the end of the queue.
                     if (overflowEvent != null && !m_discardOldest)
                     {
-                        if (!ServiceResult.IsBad(ValidateRolePermissions(overflowEvent)))
-                        {
-                            // skip event reporting for EventType without permissions
-                            notifications.Enqueue(overflowEvent);
-                        }
+                        notifications.Enqueue(overflowEvent);
                     }
 
                     Utils.LogTrace(Utils.TraceMasks.OperationDetail, "MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
@@ -1238,34 +1251,39 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                // only publish if reporting.
                 if (!IsReadyToPublish)
                 {
-                    return false;
-                }
-
-                // pull any unprocessed data.
-                if (m_calculator != null)
-                {
-                    if (m_calculator.HasEndTimePassed(DateTime.UtcNow))
+                    if (!m_resendData)
                     {
-                        DataValue processedValue = m_calculator.GetProcessedValue(false);
-
-                        while (processedValue != null)
-                        {
-                            AddValueToQueue(processedValue, null);
-                        }
-
-                        processedValue = m_calculator.GetProcessedValue(true);
-                        AddValueToQueue(processedValue, null);
+                        return false;
                     }
                 }
+                else
+                {
+                    // pull any unprocessed data.
+                    if (m_calculator != null)
+                    {
+                        if (m_calculator.HasEndTimePassed(DateTime.UtcNow))
+                        {
+                            DataValue processedValue = m_calculator.GetProcessedValue(false);
 
-                // go to the next sampling interval.
-                IncrementSampleTime();
+                            while (processedValue != null)
+                            {
+                                AddValueToQueue(processedValue, null);
+                            }
+
+                            processedValue = m_calculator.GetProcessedValue(true);
+                            AddValueToQueue(processedValue, null);
+                        }
+                    }
+
+                    IncrementSampleTime();
+                }
+
+                m_readyToPublish = false;
 
                 // check if queueing enabled.
-                if (m_queue != null)
+                if (m_queue != null && (!m_resendData || m_queue.ItemsInQueue != 0))
                 {
                     DataValue value = null;
                     ServiceResult error = null;
@@ -1273,10 +1291,15 @@ namespace Opc.Ua.Server
                     while (m_queue.Publish(out value, out error))
                     {
                         Publish(context, notifications, diagnostics, value, error);
+                        if (m_resendData)
+                        {
+                            m_readyToPublish = m_queue.ItemsInQueue > 0;
+                            break;
+                        }
                     }
                 }
 
-                // publish last value if no queuing.
+                // publish last value if no queuing or no items are queued
                 else
                 {
                     ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
@@ -1285,8 +1308,8 @@ namespace Opc.Ua.Server
 
                 // reset state variables.
                 m_overflow = false;
-                m_readyToPublish = false;
                 m_readyToTrigger = false;
+                m_resendData = false;
                 m_triggered = false;
 
                 return false;
@@ -1794,32 +1817,6 @@ namespace Opc.Ua.Server
             m_subscription?.QueueOverflowHandler();
         }
 
-        /// <summary>
-        /// Validates the role permitions for given event
-        /// </summary>
-        /// <param name="eventFieldList"></param>
-        /// <returns></returns>
-        private ServiceResult ValidateRolePermissions(EventFieldList eventFieldList)
-        {
-            ServiceResult validationResult = ServiceResult.Good;
-            if (NodeManager is CustomNodeManager2 CustomNodeManager2)
-            {
-                NodeId sourceNode = null;
-                if (eventFieldList.Handle is BaseEventState baseEventState)
-                {
-                    sourceNode = baseEventState.NodeId;
-                }
-                else if (eventFieldList.Handle is InstanceStateSnapshot snapshot)
-                {
-                    ConditionState conditionState = (ConditionState)snapshot.Handle;
-                    sourceNode = conditionState?.NodeId;
-                }
-                validationResult = CustomNodeManager2.ValidateRolePermissions(new OperationContext(this),
-                     sourceNode, PermissionType.ReceiveEvents);
-            }
-
-            return validationResult;
-        }
         #endregion
 
         #region Private Members
@@ -1862,6 +1859,7 @@ namespace Opc.Ua.Server
         private ServiceResult m_samplingError;
         private IAggregateCalculator m_calculator;
         private bool m_triggered;
+        private bool m_resendData;
         #endregion
     }
 }

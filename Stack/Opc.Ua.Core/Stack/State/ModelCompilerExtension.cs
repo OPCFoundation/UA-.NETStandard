@@ -68,6 +68,12 @@ namespace Opc.Ua
                 nodeSet.LastModifiedSpecified = true;
             }
 
+            nodeSet.NamespaceUris = (context.NamespaceUris != null) ? context.NamespaceUris.ToArray().Where(x => x != Namespaces.OpcUa).ToArray() : null;
+            nodeSet.ServerUris = (context.ServerUris != null) ? context.ServerUris.ToArray() : null;
+
+            if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length == 0) nodeSet.NamespaceUris = null;
+            if (nodeSet.ServerUris != null && nodeSet.ServerUris.Length == 0) nodeSet.ServerUris = null;
+
             if (model != null)
             {
                 nodeSet.Models = new Export.ModelTableEntry[] { model };

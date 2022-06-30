@@ -2962,6 +2962,17 @@ namespace Opc.Ua.Server
                             continue;
                         }
                     }
+
+                    // validate the role permissions for method to be executed,
+                    // it may be a diferent MethodState that does not have the MethodId specified in the method call
+                    errors[ii] = ValidateRolePermissions(context,
+                        method.NodeId,
+                        PermissionType.Call);
+
+                    if (ServiceResult.IsBad(errors[ii]))
+                    {
+                        continue;
+                    }
                 }
 
                 // call the method.
@@ -4223,20 +4234,14 @@ namespace Opc.Ua.Server
 
                     // owned by this node manager.
                     processedItems[ii] = true;
-                    var monitoredItem = monitoredItems[ii];
-                    transferredItems.Add(monitoredItem);
+                    transferredItems.Add(monitoredItems[ii]);
 
-                    if (sendInitialValues && !monitoredItem.IsReadyToPublish)
+                    if (sendInitialValues)
                     {
-                        if (monitoredItem is IDataChangeMonitoredItem2 dataChangeMonitoredItem)
-                        {
-                            errors[ii] = ReadInitialValue(systemContext, handle, dataChangeMonitoredItem);
-                        }
+                        monitoredItems[ii].SetupResendDataTrigger();
                     }
-                    else
-                    {
-                        errors[ii] = StatusCodes.Good;
-                    }
+
+                    errors[ii] = StatusCodes.Good;
                 }
             }
 

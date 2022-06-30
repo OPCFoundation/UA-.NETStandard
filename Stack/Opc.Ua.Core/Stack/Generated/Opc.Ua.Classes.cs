@@ -7292,12 +7292,21 @@ namespace Opc.Ua
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
+
+            if (CertificateErrorEventId != null)
+            {
+                CertificateErrorEventId.Initialize(context, CertificateErrorEventId_InitializationString);
+            }
         }
 
         #region Initialization String
+        private const string CertificateErrorEventId_InitializationString =
+           "//////////8VYIkKAgAAAAAAFwAAAENlcnRpZmljYXRlRXJyb3JFdmVudElkAQBHXgAuAERHXgAAAAz/" +
+           "////AQH/////AAAAAA==";
+
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAJwAAAEF1ZGl0T3BlblNlY3VyZUNoYW5uZWxFdmVudFR5cGVJbnN0YW5j" +
-           "ZQEADAgBAAwIDAgAAP////8UAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQClDAAuAESlDAAAAA//////" +
+           "ZQEADAgBAAwIDAgAAP////8VAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQClDAAuAESlDAAAAA//////" +
            "AQH/////AAAAABVgiQoCAAAAAAAJAAAARXZlbnRUeXBlAQCmDAAuAESmDAAAABH/////AQH/////AAAA" +
            "ABVgiQoCAAAAAAAKAAAAU291cmNlTm9kZQEApwwALgBEpwwAAAAR/////wEB/////wAAAAAVYIkKAgAA" +
            "AAAACgAAAFNvdXJjZU5hbWUBAKgMAC4ARKgMAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAQAAABU" +
@@ -7315,7 +7324,8 @@ namespace Opc.Ua
            "dWVzdFR5cGUBAA4IAC4ARA4IAAABADsB/////wEB/////wAAAAAVYIkKAgAAAAAAEQAAAFNlY3VyaXR5" +
            "UG9saWN5VXJpAQAPCAAuAEQPCAAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAU2VjdXJpdHlN" +
            "b2RlAQARCAAuAEQRCAAAAQAuAf////8BAf////8AAAAAFWCJCgIAAAAAABEAAABSZXF1ZXN0ZWRMaWZl" +
-           "dGltZQEAEggALgBEEggAAAEAIgH/////AQH/////AAAAAA==";
+           "dGltZQEAEggALgBEEggAAAEAIgH/////AQH/////AAAAABVgiQoCAAAAAAAXAAAAQ2VydGlmaWNhdGVF" +
+           "cnJvckV2ZW50SWQBAEdeAC4AREdeAAAADP////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -7434,6 +7444,25 @@ namespace Opc.Ua
                 m_requestedLifetime = value;
             }
         }
+
+        /// <remarks />
+        public PropertyState<string> CertificateErrorEventId
+        {
+            get
+            {
+                return m_certificateErrorEventId;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_certificateErrorEventId, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_certificateErrorEventId = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -7474,6 +7503,11 @@ namespace Opc.Ua
             if (m_requestedLifetime != null)
             {
                 children.Add(m_requestedLifetime);
+            }
+
+            if (m_certificateErrorEventId != null)
+            {
+                children.Add(m_certificateErrorEventId);
             }
 
             base.GetChildren(context, children);
@@ -7622,6 +7656,27 @@ namespace Opc.Ua
                     instance = RequestedLifetime;
                     break;
                 }
+
+                case Opc.Ua.BrowseNames.CertificateErrorEventId:
+                {
+                    if (createOrReplace)
+                    {
+                        if (CertificateErrorEventId == null)
+                        {
+                            if (replacement == null)
+                            {
+                                CertificateErrorEventId = new PropertyState<string>(this);
+                            }
+                            else
+                            {
+                                CertificateErrorEventId = (PropertyState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = CertificateErrorEventId;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -7640,6 +7695,7 @@ namespace Opc.Ua
         private PropertyState<string> m_securityPolicyUri;
         private PropertyState<MessageSecurityMode> m_securityMode;
         private PropertyState<double> m_requestedLifetime;
+        private PropertyState<string> m_certificateErrorEventId;
         #endregion
     }
     #endif

@@ -35,6 +35,8 @@ using System.Threading;
 
 namespace Opc.Ua.Server
 {
+
+
     /// <summary>
     /// Manages a monitored item created by a client.
     /// </summary>
@@ -93,6 +95,16 @@ namespace Opc.Ua.Server
         /// Gets or Sets a value indicating whether the monitored item is ready to trigger the linked items.
         /// </summary>
         bool IsReadyToTrigger { get; set; }
+
+        /// <summary>
+        /// Gets a value indicating whether the monitored item is resending data.
+        /// </summary>
+        bool IsResendData { get; }
+
+        /// <summary>
+        /// Set the resend data trigger flag.
+        /// </summary>
+        void SetupResendDataTrigger();
 
         /// <summary>
         /// Returns the result after creating the monitor item.

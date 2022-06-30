@@ -403,7 +403,6 @@ namespace Opc.Ua.Bindings
             m_quotas.MaxMessageSize = m_settings.Configuration.MaxMessageSize;
             m_quotas.ChannelLifetime = m_settings.Configuration.ChannelLifetime;
             m_quotas.SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime;
-
             m_quotas.MessageContext = new ServiceMessageContext() {
                 MaxArrayLength = m_settings.Configuration.MaxArrayLength,
                 MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
