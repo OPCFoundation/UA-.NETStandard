@@ -1016,6 +1016,14 @@ namespace Opc.Ua.Server
                 throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid, "User token policy not supported.");
             }
 
+            if (token is IssuedIdentityToken issuedToken)
+            {
+                if (policy.IssuedTokenType == Profiles.JwtUserToken)
+                {
+                    issuedToken.IssuedTokenType = IssuedTokenType.JWT; 
+                }
+            }
+
             // determine the security policy uri.
             string securityPolicyUri = policy.SecurityPolicyUri;
 
