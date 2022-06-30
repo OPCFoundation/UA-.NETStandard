@@ -3181,7 +3181,10 @@ namespace Opc.Ua.Client
                 if (StatusCode.IsNotGood(results[ii].StatusCode))
                 {
                     errors[ii] = new ServiceResult(results[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable);
-                    continue;
+                    if (StatusCode.IsBad(results[ii].StatusCode))
+                    {
+                        continue;
+                    }
                 }
 
                 object value = results[ii].Value;
