@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -161,6 +161,76 @@ namespace Opc.Ua.Gds
         public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks = 535;
 
         /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable = 15041;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable = 15042;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment = 15043;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge = 15063;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve = 15110;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve = 15112;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve = 15113;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable = 15189;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable = 15190;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment = 15191;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge = 15211;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve = 15258;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve = 15260;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 15261;
+
+        /// <summary>
         /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_Open Method.
         /// </summary>
         public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_Open = 553;
@@ -196,6 +266,76 @@ namespace Opc.Ua.Gds
         public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks = 569;
 
         /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable = 15337;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable = 15338;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment = 15339;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge = 15359;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve = 15406;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve = 15408;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve = 15409;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable = 15485;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable = 15486;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment = 15487;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge = 15507;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve = 15554;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve = 15556;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 15557;
+
+        /// <summary>
         /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_Open Method.
         /// </summary>
         public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_Open = 587;
@@ -229,6 +369,76 @@ namespace Opc.Ua.Gds
         /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks Method.
         /// </summary>
         public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks = 603;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable = 15633;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable = 15634;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment = 15635;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge = 15655;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve = 15702;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve = 15704;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve = 15705;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable = 15781;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable = 15782;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment = 15783;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge = 15803;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve = 15850;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve = 15852;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 15853;
 
         /// <summary>
         /// The identifier for the CertificateDirectoryType_StartSigningRequest Method.
@@ -416,6 +626,76 @@ namespace Opc.Ua.Gds
         public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate = 646;
 
         /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable = 15946;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable = 15947;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment = 15948;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge = 15968;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve = 16015;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve = 16017;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve = 16018;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable = 16094;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable = 16095;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment = 16096;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge = 16116;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve = 16163;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve = 16165;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 16166;
+
+        /// <summary>
         /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustList_Open Method.
         /// </summary>
         public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustList_Open = 656;
@@ -466,6 +746,76 @@ namespace Opc.Ua.Gds
         public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustList_RemoveCertificate = 680;
 
         /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable = 16242;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable = 16243;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment = 16244;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge = 16264;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve = 16311;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve = 16313;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve = 16314;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable = 16390;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable = 16391;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment = 16392;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge = 16412;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve = 16459;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve = 16461;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 16462;
+
+        /// <summary>
         /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_Open Method.
         /// </summary>
         public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_Open = 690;
@@ -514,6 +864,76 @@ namespace Opc.Ua.Gds
         /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate Method.
         /// </summary>
         public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate = 714;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable = 16538;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable = 16539;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment = 16540;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge = 16560;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve = 16607;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve = 16609;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve = 16610;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable = 16686;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable = 16687;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment = 16688;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge = 16708;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve = 16755;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve = 16757;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 16758;
 
         /// <summary>
         /// The identifier for the Directory_StartSigningRequest Method.
@@ -1101,6 +1521,546 @@ namespace Opc.Ua.Gds
         public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = 60;
 
         /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = 15009;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType = 15010;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode = 15011;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName = 15012;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time = 15013;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime = 15014;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message = 15016;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = 15017;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 15018;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 15019;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 15022;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId = 15023;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain = 15024;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState = 15025;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id = 15026;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality = 15034;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp = 15035;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity = 15036;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp = 15037;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment = 15038;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp = 15039;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId = 15040;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments = 15044;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState = 15045;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id = 15046;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id = 15055;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments = 15064;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments = 15066;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState = 15067;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id = 15068;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode = 15076;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id = 15078;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id = 15087;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState = 15096;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id = 15097;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id = 15102;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime = 15109;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = 15111;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = 256;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = 258;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = 260;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved = 15114;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id = 15122;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id = 15135;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments = 262;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments = 264;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments = 266;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments = 268;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments = 270;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments = 272;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState = 15151;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate = 15152;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType = 15154;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate = 15155;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId = 15157;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType = 15158;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode = 15159;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName = 15160;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time = 15161;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime = 15162;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message = 15164;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = 15165;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 15166;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 15167;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 15170;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId = 15171;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain = 15172;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState = 15173;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id = 15174;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality = 15182;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp = 15183;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity = 15184;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = 15185;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment = 15186;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp = 15187;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId = 15188;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments = 15192;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState = 15193;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id = 15194;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id = 15203;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments = 15212;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments = 15214;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState = 15215;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id = 15216;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode = 15224;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id = 15226;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id = 15235;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState = 15244;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = 15245;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = 15250;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = 15257;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = 15259;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = 274;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = 276;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = 278;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved = 15262;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id = 15270;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id = 15283;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments = 280;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments = 282;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = 284;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments = 286;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments = 288;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = 290;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState = 15299;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId = 15300;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime = 15301;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = 15302;
+
+        /// <summary>
         /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_Size Variable.
         /// </summary>
         public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_Size = 548;
@@ -1211,6 +2171,546 @@ namespace Opc.Ua.Gds
         public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = 82;
 
         /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = 15305;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType = 15306;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode = 15307;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName = 15308;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time = 15309;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime = 15310;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message = 15312;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = 15313;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 15314;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 15315;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 15318;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId = 15319;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain = 15320;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState = 15321;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id = 15322;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality = 15330;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp = 15331;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity = 15332;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp = 15333;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment = 15334;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp = 15335;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId = 15336;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments = 15340;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState = 15341;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id = 15342;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id = 15351;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments = 15360;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments = 15362;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState = 15363;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id = 15364;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode = 15372;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id = 15374;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id = 15383;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState = 15392;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id = 15393;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id = 15398;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime = 15405;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = 15407;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = 294;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = 296;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = 298;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved = 15410;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id = 15418;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id = 15431;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments = 300;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments = 302;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments = 304;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments = 306;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments = 308;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments = 310;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState = 15447;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate = 15448;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType = 15450;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate = 15451;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId = 15453;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType = 15454;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode = 15455;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName = 15456;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time = 15457;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime = 15458;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message = 15460;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = 15461;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 15462;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 15463;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 15466;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId = 15467;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain = 15468;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState = 15469;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id = 15470;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality = 15478;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp = 15479;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity = 15480;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = 15481;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment = 15482;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp = 15483;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId = 15484;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments = 15488;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState = 15489;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id = 15490;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id = 15499;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments = 15508;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments = 15510;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState = 15511;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id = 15512;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode = 15520;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id = 15522;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id = 15531;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState = 15540;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = 15541;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = 15546;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = 15553;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = 15555;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = 312;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = 314;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = 316;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved = 15558;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id = 15566;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id = 15579;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments = 318;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments = 320;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = 322;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments = 324;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments = 326;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = 328;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState = 15595;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId = 15596;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime = 15597;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = 15598;
+
+        /// <summary>
         /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_Size Variable.
         /// </summary>
         public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = 582;
@@ -1319,6 +2819,546 @@ namespace Opc.Ua.Gds
         /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments Variable.
         /// </summary>
         public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 88;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = 15601;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType = 15602;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode = 15603;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName = 15604;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time = 15605;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime = 15606;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message = 15608;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = 15609;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 15610;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 15611;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 15614;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId = 15615;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain = 15616;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState = 15617;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id = 15618;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality = 15626;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp = 15627;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity = 15628;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp = 15629;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment = 15630;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp = 15631;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId = 15632;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments = 15636;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState = 15637;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id = 15638;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id = 15647;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments = 15656;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments = 15658;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState = 15659;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id = 15660;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode = 15668;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id = 15670;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id = 15679;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState = 15688;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id = 15689;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id = 15694;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime = 15701;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = 15703;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = 332;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = 334;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = 336;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved = 15706;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id = 15714;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id = 15727;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments = 338;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments = 340;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments = 342;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments = 344;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments = 346;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments = 348;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState = 15743;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate = 15744;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType = 15746;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate = 15747;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId = 15749;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType = 15750;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode = 15751;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName = 15752;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time = 15753;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime = 15754;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message = 15756;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 15757;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 15758;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 15759;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 15762;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId = 15763;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain = 15764;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState = 15765;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id = 15766;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality = 15774;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp = 15775;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity = 15776;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = 15777;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment = 15778;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp = 15779;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId = 15780;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments = 15784;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState = 15785;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id = 15786;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id = 15795;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments = 15804;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments = 15806;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState = 15807;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id = 15808;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode = 15816;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id = 15818;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id = 15827;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState = 15836;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = 15837;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = 15842;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = 15849;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = 15851;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = 350;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = 352;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = 354;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved = 15854;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id = 15862;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id = 15875;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments = 356;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments = 358;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = 360;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments = 362;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments = 364;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = 366;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState = 15891;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId = 15892;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime = 15893;
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = 15894;
 
         /// <summary>
         /// The identifier for the CertificateDirectoryType_StartSigningRequest_InputArguments Variable.
@@ -1504,6 +3544,11 @@ namespace Opc.Ua.Gds
         /// The identifier for the KeyCredentialServiceType_ProfileUris Variable.
         /// </summary>
         public const uint KeyCredentialServiceType_ProfileUris = 1022;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialServiceType_SecurityPolicyUris Variable.
+        /// </summary>
+        public const uint KeyCredentialServiceType_SecurityPolicyUris = 495;
 
         /// <summary>
         /// The identifier for the KeyCredentialServiceType_StartRequest_InputArguments Variable.
@@ -1781,6 +3826,546 @@ namespace Opc.Ua.Gds
         public const uint Directory_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = 167;
 
         /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = 15914;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType = 15915;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode = 15916;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName = 15917;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time = 15918;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime = 15919;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message = 15921;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = 15922;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 15923;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 15924;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 15927;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId = 15928;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain = 15929;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState = 15930;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id = 15931;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality = 15939;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp = 15940;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity = 15941;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp = 15942;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment = 15943;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp = 15944;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId = 15945;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments = 15949;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState = 15950;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id = 15951;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id = 15960;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments = 15969;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments = 15971;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState = 15972;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id = 15973;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode = 15981;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id = 15983;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id = 15992;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState = 16001;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id = 16002;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id = 16007;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime = 16014;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = 16016;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = 373;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = 375;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = 377;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved = 16019;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id = 16027;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id = 16040;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments = 379;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments = 381;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments = 383;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments = 385;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments = 387;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments = 389;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState = 16056;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate = 16057;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType = 16059;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate = 16060;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId = 16062;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType = 16063;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode = 16064;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName = 16065;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time = 16066;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime = 16067;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message = 16069;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = 16070;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 16071;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 16072;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 16075;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId = 16076;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain = 16077;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState = 16078;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id = 16079;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality = 16087;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp = 16088;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity = 16089;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = 16090;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment = 16091;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp = 16092;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId = 16093;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments = 16097;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState = 16098;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id = 16099;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id = 16108;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments = 16117;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments = 16119;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState = 16120;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id = 16121;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode = 16129;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id = 16131;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id = 16140;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState = 16149;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = 16150;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = 16155;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = 16162;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = 16164;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = 391;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = 393;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = 395;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved = 16167;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id = 16175;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id = 16188;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments = 397;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments = 399;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = 401;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments = 403;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments = 405;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = 407;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState = 16204;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId = 16205;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime = 16206;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = 16207;
+
+        /// <summary>
         /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustList_Size Variable.
         /// </summary>
         public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustList_Size = 651;
@@ -1891,6 +4476,546 @@ namespace Opc.Ua.Gds
         public const uint Directory_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = 170;
 
         /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = 16210;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType = 16211;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode = 16212;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName = 16213;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time = 16214;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime = 16215;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message = 16217;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = 16218;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 16219;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 16220;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 16223;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId = 16224;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain = 16225;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState = 16226;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id = 16227;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality = 16235;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp = 16236;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity = 16237;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp = 16238;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment = 16239;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp = 16240;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId = 16241;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments = 16245;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState = 16246;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id = 16247;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id = 16256;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments = 16265;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments = 16267;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState = 16268;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id = 16269;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode = 16277;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id = 16279;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id = 16288;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState = 16297;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id = 16298;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id = 16303;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime = 16310;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = 16312;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = 411;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = 413;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = 415;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved = 16315;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id = 16323;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id = 16336;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments = 417;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments = 419;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments = 421;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments = 423;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments = 425;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments = 427;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState = 16352;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate = 16353;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType = 16355;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate = 16356;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId = 16358;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType = 16359;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode = 16360;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName = 16361;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time = 16362;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime = 16363;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message = 16365;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = 16366;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 16367;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 16368;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 16371;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId = 16372;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain = 16373;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState = 16374;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id = 16375;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality = 16383;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp = 16384;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity = 16385;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = 16386;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment = 16387;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp = 16388;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId = 16389;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments = 16393;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState = 16394;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id = 16395;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id = 16404;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments = 16413;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments = 16415;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState = 16416;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id = 16417;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode = 16425;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id = 16427;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id = 16436;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState = 16445;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = 16446;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = 16451;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = 16458;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = 16460;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = 429;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = 431;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = 433;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved = 16463;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id = 16471;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id = 16484;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments = 435;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments = 437;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = 439;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments = 441;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments = 443;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = 445;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState = 16500;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId = 16501;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime = 16502;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = 16503;
+
+        /// <summary>
         /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_Size Variable.
         /// </summary>
         public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = 685;
@@ -1999,6 +5124,546 @@ namespace Opc.Ua.Gds
         /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments Variable.
         /// </summary>
         public const uint Directory_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 173;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = 16506;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType = 16507;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode = 16508;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName = 16509;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time = 16510;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime = 16511;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message = 16513;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = 16514;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 16515;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 16516;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 16519;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId = 16520;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain = 16521;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState = 16522;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id = 16523;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality = 16531;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp = 16532;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity = 16533;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp = 16534;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment = 16535;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp = 16536;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId = 16537;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments = 16541;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState = 16542;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id = 16543;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id = 16552;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments = 16561;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments = 16563;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState = 16564;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id = 16565;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode = 16573;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id = 16575;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id = 16584;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState = 16593;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id = 16594;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id = 16599;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime = 16606;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = 16608;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = 449;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = 451;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = 453;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved = 16611;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id = 16619;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id = 16632;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments = 455;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments = 457;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments = 459;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments = 461;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments = 463;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments = 465;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState = 16648;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate = 16649;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType = 16651;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate = 16652;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId = 16654;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType = 16655;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode = 16656;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName = 16657;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time = 16658;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime = 16659;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message = 16661;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 16662;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 16663;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 16664;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 16667;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId = 16668;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain = 16669;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState = 16670;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id = 16671;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality = 16679;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp = 16680;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity = 16681;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = 16682;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment = 16683;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp = 16684;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId = 16685;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments = 16689;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState = 16690;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id = 16691;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id = 16700;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments = 16709;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments = 16711;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState = 16712;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id = 16713;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode = 16721;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id = 16723;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id = 16732;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState = 16741;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = 16742;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = 16747;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = 16754;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = 16756;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = 467;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = 469;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = 471;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved = 16759;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id = 16767;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id = 16780;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments = 473;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments = 475;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = 477;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments = 479;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments = 481;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = 483;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState = 16796;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId = 16797;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime = 16798;
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency Variable.
+        /// </summary>
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = 16799;
 
         /// <summary>
         /// The identifier for the Directory_StartSigningRequest_InputArguments Variable.
@@ -2251,6 +5916,76 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
         /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_Open Method.
         /// </summary>
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_Open = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_Open, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -2286,6 +6021,76 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
         /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_Open Method.
         /// </summary>
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_Open = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_Open, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -2319,6 +6124,76 @@ namespace Opc.Ua.Gds
         /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks Method.
         /// </summary>
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
         /// The identifier for the CertificateDirectoryType_StartSigningRequest Method.
@@ -2506,6 +6381,76 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
         /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustList_Open Method.
         /// </summary>
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustList_Open = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_TrustList_Open, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -2556,6 +6501,76 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustList_RemoveCertificate = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_TrustList_RemoveCertificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
         /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_Open Method.
         /// </summary>
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_Open = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_Open, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -2604,6 +6619,76 @@ namespace Opc.Ua.Gds
         /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate Method.
         /// </summary>
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve Method.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
         /// The identifier for the Directory_StartSigningRequest Method.
@@ -3191,6 +7276,546 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
         /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_Size Variable.
         /// </summary>
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_Size = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList_Size, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -3301,6 +7926,546 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
         /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_Size Variable.
         /// </summary>
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList_Size, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -3409,6 +8574,546 @@ namespace Opc.Ua.Gds
         /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments Variable.
         /// </summary>
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
         /// The identifier for the CertificateDirectoryType_StartSigningRequest_InputArguments Variable.
@@ -3594,6 +9299,11 @@ namespace Opc.Ua.Gds
         /// The identifier for the KeyCredentialServiceType_ProfileUris Variable.
         /// </summary>
         public static readonly ExpandedNodeId KeyCredentialServiceType_ProfileUris = new ExpandedNodeId(Opc.Ua.Gds.Variables.KeyCredentialServiceType_ProfileUris, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialServiceType_SecurityPolicyUris Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId KeyCredentialServiceType_SecurityPolicyUris = new ExpandedNodeId(Opc.Ua.Gds.Variables.KeyCredentialServiceType_SecurityPolicyUris, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
         /// The identifier for the KeyCredentialServiceType_StartRequest_InputArguments Variable.
@@ -3871,6 +9581,546 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
         /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustList_Size Variable.
         /// </summary>
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustList_Size = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustList_Size, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -3981,6 +10231,546 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
         /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_Size Variable.
         /// </summary>
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList_Size, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -4089,6 +10879,546 @@ namespace Opc.Ua.Gds
         /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments Variable.
         /// </summary>
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
         /// The identifier for the Directory_StartSigningRequest_InputArguments Variable.
@@ -4428,6 +11758,11 @@ namespace Opc.Ua.Gds
         /// The BrowseName for the RevokeCertificate component.
         /// </summary>
         public const string RevokeCertificate = "RevokeCertificate";
+
+        /// <summary>
+        /// The BrowseName for the SecurityPolicyUris component.
+        /// </summary>
+        public const string SecurityPolicyUris = "SecurityPolicyUris";
 
         /// <summary>
         /// The BrowseName for the ServiceCertificate component.

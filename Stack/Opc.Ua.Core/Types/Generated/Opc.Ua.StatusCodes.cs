@@ -120,7 +120,7 @@ namespace Opc.Ua
         public const uint BadServerHalted = 0x800E0000;
 
         /// <summary>
-        /// There was nothing to do because the client passed a list of operations with no elements.
+        /// No processing could be done because there was nothing to do.
         /// </summary>
         public const uint BadNothingToDo = 0x800F0000;
 
@@ -1100,6 +1100,11 @@ namespace Opc.Ua
         public const uint BadRequestNotComplete = 0x81130000;
 
         /// <summary>
+        /// The operation is not allowed because a transaction is in progress.
+        /// </summary>
+        public const uint BadTransactionPending = 0x80E80000;
+
+        /// <summary>
         /// The device identity needs a ticket before it can be accepted.
         /// </summary>
         public const uint BadTicketRequired = 0x811F0000;
@@ -1328,5 +1333,10 @@ namespace Opc.Ua
         /// The value is accurate, and the signal source supports cascade handshaking.
         /// </summary>
         public const uint GoodCascade = 0x04090000;
+
+        /// <summary>
+        /// The DataSet specified for the DataSetWriter creation is invalid.
+        /// </summary>
+        public const uint BadDataSetIdInvalid = 0x80E70000;
     }
 }
