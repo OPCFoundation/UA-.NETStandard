@@ -54,6 +54,7 @@ namespace Opc.Ua.Client.Tests
         public const int MaxTimeout = 10000;
         public const int TransportQuotaMaxMessageSize = 4 * 1024 * 1024;
         public const int TransportQuotaMaxStringLength = 1 * 1024 * 1024;
+        public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
 
         public bool SingleSession { get; set; } = true;
         public bool SupportsExternalServerUrl { get; set; } = false;
@@ -142,7 +143,11 @@ namespace Opc.Ua.Client.Tests
                 ServerFixture.Config.TransportQuotas.MaxBufferSize = TransportQuotaMaxMessageSize;
                 ServerFixture.Config.TransportQuotas.MaxByteStringLength =
                 ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                    new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
+
                 ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+                ReferenceServer.TokenValidator = this.TokenValidator;
             }
 
             ClientFixture = new ClientFixture();

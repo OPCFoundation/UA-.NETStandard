@@ -28,14 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.Threading;
-using System.Reflection;
-using System.IO;
-using System.Diagnostics;
 using System.Threading.Tasks;
 
 #pragma warning disable 0618
@@ -69,8 +62,8 @@ namespace Opc.Ua.Server
             m_monitoredItems                 = new Dictionary<uint,MonitoredItem>();
             m_defaultMinimumSamplingInterval = 1000;
             m_namespaceUris                  = new List<string>();
-            m_dynamicNamespaceIndex          = dynamicNamespaceIndex; 
-            
+            m_dynamicNamespaceIndex = dynamicNamespaceIndex;
+
             // use namespace 1 if out of range.
             if (m_dynamicNamespaceIndex == 0 || m_dynamicNamespaceIndex >= server.NamespaceUris.Count)
             {
@@ -1512,7 +1505,7 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
-            if (context == null)        throw new ArgumentNullException(nameof(context));
+            if (context == null) throw new ArgumentNullException(nameof(context));
             if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
             if (processedItems == null) throw new ArgumentNullException(nameof(processedItems));
 
@@ -1525,7 +1518,7 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
+
                     // check if the node manager created the item.
                     if (!Object.ReferenceEquals(this, monitoredItems[ii].NodeManager))
                     {
@@ -1533,7 +1526,7 @@ namespace Opc.Ua.Server
                     }
 
                     // owned by this node manager.
-                    processedItems[ii]  = true;
+                    processedItems[ii] = true;
 
                     // validate monitored item.
                     IMonitoredItem monitoredItem = monitoredItems[ii];
@@ -1545,17 +1538,12 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    if (sendInitialValues && !monitoredItem.IsReadyToPublish)
+                    if (sendInitialValues)
                     {
-                        if (monitoredItem is IDataChangeMonitoredItem2 dataChangeMonitoredItem)
-                        {
-                            errors[ii] = ReadInitialValue(context, node, dataChangeMonitoredItem);
-                        }
+                        monitoredItem.SetupResendDataTrigger();
                     }
-                    else
-                    {
-                        errors[ii] = StatusCodes.Good;
-                    }
+
+                    errors[ii] = StatusCodes.Good;
                 }
             }
         }

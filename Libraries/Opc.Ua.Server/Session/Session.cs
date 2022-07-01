@@ -450,6 +450,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns the session's endpoint
+        /// </summary>
+        public EndpointDescription EndpointDescription
+        {
+            get
+            {
+                return m_endpoint;
+            }
+        }
+
+        /// <summary>
         /// Validates the request.
         /// </summary>
         public virtual void ValidateRequest(RequestHeader requestHeader, RequestType requestType)
@@ -1003,6 +1014,14 @@ namespace Opc.Ua.Server
             if (policy == null)
             {
                 throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid, "User token policy not supported.");
+            }
+
+            if (token is IssuedIdentityToken issuedToken)
+            {
+                if (policy.IssuedTokenType == Profiles.JwtUserToken)
+                {
+                    issuedToken.IssuedTokenType = IssuedTokenType.JWT; 
+                }
             }
 
             // determine the security policy uri.

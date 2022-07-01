@@ -39,6 +39,9 @@ namespace Opc.Ua.Server.Tests
     /// </summary>
     public static class CommonTestWorkers
     {
+        public const int DefaultMonitoredItemsQueueSize = 0;
+        public const int DefaultMonitoredItemsSamplingInterval = -1;
+
         #region Public Test Sets
         public static readonly ExpandedNodeId[] NodeIdTestSetStatic =
         {
@@ -54,6 +57,15 @@ namespace Opc.Ua.Server.Tests
             new ExpandedNodeId("Scalar_Static_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
         };
 
+        // static variables from namespace TestData
+        public static readonly ExpandedNodeId[] NodeIdTestDataSetStatic =
+        {
+            new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_Int16Value, TestData.Namespaces.TestData),
+            new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_Int32Value, TestData.Namespaces.TestData),
+            new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_UInt16Value, TestData.Namespaces.TestData),
+            new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_UInt32Value, TestData.Namespaces.TestData),
+        };
+
         public static readonly ExpandedNodeId[] NodeIdTestSetSimulation =
         {
             new ExpandedNodeId("Scalar_Simulation_SByte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
@@ -66,6 +78,13 @@ namespace Opc.Ua.Server.Tests
             new ExpandedNodeId("Scalar_Simulation_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+        };
+
+        public static readonly ExpandedNodeId[] NodeIdMemoryBufferSimulation =
+        {
+            // dynamic variables from namespace MemoryBuffer
+            new ExpandedNodeId("UInt32[64]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"),
+            new ExpandedNodeId("Double[40]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"),
         };
         #endregion
 
@@ -427,21 +446,24 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Worker method to test TransferSubscriptions of a server.
         /// </summary>
-        public static void CreateSubscriptionForTransfer(
+        public static UInt32Collection CreateSubscriptionForTransfer(
             IServerTestServices services,
             RequestHeader requestHeader,
             NodeId[] testNodes,
-            out UInt32Collection subscriptionIds)
+            uint queueSize = DefaultMonitoredItemsQueueSize,
+            int samplingInterval = DefaultMonitoredItemsSamplingInterval)
         {
             // start time
+
             requestHeader.Timestamp = DateTime.UtcNow;
             uint subscriptionId = CreateSubscription(services, requestHeader);
+            uint clientHandle = 1;
             foreach (NodeId testNode in testNodes)
             {
-                CreateMonitoredItem(services, requestHeader, subscriptionId, testNode);
+                CreateMonitoredItem(services, requestHeader, subscriptionId, testNode, clientHandle++, queueSize, samplingInterval);
             }
 
-            subscriptionIds = new UInt32Collection();
+            var subscriptionIds = new UInt32Collection();
             subscriptionIds.Add(subscriptionId);
 
             // enable publishing
@@ -465,6 +487,8 @@ namespace Opc.Ua.Server.Tests
 
             // static node, do not acknoledge
             Assert.AreEqual(1, availableSequenceNumbers.Count);
+
+            return subscriptionIds;
         }
 
         /// <summary>
@@ -516,6 +540,13 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
             Assert.AreEqual(subscriptionIds[0], publishedId);
             Assert.AreEqual(sendInitialData ? 1 : 0, notificationMessage.NotificationData.Count);
+            if (sendInitialData)
+            {
+                var items = notificationMessage.NotificationData.FirstOrDefault();
+                Assert.IsTrue(items.Body is Opc.Ua.DataChangeNotification);
+                var monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
+                Assert.IsNotEmpty(monitoredItemsCollection);
+            }
             //Assert.AreEqual(0, availableSequenceNumbers.Count);
 
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -592,9 +623,12 @@ namespace Opc.Ua.Server.Tests
 
         private static void CreateMonitoredItem(
             IServerTestServices services, RequestHeader requestHeader,
-            uint subscriptionId, NodeId nodeId)
+            uint subscriptionId, NodeId nodeId,
+            uint clientHandle,
+            uint queueSize,
+            int samplingInterval
+            )
         {
-            uint queueSize = 5;
             var itemsToCreate = new MonitoredItemCreateRequestCollection {
                 // add item
                 new MonitoredItemCreateRequest {
@@ -604,8 +638,8 @@ namespace Opc.Ua.Server.Tests
                     },
                     MonitoringMode = MonitoringMode.Reporting,
                     RequestedParameters = new MonitoringParameters {
-                        ClientHandle = 1u,
-                        SamplingInterval = -1,
+                        ClientHandle = clientHandle,
+                        SamplingInterval = samplingInterval,
                         Filter = null,
                         DiscardOldest = true,
                         QueueSize = queueSize
