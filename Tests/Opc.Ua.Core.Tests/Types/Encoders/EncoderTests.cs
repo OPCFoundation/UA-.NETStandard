@@ -382,7 +382,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
-            int matrixDimension = RandomSource.NextInt32(8) + 2;
+            int matrixDimension = RandomSource.NextInt32(3) + 2;
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elements = ElementsFromDimension(dimensions);
@@ -406,7 +406,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
-            int matrixDimension = RandomSource.NextInt32(8) + 2;
+            int matrixDimension = RandomSource.NextInt32(3) + 2;
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elements = ElementsFromDimension(dimensions);

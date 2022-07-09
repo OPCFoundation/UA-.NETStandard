@@ -1111,12 +1111,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-#endregion Private Members
+        #endregion Private Members
 
-#region Private Fields
+        #region Private Fields
         private IComplexTypeResolver m_complexTypeResolver;
         private IComplexTypeFactory m_complexTypeBuilderFactory;
         private static readonly string[] m_supportedEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultXml, BrowseNames.DefaultJson };
-#endregion Private Fields
+        #endregion Private Fields
     }
 }//namespace
