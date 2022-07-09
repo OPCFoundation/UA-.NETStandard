@@ -53,7 +53,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected const int kArrayRepeats = 3;
         protected const int kRandomStart = 4840;
         protected const int kRandomRepeats = 100;
-        protected const int kMaxArraySize = 1024 * 1024;
+        protected const int kMaxArrayLength = 1024 * 64;
         protected const string kApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
@@ -65,7 +65,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            Context = new ServiceMessageContext();
+            Context = new ServiceMessageContext() {
+                MaxArrayLength = kMaxArrayLength
+            };
             NameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
             NameSpaceUris.GetIndexOrAppend(kApplicationUri);
@@ -618,7 +620,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         /// <summary>
         /// Sets random array dimensions between 2 and 10.
-        /// Number of total elements is limited by <see cref="kMaxArraySize"/>
+        /// Number of total elements is limited by <see cref="kMaxArrayLength"/>
         /// </summary>
         protected void SetMatrixDimensions(int[] dimensions)
         {
@@ -628,7 +630,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 dimensions[i] = RandomSource.NextInt32(8) + 2;
                 totalElements *= dimensions[i];
             }
-            while (totalElements > kMaxArraySize)
+            while (totalElements > kMaxArrayLength)
             {
                 int random = RandomSource.NextInt32(dimensions.Length - 1);
                 if (dimensions[random] > 1)
