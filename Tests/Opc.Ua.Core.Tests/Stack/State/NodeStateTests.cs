@@ -42,9 +42,31 @@ namespace Opc.Ua.Core.Tests.Stack.State
     [Parallelizable]
     public class StateTypesTests
     {
+        public const string kApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
+        public const string OpcUa = "http://opcfoundation.org/UA/";
+        public IServiceMessageContext Context;
+
         #region DataPointSources
         [DatapointSource]
         public Type[] TypeArray = typeof(BaseObjectState).Assembly.GetExportedTypes().Where(type => IsNodeStateType(type)).ToArray();
+        #endregion
+
+        #region Test Setup
+        [OneTimeSetUp]
+        protected void OneTimeSetUp()
+        {
+            Context = new ServiceMessageContext();
+            var nameSpaceUris = Context.NamespaceUris;
+            // namespace index 1 must be the ApplicationUri
+            nameSpaceUris.GetIndexOrAppend(kApplicationUri);
+            nameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
+        }
+
+        [OneTimeTearDown]
+        protected void OneTimeTearDown()
+        {
+            Utils.SilentDispose(Context);
+        }
         #endregion
 
         #region Test Methods
@@ -59,8 +81,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             NodeState testObject = CreateDefaultNodeStateType(systemType) as NodeState;
             Assert.NotNull(testObject);
             Assert.False(testObject.Initialized);
-            SystemContext context = new SystemContext();
-            testObject.Initialize(context, "");
+            SystemContext context = new SystemContext() { NamespaceUris = Context.NamespaceUris };
+            Assert.AreEqual(0, context.NamespaceUris.GetIndexOrAppend(OpcUa));
+            testObject.Create(context, new NodeId(1000), "Name", "DisplayName", true);
             testObject.Dispose();
         }
         #endregion
