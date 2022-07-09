@@ -179,12 +179,12 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encopdeable object to be read</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
-        IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null);
+        IEncodeable ReadEncodeable(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null);
 
         /// <summary>
         ///  Reads an enumerated value from the stream.
         /// </summary>
-        Enum ReadEnumerated(string fieldName, System.Type enumType);
+        Enum ReadEnumerated(string fieldName, Type enumType);
 
         /// <summary>
         /// Reads a boolean array from the stream.
@@ -318,16 +318,18 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encopdeable objects to be read object</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
-        Array ReadEncodeableArray(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null);
+        Array ReadEncodeableArray(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null);
 
         /// <summary>
         /// Reads an enumerated value array from the stream.
         /// </summary>
-        Array ReadEnumeratedArray(string fieldName, System.Type enumType);
+        Array ReadEnumeratedArray(string fieldName, Type enumType);
 
         /// <summary>
-        /// Reads an array with the specified valueRank and the specified BuiltInType
+        /// Reads an array with the specified valueRank and the specified BuiltInType.
         /// </summary>
-        object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null);
+        /// <returns>An array or a matrix of the specified built in type.</returns>
+        object ReadArray(string fieldName, int valueRank, BuiltInType builtInType,
+            ExpandedNodeId encodeableTypeId = null, bool asCollection = false);
     }
 }

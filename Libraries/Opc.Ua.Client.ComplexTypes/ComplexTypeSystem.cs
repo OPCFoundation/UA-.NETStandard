@@ -917,8 +917,8 @@ namespace Opc.Ua.Client.ComplexTypes
             var typeList = new List<Type>();
             foreach (StructureField field in structureDefinition.Fields)
             {
-                var newType = GetFieldType(field);
-                var isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris), field.DataType);
+                Type newType = GetFieldType(field);
+                bool isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris), field.DataType);
                 if (newType == null && !isRecursiveDataType)
                 {
                     throw new DataTypeNotFoundException(field.DataType);
@@ -948,10 +948,16 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         fieldBuilder.AddField(field, (fieldBuilder as ComplexTypeFieldBuilder).StructureTypeBuilder, order);
                     }
-                    else // array
+                    else if (field.ValueRank >= ValueRanks.OneDimension)
                     {
+                        // array type
                         var arrayType = (fieldBuilder as ComplexTypeFieldBuilder).StructureTypeBuilder.MakeArrayType();
                         fieldBuilder.AddField(field, arrayType, order);
+                    }
+                    else
+                    {
+                        // TODO
+                        throw new Exception();
                     }
                 }
                 else
@@ -975,13 +981,13 @@ namespace Opc.Ua.Client.ComplexTypes
             Type collectionType = null;
 
             if (field.ValueRank != ValueRanks.Scalar &&
-                field.ValueRank != ValueRanks.OneDimension)
+                field.ValueRank < ValueRanks.OneDimension)
             {
                 throw new DataTypeNotSupportedException(field.DataType, $"The ValueRank {field.ValueRank} is not supported.");
             }
 
             Type fieldType = field.DataType.NamespaceIndex == 0 ?
-                Opc.Ua.TypeInfo.GetSystemType(field.DataType, m_complexTypeResolver.Factory) :
+                TypeInfo.GetSystemType(field.DataType, m_complexTypeResolver.Factory) :
                 GetSystemType(field.DataType);
             if (fieldType == null)
             {
@@ -1024,6 +1030,10 @@ namespace Opc.Ua.Client.ComplexTypes
             if (field.ValueRank == ValueRanks.OneDimension)
             {
                 fieldType = collectionType ?? fieldType.MakeArrayType();
+            }
+            else if (field.ValueRank >= ValueRanks.TwoDimensions)
+            {
+                fieldType = fieldType.MakeArrayType(field.ValueRank);
             }
 
             return fieldType;
@@ -1101,12 +1111,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-        #endregion Private Members
+#endregion Private Members
 
-        #region Private Fields
+#region Private Fields
         private IComplexTypeResolver m_complexTypeResolver;
         private IComplexTypeFactory m_complexTypeBuilderFactory;
         private static readonly string[] m_supportedEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultXml, BrowseNames.DefaultJson };
-        #endregion Private Fields
+#endregion Private Fields
     }
 }//namespace

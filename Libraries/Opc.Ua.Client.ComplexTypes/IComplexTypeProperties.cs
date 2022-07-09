@@ -29,82 +29,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Runtime.Serialization;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
-    /// <summary>
-    /// Attribute for a complex type property.
-    /// </summary>
-    public class ComplexTypePropertyAttribute
-    {
-        /// <inheritdoc cref="System.Reflection.PropertyInfo"/>
-        public readonly PropertyInfo PropertyInfo;
-
-        /// <summary>
-        /// The structure field attributes of the complex type.
-        /// </summary>
-        public readonly StructureFieldAttribute FieldAttribute;
-
-        /// <summary>
-        /// The data attributes of the complex type.
-        /// </summary>
-        public readonly DataMemberAttribute DataAttribute;
-
-        /// <summary>
-        /// Create the attributes for the complex type.
-        /// </summary>
-        public ComplexTypePropertyAttribute(
-            PropertyInfo propertyInfo,
-            StructureFieldAttribute fieldAttribute,
-            DataMemberAttribute dataAttribute
-            )
-        {
-            PropertyInfo = propertyInfo;
-            FieldAttribute = fieldAttribute;
-            DataAttribute = dataAttribute;
-        }
-
-        /// <summary>
-        /// Get the name of the complex type.
-        /// </summary>
-        public string Name => PropertyInfo.Name;
-
-        /// <summary>
-        /// Get the value of a property.
-        /// </summary>
-        public object GetValue(object o)
-        {
-            return PropertyInfo.GetValue(o);
-        }
-
-        /// <summary>
-        /// Set the value of a property.
-        /// </summary>
-        public void SetValue(object o, object v)
-        {
-            PropertyInfo.SetValue(o, v);
-        }
-
-        /// <inheritdoc cref="PropertyInfo.PropertyType"/>
-        public Type PropertyType => PropertyInfo.PropertyType;
-
-        /// <inheritdoc cref="StructureFieldAttribute.IsOptional"/>
-        public bool IsOptional => FieldAttribute.IsOptional;
-
-        /// <inheritdoc cref="StructureFieldAttribute.ValueRank"/>
-        public int ValueRank => FieldAttribute.ValueRank;
-
-        /// <inheritdoc cref="DataMemberAttribute.Order"/>
-        public int Order => DataAttribute.Order;
-
-        /// <summary>
-        /// Optional mask for the field in the property.
-        /// </summary>
-        public UInt32 OptionalFieldMask;
-    }
-
     /// <summary>
     /// Interface to access properties of a complex type.
     /// </summary>
@@ -138,6 +65,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Ordered enumerator for properties.
         /// </summary>
-        IEnumerable<ComplexTypePropertyAttribute> GetPropertyEnumerator();
+        IEnumerable<ComplexTypePropertyInfo> GetPropertyEnumerator();
     }
 }//namespace

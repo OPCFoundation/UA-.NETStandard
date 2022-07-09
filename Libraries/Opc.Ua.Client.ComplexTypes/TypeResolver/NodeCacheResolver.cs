@@ -203,7 +203,7 @@ namespace Opc.Ua.Client.ComplexTypes
             if (property != null)
             {
                 // read the enum type array
-                DataValue value = m_session.ReadValue(ExpandedNodeId.ToNodeId(nodeId, NamespaceUris));
+                DataValue value = m_session.ReadValue(ExpandedNodeId.ToNodeId(property.NodeId, NamespaceUris));
                 return value?.Value;
             }
             return null;

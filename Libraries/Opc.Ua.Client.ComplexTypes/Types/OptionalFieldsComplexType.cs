@@ -101,7 +101,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                 }
 
-                EncodeProperty(encoder, property.PropertyInfo, property.ValueRank);
+                EncodeProperty(encoder, property);
             }
             encoder.PopNamespace();
         }
@@ -123,7 +123,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                 }
 
-                DecodeProperty(decoder, property.PropertyInfo, property.ValueRank);
+                DecodeProperty(decoder, property);
             }
             decoder.PopNamespace();
         }
@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             get
             {
-                ComplexTypePropertyAttribute property;
+                ComplexTypePropertyInfo property;
                 if (m_propertyDict.TryGetValue(name, out property))
                 {
                     if (property.IsOptional &&
@@ -261,7 +261,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                ComplexTypePropertyAttribute property;
+                ComplexTypePropertyInfo property;
                 if (m_propertyDict.TryGetValue(name, out property))
                 {
                     property.SetValue(this, value);

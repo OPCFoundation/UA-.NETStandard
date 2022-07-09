@@ -97,19 +97,17 @@ namespace Opc.Ua.Client.ComplexTypes
             if (m_switchField != 0)
             {
                 int unionSelector = 1;
-                int valueRank = -1;
-                PropertyInfo unionProperty = null;
+                ComplexTypePropertyInfo unionProperty = null;
                 foreach (var property in GetPropertyEnumerator())
                 {
                     if (unionSelector == m_switchField)
                     {
-                        valueRank = property.ValueRank;
-                        unionProperty = property.PropertyInfo;
+                        unionProperty = property;
                         break;
                     }
                     unionSelector++;
                 }
-                EncodeProperty(encoder, fieldName, unionProperty, valueRank);
+                EncodeProperty(encoder, fieldName, unionProperty);
             }
             else if (!encoder.UseReversibleEncoding)
             {
@@ -133,7 +131,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (--unionSelector == 0)
                     {
-                        DecodeProperty(decoder, "Value", property.PropertyInfo, property.ValueRank);
+                        DecodeProperty(decoder, "Value", property);
                         break;
                     }
                 }
@@ -286,7 +284,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (SwitchField > 0)
                 {
-                    ComplexTypePropertyAttribute property;
+                    ComplexTypePropertyInfo property;
                     if (m_propertyDict.TryGetValue(name, out property))
                     {
                         if ((int)m_switchField == property.Order)
@@ -303,7 +301,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                ComplexTypePropertyAttribute property;
+                ComplexTypePropertyInfo property;
                 if (m_propertyDict.TryGetValue(name, out property))
                 {
                     property.SetValue(this, value);

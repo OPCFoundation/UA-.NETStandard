@@ -1571,72 +1571,73 @@ namespace Opc.Ua
         {
             if (valueRank == ValueRanks.OneDimension)
             {
-                /*One dimensional Arrays are encoded as a sequence of elements preceded by the number of elements encoded as an Int32 value. 
+                /* One dimensional Arrays are encoded as a sequence of elements preceeded 
+                 * by the number of elements encoded as an Int32 value. 
                  * If an Array is null, then its length is encoded as −1.*/
                 switch (builtInType)
                 {
                     case BuiltInType.Boolean:
-                        WriteBooleanArray(null, (bool[])array);
+                        WriteBooleanArray(null, array as IList<bool> ?? (bool[])array);
                         break;
                     case BuiltInType.SByte:
-                        WriteSByteArray(null, (sbyte[])array);
+                        WriteSByteArray(null, array as IList<sbyte> ?? (sbyte[])array);
                         break;
                     case BuiltInType.Byte:
-                        WriteByteArray(null, (byte[])array);
+                        WriteByteArray(null, array as IList<byte> ?? (byte[])array);
                         break;
                     case BuiltInType.Int16:
-                        WriteInt16Array(null, (short[])array);
+                        WriteInt16Array(null, array as IList<short> ?? (short[])array);
                         break;
                     case BuiltInType.UInt16:
-                        WriteUInt16Array(null, (ushort[])array);
+                        WriteUInt16Array(null, array as IList<ushort> ?? (ushort[])array);
                         break;
                     case BuiltInType.Int32:
-                        WriteInt32Array(null, (int[])array);
+                        WriteInt32Array(null, array as IList<int> ?? (int[])array);
                         break;
                     case BuiltInType.UInt32:
-                        WriteUInt32Array(null, (uint[])array);
+                        WriteUInt32Array(null, array as IList<uint> ?? (uint[])array);
                         break;
                     case BuiltInType.Int64:
-                        WriteInt64Array(null, (long[])array);
+                        WriteInt64Array(null, array as IList<long> ?? (long[])array);
                         break;
                     case BuiltInType.UInt64:
-                        WriteUInt64Array(null, (ulong[])array);
+                        WriteUInt64Array(null, array as IList<ulong> ?? (ulong[])array);
                         break;
                     case BuiltInType.Float:
-                        WriteFloatArray(null, (float[])array);
+                        WriteFloatArray(null, array as IList<float> ?? (float[])array);
                         break;
                     case BuiltInType.Double:
-                        WriteDoubleArray(null, (double[])array);
+                        WriteDoubleArray(null, array as IList<double> ?? (double[])array);
                         break;
                     case BuiltInType.DateTime:
-                        WriteDateTimeArray(null, (DateTime[])array);
+                        WriteDateTimeArray(null, array as IList<DateTime> ?? (DateTime[])array);
                         break;
                     case BuiltInType.Guid:
-                        WriteGuidArray(null, (Uuid[])array);
+                        WriteGuidArray(null, array as IList<Uuid> ?? (Uuid[])array);
                         break;
                     case BuiltInType.String:
-                        WriteStringArray(null, (string[])array);
+                        WriteStringArray(null, array as IList<string> ?? (string[])array);
                         break;
                     case BuiltInType.ByteString:
-                        WriteByteStringArray(null, (byte[][])array);
+                        WriteByteStringArray(null, array as IList<byte[]> ?? (byte[][])array);
                         break;
                     case BuiltInType.QualifiedName:
-                        WriteQualifiedNameArray(null, (QualifiedName[])array);
+                        WriteQualifiedNameArray(null, array as IList<QualifiedName> ?? (QualifiedName[])array);
                         break;
                     case BuiltInType.LocalizedText:
-                        WriteLocalizedTextArray(null, (LocalizedText[])array);
+                        WriteLocalizedTextArray(null, array as IList<LocalizedText> ?? (LocalizedText[])array);
                         break;
                     case BuiltInType.NodeId:
-                        WriteNodeIdArray(null, (NodeId[])array);
+                        WriteNodeIdArray(null, array as IList<NodeId> ?? (NodeId[])array);
                         break;
                     case BuiltInType.ExpandedNodeId:
-                        WriteExpandedNodeIdArray(null, (ExpandedNodeId[])array);
+                        WriteExpandedNodeIdArray(null, array as IList<ExpandedNodeId> ?? (ExpandedNodeId[])array);
                         break;
                     case BuiltInType.StatusCode:
-                        WriteStatusCodeArray(null, (StatusCode[])array);
+                        WriteStatusCodeArray(null, array as IList<StatusCode> ?? (StatusCode[])array);
                         break;
                     case BuiltInType.XmlElement:
-                        WriteXmlElementArray(null, (System.Xml.XmlElement[])array);
+                        WriteXmlElementArray(null, array as IList<XmlElement> ?? (XmlElement[])array);
                         break;
                     case BuiltInType.Variant:
                         // try to write IEncodeable Array
@@ -1646,10 +1647,10 @@ namespace Opc.Ua
                             WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                             return;
                         }
-
-                        WriteVariantArray(null, (Variant[])array);
+                        WriteVariantArray(null, array as IList<Variant> ?? (Variant[])array);
                         break;
                     case BuiltInType.Enumeration:
+                        // TODO: IntCollection?
                         int[] ints = array as int[];
                         if (ints == null)
                         {
@@ -1675,10 +1676,10 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ExtensionObject:
-                        WriteExtensionObjectArray(null, (ExtensionObject[])array);
+                        WriteExtensionObjectArray(null, array as IList<ExtensionObject> ?? (ExtensionObject[])array);
                         break;
                     case BuiltInType.DiagnosticInfo:
-                        WriteDiagnosticInfoArray(null, (DiagnosticInfo[])array);
+                        WriteDiagnosticInfoArray(null, array as IList<DiagnosticInfo> ?? (DiagnosticInfo[])array);
                         break;
                     default:
                     {
@@ -1691,16 +1692,22 @@ namespace Opc.Ua
             }
             else if (valueRank > ValueRanks.OneDimension)
             {
-                /* Multi - dimensional Arrays are encoded as an Int32 Array containing the dimensions followed by 
-                 * a list of all the values in the Array. The total number of values is equal to the product of the dimensions.
+                /* Multi-dimensional Arrays are encoded as an Int32 Array containing the dimensions followed by 
+                 * a list of all the values in the Array. The total number of values is equal to the 
+                 * product of the dimensions.
                  * The number of values is 0 if one or more dimension is less than or equal to 0.*/
 
                 Matrix matrix = array as Matrix;
                 if (matrix == null)
                 {
-                    // there is no Dimensions to write
-                    WriteInt32(null, -1);
-                    return;
+                    var multiArray = array as Array;
+                    if (multiArray == null || multiArray.Rank != valueRank)
+                    {
+                        // there is no Dimensions to write
+                        WriteInt32(null, -1);
+                        return;
+                    }
+                    matrix = new Matrix(multiArray, builtInType);
                 }
 
                 // Write the Dimensions
@@ -1761,6 +1768,7 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                     case BuiltInType.Int32:
                     {
+                        // TODO: convert enum values?
                         Int32[] values = (Int32[])matrix.Elements;
                         // write contents.
                         for (int ii = 0; ii < values.Length; ii++)

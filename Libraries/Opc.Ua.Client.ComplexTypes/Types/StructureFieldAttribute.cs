@@ -46,6 +46,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ValueRank = -1;
             MaxStringLength = 0;
             IsOptional = false;
+            BuiltInType = 0;
         }
         #endregion Constructors
 
@@ -64,6 +65,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// If the field is optional.
         /// </summary>
         public bool IsOptional { get; set; }
+
+        /// <summary>
+        /// The datatype of a field as BuiltInType.
+        /// </summary>
+        public Int32 BuiltInType { get; set; }
         #endregion Public Properties
     }
 }//namespace

@@ -11,7 +11,9 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Xml;
 
@@ -1428,81 +1430,183 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType
         /// </summary>
-        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
+        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null, bool asCollection = false)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
-                switch (builtInType)
+                if (asCollection)
                 {
-                    case BuiltInType.Boolean:
-                        return ReadBooleanArray(fieldName).ToArray();
-                    case BuiltInType.SByte:
-                        return ReadSByteArray(fieldName).ToArray();
-                    case BuiltInType.Byte:
-                        return ReadByteArray(fieldName).ToArray();
-                    case BuiltInType.Int16:
-                        return ReadInt16Array(fieldName).ToArray();
-                    case BuiltInType.UInt16:
-                        return ReadUInt16Array(fieldName).ToArray();
-                    case BuiltInType.Int32:
-                    case BuiltInType.Enumeration:
-                        return ReadInt32Array(fieldName).ToArray();
-                    case BuiltInType.UInt32:
-                        return ReadUInt32Array(fieldName).ToArray();
-                    case BuiltInType.Int64:
-                        return ReadInt64Array(fieldName).ToArray();
-                    case BuiltInType.UInt64:
-                        return ReadUInt64Array(fieldName).ToArray();
-                    case BuiltInType.Float:
-                        return ReadFloatArray(fieldName).ToArray();
-                    case BuiltInType.Double:
-                        return ReadDoubleArray(fieldName).ToArray();
-                    case BuiltInType.String:
-                        return ReadStringArray(fieldName).ToArray();
-                    case BuiltInType.DateTime:
-                        return ReadDateTimeArray(fieldName).ToArray();
-                    case BuiltInType.Guid:
-                        return ReadGuidArray(fieldName).ToArray();
-                    case BuiltInType.ByteString:
-                        return ReadByteStringArray(fieldName).ToArray();
-                    case BuiltInType.XmlElement:
-                        return ReadXmlElementArray(fieldName).ToArray();
-                    case BuiltInType.NodeId:
-                        return ReadNodeIdArray(fieldName).ToArray();
-                    case BuiltInType.ExpandedNodeId:
-                        return ReadExpandedNodeIdArray(fieldName).ToArray();
-                    case BuiltInType.StatusCode:
-                        return ReadStatusCodeArray(fieldName).ToArray();
-                    case BuiltInType.QualifiedName:
-                        return ReadQualifiedNameArray(fieldName).ToArray();
-                    case BuiltInType.LocalizedText:
-                        return ReadLocalizedTextArray(fieldName).ToArray();
-                    case BuiltInType.DataValue:
-                        return ReadDataValueArray(fieldName).ToArray();
-                    case BuiltInType.Variant:
-                        if (encodeableTypeId != null)
-                        {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                            }
-                        }
-                        return ReadVariantArray(fieldName).ToArray();
-                    case BuiltInType.ExtensionObject:
-                        return ReadExtensionObjectArray(fieldName).ToArray();
-                    case BuiltInType.DiagnosticInfo:
-                        return ReadDiagnosticInfoArray(fieldName).ToArray();
-                    default:
+                    switch (builtInType)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadDecodingError,
-                            Utils.Format("Cannot decode unknown type in Array object with BuiltInType: {0}.", builtInType));
+                        case BuiltInType.Boolean:
+                            return ReadBooleanArray(fieldName);
+                        case BuiltInType.SByte:
+                            return ReadSByteArray(fieldName);
+                        case BuiltInType.Byte:
+                            return ReadByteArray(fieldName);
+                        case BuiltInType.Int16:
+                            return ReadInt16Array(fieldName);
+                        case BuiltInType.UInt16:
+                            return ReadUInt16Array(fieldName);
+                        case BuiltInType.Enumeration:
+                            if (encodeableTypeId != null)
+                            {
+                                Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                                if (systemType != null)
+                                {
+                                    Type listType = typeof(List<>);
+                                    Type systemListType = listType.MakeGenericType(systemType);
+                                    var array = ReadEnumeratedArray(fieldName, systemType);
+                                    return Activator.CreateInstance(systemListType, new object[] { array });
+                                }
+                            }
+                            goto case BuiltInType.Int32;
+                        case BuiltInType.Int32:
+                            return ReadInt32Array(fieldName);
+                        case BuiltInType.UInt32:
+                            return ReadUInt32Array(fieldName);
+                        case BuiltInType.Int64:
+                            return ReadInt64Array(fieldName);
+                        case BuiltInType.UInt64:
+                            return ReadUInt64Array(fieldName);
+                        case BuiltInType.Float:
+                            return ReadFloatArray(fieldName);
+                        case BuiltInType.Double:
+                            return ReadDoubleArray(fieldName);
+                        case BuiltInType.String:
+                            return ReadStringArray(fieldName);
+                        case BuiltInType.DateTime:
+                            return ReadDateTimeArray(fieldName);
+                        case BuiltInType.Guid:
+                            return ReadGuidArray(fieldName);
+                        case BuiltInType.ByteString:
+                            return ReadByteStringArray(fieldName);
+                        case BuiltInType.XmlElement:
+                            return ReadXmlElementArray(fieldName);
+                        case BuiltInType.NodeId:
+                            return ReadNodeIdArray(fieldName);
+                        case BuiltInType.ExpandedNodeId:
+                            return ReadExpandedNodeIdArray(fieldName);
+                        case BuiltInType.StatusCode:
+                            return ReadStatusCodeArray(fieldName);
+                        case BuiltInType.QualifiedName:
+                            return ReadQualifiedNameArray(fieldName);
+                        case BuiltInType.LocalizedText:
+                            return ReadLocalizedTextArray(fieldName);
+                        case BuiltInType.DataValue:
+                            return ReadDataValueArray(fieldName);
+                        case BuiltInType.Variant:
+                            if (encodeableTypeId != null)
+                            {
+                                Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                                if (systemType != null)
+                                {
+                                    Array encodeableArray = ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                                    var variantCollection = new VariantCollection();
+                                    foreach (var encodeable in encodeableArray)
+                                    {
+                                        variantCollection.Add(new Variant(encodeable));
+                                    }
+                                    return new VariantCollection(variantCollection);
+                                }
+                            }
+                            return ReadVariantArray(fieldName);
+                        case BuiltInType.ExtensionObject:
+                            return ReadExtensionObjectArray(fieldName);
+                        case BuiltInType.DiagnosticInfo:
+                            return ReadDiagnosticInfoArray(fieldName);
+                        default:
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                Utils.Format("Cannot decode unknown type in Array object with BuiltInType: {0}.", builtInType));
+                        }
+                    }
+                }
+                else  // return as array
+                {
+                    switch (builtInType)
+                    {
+                        case BuiltInType.Boolean:
+                            return ReadBooleanArray(fieldName).ToArray();
+                        case BuiltInType.SByte:
+                            return ReadSByteArray(fieldName).ToArray();
+                        case BuiltInType.Byte:
+                            return ReadByteArray(fieldName).ToArray();
+                        case BuiltInType.Int16:
+                            return ReadInt16Array(fieldName).ToArray();
+                        case BuiltInType.UInt16:
+                            return ReadUInt16Array(fieldName).ToArray();
+                        case BuiltInType.Enumeration:
+                            if (encodeableTypeId != null)
+                            {
+                                Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                                if (systemType != null)
+                                {
+                                    return ReadEnumeratedArray(fieldName, systemType);
+                                }
+                            }
+                            goto case BuiltInType.Int32;
+                        case BuiltInType.Int32:
+                            return ReadInt32Array(fieldName).ToArray();
+                        case BuiltInType.UInt32:
+                            return ReadUInt32Array(fieldName).ToArray();
+                        case BuiltInType.Int64:
+                            return ReadInt64Array(fieldName).ToArray();
+                        case BuiltInType.UInt64:
+                            return ReadUInt64Array(fieldName).ToArray();
+                        case BuiltInType.Float:
+                            return ReadFloatArray(fieldName).ToArray();
+                        case BuiltInType.Double:
+                            return ReadDoubleArray(fieldName).ToArray();
+                        case BuiltInType.String:
+                            return ReadStringArray(fieldName).ToArray();
+                        case BuiltInType.DateTime:
+                            return ReadDateTimeArray(fieldName).ToArray();
+                        case BuiltInType.Guid:
+                            return ReadGuidArray(fieldName).ToArray();
+                        case BuiltInType.ByteString:
+                            return ReadByteStringArray(fieldName).ToArray();
+                        case BuiltInType.XmlElement:
+                            return ReadXmlElementArray(fieldName).ToArray();
+                        case BuiltInType.NodeId:
+                            return ReadNodeIdArray(fieldName).ToArray();
+                        case BuiltInType.ExpandedNodeId:
+                            return ReadExpandedNodeIdArray(fieldName).ToArray();
+                        case BuiltInType.StatusCode:
+                            return ReadStatusCodeArray(fieldName).ToArray();
+                        case BuiltInType.QualifiedName:
+                            return ReadQualifiedNameArray(fieldName).ToArray();
+                        case BuiltInType.LocalizedText:
+                            return ReadLocalizedTextArray(fieldName).ToArray();
+                        case BuiltInType.DataValue:
+                            return ReadDataValueArray(fieldName).ToArray();
+                        case BuiltInType.Variant:
+                            if (encodeableTypeId != null)
+                            {
+                                Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                                if (systemType != null)
+                                {
+                                    return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                                }
+                            }
+                            return ReadVariantArray(fieldName).ToArray();
+                        case BuiltInType.ExtensionObject:
+                            return ReadExtensionObjectArray(fieldName).ToArray();
+                        case BuiltInType.DiagnosticInfo:
+                            return ReadDiagnosticInfoArray(fieldName).ToArray();
+                        default:
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                Utils.Format("Cannot decode unknown type in Array object with BuiltInType: {0}.", builtInType));
+                        }
                     }
                 }
             }
+
             // two or more dimensions
-            if (valueRank > ValueRanks.OneDimension)
+            if (valueRank >= ValueRanks.TwoDimensions)
             {
                 // read dimensions array
                 Int32Collection dimensions = ReadInt32Array(null);
@@ -1542,7 +1646,6 @@ namespace Opc.Ua
                             for (int i = 0; i < length; i++)
                             {
                                 IEncodeable element = ReadEncodeable(null, systemType, encodeableTypeId);
-
                                 elements.SetValue(Convert.ChangeType(element, systemType), i);
                             }
                         }
@@ -1558,7 +1661,15 @@ namespace Opc.Ua
                                StatusCodes.BadDecodingError,
                                Utils.Format("Unexpected null Array for multidimensional matrix with {0} elements.", length));
                     }
-                    return new Matrix(elements, builtInType, dimensions.ToArray());
+                    var result = new Matrix(elements, builtInType, dimensions.ToArray());
+                    if (asCollection)
+                    {
+                        return result.ToArray();
+                    }
+                    else
+                    {
+                        return result;
+                    }
                 }
                 throw new ServiceResultException(
                                StatusCodes.BadDecodingError,
@@ -1566,7 +1677,6 @@ namespace Opc.Ua
             }
             return null;
         }
-
         #endregion
 
         #region Private Methods

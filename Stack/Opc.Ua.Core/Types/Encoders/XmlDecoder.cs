@@ -2620,18 +2620,24 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType
         /// </summary>
-        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
+        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null, bool asCollection = false)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
                 /*One dimensional Array parameters are always encoded by wrapping the elements in a container element 
                  * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
                  * The name of the element in the array shall be the type name.*/
-
-                return ReadArrayElements(fieldName, builtInType, encodeableTypeId);
+                if (asCollection)
+                {
+                    // TODO
+                    return ReadArrayElements(fieldName, builtInType, encodeableTypeId);
+                }
+                else
+                {
+                    return ReadArrayElements(fieldName, builtInType, encodeableTypeId);
+                }
             }
-
-            // write matrix.
+            // read matrix.
             else if (valueRank > ValueRanks.OneDimension)
             {
                 Array elements = null;
@@ -2655,12 +2661,24 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadDecodingError, "The Matrix contains invalid elements");
                 }
 
+                Matrix matrix = null;
                 if (dimensions != null && dimensions.Count > 0)
                 {
-                    return new Matrix(elements, builtInType, dimensions.ToArray());
+                    matrix = new Matrix(elements, builtInType, dimensions.ToArray());
+                }
+                else
+                {
+                    matrix = new Matrix(elements, builtInType);
                 }
 
-                return new Matrix(elements, builtInType);
+                if (asCollection)
+                {
+                    return matrix.ToArray();
+                }
+                else
+                {
+                    return matrix;
+                }
             }
 
             throw new ServiceResultException(StatusCodes.BadDecodingError,
@@ -2788,6 +2806,15 @@ namespace Opc.Ua
                         return null;
                     }
                     case BuiltInType.Enumeration:
+                        if (encodeableTypeId != null)
+                        {
+                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                            if (systemType != null)
+                            {
+                                return ReadEnumeratedArray(fieldName, systemType);
+                            }
+                        }
+                        goto case BuiltInType.Int32;
                     case BuiltInType.Int32:
                     {
                         Int32Collection collection = ReadInt32Array(fieldName);
