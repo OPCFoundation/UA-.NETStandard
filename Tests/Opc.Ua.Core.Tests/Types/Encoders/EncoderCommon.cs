@@ -53,6 +53,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected const int kArrayRepeats = 3;
         protected const int kRandomStart = 4840;
         protected const int kRandomRepeats = 100;
+        protected const int kMaxArraySize = 1024 * 1024;
         protected const string kApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
@@ -617,12 +618,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         /// <summary>
         /// Sets random array dimensions between 2 and 10.
+        /// Number of total elements is limited by <see cref="kMaxArraySize"/>
         /// </summary>
         protected void SetMatrixDimensions(int[] dimensions)
         {
+            int totalElements = 1;
             for (int i = 0; i < dimensions.Length; i++)
             {
                 dimensions[i] = RandomSource.NextInt32(8) + 2;
+                totalElements *= dimensions[i];
+            }
+            while (totalElements > kMaxArraySize)
+            {
+                int random = RandomSource.NextInt32(dimensions.Length - 1);
+                if (dimensions[random] > 1)
+                {
+                    dimensions[random]--;
+                }
+                totalElements = 1;
+                for (int i = 0; i < dimensions.Length; i++)
+                {
+                    totalElements *= dimensions[i];
+                }
             }
         }
 
