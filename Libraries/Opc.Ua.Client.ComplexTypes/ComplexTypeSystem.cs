@@ -948,16 +948,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         fieldBuilder.AddField(field, (fieldBuilder as ComplexTypeFieldBuilder).StructureTypeBuilder, order);
                     }
-                    else if (field.ValueRank >= ValueRanks.OneDimension)
+                    else
                     {
                         // array type
                         var arrayType = (fieldBuilder as ComplexTypeFieldBuilder).StructureTypeBuilder.MakeArrayType();
                         fieldBuilder.AddField(field, arrayType, order);
-                    }
-                    else
-                    {
-                        // TODO
-                        throw new Exception();
                     }
                 }
                 else
