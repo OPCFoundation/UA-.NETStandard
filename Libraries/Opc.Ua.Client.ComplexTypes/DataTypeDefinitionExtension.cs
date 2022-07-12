@@ -160,10 +160,17 @@ namespace Opc.Ua.Client.ComplexTypes
                         "Bitwise option selectors must have 32 bits.");
                 }
 
+                var dataType = field.TypeName.ToNodeId(typeDictionary);
+                if (NodeId.IsNull(dataType))
+                {
+                    // the type name was not found in the type dictionary
+                    return null;
+                }
+
                 var dataTypeField = new StructureField() {
                     Name = field.Name,
                     Description = null,
-                    DataType = field.TypeName.ToNodeId(typeDictionary),
+                    DataType = dataType,
                     IsOptional = false,
                     MaxStringLength = 0,
                     ArrayDimensions = null,
@@ -180,7 +187,7 @@ namespace Opc.Ua.Client.ComplexTypes
                             "The length field must precede the type field of an array.");
                     }
                     lastField.Name = field.Name;
-                    lastField.DataType = field.TypeName.ToNodeId(typeDictionary);
+                    lastField.DataType = dataType;
                     lastField.ValueRank = 1;
                 }
                 else
@@ -257,8 +264,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 var internalField = typeof(DataTypeIds).GetField(typeName.Name);
                 if (internalField == null)
                 {
-                    throw new DataTypeNotFoundException(
-                        $"The type {typeName.Name} was not found in the internal type factory.");
+                    // The type was not found in the internal type factory.
+                    return NodeId.Null;
                 }
                 return (NodeId)internalField.GetValue(typeName.Name);
             }
@@ -266,9 +273,8 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))
                 {
-                    throw new DataTypeNotFoundException(
-                        typeName.Name,
-                        $"The type {typeName.Name} in namespace {typeName.Namespace} was not found.");
+                    // The type was not found in the namespace
+                    return NodeId.Null;
                 }
                 return referenceId;
             }

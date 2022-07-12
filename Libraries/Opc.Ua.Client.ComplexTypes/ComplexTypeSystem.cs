@@ -387,12 +387,6 @@ namespace Opc.Ua.Client.ComplexTypes
                                             typeDictionary,
                                             m_complexTypeResolver.NamespaceUris);
                                     }
-                                    catch (DataTypeNotFoundException)
-                                    {
-                                        Utils.LogInfo("Skipped the type definition of {0}. Retry in next round.", item.Name);
-                                        retryStructureList.Add(item);
-                                        continue;
-                                    }
                                     catch (DataTypeNotSupportedException)
                                     {
                                         Utils.LogError("Skipped the type definition of {0} because it is not supported.", item.Name);
@@ -405,6 +399,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                     }
                                 }
 
+                                ExpandedNodeIdCollection missingTypeIds = null;
                                 Type complexType = null;
                                 if (structureDefinition != null)
                                 {
@@ -412,22 +407,16 @@ namespace Opc.Ua.Client.ComplexTypes
                                         out binaryEncodingId, out ExpandedNodeId xmlEncodingId);
                                     try
                                     {
-                                        // build the actual .Net structured type in assembly
+                                        // build the actual .NET structured type in assembly
                                         complexType = AddStructuredType(
                                             complexTypeBuilder,
                                             structureDefinition,
                                             dataTypeNode.BrowseName,
                                             typeId,
                                             binaryEncodingId,
-                                            xmlEncodingId
+                                            xmlEncodingId,
+                                            out missingTypeIds
                                             );
-                                    }
-                                    catch (DataTypeNotFoundException typeNotFoundException)
-                                    {
-                                        Utils.LogInfo(typeNotFoundException,
-                                            "Skipped the type definition of {0}. Retry in next round.", item.Name);
-                                        retryStructureList.Add(item);
-                                        continue;
                                     }
                                     catch (DataTypeNotSupportedException typeNotSupportedException)
                                     {
@@ -453,7 +442,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                 if (complexType == null)
                                 {
                                     retryStructureList.Add(item);
-                                    Utils.LogInfo(TraceMasks.Error, "Skipped the type definition of {0}. Retry in next round.", item.Name);
+                                    Utils.LogTrace("Skipped the type definition of {0}, missing {1}. Retry in next round.", item.Name, missingTypeIds?.ToString() ?? string.Empty);
                                 }
                             }
                         }
@@ -497,12 +486,20 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 catch (DataTypeNotFoundException dtnfex)
                 {
-                    // add missing type to list
-                    var dataTypeNode = m_complexTypeResolver.Find(dtnfex.NodeId);
-                    if (dataTypeNode != null)
+                    Utils.LogWarning(dtnfex.Message);
+                    foreach (var nodeId in dtnfex.NodeIds)
                     {
-                        AddEnumerationOrStructureType(dataTypeNode, serverEnumTypes, serverStructTypes);
-                        repeatDataTypeLoad = true;
+                        // add missing types to list
+                        var dataTypeNode = m_complexTypeResolver.Find(nodeId);
+                        if (dataTypeNode != null)
+                        {
+                            AddEnumerationOrStructureType(dataTypeNode, serverEnumTypes, serverStructTypes);
+                            repeatDataTypeLoad = true;
+                        }
+                        else
+                        {
+                            Utils.LogWarning("Datatype {0} was not found.", nodeId);
+                        }
                     }
                 }
             } while (repeatDataTypeLoad);
@@ -615,20 +612,26 @@ namespace Opc.Ua.Client.ComplexTypes
                                         dataTypeNode.BrowseName,
                                         structType.NodeId,
                                         binaryEncodingId,
-                                        xmlEncodingId
+                                        xmlEncodingId,
+                                        out ExpandedNodeIdCollection missingTypeIds
                                         );
-                                }
-                                catch (DataTypeNotFoundException dtnfex)
-                                {
-                                    var typeMatch = structTypesWorkList.FirstOrDefault(n => n.NodeId == dtnfex.NodeId);
-                                    if (typeMatch == null)
+
+                                    if (missingTypeIds?.Count > 0)
                                     {
-                                        throw;
-                                    }
-                                    else
-                                    {   // known missing type, retry on next round
-                                        Utils.LogInfo("Skipped the type definition of {0}. Retry in next round.", dataTypeNode.BrowseName.Name);
-                                        retryAddStructType = true;
+                                        var missingTypeIdsFromWorkList = new ExpandedNodeIdCollection();
+                                        foreach (var missingTypeId in missingTypeIds)
+                                        {
+                                            var typeMatch = structTypesWorkList.FirstOrDefault(n => n.NodeId == missingTypeId);
+                                            if (typeMatch == null)
+                                            {
+                                                missingTypeIdsFromWorkList.Add(missingTypeId);
+                                            }
+                                        }
+                                        if (missingTypeIdsFromWorkList.Count > 0)
+                                        {
+                                            throw new DataTypeNotFoundException(missingTypeIdsFromWorkList,
+                                                string.Format("Required DataType of {0} are missing from the work list.", structType.NodeId));
+                                        }
                                     }
                                 }
                                 catch (DataTypeNotSupportedException)
@@ -910,20 +913,39 @@ namespace Opc.Ua.Client.ComplexTypes
             QualifiedName typeName,
             ExpandedNodeId complexTypeId,
             ExpandedNodeId binaryEncodingId,
-            ExpandedNodeId xmlEncodingId
+            ExpandedNodeId xmlEncodingId,
+            out ExpandedNodeIdCollection missingTypes
             )
         {
+            // init missing type list
+            missingTypes = null;
+
             // check all types
             var typeList = new List<Type>();
             foreach (StructureField field in structureDefinition.Fields)
             {
                 Type newType = GetFieldType(field);
-                bool isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris), field.DataType);
-                if (newType == null && !isRecursiveDataType)
+                if (newType == null &&
+                    !IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris), field.DataType))
                 {
-                    throw new DataTypeNotFoundException(field.DataType);
+                    if (missingTypes == null)
+                    {
+                        missingTypes = new ExpandedNodeIdCollection() { complexTypeId };
+                    }
+                    else
+                    {
+                        missingTypes.Add(complexTypeId);
+                    }
                 }
-                typeList.Add(newType);
+                else
+                {
+                    typeList.Add(newType);
+                }
+            }
+
+            if (missingTypes != null)
+            {
+                return null;
             }
 
             var fieldBuilder = complexTypeBuilder.AddStructuredType(

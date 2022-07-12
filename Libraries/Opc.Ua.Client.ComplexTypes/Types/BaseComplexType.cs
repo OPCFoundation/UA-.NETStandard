@@ -275,7 +275,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             else
             {
-                body.Append("|");
+                body.Append('|');
             }
         }
 
@@ -291,11 +291,10 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             AddSeparator(body);
             if (valueRank >= 0 &&
-                value is IEnumerable)
+                value is IEnumerable enumerable)
             {
                 // TODO: handle multidimensional arrays
                 bool first = true;
-                var enumerable = value as IEnumerable;
                 body.Append('[');
                 foreach (var item in enumerable)
                 {
