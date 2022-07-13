@@ -1777,10 +1777,9 @@ namespace Opc.Ua.Client
             bool optionalAttributes = false)
         {
             nodeCollection = new NodeCollection(nodeIdCollection.Count);
-            var itemsToRead = new ReadValueIdCollection(nodeIdCollection.Count);
 
             // first read only nodeclasses for nodes from server.
-            itemsToRead = new ReadValueIdCollection(
+            var itemsToRead = new ReadValueIdCollection(
                 nodeIdCollection.Select(nodeId =>
                     new ReadValueId {
                         NodeId = nodeId,
@@ -2831,7 +2830,10 @@ namespace Opc.Ua.Client
                 if (StatusCode.IsNotGood(results[ii].StatusCode))
                 {
                     errors[ii] = new ServiceResult(results[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable);
-                    continue;
+                    if (StatusCode.IsBad(results[ii].StatusCode))
+                    {
+                        continue;
+                    }
                 }
 
                 object value = results[ii].Value;
@@ -2865,7 +2867,7 @@ namespace Opc.Ua.Client
         /// Reads the display name for a set of Nodes.
         /// </summary>
         public void ReadDisplayName(
-            List<NodeId> nodeIds,
+            IList<NodeId> nodeIds,
             out List<string> displayNames,
             out List<ServiceResult> errors)
         {
