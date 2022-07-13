@@ -45,7 +45,6 @@ namespace TestData
         protected override void OnAfterCreate(ISystemContext context, NodeState node)
         {
             base.OnAfterCreate(context, node);
-
             this.MonitoredNodeCount.OnSimpleReadValue = OnReadMonitoredNodeCount;
         }
         #endregion
@@ -55,11 +54,11 @@ namespace TestData
         /// Reads the value for the MonitoredNodeCount.
         /// </summary>
         protected virtual ServiceResult OnReadMonitoredNodeCount(
-            ISystemContext context, 
-            NodeState node, 
+            ISystemContext context,
+            NodeState node,
             ref object value)
         {
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
+            TestDataSystem system = context?.SystemHandle as TestDataSystem;
 
             if (system == null)
             {

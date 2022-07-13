@@ -177,6 +177,20 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             }
             return string.Empty;
         }
+
+        /// <summary>
+        /// Create secure temporary passcode.
+        /// </summary>
+        internal static string GeneratePasscode()
+        {
+            const int kLength = 18;
+            using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+            {
+                byte[] tokenBuffer = new byte[kLength];
+                rng.GetBytes(tokenBuffer);
+                return Convert.ToBase64String(tokenBuffer);
+            }
+        }
         #endregion
     }
 }

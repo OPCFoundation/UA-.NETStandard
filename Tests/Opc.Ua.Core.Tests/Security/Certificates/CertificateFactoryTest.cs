@@ -150,7 +150,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             KeyHashPair keyHashPair
             )
         {
-            const string subject = "CN=CA Test Cert";
+            const string subject = "CN=CA Test Cert,O=OPC Foundation,C=US,S=Arizona";
             int pathLengthConstraint = (keyHashPair.KeySize / 512) - 3;
             var cert = CertificateFactory.CreateCertificate(subject)
                 .SetLifeTime(25 * 12)
@@ -191,7 +191,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Certificate2Collection revokedCerts = new X509Certificate2Collection();
             for (int i = 0; i < 10; i++)
             {
-                var cert = CertificateFactory.CreateCertificate($"CN=Test Cert {i}")
+                var cert = CertificateFactory.CreateCertificate($"CN=Test Cert {i}, O=Contoso")
                     .SetIssuer(issuerCertificate)
                     .SetRSAKeySize((ushort) (keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048))
                     .CreateForRSA();
@@ -281,6 +281,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.False(cert.HasPrivateKey);
             Assert.True(X509Utils.CompareDistinguishedName(testApp.Subject, cert.Subject));
             Assert.True(X509Utils.CompareDistinguishedName(issuerCert.Subject, cert.Issuer));
+
+            Assert.AreEqual(cert.IssuerName.Name, issuerCert.SubjectName.Name);
+            Assert.AreEqual(cert.IssuerName.RawData, issuerCert.SubjectName.RawData);
 
             // test basic constraints
             X509BasicConstraintsExtension constraints = cert.FindExtension<X509BasicConstraintsExtension>();
@@ -380,6 +383,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.True(X509Utils.CompareDistinguishedName(subject, cert.Subject));
             Assert.True(X509Utils.CompareDistinguishedName(subject, cert.Issuer));
 
+            Assert.AreEqual(cert.Subject, cert.Issuer);
+            Assert.AreEqual(cert.SubjectName.RawData, cert.IssuerName.RawData);
+
             // test basic constraints
             var constraints = X509Extensions.FindExtension<X509BasicConstraintsExtension>(cert);
             Assert.NotNull(constraints);
@@ -423,6 +429,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(authority.GetSerialNumber());
             Assert.NotNull(authority.KeyIdentifier);
             Assert.NotNull(authority.Issuer);
+            Assert.AreEqual(cert.IssuerName.RawData, authority.Issuer.RawData);
+            Assert.AreEqual(cert.IssuerName.Name, authority.Issuer.Name);
             Assert.NotNull(authority.ToString());
             Assert.AreEqual(authority.SerialNumber, Utils.ToHexString(authority.GetSerialNumber(), true));
 

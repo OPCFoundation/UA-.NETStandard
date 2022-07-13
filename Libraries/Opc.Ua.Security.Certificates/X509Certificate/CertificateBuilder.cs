@@ -341,65 +341,81 @@ namespace Opc.Ua.Security.Certificates
         private void CreateX509Extensions(CertificateRequest request, bool forECDsa)
         {
             // Basic Constraints
-            X509BasicConstraintsExtension bc = GetBasicContraints();
-            request.CertificateExtensions.Add(bc);
+            if (X509Extensions.FindExtension<X509BasicConstraintsExtension>(m_extensions) == null)
+            {
+                X509BasicConstraintsExtension bc = GetBasicContraints();
+                request.CertificateExtensions.Add(bc);
+            }
 
             // Subject Key Identifier
             var ski = new X509SubjectKeyIdentifierExtension(
                 request.PublicKey,
                 X509SubjectKeyIdentifierHashAlgorithm.Sha1,
                 false);
-            request.CertificateExtensions.Add(ski);
+            if (X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(m_extensions) == null)
+            {
+                request.CertificateExtensions.Add(ski);
+            }
 
             // Authority Key Identifier
-            X509Extension authorityKeyIdentifier = IssuerCAKeyCert != null
-                ? X509Extensions.BuildAuthorityKeyIdentifier(IssuerCAKeyCert)
-                : new X509AuthorityKeyIdentifierExtension(
-                    ski.SubjectKeyIdentifier.FromHexString(),
-                    IssuerName,
-                    m_serialNumber);
-            request.CertificateExtensions.Add(authorityKeyIdentifier);
-
-            X509KeyUsageFlags keyUsageFlags;
-            if (m_isCA)
+            if (X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(m_extensions) == null)
             {
-                keyUsageFlags = X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign;
+                X509Extension authorityKeyIdentifier = IssuerCAKeyCert != null
+                    ? X509Extensions.BuildAuthorityKeyIdentifier(IssuerCAKeyCert)
+                    : new X509AuthorityKeyIdentifierExtension(
+                        ski.SubjectKeyIdentifier.FromHexString(),
+                        IssuerName,
+                        m_serialNumber);
+                request.CertificateExtensions.Add(authorityKeyIdentifier);
             }
-            else
+
+            // Key usage extensions
+            if (X509Extensions.FindExtension<X509KeyUsageExtension>(m_extensions) == null)
             {
-                if (forECDsa)
+                X509KeyUsageFlags keyUsageFlags;
+                if (m_isCA)
                 {
-                    // Key Usage for ECDsa
-                    keyUsageFlags = X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation
-                        | X509KeyUsageFlags.KeyAgreement;
+                    keyUsageFlags = X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign;
                 }
                 else
                 {
-                    // Key usage for RSA
-                    keyUsageFlags = X509KeyUsageFlags.DataEncipherment | X509KeyUsageFlags.KeyEncipherment
-                        | X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation;
+                    if (forECDsa)
+                    {
+                        // Key Usage for ECDsa
+                        keyUsageFlags = X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation
+                            | X509KeyUsageFlags.KeyAgreement;
+                    }
+                    else
+                    {
+                        // Key usage for RSA
+                        keyUsageFlags = X509KeyUsageFlags.DataEncipherment | X509KeyUsageFlags.KeyEncipherment
+                            | X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation;
+                    }
+                    if (IssuerCAKeyCert == null)
+                    {
+                        // self signed case
+                        keyUsageFlags |= X509KeyUsageFlags.KeyCertSign;
+                    }
                 }
-                if (IssuerCAKeyCert == null)
-                {
-                    // self signed case
-                    keyUsageFlags |= X509KeyUsageFlags.KeyCertSign;
-                }
-            }
 
-            request.CertificateExtensions.Add(
-                                new X509KeyUsageExtension(
-                                    keyUsageFlags,
-                                    true));
+                request.CertificateExtensions.Add(
+                                    new X509KeyUsageExtension(
+                                        keyUsageFlags,
+                                        true));
+            }
 
             if (!m_isCA)
             {
-                // Enhanced key usage 
-                request.CertificateExtensions.Add(
+                if (X509Extensions.FindExtension<X509EnhancedKeyUsageExtension>(m_extensions) == null)
+                {
+                    // Enhanced key usage 
+                    request.CertificateExtensions.Add(
                     new X509EnhancedKeyUsageExtension(
                         new OidCollection {
                             new Oid(Oids.ServerAuthentication),
                             new Oid(Oids.ClientAuthentication)
                         }, true));
+                }
             }
 
             foreach (var extension in m_extensions)

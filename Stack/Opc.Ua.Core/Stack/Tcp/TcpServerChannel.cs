@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -95,7 +95,9 @@ namespace Opc.Ua.Bindings
             public IMessageSocket Socket;
         }
 
-        /// <remarks/>
+        /// <summary>
+        /// Begin a reverse connect.
+        /// </summary>
         public IAsyncResult BeginReverseConnect(uint channelId, Uri endpointUrl, AsyncCallback callback, object callbackData, int timeout)
         {
             ChannelId = channelId;
@@ -114,7 +116,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// 
+        /// End the reverse connect.
         /// </summary>
         public void EndReverseConnect(IAsyncResult result)
         {
@@ -122,7 +124,7 @@ namespace Opc.Ua.Bindings
 
             if (ar == null)
             {
-                throw new ArgumentException(nameof(result));
+                throw new ArgumentException("EndReverseConnect is called with invalid IAsyncResult.", nameof(result));
             }
 
             if (!ar.WaitForComplete())
@@ -415,10 +417,14 @@ namespace Opc.Ua.Bindings
                 }
 
                 // update the max chunk count.
+                MaxResponseChunkCount = CalculateChunkCount(MaxResponseMessageSize, SendBufferSize);
+
                 if (maxChunkCount > 0 && maxChunkCount < MaxResponseChunkCount)
                 {
                     MaxResponseChunkCount = (int)maxChunkCount;
                 }
+
+                MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, ReceiveBufferSize);
 
                 // send acknowledge.
                 byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "ProcessHelloMessage");
@@ -499,9 +505,11 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                const string errorSecurityChecksFailed = "Could not verify security on OpenSecureChannel request.";
                 ServiceResultException innerException = e.InnerException as ServiceResultException;
 
-                // If the certificate structre, signature and trust list checks pass, we return the other specific validation errors instead of BadSecurityChecksFailed
+                // If the certificate structure, signature and trust list checks pass,
+                // return the other specific validation errors instead of BadSecurityChecksFailed
                 if (innerException != null)
                 {
                     if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
@@ -511,7 +519,7 @@ namespace Opc.Ua.Bindings
                         innerException.StatusCode == StatusCodes.BadCertificatePolicyCheckFailed ||
                         (innerException.InnerResult != null && innerException.InnerResult.StatusCode == StatusCodes.BadCertificateUntrusted))
                     {
-                        ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
+                        ForceChannelFault(StatusCodes.BadSecurityChecksFailed, errorSecurityChecksFailed);
                         return false;
                     }
                     else if (innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
@@ -529,7 +537,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                ForceChannelFault(StatusCodes.BadSecurityChecksFailed, "Could not verify security on OpenSecureChannel request.");
+                ForceChannelFault(StatusCodes.BadSecurityChecksFailed, errorSecurityChecksFailed);
                 return false;
             }
 
@@ -552,7 +560,7 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody);
+                    SaveIntermediateChunk(requestId, messageBody, true);
                     return false;
                 }
 
@@ -563,7 +571,7 @@ namespace Opc.Ua.Bindings
                 token.ServerNonce = CreateNonce();
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 OpenSecureChannelRequest request = (OpenSecureChannelRequest)BinaryDecoder.DecodeMessage(
                     new ArraySegmentStream(chunksToProcess),
@@ -805,12 +813,12 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody);
+                    SaveIntermediateChunk(requestId, messageBody, true);
                     return false;
                 }
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 CloseSecureChannelRequest request = BinaryDecoder.DecodeMessage(
                     new ArraySegmentStream(chunksToProcess),
@@ -898,21 +906,21 @@ namespace Opc.Ua.Bindings
                 if (TcpMessageType.IsAbort(messageType))
                 {
                     Utils.LogWarning(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessRequestMessage RequestId {1} was aborted.", ChannelId, requestId);
-                    chunksToProcess = GetSavedChunks(requestId, messageBody);
+                    chunksToProcess = GetSavedChunks(requestId, messageBody, true);
                     return true;
                 }
 
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody);
+                    SaveIntermediateChunk(requestId, messageBody, true);
                     return true;
                 }
 
                 // Utils.LogTrace("ChannelId {0}: ProcessRequestMessage RequestId {1}", ChannelId, requestId);
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 // decode the request.
                 IServiceRequest request = BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) as IServiceRequest;
@@ -951,6 +959,15 @@ namespace Opc.Ua.Bindings
                     chunksToProcess.Release(BufferManager, "ProcessRequestMessage");
                 }
             }
+        }
+
+        /// <summary>
+        /// Closes the channel in case the message limits have been exceeded
+        /// </summary>
+        protected override void DoMessageLimitsExceeded()
+        {
+            base.DoMessageLimitsExceeded();
+            ChannelClosed();
         }
         #endregion
 

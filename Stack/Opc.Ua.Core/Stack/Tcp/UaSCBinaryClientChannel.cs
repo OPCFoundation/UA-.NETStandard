@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -82,8 +82,8 @@ namespace Opc.Ua.Bindings
             m_requests = new Dictionary<uint, WriteOperation>();
             m_lastRequestId = 0;
             m_ConnectCallback = new EventHandler<IMessageSocketAsyncEventArgs>(OnConnectComplete);
-            m_StartHandshake = new TimerCallback(OnScheduledHandshake);
-            m_HandshakeComplete = new AsyncCallback(OnHandshakeComplete);
+            m_startHandshake = new TimerCallback(OnScheduledHandshake);
+            m_handshakeComplete = new AsyncCallback(OnHandshakeComplete);
             m_socketFactory = socketFactory;
 
             // save the endpoint.
@@ -439,6 +439,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // update the max chunk count.
+                MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, SendBufferSize);
                 if (maxChunkCount > 0 && maxChunkCount < MaxRequestChunkCount)
                 {
                     MaxRequestChunkCount = (int)maxChunkCount;
@@ -590,12 +591,12 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody);
+                    SaveIntermediateChunk(requestId, messageBody, false);
                     return false;
                 }
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, false);
 
                 // read message body.
                 OpenSecureChannelResponse response = ParseResponse(chunksToProcess) as OpenSecureChannelResponse;
@@ -643,8 +644,9 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Open;
                 m_reconnecting = false;
 
-                // enable reconnects.
-                m_waitBetweenReconnects = TcpMessageLimits.MinTimeBetweenReconnects;
+                // enable reconnects. DO NOT USE! 
+                // m_waitBetweenReconnects = TcpMessageLimits.MinTimeBetweenReconnects;
+                m_waitBetweenReconnects = Timeout.Infinite;
 
                 // schedule reconnect before token expires.
                 ScheduleTokenRenewal(CurrentToken);
@@ -666,6 +668,16 @@ namespace Opc.Ua.Bindings
 
             return false;
         }
+
+        /// <summary>
+        /// Closes the channel in case the message limits have been exceeded
+        /// </summary>
+        protected override void DoMessageLimitsExceeded()
+        {
+            base.DoMessageLimitsExceeded();
+            Shutdown(new ServiceResult(StatusCodes.BadResponseTooLarge));
+        }
+
         #endregion
 
         #region Event Handlers
@@ -822,7 +834,7 @@ namespace Opc.Ua.Bindings
                         }
 
                         // begin the operation.
-                        m_handshakeOperation = BeginOperation(Int32.MaxValue, m_HandshakeComplete, token);
+                        m_handshakeOperation = BeginOperation(Int32.MaxValue, m_handshakeComplete, token);
 
                         // send the request.
                         SendOpenSecureChannelRequest(true);
@@ -857,7 +869,7 @@ namespace Opc.Ua.Bindings
                     if (!ReverseSocket)
                     {
                         // create an operation.
-                        m_handshakeOperation = BeginOperation(Int32.MaxValue, m_HandshakeComplete, null);
+                        m_handshakeOperation = BeginOperation(Int32.MaxValue, m_handshakeComplete, null);
 
                         State = TcpChannelState.Connecting;
                         Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
@@ -996,7 +1008,7 @@ namespace Opc.Ua.Bindings
             lock (DataLock)
             {
                 // clear an unprocessed chunks.
-                SaveIntermediateChunk(0, new ArraySegment<byte>());
+                SaveIntermediateChunk(0, new ArraySegment<byte>(), false);
 
                 // halt any scheduled tasks.
                 if (m_handshakeTimer != null)
@@ -1087,7 +1099,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // clear an unprocessed chunks.
-                SaveIntermediateChunk(0, new ArraySegment<byte>());
+                SaveIntermediateChunk(0, new ArraySegment<byte>(), false);
 
                 // halt any scheduled tasks.
                 if (m_handshakeTimer != null)
@@ -1106,7 +1118,7 @@ namespace Opc.Ua.Bindings
 
                 // schedule a reconnect.
                 Utils.LogInfo("ChannelId {0}: Attempting Reconnect in {1} ms. Reason: {2}", ChannelId, m_waitBetweenReconnects, reason.ToLongString());
-                m_handshakeTimer = new Timer(m_StartHandshake, null, m_waitBetweenReconnects, Timeout.Infinite);
+                m_handshakeTimer = new Timer(m_startHandshake, null, m_waitBetweenReconnects, Timeout.Infinite);
 
                 // set next reconnect period.
                 m_waitBetweenReconnects *= 2;
@@ -1155,7 +1167,7 @@ namespace Opc.Ua.Bindings
 
             Utils.LogInfo("ChannelId {0}: Token Expiry {1}, renewal scheduled in {2} ms.", ChannelId, expiryTime, (int)timeToRenewal);
 
-            m_handshakeTimer = new Timer(m_StartHandshake, token, (int)timeToRenewal, Timeout.Infinite);
+            m_handshakeTimer = new Timer(m_startHandshake, token, (int)timeToRenewal, Timeout.Infinite);
         }
 
         /// <summary>
@@ -1385,7 +1397,7 @@ namespace Opc.Ua.Bindings
                 if (TcpMessageType.IsAbort(messageType))
                 {
                     // get the chunks to process.
-                    chunksToProcess = GetSavedChunks(requestId, messageBody);
+                    chunksToProcess = GetSavedChunks(requestId, messageBody, false);
 
                     // decoder reason.
                     MemoryStream istrm = new MemoryStream(messageBody.Array, messageBody.Offset, messageBody.Count, false);
@@ -1401,12 +1413,12 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody);
+                    SaveIntermediateChunk(requestId, messageBody, false);
                     return true;
                 }
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, false);
 
                 // get response.
                 operation.MessageBody = ParseResponse(chunksToProcess);
@@ -1450,8 +1462,8 @@ namespace Opc.Ua.Bindings
         private int m_waitBetweenReconnects;
         private EventHandler<IMessageSocketAsyncEventArgs> m_ConnectCallback;
         private IMessageSocketFactory m_socketFactory;
-        private TimerCallback m_StartHandshake;
-        private AsyncCallback m_HandshakeComplete;
+        private TimerCallback m_startHandshake;
+        private AsyncCallback m_handshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
         private readonly string g_ImplementationString = ".NET Standard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
         #endregion

@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -197,7 +197,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error loading ConfiguredEnpoints.");
+                Utils.LogError(e, "Unexpected error loading ConfiguredEndpoints.");
                 throw;
             }
         }
@@ -251,6 +251,7 @@ namespace Opc.Ua
 
             return clone;
         }
+        #endregion
 
         #region IList<ConfiguredEndpoint> Members
         /// <summary>
@@ -274,25 +275,25 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Inserts an item to the <see cref="T:System.Collections.Generic.IList`1"/> at the specified index.
+        /// Inserts an item to the <see cref="System.Collections.IList"/> at the specified index.
         /// </summary>
         /// <param name="index">The zero-based index at which <paramref name="item"/> should be inserted.</param>
-        /// <param name="item">The object to insert into the <see cref="T:System.Collections.Generic.IList`1"/>.</param>
-        /// <exception cref="T:System.ArgumentOutOfRangeException">
-        /// 	<paramref name="index"/> is not a valid index in the <see cref="T:System.Collections.Generic.IList`1"/>.</exception>
-        /// <exception cref="T:System.NotSupportedException">The <see cref="T:System.Collections.Generic.IList`1"/> is read-only.</exception>
+        /// <param name="item">The object to insert into the <see cref="System.Collections.IList"/>.</param>
+        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// 	<paramref name="index"/> is not a valid index in the <see cref="System.Collections.IList"/>.</exception>
+        /// <exception cref="System.NotSupportedException">The <see cref="System.Collections.IList"/> is read-only.</exception>
         public void Insert(int index, ConfiguredEndpoint item)
         {
             Insert(item, index);
         }
 
         /// <summary>
-        /// Removes the <see cref="T:System.Collections.Generic.IList`1"/> item at the specified index.
+        /// Removes the <see cref="System.Collections.IList"/> item at the specified index.
         /// </summary>
         /// <param name="index">The zero-based index of the item to remove.</param>
-        /// <exception cref="T:System.ArgumentOutOfRangeException">
-        /// 	<paramref name="index"/> is not a valid index in the <see cref="T:System.Collections.Generic.IList`1"/>.</exception>
-        /// <exception cref="T:System.NotSupportedException">The <see cref="T:System.Collections.Generic.IList`1"/> is read-only.</exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// 	<paramref name="index"/> is not a valid index in the <see cref="System.Collections.IList"/>.</exception>
+        /// <exception cref="System.NotSupportedException">The <see cref="System.Collections.IList"/> is read-only.</exception>
         public void RemoveAt(int index)
         {
             if (index < 0 || index >= m_endpoints.Count) throw new ArgumentOutOfRangeException(nameof(index));
@@ -1432,4 +1433,3 @@ namespace Opc.Ua
     }
     #endregion
 }
-#endregion

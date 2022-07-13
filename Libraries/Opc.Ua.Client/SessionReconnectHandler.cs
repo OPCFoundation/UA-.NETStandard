@@ -38,6 +38,15 @@ namespace Opc.Ua.Client
     /// </summary>
     public class SessionReconnectHandler : IDisposable
     {
+        /// <summary>
+        /// Create a reconnect handler.
+        /// </summary>
+        /// <param name="reconnectAbort">Set to <c>true</c> to allow reconnect abort if keep alive recovered.</param>
+        public SessionReconnectHandler(bool reconnectAbort = false)
+        {
+            m_reconnectAbort = reconnectAbort;
+        }
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -45,6 +54,7 @@ namespace Opc.Ua.Client
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -109,6 +119,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async void OnReconnect(object state)
         {
+            DateTime reconnectStart = DateTime.UtcNow;
             try
             {
                 // check for exit.
@@ -117,8 +128,22 @@ namespace Opc.Ua.Client
                     return;
                 }
 
+                bool keepaliveRecovered = false;
+
+                // preserve legacy behavior if reconnectAbort is not set
+                if (m_session != null && m_reconnectAbort &&
+                    m_session.Connected && !m_session.KeepAliveStopped)
+                {
+                    keepaliveRecovered = true;
+                    // breaking change, the callback must only assign the new
+                    // session if the property is != null
+                    m_session = null;
+                    Utils.LogInfo("Reconnect aborted, KeepAlive recovered.");
+                }
+
                 // do the reconnect.
-                if (await DoReconnect().ConfigureAwait(false))
+                if (keepaliveRecovered ||
+                    await DoReconnect().ConfigureAwait(false))
                 {
                     lock (m_lock)
                     {
@@ -143,7 +168,12 @@ namespace Opc.Ua.Client
             // schedule the next reconnect.
             lock (m_lock)
             {
-                m_reconnectTimer = new Timer(OnReconnect, null, m_reconnectPeriod, Timeout.Infinite);
+                int adjustedReconnectPeriod = m_reconnectPeriod - (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
+                if (adjustedReconnectPeriod <= 0)
+                {
+                    adjustedReconnectPeriod = 100;
+                }
+                m_reconnectTimer = new Timer(OnReconnect, null, adjustedReconnectPeriod, Timeout.Infinite);
             }
         }
 
@@ -152,11 +182,15 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task<bool> DoReconnect()
         {
+            // override operation timeout
+            var operationTimeout = m_session.OperationTimeout;
+
             // try a reconnect.
             if (!m_reconnectFailed)
             {
                 try
                 {
+                    m_session.OperationTimeout = m_reconnectPeriod;
                     if (m_reverseConnectManager != null)
                     {
                         var connection = await m_reverseConnectManager.WaitForConnection(
@@ -203,12 +237,17 @@ namespace Opc.Ua.Client
 
                     m_reconnectFailed = true;
                 }
+                finally
+                {
+                    m_session.OperationTimeout = operationTimeout;
+                }
             }
 
             // re-create the session.
             try
             {
                 Session session;
+                m_session.OperationTimeout = m_reconnectPeriod;
                 if (m_reverseConnectManager != null)
                 {
                     var connection = await m_reverseConnectManager.WaitForConnection(
@@ -231,6 +270,10 @@ namespace Opc.Ua.Client
                 Utils.LogError("Could not reconnect the Session. {0}", exception.Message);
                 return false;
             }
+            finally
+            {
+                m_session.OperationTimeout = operationTimeout;
+            }
         }
         #endregion
 
@@ -238,6 +281,7 @@ namespace Opc.Ua.Client
         private object m_lock = new object();
         private Session m_session;
         private bool m_reconnectFailed;
+        private bool m_reconnectAbort;
         private int m_reconnectPeriod;
         private Timer m_reconnectTimer;
         private EventHandler m_callback;

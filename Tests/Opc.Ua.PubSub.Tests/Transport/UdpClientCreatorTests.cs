@@ -41,13 +41,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
 {
     public partial class UdpClientCreatorTests
     {
-        private string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
-
-        private string UrlScheme = string.Format("{0}://", Utils.UriSchemeOpcUdp);
+        private string m_publisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+        private string m_urlScheme = string.Format("{0}://", Utils.UriSchemeOpcUdp);
 
         // generic well known address
-        private string UrlHostName = "192.168.0.1";
-        private const int DiscoveryPortNo = 4840;
+        private string m_urlHostName = "192.168.0.1";
+        private const int kDiscoveryPortNo = 4840;
 
         private string m_defaultUrl;
 
@@ -60,9 +59,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var localhost = UdpPubSubConnectionTests.GetFirstNic();
             if (localhost != null && localhost.Address != null)
             {
-                UrlHostName = localhost.Address.ToString();
+                m_urlHostName = localhost.Address.ToString();
             }
-            m_defaultUrl = string.Concat(UrlScheme, UrlHostName, ":", DiscoveryPortNo);
+            m_defaultUrl = string.Concat(m_urlScheme, m_urlHostName, ":", kDiscoveryPortNo);
         }
 
         [Test(Description = "Validate url value")]
@@ -71,14 +70,14 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(m_defaultUrl);
             Assert.IsNotNull(ipEndPoint, "GetEndPoint failed: ipEndPoint is null");
 
-            Assert.AreEqual(ipEndPoint.Address.ToString(), UrlHostName, "The url hostname: {0} is not equal to specified hostname: {1}", ipEndPoint.Address.ToString(), UrlHostName);
-            Assert.AreEqual(ipEndPoint.Port, DiscoveryPortNo, "The url port: {0} is not equal to specified port: {1}", ipEndPoint.Port, DiscoveryPortNo);
+            Assert.AreEqual(ipEndPoint.Address.ToString(), m_urlHostName, "The url hostname: {0} is not equal to specified hostname: {1}", ipEndPoint.Address.ToString(), m_urlHostName);
+            Assert.AreEqual(ipEndPoint.Port, kDiscoveryPortNo, "The url port: {0} is not equal to specified port: {1}", ipEndPoint.Port, kDiscoveryPortNo);
         }
 
         [Test(Description = "Invalidate url Scheme value")]
         public void InvalidateUdpClientCreatorUrlScheme()
         {
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(Utils.UriSchemeOpcUdp, ":", UrlHostName, ":", DiscoveryPortNo));
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(Utils.UriSchemeOpcUdp, ":", m_urlHostName, ":", kDiscoveryPortNo));
             Assert.IsNull(ipEndPoint, "Url scheme is not corect!");
         }
 
@@ -86,19 +85,19 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void InvalidateUdpClientCreatorUrlHostName()
         {
             string urlHostNameChanged = "192.168.0.280";
-            string localhostIP = ReplaceLastIpByte(UrlHostName, "280");
+            string localhostIP = ReplaceLastIpByte(m_urlHostName, "280");
             if (localhostIP != null)
             {
                 urlHostNameChanged = localhostIP;
             }
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(UrlScheme, urlHostNameChanged, ":", DiscoveryPortNo));
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(m_urlScheme, urlHostNameChanged, ":", kDiscoveryPortNo));
             Assert.IsNull(ipEndPoint, "Url hostname is not corect!");
         }
 
         [Test(Description = "Invalidate url Port number value")]
         public void InvalidateUdpClientCreatorUrlPort()
         {
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(UrlScheme, UrlHostName, ":", "0"));
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(m_urlScheme, m_urlHostName, ":", "0"));
             Assert.IsNull(ipEndPoint, "Url port number is wrong");
         }
 
@@ -106,12 +105,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void ValidateUdpClientCreatorUrlIPAddress()
         {
             string urlHostNameChanged = "192.168.0.200";
-            string localhostIP = ReplaceLastIpByte(UrlHostName, "200");
+            string localhostIP = ReplaceLastIpByte(m_urlHostName, "200");
             if (localhostIP != null)
             {
                 urlHostNameChanged = localhostIP;
             }
-            var address = string.Concat(UrlScheme, urlHostNameChanged, ":", DiscoveryPortNo);
+            var address = string.Concat(m_urlScheme, urlHostNameChanged, ":", kDiscoveryPortNo);
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(address);
             Assert.IsNotNull(ipEndPoint, $"Url hostname({address}) is not correct!");
         }
@@ -125,7 +124,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Assert.Ignore("Skip UdpClientCreatorUrl test on mac OS.");
             }
 
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(UrlScheme, Environment.MachineName, ":", DiscoveryPortNo));
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(m_urlScheme, Environment.MachineName, ":", kDiscoveryPortNo));
             Assert.IsNotNull(ipEndPoint, "Url hostname is not corect!");
         }
 
@@ -136,7 +135,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void ValidateUdpClientCreatorGetUdpClients()
         {
             // Create a publisher application
-            string configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            string configurationFile = Utils.GetAbsoluteFilePath(m_publisherConfigurationFileName, true, true, false);
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(configurationFile);
             Assert.IsNotNull(publisherApplication, "m_publisherApplication should not be null");
 

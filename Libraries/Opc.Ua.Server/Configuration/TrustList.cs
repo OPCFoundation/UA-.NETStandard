@@ -41,7 +41,7 @@ namespace Opc.Ua.Server
     /// </summary>
     public class TrustList
     {
-        const int DefaultTrustListCapacity = 0x10000;
+        const int kDefaultTrustListCapacity = 0x10000;
 
         #region Constructors
         /// <summary>
@@ -182,7 +182,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    m_strm = new MemoryStream(DefaultTrustListCapacity);
+                    m_strm = new MemoryStream(kDefaultTrustListCapacity);
                 }
 
                 m_node.OpenCount.Value = 1;
@@ -499,7 +499,7 @@ namespace Opc.Ua.Server
                     {
                         foreach (var cert in certCollection)
                         {
-                            if (X509Utils.CompareDistinguishedName(cert.Subject, crl.Issuer) &&
+                            if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
                                 crl.VerifySignature(cert, false))
                             {
                                 crlsToDelete.Add(crl);

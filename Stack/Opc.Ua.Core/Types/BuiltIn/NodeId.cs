@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -901,17 +901,31 @@ namespace Opc.Ua
             else
             {
                 UInt32? uid = obj as UInt32?;
+                Int32? iid = obj as Int32?;
 
-                // check for numeric contants.
-                if (uid != null)
+                // check for numeric constants.
+                if (uid != null || iid != null)
                 {
                     if (namespaceIndex != 0 || idType != IdType.Numeric)
                     {
                         return -1;
                     }
 
-                    uint id1 = (uint)m_identifier;
-                    uint id2 = uid.Value;
+                    uint id2;
+                    if (iid != null && uid == null)
+                    {
+                        if (iid.Value < 0)
+                        {
+                            return +1;
+                        }
+                        id2 = (uint)iid.Value;
+                    }
+                    else
+                    {
+                        id2 = uid.Value;
+                    }
+
+                    uint id1 = (uint)((m_identifier as uint?) ?? 0U);
 
                     if (id1 == id2)
                     {
@@ -933,6 +947,11 @@ namespace Opc.Ua
                     namespaceIndex = expandedId.NamespaceIndex;
                     idType = expandedId.IdType;
                     id = expandedId.Identifier;
+                }
+                else if (obj != null)
+                {
+                    // can not compare to unknown object type
+                    return -1;
                 }
             }
 

@@ -34,7 +34,7 @@ using BenchmarkDotNet.Running;
 static class Program
 {
     // Main Method 
-    static public void Main(String[] args)
+    public static void Main(String[] args)
     {
         IConfig config = ManualConfig.Create(DefaultConfig.Instance)
             // need this option because of reference to nunit.framework

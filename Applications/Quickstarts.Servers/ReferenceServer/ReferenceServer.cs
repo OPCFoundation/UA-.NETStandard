@@ -50,6 +50,10 @@ namespace Quickstarts.ReferenceServer
     /// </remarks>
     public partial class ReferenceServer : ReverseConnectServer
     {
+        #region Properties
+        public ITokenValidator TokenValidator { get; set; }
+
+        #endregion
         #region Overridden Methods
         /// <summary>
         /// Creates the node managers for the server.
@@ -61,19 +65,14 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            Utils.LogInfo(Utils.TraceMasks.StartStop, "Creating the Reference Server Node Managers.");
+            Utils.LogInfo(Utils.TraceMasks.StartStop, "Creating the Reference Server Node Manager.");
 
-            List<INodeManager> nodeManagers = new List<INodeManager>();
+            IList<INodeManager> nodeManagers = new List<INodeManager>();
 
-            // create the custom node managers.
+            // create the custom node manager.
             nodeManagers.Add(new ReferenceNodeManager(server, configuration));
 
-            if (m_nodeManagerFactory == null || m_nodeManagerFactory.Count == 0)
-            {
-                AddDefaultFactories();
-            }
-
-            foreach (var nodeManagerFactory in m_nodeManagerFactory)
+            foreach (var nodeManagerFactory in NodeManagerFactories)
             {
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
@@ -90,14 +89,14 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override ServerProperties LoadServerProperties()
         {
-            ServerProperties properties = new ServerProperties();
-
-            properties.ManufacturerName = "OPC Foundation";
-            properties.ProductName = "Quickstart Reference Server";
-            properties.ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.04";
-            properties.SoftwareVersion = Utils.GetAssemblySoftwareVersion();
-            properties.BuildNumber = Utils.GetAssemblyBuildNumber();
-            properties.BuildDate = Utils.GetAssemblyTimestamp();
+            ServerProperties properties = new ServerProperties {
+                ManufacturerName = "OPC Foundation",
+                ProductName = "Quickstart Reference Server",
+                ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.04",
+                SoftwareVersion = Utils.GetAssemblySoftwareVersion(),
+                BuildNumber = Utils.GetAssemblyBuildNumber(),
+                BuildDate = Utils.GetAssemblyTimestamp()
+            };
 
             return properties;
         }
@@ -163,6 +162,35 @@ namespace Quickstarts.ReferenceServer
             catch
             { }
 
+        }
+
+        /// <summary>
+        /// Override some of the default user token policies for some endpoints.
+        /// </summary>
+        /// <remarks>
+        /// Sample to show how to override default user token policies.
+        /// </remarks>
+        public override UserTokenPolicyCollection GetUserTokenPolicies(ApplicationConfiguration configuration, EndpointDescription description)
+        {
+            var policies = base.GetUserTokenPolicies(configuration, description);
+
+            // sample how to modify default user token policies
+            if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
+                description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
+            {
+                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Certificate));
+            }
+            else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
+                description.SecurityMode == MessageSecurityMode.Sign)
+            {
+                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Anonymous));
+            }
+            else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
+                description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
+            {
+                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.UserName));
+            }
+            return policies;
         }
         #endregion
 
@@ -234,6 +262,14 @@ namespace Quickstarts.ReferenceServer
 
                 // set AuthenticatedUser role for accepted certificate authentication
                 args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
+
+                return;
+            }
+
+            // check for issued identity token.
+            if (args.NewIdentity is IssuedIdentityToken issuedToken)
+            {
+                args.Identity = this.VerifyIssuedToken(issuedToken);
 
                 return;
             }
@@ -352,32 +388,52 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private static INodeManagerFactory IsINodeManagerFactoryType(Type type)
+        private IUserIdentity VerifyIssuedToken(IssuedIdentityToken issuedToken)
         {
-            var nodeManagerTypeInfo = type.GetTypeInfo();
-            if (nodeManagerTypeInfo.IsAbstract ||
-                !typeof(INodeManagerFactory).IsAssignableFrom(type))
+            if (this.TokenValidator == null)
             {
+                Utils.LogWarning(Utils.TraceMasks.Security, "No TokenValidator is specified.");
                 return null;
             }
-
-            return Activator.CreateInstance(type) as INodeManagerFactory;
-        }
-
-        private void AddDefaultFactories()
-        {
-            var assembly = GetType().Assembly;
-            var factories = assembly.GetExportedTypes().Select(type => IsINodeManagerFactoryType(type)).Where(type => type != null);
-            m_nodeManagerFactory = new List<INodeManagerFactory>();
-            foreach (var nodeManagerFactory in factories)
+            try
             {
-                m_nodeManagerFactory.Add(nodeManagerFactory);
+                if (issuedToken.IssuedTokenType == IssuedTokenType.JWT)
+                {
+                    Utils.LogDebug (Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
+                    return this.TokenValidator.ValidateToken(issuedToken);
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            catch (Exception e)
+            {
+                TranslationInfo info;
+                StatusCode result = StatusCodes.BadIdentityTokenRejected;
+                if (e is ServiceResultException se && se.StatusCode == StatusCodes.BadIdentityTokenInvalid)
+                {
+                    info = new TranslationInfo("IssuedTokenInvalid", "en-US", "token is an invalid issued token.");
+                    result = StatusCodes.BadIdentityTokenInvalid;
+                }
+                else // Rejected                
+                {
+                    // construct translation object with default text.
+                    info = new TranslationInfo("IssuedTokenRejected", "en-US", "token is rejected.");
+                }
+
+                Utils.LogWarning(Utils.TraceMasks.Security, "VerifyIssuedToken: Throw ServiceResultExeption 0x{result:x}");
+                throw new ServiceResultException(new ServiceResult(
+                    result,
+                    info.Key,
+                    this.LoadServerProperties().ProductUri,
+                    new LocalizedText(info)));
             }
         }
+
         #endregion
 
         #region Private Fields
-        private IList<INodeManagerFactory> m_nodeManagerFactory;
         private ICertificateValidator m_userCertificateValidator;
         #endregion
     }

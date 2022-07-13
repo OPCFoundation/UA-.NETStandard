@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -109,6 +109,7 @@ namespace Opc.Ua.Server
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -501,10 +502,7 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void ReportEvent(IFilterTarget e)
         {
-            if (m_serverObject != null)
-            {
-                m_serverObject.ReportEvent(this.DefaultSystemContext, e);
-            }
+            ReportEvent(DefaultSystemContext, e);
         }
 
         /// <summary>
@@ -514,6 +512,12 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void ReportEvent(ISystemContext context, IFilterTarget e)
         {
+            if (e is AuditEventState && (EventManager?.ServerAuditing == false))
+            {
+                // do not report auditing events if server Auditing flag is false
+                return;
+            }
+
             if (m_serverObject != null)
             {
                 m_serverObject.ReportEvent(context, e);
@@ -601,6 +605,20 @@ namespace Opc.Ua.Server
                     operationLimits.MaxNodesPerNodeManagement =
                     operationLimits.MaxMonitoredItemsPerCall = null;
                 }
+
+                // setup PublishSubscribe Status State value
+                PubSubState pubSubState = PubSubState.Disabled;
+                
+                var default_PubSubState = (BaseVariableState)m_diagnosticsNodeManager.FindPredefinedNode(
+                    VariableIds.PublishSubscribe_Status_State,
+                    typeof(BaseVariableState));
+                default_PubSubState.Value = pubSubState;
+
+                // setup value for SupportedTransportProfiles
+                var default_SupportedTransportProfiles = (BaseVariableState)m_diagnosticsNodeManager.FindPredefinedNode(
+                   VariableIds.PublishSubscribe_SupportedTransportProfiles,
+                   typeof(BaseVariableState));
+                default_SupportedTransportProfiles.Value = "uadp";
 
                 // setup callbacks for dynamic values.
                 serverObject.NamespaceArray.OnSimpleReadValue = OnReadNamespaceArray;
