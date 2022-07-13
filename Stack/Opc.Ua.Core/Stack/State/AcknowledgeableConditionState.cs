@@ -207,13 +207,14 @@ namespace Opc.Ua
                     ServiceResult.IsGood(error),
                     DateTime.UtcNow);
 
-                e.SourceName.Value = "Attribute/Call";
+                e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                e.SetChildValue(context, BrowseNames.SourceName, "Method/Acknowledge", false);
 
-                e.MethodId = new PropertyState<NodeId>(e);
-                e.MethodId.Value = method.NodeId;
+                e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                e.SetChildValue(context, BrowseNames.InputArguments, new object[] { eventId, comment }, false);
 
-                e.InputArguments = new PropertyState<object[]>(e);
-                e.InputArguments.Value = new object[] { eventId, comment };
+                e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
+                e.SetChildValue(context, BrowseNames.Comment, comment, false);
 
                 ReportEvent(context, e);
             }
@@ -366,13 +367,14 @@ namespace Opc.Ua
                     ServiceResult.IsGood(error),
                     DateTime.UtcNow);
 
-                e.SourceName.Value = "Attribute/Call";
+                e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                e.SetChildValue(context, BrowseNames.SourceName, "Method/Confirm", false);
 
-                e.MethodId = new PropertyState<NodeId>(e);
-                e.MethodId.Value = method.NodeId;
+                e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                e.SetChildValue(context, BrowseNames.InputArguments, new object[] { eventId, comment }, false);
 
-                e.InputArguments = new PropertyState<object[]>(e);
-                e.InputArguments.Value = new object[] { eventId, comment };
+                e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
+                e.SetChildValue(context, BrowseNames.Comment, comment, false);
 
                 ReportEvent(context, e);
             }

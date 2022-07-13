@@ -12,6 +12,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -123,6 +125,42 @@ namespace Opc.Ua
         {
             return ProcessRequestAsyncResult.WaitForComplete(result, false);
         }
+
+        /// <summary>
+        /// Report the open secure channel audit event
+        /// </summary>
+        /// <param name="channel"></param>
+        /// <param name="request">The incuming <see cref="OpenSecureChannelRequest"/></param>
+        /// <param name="clientCertificate">The cliet certificate.</param>
+        /// <param name="exception">The exception resulted from the open secure channel request.</param>
+        public void ReportAuditOpenSecureChannelEvent(TcpServerChannel channel, OpenSecureChannelRequest request, X509Certificate2 clientCertificate, Exception exception)
+        {
+            // trigger the reporting of AuditOpenSecureChannelEventType
+            ServerForContext?.ReportAuditOpenSecureChannelEvent(channel, request, clientCertificate, exception);
+        }
+
+        /// <summary>
+        /// Report the close secure channel audit event
+        /// </summary>
+        /// <param name="channel"></param>
+        /// <param name="exception">The exception resulted from the open secure channel request.</param>
+        public void ReportAuditCloseSecureChannelEvent(TcpServerChannel channel, Exception exception)
+        {
+            // trigger the reporting of close AuditChannelEventType
+            ServerForContext?.ReportAuditCloseSecureChannelEvent(channel, exception);
+        }
+
+        /// <summary>
+        /// Reports all audit events for client certificate ServiceResultException. It goes recursively for all service results stored in the exception
+        /// </summary>
+        /// <param name="clientCertificate">The cliet certificate.</param>
+        /// <param name="exception">The Exception that triggers a certificate audit event.</param>
+        public void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
+        {
+            // trigger the reporting of OpenSecureChannelAuditEvent
+            ServerForContext?.ReportAuditCertificateEvent(clientCertificate, exception);
+        }
+
         #endregion
 
         #region Public Methods

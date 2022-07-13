@@ -275,7 +275,7 @@ namespace Opc.Ua.Bindings
                     // process open secure channel repsonse.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                     {
-                        Utils.LogTrace(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessOpenSecureChannelRequest", ChannelId);
+                        Utils.LogTrace(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessOpenSecureChannelRequest", ChannelId);                       
                         return ProcessOpenSecureChannelRequest(messageType, messageChunk);
                     }
 
@@ -508,10 +508,16 @@ namespace Opc.Ua.Bindings
                 const string errorSecurityChecksFailed = "Could not verify security on OpenSecureChannel request.";
                 ServiceResultException innerException = e.InnerException as ServiceResultException;
 
+                // report the audit event for open secure channel
+                ReportAuditOpenSecureChannelEvent?.Invoke(this, null, clientCertificate, e);
+
+                // report the audit event for open certificate error
+                ReportAuditCertificateEvent?.Invoke(clientCertificate, e);
+
                 // If the certificate structure, signature and trust list checks pass,
                 // return the other specific validation errors instead of BadSecurityChecksFailed
                 if (innerException != null)
-                {
+                {       
                     if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
                         innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
                         innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
@@ -542,7 +548,7 @@ namespace Opc.Ua.Bindings
             }
 
             BufferCollection chunksToProcess = null;
-
+            OpenSecureChannelRequest request = null;
             try
             {
                 bool firstCall = ClientCertificate == null;
@@ -563,17 +569,10 @@ namespace Opc.Ua.Bindings
                     SaveIntermediateChunk(requestId, messageBody, true);
                     return false;
                 }
-
-                // create a new token.
-                ChannelToken token = CreateToken();
-
-                token.TokenId = GetNewTokenId();
-                token.ServerNonce = CreateNonce();
-
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
-                OpenSecureChannelRequest request = (OpenSecureChannelRequest)BinaryDecoder.DecodeMessage(
+                request = (OpenSecureChannelRequest)BinaryDecoder.DecodeMessage(
                     new ArraySegmentStream(chunksToProcess),
                     typeof(OpenSecureChannelRequest),
                     Quotas.MessageContext);
@@ -589,6 +588,11 @@ namespace Opc.Ua.Bindings
                     ReviseSecurityMode(firstCall, request.SecurityMode);
                 }
 
+                // create a new token.
+                ChannelToken token = CreateToken();
+
+                token.TokenId = GetNewTokenId();
+                token.ServerNonce = CreateNonce();
                 // check the client nonce.
                 token.ClientNonce = request.ClientNonce;
 
@@ -695,10 +699,25 @@ namespace Opc.Ua.Bindings
                 // notify any monitors.
                 NotifyMonitors(ServiceResult.Good, false);
 
+                if (requestType == SecurityTokenRequestType.Issue)
+                {
+                    // always report the audit event for open secure channel with RequestType = Issue
+                    ReportAuditOpenSecureChannelEvent?.Invoke(this, request, ClientCertificate, null);
+                }
+
                 return false;
             }
             catch (Exception e)
             {
+                StatusCode statusCode = StatusCodes.BadTcpInternalError;
+                if (e is ServiceResultException sre)
+                {
+                    statusCode = sre.StatusCode;
+                }
+
+                // report the audit event for open secure channel
+                ReportAuditOpenSecureChannelEvent?.Invoke(this, request, ClientCertificate, e);
+
                 SendServiceFault(requestId, ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error processing OpenSecureChannel request."));
                 CompleteReverseHello(e);
                 return false;
@@ -798,11 +817,14 @@ namespace Opc.Ua.Bindings
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessCloseSecureChannelRequest"))
                 {
-                    throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
+                    throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid, "Could not verify security on CloseSecureChannel request.");
                 }
             }
             catch (Exception e)
             {
+                // report the audit event for close secure channel
+                ReportAuditCloseSecureChannelEvent?.Invoke(this, e);
+
                 throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, e, "Could not verify security on CloseSecureChannel request.");
             }
 
@@ -829,13 +851,19 @@ namespace Opc.Ua.Bindings
                 {
                     throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse CloseSecureChannel request body.");
                 }
-
+                
                 // send the response.
                 // SendCloseSecureChannelResponse(requestId, token, request);
+
+                // report the audit event for close secure channel
+                ReportAuditCloseSecureChannelEvent?.Invoke(this, null);
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error processing OpenSecureChannel request.");
+                // report the audit event for close secure channel
+                ReportAuditCloseSecureChannelEvent?.Invoke(this, e);
+
+                Utils.LogError(e, "Unexpected error processing CloseSecureChannel request.");
             }
             finally
             {

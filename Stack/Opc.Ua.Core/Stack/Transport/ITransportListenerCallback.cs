@@ -12,7 +12,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -46,5 +48,29 @@ namespace Opc.Ua
         /// <returns>The response to return over the secure channel.</returns>
         /// <seealso cref="BeginProcessRequest" />
         IServiceResponse EndProcessRequest(IAsyncResult result);
+
+        /// <summary>
+        /// Report the open secure channel audit event
+        /// </summary>
+        /// <param name="channel"></param>
+        /// <param name="request">The incuming <see cref="OpenSecureChannelRequest"/></param>
+        /// <param name="clientCertificate">The cliet certificate.</param>
+        /// <param name="exception">The exception resulted from the open secure channel request.</param>
+        void ReportAuditOpenSecureChannelEvent(TcpServerChannel channel, OpenSecureChannelRequest request, X509Certificate2 clientCertificate, Exception exception);
+
+        /// <summary>
+        /// Report the close secure channel audit event
+        /// </summary>
+        /// <param name="channel"></param>
+        /// <param name="exception">The exception resulted from the open secure channel request.</param>
+        void ReportAuditCloseSecureChannelEvent(TcpServerChannel channel, Exception exception);
+
+        /// <summary>
+        /// Report certificate audit event 
+        /// </summary>
+        /// <param name="clientCertificate">The cliet certificate.</param>
+        /// <param name="exception">The Exception that triggers a certificate audit event.</param>
+        void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception);
+
     }
 }
