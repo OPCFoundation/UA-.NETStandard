@@ -683,7 +683,9 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
+
             int ii = 0;
+            var variableNodes = new NodeIdCollection(); 
             foreach (var node in nodeCollection)
             {
                 Assert.NotNull(node);
@@ -693,6 +695,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     try
                     {
+                        variableNodes.Add(node.NodeId);
                         var value = Session.ReadValue(node.NodeId);
                         Assert.NotNull(value);
                         TestContext.Out.WriteLine("-- Value {0} ", value);
@@ -704,10 +707,16 @@ namespace Opc.Ua.Client.Tests
                 }
                 ii++;
             }
+
+            Session.ReadValues(nodes, out DataValueCollection values, out errors);
+
+            Assert.NotNull(values);
+            Assert.AreEqual(nodes.Count, values.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
         }
 
         [Test, Order(600)]
-        public async Task NodeCache_Read()
+        public async Task NodeCacheRead()
         {
             if (ReferenceDescriptions == null)
             {

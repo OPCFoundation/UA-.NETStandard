@@ -102,20 +102,33 @@ namespace Opc.Ua.Client
 
             return removed;
         }
+        #endregion
 
+        #region Node Read Async Methods
         /// <summary>
-        /// Reads the values for the node attributes and returns a node collection.
+        /// Reads the values for the node attributes and returns a node object collection.
         /// </summary>
-        /// <param name="nodeIdCollection">The nodeId collection.</param>
-        /// <param name="nodeClass">The nodeClass of all nodes in the collection.</param>
-        /// <param name="optionalAttributes">If optional attributes to read.</param>
+        /// <remarks>
+        /// If the nodeclass for the nodes in nodeIdCollection is already known
+        /// and passed as nodeClass, reads only values of required attributes.
+        /// Otherwise NodeClass.Unspecified should be used.
+        /// </remarks>
+        /// <param name="nodeIdCollection">The nodeId collection to read.</param>
+        /// <param name="nodeClass">The nodeClass of all nodes in the collection. Set to <c>NodeClass.Unspecified</c> if the nodeclass is unknown.</param>
+        /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
         /// <param name="ct">The cancellation token.</param>
+        /// <returns>The node collection and associated errors.</returns>
         public async Task<(NodeCollection, IList<ServiceResult>)> ReadNodesAsync(
             NodeIdCollection nodeIdCollection,
             NodeClass nodeClass,
             bool optionalAttributes = false,
             CancellationToken ct = default)
         {
+            if (nodeClass == NodeClass.Unspecified)
+            {
+                return await ReadNodesAsync(nodeIdCollection, optionalAttributes, ct).ConfigureAwait(false);
+            }
+
             var nodeCollection = new NodeCollection(nodeIdCollection.Count);
 
             // determine attributes to read for nodeclass
@@ -152,7 +165,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
+        /// Reads the values for the node attributes and returns a node object collection.
         /// Reads the nodeclass of the nodeIds, then reads
         /// the values for the node attributes and returns a node collection.
         /// </summary>
@@ -225,7 +238,9 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="nodeId">The nodeId.</param>
         /// <param name="ct">The cancellation token for the request.</param>
-        public Task<Node> ReadNodeAsync(NodeId nodeId, CancellationToken ct = default)
+        public Task<Node> ReadNodeAsync(
+            NodeId nodeId,
+            CancellationToken ct = default)
         {
             return ReadNodeAsync(nodeId, NodeClass.Unspecified, true, ct);
         }
@@ -274,6 +289,93 @@ namespace Opc.Ua.Client
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
             return ProcessReadResponse(readResponse.ResponseHeader, attributes, itemsToRead, values, diagnosticInfos);
+        }
+
+        /// <summary>
+        /// Reads the value for a node.
+        /// </summary>
+        /// <param name="nodeId">The node Id.</param>
+        /// <param name="ct">The cancellation token for the request.</param>
+        public async Task<DataValue> ReadValueAsync(
+            NodeId nodeId,
+            CancellationToken ct = default)
+        {
+            ReadValueId itemToRead = new ReadValueId {
+                NodeId = nodeId,
+                AttributeId = Attributes.Value
+            };
+
+            ReadValueIdCollection itemsToRead = new ReadValueIdCollection {
+                itemToRead
+            };
+
+            // read from server.
+            DataValueCollection values = null;
+            DiagnosticInfoCollection diagnosticInfos = null;
+
+            ReadResponse readResponse = await ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Both,
+                itemsToRead,
+                ct).ConfigureAwait(false);
+
+            ClientBase.ValidateResponse(values, itemsToRead);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+
+            if (StatusCode.IsBad(values[0].StatusCode))
+            {
+                ServiceResult result = ClientBase.GetResult(values[0].StatusCode, 0, diagnosticInfos, readResponse.ResponseHeader);
+                throw new ServiceResultException(result);
+            }
+
+            return values[0];
+        }
+
+
+        /// <summary>
+        /// Reads the values for a node collection. Returns diagnostic errors.
+        /// </summary>
+        /// <param name="nodeIds">The node Id.</param>
+        /// <param name="ct">The cancellation token for the request.</param>
+        public async Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(
+            NodeIdCollection nodeIds,
+            CancellationToken ct = default)
+        {
+            // read all values from server.
+            var itemsToRead = new ReadValueIdCollection(
+                nodeIds.Select(nodeId =>
+                    new ReadValueId {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value
+                    }));
+
+            // read from server.
+            var errors = new List<ServiceResult>(itemsToRead.Count);
+
+            ReadResponse readResponse = await ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Both,
+                itemsToRead, ct).ConfigureAwait(false);
+
+            DataValueCollection values = readResponse.Results;
+            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+
+            ClientBase.ValidateResponse(values, itemsToRead);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+
+            foreach (var value in values)
+            {
+                ServiceResult result = ServiceResult.Good;
+                if (StatusCode.IsBad(value.StatusCode))
+                {
+                    result = ClientBase.GetResult(values[0].StatusCode, 0, diagnosticInfos, readResponse.ResponseHeader);
+                }
+                errors.Add(result);
+            }
+
+            return (values, errors);
         }
         #endregion
     }

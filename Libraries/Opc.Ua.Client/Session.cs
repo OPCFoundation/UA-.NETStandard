@@ -1716,13 +1716,18 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Reads the values for the node attributes and returns a node collection.
+        /// Reads the values for the node attributes and returns a node object collection.
         /// </summary>
-        /// <param name="nodeIdCollection">The nodeId collection.</param>
-        /// <param name="nodeClass">The nodeClass of all nodes in the collection.</param>
-        /// <param name="nodeCollection">The node collection read from the server.</param>
-        /// <param name="errors">The errors occured reading the nodes.</param>
-        /// <param name="optionalAttributes">If optional attributes to read.</param>
+        /// <remarks>
+        /// If the nodeclass for the nodes in nodeIdCollection is already known,
+        /// and passed as nodeClass, reads only values of required attributes.
+        /// Otherwise NodeClass.Unspecified should be used.
+        /// </remarks>
+        /// <param name="nodeIdCollection">The nodeId collection to read.</param>
+        /// <param name="nodeClass">The nodeClass of all nodes in the collection. Set to <c>NodeClass.Unspecified</c> if the nodeclass is unknown.</param>
+        /// <param name="nodeCollection">The node collection that is created from attributes read from the server.</param>
+        /// <param name="errors">The errors that occured reading the nodes.</param>
+        /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
         public void ReadNodes(
             NodeIdCollection nodeIdCollection,
             NodeClass nodeClass,
@@ -1730,6 +1735,12 @@ namespace Opc.Ua.Client
             out IList<ServiceResult> errors,
             bool optionalAttributes = false)
         {
+            if (nodeClass == NodeClass.Unspecified)
+            {
+                ReadNodes(nodeIdCollection, out nodeCollection, out errors, optionalAttributes);
+                return;
+            }
+
             nodeCollection = new NodeCollection(nodeIdCollection.Count);
             errors = new ServiceResult[nodeIdCollection.Count].ToList();
 
@@ -1740,8 +1751,7 @@ namespace Opc.Ua.Client
             CreateNodeClassAttributesReadNodesRequest(
                 nodeIdCollection, nodeClass,
                 attributesToRead, attributesPerNodeId,
-                nodeCollection,
-                optionalAttributes);
+                nodeCollection, optionalAttributes);
 
             ResponseHeader responseHeader = Read(
                 null,
@@ -1764,12 +1774,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads the values for the node attributes and returns a node object.
         /// Reads the nodeclass of the nodeIds, then reads
-        /// the values for the node attributes and returns a node collection.
+        /// the values for the node attributes and returns a node object collection.
         /// </summary>
         /// <param name="nodeIdCollection">The nodeId collection.</param>
         /// <param name="nodeCollection">The node collection read from the server.</param>
         /// <param name="errors">The errors occured reading the nodes.</param>
-        /// <param name="optionalAttributes">If optional attributes to read.</param>
+        /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
         public void ReadNodes(
             NodeIdCollection nodeIdCollection,
             out NodeCollection nodeCollection,
@@ -1848,7 +1858,10 @@ namespace Opc.Ua.Client
         /// <param name="nodeId">The nodeId.</param>
         /// <param name="nodeClass">The nodeclass of the node to read.</param>
         /// <param name="optionalAttributes">Read optional attributes.</param>
-        public Node ReadNode(NodeId nodeId, NodeClass nodeClass, bool optionalAttributes = true)
+        public Node ReadNode(
+            NodeId nodeId,
+            NodeClass nodeClass,
+            bool optionalAttributes = true)
         {
             // build list of attributes.
             var attributes = CreateAttributes(nodeClass, optionalAttributes);
@@ -1888,13 +1901,14 @@ namespace Opc.Ua.Client
         /// <param name="nodeId">The node Id.</param>
         public DataValue ReadValue(NodeId nodeId)
         {
-            ReadValueId itemToRead = new ReadValueId();
+            ReadValueId itemToRead = new ReadValueId {
+                NodeId = nodeId,
+                AttributeId = Attributes.Value
+            };
 
-            itemToRead.NodeId = nodeId;
-            itemToRead.AttributeId = Attributes.Value;
-
-            ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
-            itemsToRead.Add(itemToRead);
+            ReadValueIdCollection itemsToRead = new ReadValueIdCollection {
+                itemToRead
+            };
 
             // read from server.
             DataValueCollection values = null;
@@ -1918,6 +1932,50 @@ namespace Opc.Ua.Client
             }
 
             return values[0];
+        }
+
+        /// <summary>
+        /// Reads the values for a node collection. Returns diagnostic errors.
+        /// </summary>
+        /// <param name="nodeIds">The node Id.</param>
+        /// <param name="values">The data values read from the server.</param>
+        /// <param name="errors">The errors reported by the server.</param>
+        public void ReadValues(
+            NodeIdCollection nodeIds,
+            out DataValueCollection values,
+            out IList<ServiceResult> errors)
+        {
+            // read all values from server.
+            var itemsToRead = new ReadValueIdCollection(
+                nodeIds.Select(nodeId =>
+                    new ReadValueId {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value
+                    }));
+
+            // read from server.
+            errors = new List<ServiceResult>(itemsToRead.Count);
+
+            ResponseHeader responseHeader = Read(
+                null,
+                0,
+                TimestampsToReturn.Both,
+                itemsToRead,
+                out values,
+                out DiagnosticInfoCollection diagnosticInfos);
+
+            ClientBase.ValidateResponse(values, itemsToRead);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+
+            foreach (var value in values)
+            {
+                ServiceResult result = ServiceResult.Good;
+                if (StatusCode.IsBad(value.StatusCode))
+                {
+                    result = ClientBase.GetResult(values[0].StatusCode, 0, diagnosticInfos, responseHeader);
+                }
+                errors.Add(result);
+            }
         }
 
         /// <summary>
