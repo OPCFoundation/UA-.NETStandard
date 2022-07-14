@@ -2795,6 +2795,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The namespace managers being managed
+        /// </summary>
+        internal INodeManager[][] NamespaceManagers => m_namespaceManagers;
+
+        /// <summary>
         /// Validates a monitoring attributes parameter.
         /// </summary>
         protected static ServiceResult ValidateMonitoringAttributes(MonitoringParameters attributes)
