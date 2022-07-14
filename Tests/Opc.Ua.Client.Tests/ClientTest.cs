@@ -607,7 +607,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(550)]
-        public async Task Read()
+        public async Task ReadNode()
         {
             if (ReferenceDescriptions == null)
             {
@@ -633,6 +633,76 @@ namespace Opc.Ua.Client.Tests
                         TestContext.Out.WriteLine("-- Read Value {0} ", sre.Message);
                     }
                 }
+            }
+        }
+
+        [Test, Order(550)]
+        public async Task ReadNodeAsync()
+        {
+            if (ReferenceDescriptions == null)
+            {
+                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+            }
+
+            foreach (var reference in ReferenceDescriptions.Take(MaxReferences))
+            {
+                var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                var node = await Session.ReadNodeAsync(nodeId).ConfigureAwait(false);
+                Assert.NotNull(node);
+                TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
+                if (node is VariableNode)
+                {
+                    try
+                    {
+                        var value = Session.ReadValue(nodeId);
+                        Assert.NotNull(value);
+                        TestContext.Out.WriteLine("-- Value {0} ", value);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        TestContext.Out.WriteLine("-- Read Value {0} ", sre.Message);
+                    }
+                }
+            }
+        }
+
+        [Test, Order(560)]
+        public async Task ReadNodes()
+        {
+            if (ReferenceDescriptions == null)
+            {
+                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+            }
+
+            NodeIdCollection nodes = new NodeIdCollection(
+                ReferenceDescriptions.Take(MaxReferences).Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
+                );
+            Session.ReadNodes(nodes, out NodeCollection nodeCollection, out IList<ServiceResult> errors);
+            Assert.NotNull(nodeCollection);
+            Assert.NotNull(errors);
+            Assert.AreEqual(nodes.Count, nodeCollection.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+
+            int ii = 0;
+            foreach (var node in nodeCollection)
+            {
+                Assert.NotNull(node);
+                Assert.AreEqual(ServiceResult.Good, errors[ii]);
+                TestContext.Out.WriteLine("NodeId: {0} Node: {1}", node.NodeId, node);
+                if (node is VariableNode)
+                {
+                    try
+                    {
+                        var value = Session.ReadValue(node.NodeId);
+                        Assert.NotNull(value);
+                        TestContext.Out.WriteLine("-- Value {0} ", value);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        TestContext.Out.WriteLine("-- Read Value {0} ", sre.Message);
+                    }
+                }
+                ii++;
             }
         }
 

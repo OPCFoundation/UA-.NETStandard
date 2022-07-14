@@ -4076,9 +4076,9 @@ namespace Opc.Ua.Client
                 }
 
                 int readCount = attributes.Count;
-                ReadValueIdCollection subRangeAttributes = (ReadValueIdCollection)attributesToRead.GetRange(readIndex, readCount);
-                DataValueCollection subRangeValues = (DataValueCollection)values.GetRange(readIndex, readCount);
-                DiagnosticInfoCollection subRangeDiagnostics = (DiagnosticInfoCollection)diagnosticInfos.GetRange(readIndex, readCount);
+                ReadValueIdCollection subRangeAttributes = new ReadValueIdCollection(attributesToRead.GetRange(readIndex, readCount));
+                DataValueCollection subRangeValues = new DataValueCollection(values.GetRange(readIndex, readCount));
+                DiagnosticInfoCollection subRangeDiagnostics = diagnosticInfos.Count > 0 ? new DiagnosticInfoCollection(diagnosticInfos.GetRange(readIndex, readCount)) : diagnosticInfos;
                 try
                 {
                     nodeCollection[ii] = ProcessReadResponse(responseHeader, attributes,
