@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -247,7 +248,7 @@ namespace Opc.Ua.Client.Tests
         public async Task ConnectJWT(string securityPolicy)
         {
             var identityToken = "fakeTokenString";
-           
+
             var issuedToken = new IssuedIdentityToken() {
                 IssuedTokenType = IssuedTokenType.JWT,
                 PolicyId = Profiles.JwtUserToken,
@@ -294,8 +295,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(identityToken, receivedToken);
 
             var newIdentityToken = "fakeTokenStringNew";
-            session.RenewUserIdentity += (s, i) =>
-            {
+            session.RenewUserIdentity += (s, i) => {
                 return CreateUserIdentity(newIdentityToken);
             };
 
@@ -380,7 +380,17 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadValue()
+        public void ReadValueAsync()
+        {
+            // Test ReadValue
+            Task task1 = Session.ReadValueAsync(VariableIds.Server_ServerRedundancy_RedundancySupport);
+            Task task2 = Session.ReadValueAsync(VariableIds.Server_ServerStatus);
+            Task task3 = Session.ReadValueAsync(VariableIds.Server_ServerStatus);
+            Task.WaitAll(task1, task2, task3);
+        }
+
+        [Test]
+        public void ReadValueTyped()
         {
             // Test ReadValue
             _ = Session.ReadValue(VariableIds.Server_ServerRedundancy_RedundancySupport, typeof(Int32));
@@ -390,7 +400,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadValues()
+        public void ReadValue()
         {
             var namespaceUris = Session.NamespaceUris;
             var testSet = GetTestSetStatic(namespaceUris).ToList();
@@ -401,6 +411,26 @@ namespace Opc.Ua.Client.Tests
                 Assert.NotNull(dataValue);
                 Assert.NotNull(dataValue.Value);
             }
+        }
+
+        [Test]
+        public void ReadValues()
+        {
+            var namespaceUris = Session.NamespaceUris;
+            var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
+            testSet.AddRange(GetTestSetSimulation(namespaceUris));
+            Session.ReadValues(testSet, out DataValueCollection values, out IList<ServiceResult> errors);
+        }
+
+        [Test]
+        public async Task ReadValuesAsync()
+        {
+            var namespaceUris = Session.NamespaceUris;
+            var testSet = GetTestSetStatic(namespaceUris).ToList();
+            testSet.AddRange(GetTestSetSimulation(namespaceUris));
+            DataValueCollection values;
+            IList<ServiceResult> errors;
+            (values, errors) = await Session.ReadValuesAsync(new NodeIdCollection(testSet)).ConfigureAwait(false);
         }
 
         [Test]
@@ -685,7 +715,7 @@ namespace Opc.Ua.Client.Tests
 
 
             int ii = 0;
-            var variableNodes = new NodeIdCollection(); 
+            var variableNodes = new NodeIdCollection();
             foreach (var node in nodeCollection)
             {
                 Assert.NotNull(node);

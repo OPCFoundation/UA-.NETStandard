@@ -310,15 +310,15 @@ namespace Opc.Ua.Client
             };
 
             // read from server.
-            DataValueCollection values = null;
-            DiagnosticInfoCollection diagnosticInfos = null;
-
             ReadResponse readResponse = await ReadAsync(
                 null,
                 0,
                 TimestampsToReturn.Both,
                 itemsToRead,
                 ct).ConfigureAwait(false);
+
+            DataValueCollection values = readResponse.Results;
+            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
