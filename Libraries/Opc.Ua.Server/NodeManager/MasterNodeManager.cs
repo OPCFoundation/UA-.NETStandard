@@ -460,6 +460,90 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Unregisters the node manager as the node manager for Nodes in the specified namespace.
+        /// </summary>
+        /// <param name="namespaceUri">The URI of the namespace.</param>
+        /// <param name="nodeManager">The NodeManager which no longer owns nodes in the namespace.</param>
+        /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+        public void UnregisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
+        {
+            if (String.IsNullOrEmpty(namespaceUri)) throw new ArgumentNullException(nameof(namespaceUri));
+            if (nodeManager == null) throw new ArgumentNullException(nameof(nodeManager));
+
+            // look up the namespace uri. If it is not found, we have nothing to do
+            int index = m_server.NamespaceUris.GetIndex(namespaceUri);
+            if (index < 0)
+            {
+                return;
+            }
+
+            // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
+            INodeManager[][] namespaceManagers = new INodeManager[m_server.NamespaceUris.Count][];
+
+            try
+            {
+                m_readWriterLockSlim.EnterWriteLock();
+
+                // copy existing values.
+                for (int ii = 0; ii < m_namespaceManagers.Length; ii++)
+                {
+                    if (m_namespaceManagers.Length >= ii)
+                    {
+                        namespaceManagers[ii] = m_namespaceManagers[ii];
+                    }
+                }
+
+                // allocate a new array for the index being updated.
+                INodeManager[] registeredManagers = namespaceManagers[index];
+
+                if (registeredManagers != null)
+                {
+                    // search the existing registered node managers for the provided instance
+                    int managerIndex = Array.IndexOf(m_namespaceManagers[index], nodeManager);
+
+                    if (managerIndex != -1)
+                    {
+                        // allocate a new smaller array to support element removal
+                        registeredManagers = new INodeManager[registeredManagers.Length - 1];
+
+                        // begin by populating the new array with existing elements up to the target index 
+                        if (managerIndex > 0)
+                        {
+                            Array.Copy(
+                                m_namespaceManagers[index],
+                                0,
+                                registeredManagers,
+                                0,
+                                managerIndex);
+                        }
+
+                        // finish by populating the new array with existing elements after the target index
+                        if (managerIndex < m_namespaceManagers[index].Length - 1)
+                        {
+                            Array.Copy(
+                                m_namespaceManagers[index],
+                                managerIndex + 1,
+                                registeredManagers,
+                                managerIndex,
+                                m_namespaceManagers[index].Length - managerIndex - 1);
+                        }
+                    }
+                }
+
+                // update the array for the target index.
+                namespaceManagers[index] = registeredManagers;
+
+                // replace the table.
+                m_namespaceManagers = namespaceManagers;
+
+            }
+            finally
+            {
+                m_readWriterLockSlim.ExitWriteLock();
+            }
+        }
+
+        /// <summary>
         /// Returns node handle and its node manager.
         /// </summary>
         public virtual object GetManagerHandle(NodeId nodeId, out INodeManager nodeManager)
