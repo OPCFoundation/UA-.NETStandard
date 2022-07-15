@@ -727,14 +727,14 @@ namespace Opc.Ua.Client.Tests
             foreach (var reference in ReferenceDescriptions.Take(MaxReferences))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
-                var node = await Session.ReadNodeAsync(nodeId).ConfigureAwait(false);
+                INode node = await Session.ReadNodeAsync(nodeId).ConfigureAwait(false);
                 Assert.NotNull(node);
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
                 if (node is VariableNode)
                 {
                     try
                     {
-                        var value = Session.ReadValue(nodeId);
+                        var value = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
                         Assert.NotNull(value);
                         TestContext.Out.WriteLine("-- Value {0} ", value);
                     }
@@ -789,6 +789,56 @@ namespace Opc.Ua.Client.Tests
             }
 
             Session.ReadValues(nodes, out DataValueCollection values, out errors);
+
+            Assert.NotNull(values);
+            Assert.AreEqual(nodes.Count, values.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+        }
+
+        [Test, Order(570)]
+        public async Task ReadNodesAsync()
+        {
+            if (ReferenceDescriptions == null)
+            {
+                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+            }
+
+            NodeIdCollection nodes = new NodeIdCollection(
+                ReferenceDescriptions.Take(MaxReferences).Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
+                );
+            (NodeCollection nodeCollection, IList<ServiceResult> errors) = await Session.ReadNodesAsync(nodes).ConfigureAwait(false);
+            Assert.NotNull(nodeCollection);
+            Assert.NotNull(errors);
+            Assert.AreEqual(nodes.Count, nodeCollection.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+
+
+            int ii = 0;
+            var variableNodes = new NodeIdCollection();
+            foreach (var node in nodeCollection)
+            {
+                Assert.NotNull(node);
+                Assert.AreEqual(ServiceResult.Good, errors[ii]);
+                TestContext.Out.WriteLine("NodeId: {0} Node: {1}", node.NodeId, node);
+                if (node is VariableNode)
+                {
+                    try
+                    {
+                        variableNodes.Add(node.NodeId);
+                        var value = await Session.ReadValueAsync(node.NodeId).ConfigureAwait(false);
+                        Assert.NotNull(value);
+                        TestContext.Out.WriteLine("-- Value {0} ", value);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        TestContext.Out.WriteLine("-- Read Value {0} ", sre.Message);
+                    }
+                }
+                ii++;
+            }
+
+            DataValueCollection values;
+            (values, errors) = await Session.ReadValuesAsync(nodes).ConfigureAwait(false);
 
             Assert.NotNull(values);
             Assert.AreEqual(nodes.Count, values.Count);
