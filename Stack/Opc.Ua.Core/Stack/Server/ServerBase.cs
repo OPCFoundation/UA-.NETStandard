@@ -758,16 +758,21 @@ namespace Opc.Ua
         /// <param name="description">The description.</param>
         public static bool RequireEncryption(EndpointDescription description)
         {
-            bool requireEncryption = description.SecurityPolicyUri != SecurityPolicies.None;
+            bool requireEncryption = false;
 
-            if (!requireEncryption)
+            if (description != null)
             {
-                foreach (UserTokenPolicy userTokenPolicy in description.UserIdentityTokens)
+                requireEncryption = description.SecurityPolicyUri != SecurityPolicies.None;
+
+                if (!requireEncryption)
                 {
-                    if (userTokenPolicy.SecurityPolicyUri != SecurityPolicies.None)
+                    foreach (UserTokenPolicy userTokenPolicy in description.UserIdentityTokens)
                     {
-                        requireEncryption = true;
-                        break;
+                        if (userTokenPolicy.SecurityPolicyUri != SecurityPolicies.None)
+                        {
+                            requireEncryption = true;
+                            break;
+                        }
                     }
                 }
             }

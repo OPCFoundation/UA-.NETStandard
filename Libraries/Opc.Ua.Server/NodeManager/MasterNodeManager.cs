@@ -1861,8 +1861,6 @@ namespace Opc.Ua.Server
             Type detailsType = null;
             List<HistoryUpdateDetails> nodesToUpdate = new List<HistoryUpdateDetails>();
 
-            ServerSystemContext systemContext = Server.DefaultSystemContext.Copy();
-
             // verify that all extension objects in the list have the same type.
             foreach (ExtensionObject details in historyUpdateDetails)
             {

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 
 
@@ -4565,7 +4566,7 @@ namespace Opc.Ua.Server
             object oldValue,
             StatusCode statusCode)
         {
-            if (systemContext.OperationContext == null || systemContext.UserIdentity == null)
+            if (systemContext?.OperationContext == null || systemContext?.UserIdentity == null)
             {
                 return;
             }
@@ -4640,7 +4641,7 @@ namespace Opc.Ua.Server
             TranslationInfo message = new TranslationInfo(
                auditEventName,
                "en-US",
-               $"{auditEventName} has Result: {statusCode}.");
+               $"{auditEventName} has Result: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
 
             e.Initialize(
                systemContext,

@@ -565,7 +565,7 @@ namespace Opc.Ua.Server
                     }
                 }               
 
-                bool requireEncryption = ServerBase.RequireEncryption(context.ChannelContext.EndpointDescription);
+                bool requireEncryption = ServerBase.RequireEncryption(context?.ChannelContext?.EndpointDescription);
 
                 if (!requireEncryption && clientCertificate != null)
                 {
@@ -782,8 +782,8 @@ namespace Opc.Ua.Server
             List<SoftwareCertificate> softwareCertificates = new List<SoftwareCertificate>();
 
             try
-            {               
-                if (context.SecurityPolicyUri != SecurityPolicies.None)
+            {
+                if (context?.SecurityPolicyUri != SecurityPolicies.None)
                 {
                     bool diagnosticsExist = false;
 

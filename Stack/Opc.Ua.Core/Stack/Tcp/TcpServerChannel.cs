@@ -709,12 +709,6 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                StatusCode statusCode = StatusCodes.BadTcpInternalError;
-                if (e is ServiceResultException sre)
-                {
-                    statusCode = sre.StatusCode;
-                }
-
                 // report the audit event for open secure channel
                 ReportAuditOpenSecureChannelEvent?.Invoke(this, request, ClientCertificate, e);
 

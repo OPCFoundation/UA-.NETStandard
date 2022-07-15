@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -702,7 +703,7 @@ namespace Opc.Ua.Server
                 TranslationInfo message = new TranslationInfo(
                    "TrustListUpdatedAuditEvent",
                    "en-US",
-                   $"TrustListUpdatedAuditEvent result is: {statusCode}");
+                   $"TrustListUpdatedAuditEvent result is: {statusCode.ToString(null, CultureInfo.InvariantCulture)}");
 
                 e.Initialize(
                    systemContext,
