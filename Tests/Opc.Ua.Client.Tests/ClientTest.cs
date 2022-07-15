@@ -420,6 +420,8 @@ namespace Opc.Ua.Client.Tests
             var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
             testSet.AddRange(GetTestSetSimulation(namespaceUris));
             Session.ReadValues(testSet, out DataValueCollection values, out IList<ServiceResult> errors);
+            Assert.AreEqual(testSet.Count, values.Count);
+            Assert.AreEqual(testSet.Count, errors.Count);
         }
 
         [Test]
@@ -431,13 +433,61 @@ namespace Opc.Ua.Client.Tests
             DataValueCollection values;
             IList<ServiceResult> errors;
             (values, errors) = await Session.ReadValuesAsync(new NodeIdCollection(testSet)).ConfigureAwait(false);
+            Assert.AreEqual(testSet.Count, values.Count);
+            Assert.AreEqual(testSet.Count, errors.Count);
         }
 
         [Test]
         public void ReadDataTypeDefinition()
         {
             // Test Read a DataType Node
-            var node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType);
+            INode node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType);
+            ValidateDataTypeDefinition(node);
+        }
+
+        [Test]
+        public async Task ReadDataTypeDefinitionAsync()
+        {
+            // Test Read a DataType Node
+            INode node = await Session.ReadNodeAsync(DataTypeIds.ProgramDiagnosticDataType).ConfigureAwait(false);
+            ValidateDataTypeDefinition(node);
+        }
+
+        [Test]
+        public void ReadDataTypeDefinition2()
+        {
+            // Test Read a DataType Node, the nodeclass is known
+            INode node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType, NodeClass.DataType, false);
+            ValidateDataTypeDefinition(node);
+        }
+
+        [Test]
+        public async Task ReadDataTypeDefinition2Async()
+        {
+            // Test Read a DataType Node, the nodeclass is known
+            INode node = await Session.ReadNodeAsync(DataTypeIds.ProgramDiagnosticDataType, NodeClass.DataType, false).ConfigureAwait(false);
+            ValidateDataTypeDefinition(node);
+        }
+
+        [Test]
+        public void ReadDataTypeDefinitionNodes()
+        {
+            // Test Read a DataType Node, the nodeclass is known
+            Session.ReadNodes(new NodeIdCollection() { DataTypeIds.ProgramDiagnosticDataType }, NodeClass.DataType, out NodeCollection nodes, out IList<ServiceResult> errors, false);
+            ValidateDataTypeDefinition(nodes[0]);
+        }
+
+        [Test]
+        public async Task ReadDataTypeDefinitionNodesAsync()
+        {
+            // Test Read a DataType Node, the nodeclass is known
+            (var nodes, var errors) = await Session.ReadNodesAsync(new NodeIdCollection() { DataTypeIds.ProgramDiagnosticDataType }, NodeClass.DataType, false).ConfigureAwait(false);
+            ValidateDataTypeDefinition(nodes[0]);
+        }
+
+
+        private void ValidateDataTypeDefinition(INode node)
+        {
             Assert.NotNull(node);
             var dataTypeNode = (DataTypeNode)node;
             Assert.NotNull(dataTypeNode);
