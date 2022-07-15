@@ -244,7 +244,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reports all audit events for client certificate ServiceResultException. It goes recursively for all service results stored in the exception
         /// </summary>
-        /// <param name="clientCertificate">The cliet certificate.</param>
+        /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="exception">The Exception that triggers a certificate audit event.</param>
         void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception);
 
@@ -252,7 +252,7 @@ namespace Opc.Ua.Server
         /// Report the AuditCancelEventState
         /// </summary>
         /// <param name="sessionId">Session id of the current session</param>
-        /// <param name="requestHandle">The hadle of the caleceled request</param>
+        /// <param name="requestHandle">The handle of the canceled request</param>
         /// <param name="statusCode">The resulted status code of cancel request.</param>
         void ReportAuditCancelEvent(NodeId sessionId, uint requestHandle, StatusCode statusCode);
 
@@ -264,33 +264,6 @@ namespace Opc.Ua.Server
         /// <param name="inputArguments"></param>
         /// <param name="status"></param>
         void ReportRoleMappingRuleChangedAuditEvent(NodeId roleStateObjectId, MethodState method, object[] inputArguments, bool status);
-
-        /// <summary>
-        /// Reports an audit create session event.
-        /// </summary>
-        /// <param name="auditEntryId">The audit entry id.</param>
-        /// <param name="session">The session object that was created.</param>
-        /// <param name="revisedSessionTimeout">The revised session timeout</param>
-        /// <param name="exception">The exception received during create session request</param> 
-        void ReportAuditCreateSessionEvent(string auditEntryId, Session session, double revisedSessionTimeout, Exception exception = null);
-
-        /// <summary>
-        /// Reports an audit activate session event.
-        /// </summary>
-        /// <param name="auditEntryId">The audit entry id.</param>
-        /// <param name="session">The session that is activated.</param>
-        /// <param name="softwareCertificates">The software certificates</param>
-        /// <param name="exception">The exception received during activate session request</param> 
-        void ReportAuditActivateSessionEvent(string auditEntryId, Session session, List<SoftwareCertificate> softwareCertificates, Exception exception = null);
-
-        /// <summary>
-        /// Reports an audit Url Mismatch event.
-        /// </summary>
-        /// <param name="auditEntryId">The audit entry id.</param>
-        /// <param name="session">The session object that was created.</param>
-        /// <param name="revisedSessionTimeout">The revised session timeout</param>
-        /// <param name="endpointUrl">The invalid endpoint url</param> 
-        void ReportAuditUrlMismatchEvent(string auditEntryId, Session session, double revisedSessionTimeout, string endpointUrl);
 
         /// <summary>
         /// Reports an audit close session event.

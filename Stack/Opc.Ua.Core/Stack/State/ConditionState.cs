@@ -242,9 +242,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Replace the Event Id of a branch, usually due to an Acknowledgement
+        /// Replace the Event Id of a branch, usually due to an Acknowledgment
         /// </summary>
-        /// <param name="originalEventId">Event Id prior to the Acknowledgement</param>
+        /// <param name="originalEventId">Event Id prior to the Acknowledgment</param>
         /// <param name="alarm">Branch, containing the updated EventId to be stored</param>
         protected void ReplaceBranchEvent(byte[] originalEventId, ConditionState alarm)
         {
@@ -769,7 +769,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Used to recieve notifications when a condition is enabled or disabled.
+    /// Used to receive notifications when a condition is enabled or disabled.
     /// </summary>
     /// <param name="context">The current system context.</param>
     /// <param name="condition">The condition that raised the event.</param>
@@ -780,7 +780,7 @@ namespace Opc.Ua
         bool enabling);
 
     /// <summary>
-    /// Used to recieve notifications when a comment is added.
+    /// Used to receive notifications when a comment is added.
     /// </summary>
     /// <param name="context">The current system context.</param>
     /// <param name="condition">The condition that raised the event.</param>

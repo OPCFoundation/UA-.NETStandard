@@ -469,12 +469,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Determines if a comment should be added on Acknowledgement or Confirm.
+        /// Determines if a comment should be added on Acknowledgment or Confirm.
         /// </summary>
         /// <param name="comment">The client provided comment.</param>
         /// <returns>Boolean stating whether the comment should be set</returns>
         /// <remarks>
-        /// According to the specification for Alarms, the Acknowledgement states that
+        /// According to the specification for Alarms, the Acknowledgment states that
         /// "If the comment field is NULL (both locale and text are empty) it will be
         /// ignored and any existing comments will remain unchanged."
         /// This also applies to the Confirm method, although the spec needs updating

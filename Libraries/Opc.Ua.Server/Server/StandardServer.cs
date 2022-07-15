@@ -220,7 +220,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns the endpoints that match the base addresss and endpoint url.
+        /// Returns the endpoints that match the base address and endpoint url.
         /// </summary>
         protected EndpointDescriptionCollection GetEndpointDescriptions(
             string endpointUrl,
@@ -270,15 +270,18 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Report the open secure channel audit event
         /// </summary>
-        /// <param name="channel"></param>
+        /// <param name="channel">The <see cref="TcpServerChannel"/> that processes the open secure channel request.</param>
         /// <param name="request">The incoming <see cref="OpenSecureChannelRequest"/></param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="exception">The exception resulted from the open secure channel request.</param>
-        public override void ReportAuditOpenSecureChannelEvent(TcpServerChannel channel, OpenSecureChannelRequest request, X509Certificate2 clientCertificate, Exception exception)
+        public override void ReportAuditOpenSecureChannelEvent(TcpServerChannel channel,
+            OpenSecureChannelRequest request,
+            X509Certificate2 clientCertificate,
+            Exception exception)
         {
             if (ServerInternal?.EventManager?.ServerAuditing != true)
             {
-                // current server does not suport auditing
+                // current server does not support auditing
                 return;
             }
 
@@ -286,7 +289,6 @@ namespace Opc.Ua.Server
             {
                 // raise an audit event.
                 AuditOpenSecureChannelEventState e = new AuditOpenSecureChannelEventState(null);
-
                 TranslationInfo message = null;
                 if (exception == null)
                 {
@@ -365,7 +367,7 @@ namespace Opc.Ua.Server
         {
             if (ServerInternal?.EventManager?.ServerAuditing != true)
             {
-                // current server does not suport auditing
+                // current server does not support auditing
                 return;
             }
 
@@ -443,72 +445,7 @@ namespace Opc.Ua.Server
             ServerInternal?.ReportAuditCertificateEvent(clientCertificate, exception);
         }
 
-        #region Private Report Audit Event Methods
-        /// <summary>
-        /// Reports an AuditWriteUpdate event.
-        /// </summary>
-        /// <param name="operationContext">Client operation info</param>
-        /// <param name="writeValues">The collection of values to write.</param>
-        /// <param name="results">The collection of status code results.</param>
-        private void ReportAuditWriteUpdateEvents(OperationContext operationContext,
-            WriteValueCollection writeValues,
-            StatusCodeCollection results)
-        {
-            if (ServerInternal?.EventManager?.ServerAuditing != true)
-            {
-                // current server does not suport auditing
-                return;
-            }
-
-            try
-            {
-                ServerSystemContext systemContext = ServerInternal?.DefaultSystemContext.Copy();
-
-                for (int offset = 0; offset < writeValues.Count; offset++)
-                {
-                    WriteValue writeValue = writeValues[offset];
-
-                    StatusCode statusCode = StatusCodes.BadNotFound;
-                    if (offset <= results.Count)
-                    {
-                        statusCode = results[offset];
-                    }
-                    
-                    AuditWriteUpdateEventState e = new AuditWriteUpdateEventState(null);
-
-                    TranslationInfo message = new TranslationInfo(
-                       "AuditWriteUpdateEvent",
-                        "en-US",
-                        "AuditWriteUpdateEvent.");
-
-                    e.Initialize(
-                       systemContext,
-                       null,
-                       EventSeverity.Min,
-                       new LocalizedText(message),
-                       StatusCode.IsGood(statusCode),
-                       DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
-
-                    e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
-                    e.SetChildValue(systemContext, BrowseNames.SourceName, "Attribute/Write", false);
-                    e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
-
-                    e.SetChildValue(systemContext, BrowseNames.ClientUserId, operationContext?.UserIdentity?.DisplayName, false);
-                    e.SetChildValue(systemContext, BrowseNames.ClientAuditEntryId, operationContext?.AuditEntryId, false);
-
-                    e.SetChildValue(systemContext, BrowseNames.AttributeId, writeValue.AttributeId, false);
-                    e.SetChildValue(systemContext, BrowseNames.IndexRange, writeValue.IndexRange, false);
-                    e.SetChildValue(systemContext, BrowseNames.NewValue, writeValue.Value, false);
-                    e.SetChildValue(systemContext, BrowseNames.OldValue, null, false);
-
-                    ServerInternal?.ReportEvent(systemContext, e);
-                }
-            }
-            catch (Exception ex)
-            {
-                Utils.LogError(ex, "Error while reporting AuditWriteUpdateEvent event.");
-            }
-        }
+        #region Private Report Audit Event Methods        
 
         /// <summary>
         /// Report Audit event
@@ -522,7 +459,7 @@ namespace Opc.Ua.Server
         {
             if (ServerInternal?.EventManager?.ServerAuditing != true)
             {
-                // current server does not suport auditing
+                // current server does not support auditing
                 return;
             }
 
@@ -535,7 +472,7 @@ namespace Opc.Ua.Server
                 TranslationInfo message = new TranslationInfo(
                    "AuditEvent",
                    "en-US",
-                   $"AuditEvent {methodName} failed due to {serviceResultException.Message} reason.");
+                   $"Method {methodName} failed. Result: {serviceResultException.Message}.");
 
                 e.Initialize(
                    systemContext,
@@ -559,31 +496,6 @@ namespace Opc.Ua.Server
                 Utils.LogError(ex, "Error while reporting AuditEvent event.");
             }
         }
-
-
-        /// <summary>
-        /// Initializes a session audit event.
-        /// </summary>
-        private void InitializeAuditSessionEvent(ServerSystemContext systemContext, AuditEventState e, TranslationInfo message, Session session, string auditEntryId)
-        {
-            e.Initialize(
-                systemContext,
-                null,
-                EventSeverity.MediumLow,
-                new LocalizedText(message),
-                true,
-                DateTime.UtcNow);
-            e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
-
-            // set AuditEventType properties
-            e.SetChildValue(systemContext, BrowseNames.ClientUserId, session?.Identity?.DisplayName, false);
-            e.SetChildValue(systemContext, BrowseNames.ClientAuditEntryId, auditEntryId, false);
-            // set AuditCreateSessionEventType & AuditActivateSessionsEventType properties
-            e.SetChildValue(systemContext, BrowseNames.SecureChannelId, session?.SecureChannelId, false);
-            // set AuditSessionEventType 
-            e.SetChildValue(systemContext, BrowseNames.SessionId, session?.Id, false);
-        }
-
         #endregion
 
         #endregion Report Audit Events
@@ -1549,8 +1461,6 @@ namespace Opc.Ua.Server
                     out results,
                     out diagnosticInfos);
 
-                ReportAuditWriteUpdateEvents(context, nodesToWrite, results);
-
                 return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
@@ -1913,7 +1823,7 @@ namespace Opc.Ua.Server
                     out results,
                     out diagnosticInfos);
 
-                // request completed asychrnously.
+                // request completed asynchronously.
                 if (notificationMessage != null)
                 {
                     OnRequestComplete(context);

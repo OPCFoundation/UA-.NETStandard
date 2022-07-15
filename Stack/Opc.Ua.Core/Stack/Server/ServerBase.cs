@@ -153,16 +153,20 @@ namespace Opc.Ua
             m_requestQueue.ScheduleIncomingRequest(request);
         }
 
+        #region ITransportListenerCallback Members
         /// <summary>
         /// Report the open secure channel audit event
         /// </summary>
-        /// <param name="channel"></param>
-        /// <param name="request">The incuming <see cref="OpenSecureChannelRequest"/></param>
-        /// <param name="clientCertificate">The cliet certificate.</param>
+        /// <param name="channel">The <see cref="TcpServerChannel"/> that processes the open secure channel request.</param>
+        /// <param name="request">The incoming <see cref="OpenSecureChannelRequest"/></param>
+        /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="exception">The exception resulted from the open secure channel request.</param>
-        public virtual void ReportAuditOpenSecureChannelEvent(TcpServerChannel channel, OpenSecureChannelRequest request, X509Certificate2 clientCertificate, Exception exception)
+        public virtual void ReportAuditOpenSecureChannelEvent(TcpServerChannel channel,
+            OpenSecureChannelRequest request,
+            X509Certificate2 clientCertificate,
+            Exception exception)
         {
-            // raise an audit opem secure channel event.            
+            // raise an audit open secure channel event.            
         }
 
         /// <summary>
@@ -184,7 +188,8 @@ namespace Opc.Ua
         {
             // raise the audit certificate
         }
-        
+        #endregion
+
         #endregion
 
         #region Public Methods
@@ -244,7 +249,7 @@ namespace Opc.Ua
             // do any pre-startup processing
             OnServerStarting(configuration);
 
-            // intialize the request queue from the configuration.
+            // initialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
 
             // create the binding factory.
@@ -307,7 +312,7 @@ namespace Opc.Ua
             // do any pre-startup processing
             OnServerStarting(configuration);
 
-            // intialize the request queue from the configuration.
+            // initialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
 
             // create the listener factory.

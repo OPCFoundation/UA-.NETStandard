@@ -551,7 +551,7 @@ namespace Opc.Ua.Server
         /// <summary>
         ///  Reports all audit events for client certificate ServiceResultException. It goes recursively for all service results stored in the exception
         /// </summary>
-        /// <param name="clientCertificate">The cliet certificate.</param>
+        /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="exception">The Exception that triggers a certificate audit event.</param>
         public void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
         { 
@@ -562,7 +562,7 @@ namespace Opc.Ua.Server
 
             if (EventManager?.ServerAuditing != true)
             {
-                // current server does not suport auditing
+                // current server does not support auditing
                 return;
             }
 
@@ -664,7 +664,7 @@ namespace Opc.Ua.Server
         {
             if (EventManager?.ServerAuditing != true)
             {
-                // current server does not suport auditing
+                // current server does not support auditing
                 return;
             }
 
@@ -707,13 +707,13 @@ namespace Opc.Ua.Server
         /// Report the AuditCancelEventState
         /// </summary>
         /// <param name="sessionId">Session id of the current session</param>
-        /// <param name="requestHandle">The hadle of the caleceled request</param>
+        /// <param name="requestHandle">The handle of the canceled request</param>
         /// <param name="statusCode">The resulted status code of cancel request.</param>
         public void ReportAuditCancelEvent(NodeId sessionId, uint requestHandle, StatusCode statusCode)
         {
             if (EventManager?.ServerAuditing != true)
             {
-                // current server does not suport auditing
+                // current server does not support auditing
                 return;
             }
 
@@ -762,7 +762,7 @@ namespace Opc.Ua.Server
         {
             if (EventManager?.ServerAuditing != true)
             {
-                // current server does not suport auditing
+                // current server does not support auditing
                 return;
             }
 
@@ -808,7 +808,7 @@ namespace Opc.Ua.Server
         {
             if (EventManager?.ServerAuditing != true)
             {
-                // current server does not suport auditing
+                // current server does not support auditing
                 return;
             }
 
@@ -863,7 +863,7 @@ namespace Opc.Ua.Server
         {
             if (EventManager?.ServerAuditing != true)
             {
-                // current server does not suport auditing
+                // current server does not support auditing
                 return;
             }
 
@@ -914,7 +914,7 @@ namespace Opc.Ua.Server
         {
             if (EventManager?.ServerAuditing != true)
             {
-                // current server does not suport auditing
+                // current server does not support auditing
                 return;
             }
 
@@ -961,7 +961,7 @@ namespace Opc.Ua.Server
         {
             if (EventManager?.ServerAuditing != true)
             {
-                // current server does not suport auditing
+                // current server does not support auditing
                 return;
             }
 
@@ -999,7 +999,7 @@ namespace Opc.Ua.Server
         {
             if (EventManager?.ServerAuditing != true)
             {
-                // current server does not suport auditing
+                // current server does not support auditing
                 return;
             }
 
@@ -1036,7 +1036,7 @@ namespace Opc.Ua.Server
             e.Initialize(
                 systemContext,
                 null,
-                EventSeverity.MediumLow,
+                EventSeverity.Min,
                 new LocalizedText(message),
                 status,
                 DateTime.UtcNow);
@@ -1051,6 +1051,7 @@ namespace Opc.Ua.Server
             // set AuditSessionEventType 
             e.SetChildValue(systemContext, BrowseNames.SessionId, session?.Id, false);
         }
+
         #endregion Report Audit Events
 
         #region Private Methods

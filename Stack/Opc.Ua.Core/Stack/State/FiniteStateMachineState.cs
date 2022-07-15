@@ -808,7 +808,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A delegate used to recieve notifications when a state machine transition occurs.
+    /// A delegate used to receive notifications when a state machine transition occurs.
     /// </summary>
     public delegate ServiceResult StateMachineTransitionHandler(
         ISystemContext context,

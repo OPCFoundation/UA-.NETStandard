@@ -20,7 +20,7 @@ namespace Opc.Ua
     /// <summary>
     /// An interface to a service response message.
     /// </summary>
-    public interface IServerBase
+    public interface IServerBase : IAuditEventCallback
     {
         /// <summary>
         /// The message context to use with the service.
@@ -46,31 +46,7 @@ namespace Opc.Ua
         /// Schedules an incoming request.
         /// </summary>
         /// <param name="request">The request.</param>
-        void ScheduleIncomingRequest(IEndpointIncomingRequest request);
-
-        /// <summary>
-        /// Report the open secure channel audit event
-        /// </summary>
-        /// <param name="channel"></param>
-        /// <param name="request">The incuming <see cref="OpenSecureChannelRequest"/></param>
-        /// <param name="clientCertificate">The cliet certificate.</param>
-        /// <param name="exception">The exception resulted from the open secure channel request.</param>
-        void ReportAuditOpenSecureChannelEvent(TcpServerChannel channel, OpenSecureChannelRequest request, X509Certificate2 clientCertificate, Exception exception);
-
-        /// <summary>
-        /// Report the close secure channel audit event
-        /// </summary>
-        /// <param name="channel"></param>
-        /// <param name="exception">The exception resulted from the open secure channel request.</param>
-        void ReportAuditCloseSecureChannelEvent(TcpServerChannel channel, Exception exception);
-
-        /// <summary>
-        /// Report certificate audit event 
-        /// </summary>
-        /// <param name="clientCertificate">The cliet certificate.</param>
-        /// <param name="exception">The Exception that triggers a certificate audit event.</param>
-        void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception);
-
+        void ScheduleIncomingRequest(IEndpointIncomingRequest request);      
     }
 
     /// <summary>

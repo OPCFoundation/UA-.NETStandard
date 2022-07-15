@@ -807,7 +807,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Used to recieve notifications when a alarm is shelved or unshelved.
+    /// Used to receive notifications when a alarm is shelved or unshelved.
     /// </summary>
     /// <param name="context">The current system context.</param>
     /// <param name="alarm">The alarm that raised the event.</param>
@@ -822,7 +822,7 @@ namespace Opc.Ua
         double shelvingTime);
 
     /// <summary>
-    /// Used to recieve notifications when the timed shelve period elapses for an alarm.
+    /// Used to receive notifications when the timed shelve period elapses for an alarm.
     /// </summary>
     /// <param name="context">The current system context.</param>
     /// <param name="alarm">The alarm that raised the event.</param>
