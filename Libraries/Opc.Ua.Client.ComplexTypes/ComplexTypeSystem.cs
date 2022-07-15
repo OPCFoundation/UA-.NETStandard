@@ -1094,11 +1094,11 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (field.ValueRank < 0) // scalar
                     {
-                        fieldBuilder.AddField(field, (fieldBuilder as ComplexTypeFieldBuilder).StructureTypeBuilder, order);
+                        fieldBuilder.AddField(field, fieldBuilder.StructureTypeBuilder, order);
                     }
                     else // array
                     {
-                        var arrayType = (fieldBuilder as ComplexTypeFieldBuilder).StructureTypeBuilder.MakeArrayType();
+                        var arrayType = fieldBuilder.StructureTypeBuilder.MakeArrayType();
                         fieldBuilder.AddField(field, arrayType, order);
                     }
                 }

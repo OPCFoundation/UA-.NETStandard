@@ -125,10 +125,14 @@ namespace Opc.Ua.Client.ComplexTypes
             m_structureBuilder = null;
             return complexType;
         }
+
+        /// <summary>
+        /// Defines and creates types
+        /// </summary>
+        public TypeBuilder StructureTypeBuilder { get => this.m_structureBuilder; }
         #endregion Public Properties
 
         #region Internal Properties
-        internal TypeBuilder StructureTypeBuilder { get => this.m_structureBuilder; }
         #endregion
 
         #region Private Member

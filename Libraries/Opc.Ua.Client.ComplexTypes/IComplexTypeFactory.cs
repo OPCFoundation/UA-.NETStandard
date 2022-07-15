@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Reflection.Emit;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -122,5 +123,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Finish the type creation and returns the new type.
         /// </summary>
         Type CreateType();
+
+        /// <summary>
+        /// Defines and creates types at runtime
+        /// </summary>
+        TypeBuilder StructureTypeBuilder { get; }
     }
 }//namespace
