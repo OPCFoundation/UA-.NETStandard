@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -129,7 +130,10 @@ namespace Opc.Ua.Server.Tests
         /// been registered
         /// </summary>
         [Test]
-        public async Task UnregisterNamespaceManagerInCollection()
+        [TestCase(3, 0)]
+        [TestCase(3, 1)]
+        [TestCase(3, 2)]
+        public async Task UnregisterNamespaceManagerInCollection(int totalManagers, int indexToRemove)
         {
             var fixture = new ServerFixture<StandardServer>();
 
@@ -139,14 +143,16 @@ namespace Opc.Ua.Server.Tests
                 const string ns = "http://test.org/UA/Data/";
                 var namespaceUris = new List<string> { ns };
 
-                var firstNodeManager = new Mock<INodeManager>();
-                firstNodeManager.Setup(x => x.NamespaceUris).Returns(namespaceUris);
+                var additionalManagers = new INodeManager[totalManagers];
+                for (int ii = 0; ii < totalManagers; ii++)
+                {
+                    var nodeManager = new Mock<INodeManager>();
+                    nodeManager.Setup(x => x.NamespaceUris).Returns(namespaceUris);
 
-                var secondNodeManager = new Mock<INodeManager>();
-                secondNodeManager.Setup(x => x.NamespaceUris).Returns(namespaceUris);
+                    additionalManagers[ii] = nodeManager.Object;
+                }
 
-                var thirdNodeManager = new Mock<INodeManager>();
-                thirdNodeManager.Setup(x => x.NamespaceUris).Returns(namespaceUris);
+                var nodeManagerToRemove = additionalManagers[indexToRemove];
 
                 //-- Act
                 var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
@@ -154,18 +160,15 @@ namespace Opc.Ua.Server.Tests
                     server.CurrentInstance,
                     fixture.Config,
                     null,
-                    firstNodeManager.Object,
-                    secondNodeManager.Object,
-                    thirdNodeManager.Object);
-                var result = sut.UnregisterNamespaceManager(ns, secondNodeManager.Object);
+                    additionalManagers);
+                var result = sut.UnregisterNamespaceManager(ns, nodeManagerToRemove);
 
                 //-- Assert
                 Assert.IsTrue(result);
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
                 var registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(ns)];
-                Assert.AreEqual(2, registeredManagers.Length);
-                Assert.Contains(firstNodeManager.Object, registeredManagers);
-                Assert.Contains(thirdNodeManager.Object, registeredManagers);
+                Assert.AreEqual(totalManagers - 1, registeredManagers.Length);
+                Assert.That(registeredManagers, Has.No.Member(nodeManagerToRemove));
             }
             finally
             {
