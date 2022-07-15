@@ -766,7 +766,7 @@ namespace Opc.Ua.Client.Tests
 
             int ii = 0;
             var variableNodes = new NodeIdCollection();
-            foreach (var node in nodeCollection)
+            foreach (Node node in nodeCollection)
             {
                 Assert.NotNull(node);
                 Assert.AreEqual(ServiceResult.Good, errors[ii]);
@@ -793,6 +793,12 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(values);
             Assert.AreEqual(nodes.Count, values.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
+
+            Session.ReadValues(variableNodes, out values, out errors);
+
+            Assert.NotNull(values);
+            Assert.AreEqual(variableNodes.Count, values.Count);
+            Assert.AreEqual(variableNodes.Count, errors.Count);
         }
 
         [Test, Order(570)]
@@ -812,10 +818,9 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
-
             int ii = 0;
             var variableNodes = new NodeIdCollection();
-            foreach (var node in nodeCollection)
+            foreach (Node node in nodeCollection)
             {
                 Assert.NotNull(node);
                 Assert.AreEqual(ServiceResult.Good, errors[ii]);
@@ -841,8 +846,16 @@ namespace Opc.Ua.Client.Tests
             (values, errors) = await Session.ReadValuesAsync(nodes).ConfigureAwait(false);
 
             Assert.NotNull(values);
+            Assert.NotNull(errors);
             Assert.AreEqual(nodes.Count, values.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
+
+            (values, errors) = await Session.ReadValuesAsync(variableNodes).ConfigureAwait(false);
+
+            Assert.NotNull(values);
+            Assert.NotNull(errors);
+            Assert.AreEqual(variableNodes.Count, values.Count);
+            Assert.AreEqual(variableNodes.Count, errors.Count);
         }
 
         [Test, Order(600)]
