@@ -157,9 +157,10 @@ namespace Opc.Ua.Server.Tests
                     firstNodeManager.Object,
                     secondNodeManager.Object,
                     thirdNodeManager.Object);
-                sut.UnregisterNamespaceManager(ns, secondNodeManager.Object);
+                var result = sut.UnregisterNamespaceManager(ns, secondNodeManager.Object);
 
                 //-- Assert
+                Assert.IsTrue(result);
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
                 var registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(ns)];
                 Assert.AreEqual(2, registeredManagers.Length);
@@ -205,9 +206,10 @@ namespace Opc.Ua.Server.Tests
                     firstNodeManager.Object,
                     // Do not add the secondNodeManager to additionalManagers
                     thirdNodeManager.Object);
-                sut.UnregisterNamespaceManager(ns, secondNodeManager.Object);
+                var result = sut.UnregisterNamespaceManager(ns, secondNodeManager.Object);
 
                 //-- Assert
+                Assert.IsFalse(result);
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
                 var registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(ns)];
                 Assert.AreEqual(2, registeredManagers.Length);
@@ -249,9 +251,10 @@ namespace Opc.Ua.Server.Tests
                     fixture.Config,
                     null,
                     originalNodeManager.Object);
-                sut.UnregisterNamespaceManager(newNs, newNodeManager.Object);
+                var result = sut.UnregisterNamespaceManager(newNs, newNodeManager.Object);
 
                 //-- Assert
+                Assert.IsFalse(result);
                 Assert.That(server.CurrentInstance.NamespaceUris.ToArray(), Has.No.Member(newNs));
 
                 Assert.Contains(originalNs, server.CurrentInstance.NamespaceUris.ToArray());
