@@ -482,6 +482,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Test Read a DataType Node, the nodeclass is known
             (var nodes, var errors) = await Session.ReadNodesAsync(new NodeIdCollection() { DataTypeIds.ProgramDiagnosticDataType }, NodeClass.DataType, false).ConfigureAwait(false);
+            Assert.AreEqual(nodes.Count, errors.Count);
             ValidateDataTypeDefinition(nodes[0]);
         }
 
