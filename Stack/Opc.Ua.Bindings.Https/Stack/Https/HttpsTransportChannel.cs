@@ -211,12 +211,12 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
+                var content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
                 content.Headers.ContentType = s_mediaTypeHeaderValue;
                 if (EndpointDescription?.SecurityPolicyUri != null &&
                     !string.Equals(EndpointDescription.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal))
                 {
-                    content.Headers.Add("OPCUA-SecurityPolicy", EndpointDescription.SecurityPolicyUri);
+                    content.Headers.Add(Profiles.HttpsSecurityPolicyHeader, EndpointDescription.SecurityPolicyUri);
                 }
 
                 var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, null);
@@ -343,8 +343,14 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
+                var content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
                 content.Headers.ContentType = s_mediaTypeHeaderValue;
+                if (EndpointDescription?.SecurityPolicyUri != null &&
+                    !string.Equals(EndpointDescription.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal))
+                {
+                    content.Headers.Add(Profiles.HttpsSecurityPolicyHeader, EndpointDescription.SecurityPolicyUri);
+                }
+
                 var result = await m_client.PostAsync(m_url, content, ct).ConfigureAwait(false);
                 result.EnsureSuccessStatusCode();
 #if NET6_0_OR_GREATER
