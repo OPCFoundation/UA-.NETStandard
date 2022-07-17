@@ -49,7 +49,20 @@ namespace TestData
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new TestDataNodeManager(server, configuration);
+            return new TestDataNodeManager(server, configuration, NamespacesUris.ToArray());
+        }
+
+        /// <inheritdoc/>
+        public StringCollection NamespacesUris
+        {
+            get
+            {
+                var nameSpaces = new StringCollection {
+                    Namespaces.TestData,
+                    Namespaces.TestData + "Instance"
+                };
+                return nameSpaces;
+            }
         }
     }
 
@@ -62,16 +75,11 @@ namespace TestData
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public TestDataNodeManager(Opc.Ua.Server.IServerInternal server, ApplicationConfiguration configuration)
+        public TestDataNodeManager(Opc.Ua.Server.IServerInternal server, ApplicationConfiguration configuration, string[] namespaceUris)
         :
             base(server, configuration)
         {
             // update the namespaces.
-            List<string> namespaceUris = new List<string>();
-
-            namespaceUris.Add(Namespaces.TestData);
-            namespaceUris.Add(Namespaces.TestData + "Instance");
-
             NamespaceUris = namespaceUris;
 
             Server.Factory.AddEncodeableTypes(typeof(TestDataNodeManager).Assembly.GetExportedTypes().Where(t => t.FullName.StartsWith(typeof(TestDataNodeManager).Namespace)));
@@ -142,10 +150,11 @@ namespace TestData
             {
                 // ensure the namespace used by the node manager is in the server's namespace table.
                 m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.TestData);
-                m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.TestData + "/Instance");
+                m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.TestData + "Instance");
 
                 base.CreateAddressSpace(externalReferences);
 
+#if CONDITION_SAMPLES
                 // start monitoring the system status.
                 m_systemStatusCondition = (TestSystemConditionState)FindPredefinedNode(
                     new NodeId(Objects.Data_Conditions_SystemStatus, m_typeNamespaceIndex),
@@ -156,7 +165,7 @@ namespace TestData
                     m_systemStatusTimer = new Timer(OnCheckSystemStatus, null, 5000, 5000);
                     m_systemStatusCondition.Retain.Value = true;
                 }
-
+#endif
                 // link all conditions to the conditions folder.
                 NodeState conditionsFolder = (NodeState)FindPredefinedNode(
                     new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex),
@@ -165,7 +174,6 @@ namespace TestData
                 foreach (NodeState node in PredefinedNodes.Values)
                 {
                     ConditionState condition = node as ConditionState;
-
                     if (condition != null && !Object.ReferenceEquals(condition.Parent, conditionsFolder))
                     {
                         condition.AddNotifier(SystemContext, null, true, conditionsFolder);
@@ -175,8 +183,8 @@ namespace TestData
 
                 // enable history for all numeric scalar values.
                 ScalarValueObjectState scalarValues = (ScalarValueObjectState)FindPredefinedNode(
-                    new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex),
-                    typeof(ScalarValueObjectState));
+                new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex),
+                typeof(ScalarValueObjectState));
 
                 scalarValues.Int32Value.Historizing = true;
                 scalarValues.Int32Value.AccessLevel = (byte)(scalarValues.Int32Value.AccessLevel | AccessLevels.HistoryRead);
@@ -629,12 +637,12 @@ namespace TestData
         }
         #endregion
 
+#if CONDITION_SAMPLES
         /// <summary>
         /// Peridically checks the system state.
         /// </summary>
         private void OnCheckSystemStatus(object state)
         {
-#if CONDITION_SAMPLES
             lock (Lock)
             {
                 try
@@ -702,10 +710,8 @@ namespace TestData
                     Utils.LogError(e, "Unexpected error monitoring system status.");
                 }
             }
-#endif
         }
 
-#if CONDITION_SAMPLES
         /// <summary>
         /// Handles a user response to a dialog.
         /// </summary>
@@ -730,10 +736,9 @@ namespace TestData
         private ushort m_typeNamespaceIndex;
         private TestDataSystem m_system;
         private long m_lastUsedId;
+#if CONDITION_SAMPLES
         private Timer m_systemStatusTimer;
         private TestSystemConditionState m_systemStatusCondition;
-
-#if CONDITION_SAMPLES
         private DialogConditionState m_dialog;
 #endif
         #endregion

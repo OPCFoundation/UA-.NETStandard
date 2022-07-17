@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Test;
@@ -37,13 +38,13 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
     /// <summary>
     /// Tests for the BuiltIn Types.
     /// </summary>
-    [TestFixture, Category("BuiltIn")]
+    [TestFixture, Category("BuiltInType")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
     public class BuiltInTests
     {
-        protected const int RandomStart = 4840;
-        protected const int RandomRepeats = 100;
+        protected const int kRandomStart = 4840;
+        protected const int kRandomRepeats = 100;
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
 
@@ -62,7 +63,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         protected void SetUp()
         {
             // ensure tests are reproducible, reset for every test
-            RandomSource = new RandomSource(RandomStart);
+            RandomSource = new RandomSource(kRandomStart);
             DataGenerator = new DataGenerator(RandomSource);
         }
 
@@ -76,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         protected void SetRepeatedRandomSeed()
         {
-            int randomSeed = TestContext.CurrentContext.Random.Next() + RandomStart;
+            int randomSeed = TestContext.CurrentContext.Random.Next() + kRandomStart;
             RandomSource = new RandomSource(randomSeed);
             DataGenerator = new DataGenerator(RandomSource);
         }
@@ -86,14 +87,14 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         protected void SetRandomSeed(int randomSeed)
         {
-            RandomSource = new RandomSource(randomSeed + RandomStart);
+            RandomSource = new RandomSource(randomSeed + kRandomStart);
             DataGenerator = new DataGenerator(RandomSource);
         }
         #endregion
 
         #region DataPointSources
         [DatapointSource]
-        public static BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
+        public static readonly BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
             .ToList().Where(b => (b > BuiltInType.Null) && (b < BuiltInType.DataValue)).ToArray();
         #endregion
 
@@ -102,33 +103,59 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// Initialize Variant with BuiltInType Scalar.
         /// </summary>
         [Theory]
-        [Category("BuiltInType"), Repeat(RandomRepeats)]
+        [Repeat(kRandomRepeats)]
         public void VariantScalarFromBuiltInType(BuiltInType builtInType)
         {
             SetRepeatedRandomSeed();
             object randomData = DataGenerator.GetRandom(builtInType);
             Variant variant1 = new Variant(randomData);
+            Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
             Variant variant2 = new Variant(randomData, new TypeInfo(builtInType, ValueRanks.Scalar));
+            Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
+            Variant variant3 = new Variant(variant2);
+            Assert.AreEqual(builtInType, variant3.TypeInfo.BuiltInType);
+            // implicit
+            Variant variant4 = variant1;
         }
 
         /// <summary>
         /// Initialize Variant with BuiltInType Array.
         /// </summary>
         [Theory]
-        [Category("BuiltInType"), Repeat(RandomRepeats)]
+        [Repeat(kRandomRepeats)]
         public void VariantArrayFromBuiltInType(BuiltInType builtInType, bool useBoundaryValues)
         {
             SetRepeatedRandomSeed();
             object randomData = DataGenerator.GetRandomArray(builtInType, useBoundaryValues, 100, false);
             Variant variant1 = new Variant(randomData);
+            if (builtInType == BuiltInType.Byte)
+            {
+                // Without hint, byte array can not be distinguished from bytestring
+                Assert.AreEqual(BuiltInType.ByteString, variant1.TypeInfo.BuiltInType);
+            }
+            else
+            {
+                Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
+            }
             Variant variant2 = new Variant(randomData, new TypeInfo(builtInType, ValueRanks.OneDimension));
+            Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
+        }
+
+        /// <summary>
+        /// Variant constructor.
+        /// </summary>
+        [Test]
+        public void VariantConstructor()
+        {
+            Uuid uuid = new Uuid(Guid.NewGuid());
+            Variant variant1 = new Variant(uuid);
+            Assert.AreEqual(BuiltInType.Guid, variant1.TypeInfo.BuiltInType);
         }
 
         /// <summary>
         /// Initialize Variant with Enum array.
         /// </summary>
         [Test]
-        [Category("BuiltInType")]
         public void VariantFromEnumArray()
         {
             // Enum Scalar
@@ -142,16 +169,16 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             // Enum 2-dim Array
             DayOfWeek[,] daysdays = new DayOfWeek[,] { { DayOfWeek.Monday, DayOfWeek.Tuesday }, { DayOfWeek.Monday, DayOfWeek.Tuesday } };
-            Variant variant4 = new Variant(daysdays, new TypeInfo(BuiltInType.Enumeration, ValueRanks.TwoDimensions));
+            Variant variant5 = new Variant(daysdays, new TypeInfo(BuiltInType.Enumeration, ValueRanks.TwoDimensions));
+
             // not supported
-            // Variant variant5 = new Variant(daysdays);
+            // Variant variant6 = new Variant(daysdays);
         }
 
         /// <summary>
         /// Validate ExtensionObject special cases and constructors.
         /// </summary>
         [Test]
-        [Category("BuiltInType")]
         public void ExtensionObject()
         {
             ExtensionObject extensionObject_null = null;
@@ -173,7 +200,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.Null(Ua.ExtensionObject.ToArray(null, typeof(object)));
             Assert.Null(Ua.ExtensionObject.ToList<object>(null));
             // constructor by ExpandedNodeId
-            extensionObject = new ExtensionObject((ExpandedNodeId) null);
+            extensionObject = new ExtensionObject((ExpandedNodeId)null);
             Assert.AreEqual(0, extensionObject.GetHashCode());
             Assert.Throws<ArgumentNullException>(() => new ExtensionObject(extensionObject_null));
             Assert.Throws<ServiceResultException>(() => new ExtensionObject(new object()));
@@ -210,6 +237,109 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             collection = (ExtensionObjectCollection)collection.MemberwiseClone();
             // default value is null
             Assert.Null(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject));
+        }
+        #endregion
+
+        #region NodeId utilities
+        [Test]
+        public void NodeIdConstructor()
+        {
+            Guid id1 = Guid.NewGuid();
+            NodeId nodeId1 = new NodeId(id1);
+            // implicit conversion;
+            NodeId inodeId1 = id1;
+            Assert.AreEqual(nodeId1, inodeId1);
+
+            byte[] id2 = new byte[] { 65, 66, 67, 68, 69 };
+            NodeId nodeId2 = new NodeId(id2);
+            // implicit conversion;
+            NodeId inodeId2 = id2;
+            Assert.AreEqual(nodeId2, inodeId2);
+
+            _ = nodeId2 < inodeId2;
+            _ = nodeId2 == inodeId2;
+            _ = nodeId2 > inodeId2;
+
+            string text = "i=123";
+            NodeId nodeIdText = new NodeId(text);
+            Assert.AreEqual(123, nodeIdText.Identifier);
+            // implicit conversion;
+            NodeId inodeIdText = text;
+            Assert.AreEqual(nodeIdText, inodeIdText);
+
+            _ = nodeIdText < inodeIdText;
+            _ = nodeIdText == inodeIdText;
+            _ = nodeIdText > inodeIdText;
+
+            _ = nodeIdText < nodeId2;
+            _ = nodeIdText == nodeId2;
+            _ = nodeIdText > nodeId2;
+
+            _ = new NodeId((object)(uint)123, 123);
+            _ = new NodeId((object)"Test", 123);
+            _ = new NodeId((object)id2, 123);
+            _ = new NodeId((object)null, 123);
+            _ = new NodeId((object)id1, 123);
+
+            Assert.Throws<ArgumentException>(() => _ = new NodeId((object)(int)123, 123));
+            Assert.Throws<ServiceResultException>(() => _ = NodeId.Create((uint)123, "urn:xyz", null));
+            Assert.Throws<ServiceResultException>(() => _ = NodeId.Parse("ns="));
+            Assert.IsNull(NodeId.ToExpandedNodeId(null, null));
+        }
+
+        [Theory]
+        [TestCase(-1)]
+        public void NullIdNodeIdComparison(Opc.Ua.IdType idType)
+        {
+            NodeId nodeId = NodeId.Null;
+            switch (idType)
+            {
+                case Opc.Ua.IdType.Numeric: nodeId = new NodeId(0, 0); break;
+                case Opc.Ua.IdType.String: nodeId = new NodeId(""); break;
+                case Opc.Ua.IdType.Guid: nodeId = new NodeId(Guid.Empty); break;
+                case Opc.Ua.IdType.Opaque: nodeId = new NodeId((byte)0); break;
+            }
+
+            Assert.IsTrue(nodeId.IsNullNodeId);
+
+            DataValue nodeIdBasedDataValue = new DataValue(nodeId);
+
+            DataValue dataValue = new DataValue(Attributes.NodeClass);
+            dataValue.Value = (int)Attributes.NodeClass; // without this cast the second and third asserts evaluate correctly.
+            dataValue.StatusCode = nodeIdBasedDataValue.StatusCode;
+
+            bool comparisonResult1b = dataValue.Equals(nodeIdBasedDataValue);
+            Assert.IsFalse(comparisonResult1b); // assert succeeds
+
+            bool comparisonResult1a = nodeIdBasedDataValue.Equals(dataValue);
+            Assert.IsFalse(comparisonResult1a); // assert fails (symmetry for Equals is broken)
+
+            bool comparisonResult1c = EqualityComparer<DataValue>.Default.Equals(nodeIdBasedDataValue, dataValue);
+            Assert.IsFalse(comparisonResult1c); // assert fails
+
+            int comparisonResult2 = nodeId.CompareTo(dataValue);
+            Assert.IsFalse(comparisonResult2 == 0); // assert fails - this is the root cause for the previous assertion failures
+        }
+        #endregion
+
+        #region ValueRanks
+        [Test]
+        [TestCase(ValueRanks.ScalarOrOneDimension)]
+        [TestCase(ValueRanks.Scalar)]
+        [TestCase(ValueRanks.OneOrMoreDimensions)]
+        [TestCase(ValueRanks.OneDimension)]
+        [TestCase(ValueRanks.TwoDimensions)]
+
+        public void ValueRanksTests(int actualValueRank)
+        {
+            Assert.IsTrue(ValueRanks.IsValid(actualValueRank, actualValueRank));
+            Assert.IsTrue(ValueRanks.IsValid(actualValueRank, ValueRanks.Any));
+            Assert.AreEqual(actualValueRank == ValueRanks.Scalar || actualValueRank == ValueRanks.OneDimension || actualValueRank == ValueRanks.ScalarOrOneDimension, ValueRanks.IsValid(actualValueRank, ValueRanks.ScalarOrOneDimension));
+            Assert.AreEqual(actualValueRank >= 0, ValueRanks.IsValid(actualValueRank, ValueRanks.OneOrMoreDimensions));
+            Assert.AreEqual(actualValueRank == ValueRanks.TwoDimensions, ValueRanks.IsValid(actualValueRank, ValueRanks.TwoDimensions));
+            Assert.AreEqual(actualValueRank == ValueRanks.OneDimension, ValueRanks.IsValid(actualValueRank, ValueRanks.OneDimension));
+            Assert.AreEqual(actualValueRank >= 0, ValueRanks.IsValid(actualValueRank, ValueRanks.OneOrMoreDimensions));
+            Assert.AreEqual(actualValueRank == ValueRanks.Scalar, ValueRanks.IsValid(actualValueRank, ValueRanks.Scalar));
         }
         #endregion
     }

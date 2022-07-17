@@ -40,8 +40,8 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class ServerStartupTests
     {
-        const double MaxAge = 10000;
-        const uint TimeoutHint = 10000;
+        const double kMaxAge = 10000;
+        const uint kTimeoutHint = 10000;
 
         [DatapointSource]
         public string[] UriSchemes = { Utils.UriSchemeOpcTcp, Utils.UriSchemeHttps };

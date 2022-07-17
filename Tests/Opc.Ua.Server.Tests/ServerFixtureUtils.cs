@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -60,23 +61,34 @@ namespace Opc.Ua.Server.Tests
         public static RequestHeader CreateAndActivateSession(
             this SessionServerBase server,
             string sessionName,
+            bool useSecurity = false,
+            UserIdentityToken identityToken = null,
             double sessionTimeout = DefaultSessionTimeout,
             uint maxResponseMessageSize = DefaultMaxResponseMessageSize)
         {
             // Find TCP endpoint
             var endpoints = server.GetEndpoints();
             var endpoint = endpoints.FirstOrDefault(e =>
-                e.TransportProfileUri.Equals(Profiles.UaTcpTransport) ||
-                e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport));
+                e.TransportProfileUri.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
+                e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal));
 
             if (endpoint == null)
             {
-                throw new System.Exception("Unsupported transport profile.");
+                throw new Exception("Unsupported transport profile.");
             }
 
-            // no security
-            endpoint.SecurityMode = MessageSecurityMode.None;
-            endpoint.SecurityPolicyUri = SecurityPolicies.None;
+            // fake profiles
+            if (useSecurity)
+            {
+                endpoint.SecurityMode = MessageSecurityMode.Sign;
+                endpoint.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            }
+            else
+            {
+                endpoint.SecurityMode = MessageSecurityMode.None;
+                endpoint.SecurityPolicyUri = SecurityPolicies.None;
+            }
+
             var context = new SecureChannelContext(
                 sessionName,
                 endpoint,
@@ -99,7 +111,9 @@ namespace Opc.Ua.Server.Tests
 
             // Activate session
             requestHeader.AuthenticationToken = authenticationToken;
-            response = server.ActivateSession(requestHeader, signatureData, null, new StringCollection(), null, null,
+            response = server.ActivateSession(requestHeader, signatureData,
+                new SignedSoftwareCertificateCollection(), new StringCollection(),
+                (identityToken != null) ? new ExtensionObject(identityToken) : null, null,
                 out serverNonce, out var results, out var diagnosticInfos);
             ValidateResponse(response);
 

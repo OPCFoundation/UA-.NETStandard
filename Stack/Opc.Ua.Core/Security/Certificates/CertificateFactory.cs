@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -398,7 +398,7 @@ namespace Opc.Ua
                 throw new NotSupportedException("The public and the private key pair doesn't match.");
             }
 
-            string passcode = Guid.NewGuid().ToString();
+            string passcode = X509Utils.GeneratePasscode();
             using (RSA rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey())
             {
                 byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
@@ -422,7 +422,7 @@ namespace Opc.Ua
                 throw new ServiceResultException("PEM data blob does not contain a private key.");
             }
 
-            string passcode = Guid.NewGuid().ToString();
+            string passcode = X509Utils.GeneratePasscode();
             byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
                 certificate, certificate.FriendlyName, privateKey, passcode);
             return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
@@ -532,7 +532,7 @@ namespace Opc.Ua
                 // use the common name as the application name.
                 for (int ii = 0; ii < subjectNameEntries.Count; ii++)
                 {
-                    if (subjectNameEntries[ii].StartsWith("CN="))
+                    if (subjectNameEntries[ii].StartsWith("CN=", StringComparison.Ordinal))
                     {
                         applicationName = subjectNameEntries[ii].Substring(3).Trim();
                         break;

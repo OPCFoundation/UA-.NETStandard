@@ -29,8 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Diagnostics;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
@@ -419,8 +419,10 @@ namespace Opc.Ua.Server
             // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
             INodeManager[][] namespaceManagers = new INodeManager[m_server.NamespaceUris.Count][];
 
-            lock (m_namespaceManagers.SyncRoot)
+            try
             {
+                m_readWriterLockSlim.EnterWriteLock();
+
                 // copy existing values.
                 for (int ii = 0; ii < m_namespaceManagers.Length; ii++)
                 {
@@ -449,6 +451,11 @@ namespace Opc.Ua.Server
 
                 // replace the table.
                 m_namespaceManagers = namespaceManagers;
+
+            }
+            finally
+            {
+                m_readWriterLockSlim.ExitWriteLock();
             }
         }
 
@@ -458,7 +465,7 @@ namespace Opc.Ua.Server
         public virtual object GetManagerHandle(NodeId nodeId, out INodeManager nodeManager)
         {
             nodeManager = null;
-            object handle = null;
+            object handle;
 
             // null node ids have no manager.
             if (NodeId.IsNull(nodeId))
@@ -469,8 +476,10 @@ namespace Opc.Ua.Server
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
 
-            lock (m_namespaceManagers.SyncRoot)
+            try
             {
+                m_readWriterLockSlim.EnterReadLock();
+           
                 // check if node managers are registered - use the core node manager if unknown.
                 if (index >= m_namespaceManagers.Length || m_namespaceManagers[index] == null)
                 {
@@ -498,6 +507,10 @@ namespace Opc.Ua.Server
                         return handle;
                     }
                 }
+            }
+            finally
+            {
+                m_readWriterLockSlim.ExitReadLock();
             }
 
             // node not recognized.
@@ -1638,7 +1651,7 @@ namespace Opc.Ua.Server
 
             if (details == null)
             {
-                throw new ServiceResultException(StatusCodes.BadHistoryOperationUnsupported);
+                throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
 
             // create result lists.
@@ -2474,6 +2487,40 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        public virtual void TransferMonitoredItems(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<ServiceResult> errors)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+            if (errors == null) throw new ArgumentNullException(nameof(errors));
+
+            var processedItems = new List<bool>(monitoredItems.Count);
+
+            // preset results for unknown nodes
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
+            {
+                processedItems.Add(monitoredItems[ii] == null);
+                errors[ii] = StatusCodes.BadMonitoredItemIdInvalid;
+            }
+
+            // call each node manager.
+            foreach (INodeManager nodeManager in m_nodeManagers)
+            {
+                nodeManager.TransferMonitoredItems(
+                    context,
+                    sendInitialValues,
+                    monitoredItems,
+                    processedItems,
+                    errors);
+            }
+        }
+
+        /// <summary>
         /// Deletes a set of monitored items.
         /// </summary>
         public virtual void DeleteMonitoredItems(
@@ -2840,12 +2887,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadStructureMissing;
             }
 
-            // passed basic validation. check also access rights and permissions
-            return ValidatePermissions(operationContext,
-                callMethodRequest.MethodId,
-                PermissionType.Call,
-                null,
-                true);
+            return StatusCodes.Good;
         }
 
         /// <summary>
@@ -3221,6 +3263,7 @@ namespace Opc.Ua.Server
         private long m_lastMonitoredItemId;
         private INodeManager[][] m_namespaceManagers;
         private uint m_maxContinuationPointsPerBrowse;
+        private ReaderWriterLockSlim m_readWriterLockSlim = new ReaderWriterLockSlim();
         #endregion
     }
 

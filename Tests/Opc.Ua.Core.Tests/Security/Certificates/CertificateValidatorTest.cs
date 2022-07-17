@@ -55,10 +55,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     public class CertificateValidatorTest
     {
         #region Test Setup
-        public const string RootCASubject = "CN=Root CA Test Cert";
+        public const string RootCASubject = "CN=Root CA Test Cert, O=OPC Foundation";
 
         /// <summary>
-        /// Set up a Global Discovery Server and Client instance and connect the session
+        /// Set up cert chains and validate.
         /// </summary>
         [OneTimeSetUp]
         protected void OneTimeSetUp()
@@ -70,7 +70,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // good applications test set
             var appTestDataGenerator = new ApplicationTestDataGenerator(1);
             m_goodApplicationTestSet = appTestDataGenerator.ApplicationTestSet(kGoodApplicationsTestCount);
-            m_NotYetValidCertsApplicationTestSet = appTestDataGenerator.ApplicationTestSet(kGoodApplicationsTestCount);
+            m_notYetValidCertsApplicationTestSet = appTestDataGenerator.ApplicationTestSet(kGoodApplicationsTestCount);
 
             // create all certs and CRL
             m_caChain = new X509Certificate2[kCaChainCount];
@@ -112,7 +112,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 if (keySize > 2048) { keySize -= 1024; }
                 if (hashSize > 256) { hashSize -= 128; }
-                var subject = $"CN=Sub CA {i} Test Cert";
+                var subject = $"CN=Sub CA {i} Test Cert, O=OPC Foundation";
                 var subCACert = CertificateFactory.CreateCertificate(subject)
                     .SetNotBefore(subCABaseTime)
                     .SetLifeTime(5 * 12)
@@ -179,7 +179,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 m_appCerts);
 
             // create signed expired app certs
-            foreach (var app in m_NotYetValidCertsApplicationTestSet)
+            foreach (var app in m_notYetValidCertsApplicationTestSet)
             {
                 var subject = app.Subject;
                 var expiredappcert = CertificateFactory.CreateCertificate(
@@ -906,7 +906,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task VerifySignedNotAfterInvalid(bool trusted)
         {
-            var subject = "CN=Signed App Test Cert";
+            var subject = "CN=Signed App Test Cert, O=OPC Foundation";
             var cert = CertificateFactory.CreateCertificate(
                 null, null, subject, null)
                 .SetNotBefore(DateTime.Today.AddDays(30))
@@ -975,7 +975,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 #if NET472_OR_GREATER || NETCOREAPP3_1_OR_GREATER
             Assert.Ignore("Create SHA1 certificates is unsupported on this .NET version");
 #endif
-            var cert = CertificateFactory.CreateCertificate(null, null, "CN=SHA1 signed", null)
+            var cert = CertificateFactory.CreateCertificate(null, null, "CN=SHA1 signed, O=OPC Foundation", null)
                 .SetHashAlgorithm(HashAlgorithmName.SHA1)
                 .CreateForRSA();
             var validator = TemporaryCertValidator.Create();
@@ -1024,7 +1024,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task TestInvalidKeyUsage(bool trusted)
         {
-            var subject = "CN=Invalid Signature Cert";
+            var subject = "CN=Invalid Signature Cert, O=OPC Foundation";
             // self signed but key usage is not valid for app cert
             var cert = CertificateFactory.CreateCertificate(null, null, subject, null)
                 .SetCAConstraint(0)
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task TestInvalidSignature(bool ca, bool trusted)
         {
-            const string subject = "CN=Invalid Signature Cert";
+            const string subject = "CN=Invalid Signature Cert, O=OPC Foundation";
             var certBase = CertificateFactory.CreateCertificate(null, null, subject, null)
                 .CreateForRSA();
 
@@ -1117,6 +1117,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Test if a key below min length is detected.
         /// </summary>
         [Theory]
+        [NonParallelizable]
         public async Task TestMinimumKeyRejected(bool trusted)
         {
             var cert = CertificateFactory.CreateCertificate(null, null, "CN=1k Key", null)
@@ -1165,6 +1166,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Test auto accept.
         /// </summary>
         [Theory]
+        [NonParallelizable]
         public async Task TestAutoAccept(bool trusted, bool autoAccept)
         {
             var cert = CertificateFactory.CreateCertificate(null, null, "CN=Test", null)
@@ -1453,7 +1455,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     // ****** setting under test ******
                     certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
 
-                    foreach (var app in m_NotYetValidCertsApplicationTestSet)
+                    foreach (var app in m_notYetValidCertsApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
                         Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
@@ -1492,7 +1494,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     // ****** setting under test ******
                     certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
 
-                    foreach (var app in m_NotYetValidCertsApplicationTestSet)
+                    foreach (var app in m_notYetValidCertsApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
                         Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
@@ -1578,7 +1580,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         private const int kCaChainCount = 3;
         private const int kGoodApplicationsTestCount = 3;
         private IList<ApplicationTestData> m_goodApplicationTestSet;
-        private IList<ApplicationTestData> m_NotYetValidCertsApplicationTestSet;
+        private IList<ApplicationTestData> m_notYetValidCertsApplicationTestSet;
         private X509Certificate2[] m_caChain;
         private X509Certificate2[] m_caDupeChain;
         private X509CRL[] m_crlChain;

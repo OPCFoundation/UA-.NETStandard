@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub
             {
                 return new MqttPubSubConnection(uaPubSubApplication, pubSubConnectionDataType, MessageMapping.Json);
             }
-            throw new ArgumentException("Invalid TransportProfileUri.", "pubSubConnectionDataType");
+            throw new ArgumentException("Invalid TransportProfileUri.", nameof(pubSubConnectionDataType));
         }
     }
 }

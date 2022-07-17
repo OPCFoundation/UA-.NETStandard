@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Sample
@@ -36,7 +37,7 @@ namespace Opc.Ua.Sample
     /// <summary>
     /// Provides a basic monitored item implementation which does not support queuing.
     /// </summary>
-    public class DataChangeMonitoredItem : IDataChangeMonitoredItem
+    public class DataChangeMonitoredItem : IDataChangeMonitoredItem2
     {
         #region Constructors
         /// <summary>
@@ -68,6 +69,7 @@ namespace Opc.Ua.Sample
             m_nextSampleTime = DateTime.UtcNow.Ticks;
             m_readyToPublish = false;
             m_readyToTrigger = false;
+            m_resendData = false;
             m_alwaysReportUpdates = alwaysReportUpdates;
         }
 
@@ -104,6 +106,7 @@ namespace Opc.Ua.Sample
             m_nextSampleTime = DateTime.UtcNow.Ticks;
             m_readyToPublish = false;
             m_readyToTrigger = false;
+            m_resendData = false;
             m_queue = null;
             m_filter = filter;
             m_range = 0;
@@ -111,7 +114,7 @@ namespace Opc.Ua.Sample
 
             if (range != null)
             {
-                m_range = range.High  - range.Low;
+                m_range = range.High - range.Low;
             }
 
             if (queueSize > 1)
@@ -153,7 +156,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         public bool AlwaysReportUpdates
         {
-            get { return m_alwaysReportUpdates;  }
+            get { return m_alwaysReportUpdates; }
             set { m_alwaysReportUpdates = value; }
         }
 
@@ -178,7 +181,7 @@ namespace Opc.Ua.Sample
                         return 0;
                     }
 
-                    return (int)((m_nextSampleTime - now.Ticks)/TimeSpan.TicksPerMillisecond);
+                    return (int)((m_nextSampleTime - now.Ticks) / TimeSpan.TicksPerMillisecond);
                 }
             }
         }
@@ -240,7 +243,7 @@ namespace Opc.Ua.Sample
                 m_clientHandle = clientHandle;
 
                 // subtract the previous sampling interval.
-                long oldSamplingInterval = (long)(m_samplingInterval*TimeSpan.TicksPerMillisecond);
+                long oldSamplingInterval = (long)(m_samplingInterval * TimeSpan.TicksPerMillisecond);
 
                 if (oldSamplingInterval < m_nextSampleTime)
                 {
@@ -250,7 +253,7 @@ namespace Opc.Ua.Sample
                 m_samplingInterval = samplingInterval;
 
                 // calculate the next sampling interval.                
-                long newSamplingInterval = (long)(m_samplingInterval*TimeSpan.TicksPerMillisecond);
+                long newSamplingInterval = (long)(m_samplingInterval * TimeSpan.TicksPerMillisecond);
 
                 if (m_samplingInterval > 0)
                 {
@@ -267,7 +270,7 @@ namespace Opc.Ua.Sample
 
                 if (range != null)
                 {
-                    m_range = range.High  - range.Low;
+                    m_range = range.High - range.Low;
                 }
 
                 // update the queue size.
@@ -306,7 +309,7 @@ namespace Opc.Ua.Sample
 
             value.ServerTimestamp = DateTime.UtcNow;
 
-            QueueValue(value, error);
+            QueueValue(value, error, false);
         }
         #endregion
 
@@ -465,6 +468,18 @@ namespace Opc.Ua.Sample
             }
         }
 
+        /// <inheritdoc/>
+        public bool IsResendData
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_resendData;
+                }
+            }
+        }
+
         /// <summary>
         /// Returns the results for the create request.
         /// </summary>
@@ -511,18 +526,36 @@ namespace Opc.Ua.Sample
                 return ServiceResult.Good;
             }
         }
+
+        /// <inheritdoc/>
+        public void SetupResendDataTrigger()
+        {
+            lock (m_lock)
+            {
+                if (m_monitoringMode == MonitoringMode.Reporting)
+                {
+                    m_resendData = true;
+                }
+            }
+        }
         #endregion
 
         #region IDataChangeMonitoredItem Members
-        /// <summary>
-        /// Queues a new data change.
-        /// </summary>
+        /// <inheritdoc/>
         public void QueueValue(DataValue value, ServiceResult error)
+        {
+            QueueValue(value, error, false);
+        }
+        #endregion
+
+        #region IDataChangeMonitoredItem2 Members
+        /// <inheritdoc/>
+        public void QueueValue(DataValue value, ServiceResult error, bool ignoreFilters)
         {
             lock (m_lock)
             {
                 // check if value has changed.
-                if (!m_alwaysReportUpdates)
+                if (!m_alwaysReportUpdates && !ignoreFilters)
                 {
                     if (!Opc.Ua.Server.MonitoredItem.ValueChanged(value, error, m_lastValue, m_lastError, m_filter, m_range))
                     {
@@ -642,7 +675,7 @@ namespace Opc.Ua.Sample
         {
             // update next sample time.
             long now = DateTime.UtcNow.Ticks;
-            long samplingInterval = (long)(m_samplingInterval*TimeSpan.TicksPerMillisecond);
+            long samplingInterval = (long)(m_samplingInterval * TimeSpan.TicksPerMillisecond);
 
             if (m_nextSampleTime > 0)
             {
@@ -650,7 +683,7 @@ namespace Opc.Ua.Sample
 
                 if (samplingInterval > 0 && delta >= 0)
                 {
-                    m_nextSampleTime += ((delta/samplingInterval)+1)*samplingInterval;
+                    m_nextSampleTime += ((delta / samplingInterval) + 1) * samplingInterval;
                 }
             }
 
@@ -671,22 +704,23 @@ namespace Opc.Ua.Sample
                 // check if not ready to publish.
                 if (!IsReadyToPublish)
                 {
-                    return false;
+                    if (!m_resendData)
+                    {
+                        return false;
+                    }
                 }
-
-                // update sample time.
-                IncrementSampleTime();
+                else
+                {
+                    // update sample time.
+                    IncrementSampleTime();
+                }
 
                 // update publish flag.
                 m_readyToPublish = false;
                 m_readyToTrigger = false;
 
                 // check if queuing is enabled.
-                if (m_queue == null)
-                {
-                    Publish(context, m_lastValue, m_lastError, notifications, diagnostics);
-                }
-                else
+                if (m_queue != null && (!m_resendData || m_queue.ItemsInQueue != 0))
                 {
                     DataValue value = null;
                     ServiceResult error = null;
@@ -694,8 +728,21 @@ namespace Opc.Ua.Sample
                     while (m_queue.Publish(out value, out error))
                     {
                         Publish(context, value, error, notifications, diagnostics);
+
+                        if (m_resendData)
+                        {
+                            m_readyToPublish = m_queue.ItemsInQueue > 0;
+                            break;
+                        }
                     }
                 }
+                else
+                {
+                    Publish(context, m_lastValue, m_lastError, notifications, diagnostics);
+                }
+
+                // update flags
+                m_resendData = false;
 
                 return true;
             }
@@ -811,8 +858,9 @@ namespace Opc.Ua.Sample
         private bool m_readyToPublish;
         private bool m_readyToTrigger;
         private bool m_alwaysReportUpdates;
-		private bool m_semanticsChanged;
-		private bool m_structureChanged;
+        private bool m_semanticsChanged;
+        private bool m_structureChanged;
+        private bool m_resendData;
         #endregion
     }
 }

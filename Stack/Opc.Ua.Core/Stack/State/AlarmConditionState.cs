@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -180,7 +180,7 @@ namespace Opc.Ua
 
             UpdateEffectiveState(context);
         }
-        
+
         /// <summary>
         /// Sets the suppressed state of the condition.
         /// </summary>
@@ -270,7 +270,7 @@ namespace Opc.Ua
                 }
 
                 this.ShelvingState.UnshelveTime.Value = 0.0;
-                
+
                 this.ShelvingState.CauseProcessingCompleted(context, Methods.ShelvedStateMachineType_Unshelve);
             }
             else
@@ -281,7 +281,7 @@ namespace Opc.Ua
                 // Unshelve time is still valid even for OneShotShelved -  See Mantis 6462
 
                 double maxTimeShelved = double.MaxValue;
-                if ( this.MaxTimeShelved != null && this.MaxTimeShelved.Value > 0 )
+                if (this.MaxTimeShelved != null && this.MaxTimeShelved.Value > 0)
                 {
                     maxTimeShelved = this.MaxTimeShelved.Value;
                 }
@@ -353,9 +353,9 @@ namespace Opc.Ua
         {
             MethodState method = base.FindMethod(context, methodId);
 
-            if ( method == null )
+            if (method == null)
             {
-                if ( this.ShelvingState != null )
+                if (this.ShelvingState != null)
                 {
                     method = this.ShelvingState.FindMethod(context, methodId);
                 }
@@ -492,7 +492,7 @@ namespace Opc.Ua
             {
                 delta = (m_unshelveTime - DateTime.UtcNow).TotalMilliseconds;
 
-                if ( delta < 0 )
+                if (delta < 0)
                 {
                     m_unshelveTime = DateTime.MinValue;
                 }
@@ -762,7 +762,7 @@ namespace Opc.Ua
                 {
                     OnTimedUnshelve((ISystemContext)state, this);
                 }
-                    this.OnUnshelveTimeUpdate(state);
+                this.OnUnshelveTimeUpdate(state);
             }
             catch (Exception e)
             {

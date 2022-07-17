@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2021 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -97,7 +97,6 @@ namespace Opc.Ua
         /// <summary>
         /// The urls of the discovery servers on a node.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2105:ArrayFieldsShouldNotBeReadOnly")]
         public static readonly string[] DiscoveryUrls = new string[]
         {
             "opc.tcp://{0}:4840",
@@ -114,13 +113,16 @@ namespace Opc.Ua
         /// <summary>
         /// The path to the default certificate store.
         /// </summary>
-        [Obsolete("Use CertificateStoreIdentifier.DefaultPKIRoot instead.")]
-        public const string DefaultStorePath = "%CommonApplicationData%/OPC Foundation/pki/own";
+#if NETFRAMEWORK
+        public static readonly string DefaultStorePath = Path.Combine("%CommonApplicationData%", "OPC Foundation", "pki", "own");
+#else
+        public static readonly string DefaultStorePath = Path.Combine("%LocalApplicationData%", "OPC Foundation", "pki", "own");
+#endif
 
         /// <summary>
         /// The default LocalFolder.
         /// </summary>
-        public static string DefaultLocalFolder = Directory.GetCurrentDirectory();
+        public static readonly string DefaultLocalFolder = Directory.GetCurrentDirectory();
 
         /// <summary>
         /// The full name of the Opc.Ua.Core assembly.
@@ -135,7 +137,7 @@ namespace Opc.Ua
         /// <summary>
         /// List of known default bindings hosted in other assemblies.
         /// </summary>
-        public static ReadOnlyDictionary<string, string> DefaultBindings = new ReadOnlyDictionary<string, string>(
+        public static readonly ReadOnlyDictionary<string, string> DefaultBindings = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>() {
                 { Utils.UriSchemeHttps, "Opc.Ua.Bindings.Https"}
             });
@@ -156,7 +158,6 @@ namespace Opc.Ua
         /// <summary>
         /// The possible trace output mechanisms.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
         public enum TraceOutput
         {
             /// <summary>
@@ -178,7 +179,6 @@ namespace Opc.Ua
         /// <summary>
         /// The masks used to filter trace messages.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
         public static class TraceMasks
         {
             /// <summary>
@@ -557,6 +557,10 @@ namespace Opc.Ua
                 // append process and timestamp.
                 message.AppendFormat(CultureInfo.InvariantCulture, "{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
                 message.Append(formatter(state, exception));
+                if (exception != null)
+                {
+                    message.Append(TraceExceptionMessage(exception, String.Empty, null));
+                }
             }
             catch (Exception)
             {
@@ -623,7 +627,7 @@ namespace Opc.Ua
         public static bool IsPathRooted(string path)
         {
             // allow for local file locations
-            return Path.IsPathRooted(path) || path[0] == '.';
+            return Path.IsPathRooted(path) || (path.Length >= 2 && path[0] == '.' && path[1] != '.');
         }
 
         /// <summary>
@@ -1160,7 +1164,6 @@ namespace Opc.Ua
         /// <summary>
         /// Replaces the localhost domain with the current host name.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "RCS1197:Optimize StringBuilder.Append/AppendLine call.")]
         public static string ReplaceLocalhost(string uri, string hostname = null)
         {
             // ignore nulls.
@@ -1201,7 +1204,6 @@ namespace Opc.Ua
         /// <summary>
         /// Replaces the cert subject name DC=localhost with the current host name.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "RCS1197:Optimize StringBuilder.Append/AppendLine call.")]
         public static string ReplaceDCLocalhost(string subjectName, string hostname = null)
         {
             // ignore nulls.
@@ -1229,11 +1231,11 @@ namespace Opc.Ua
             var buffer = new StringBuilder();
 #if NET5_0_OR_GREATER || NETSTANDARD2_1
             buffer.Append(subjectName.AsSpan(0, index + 3))
-                .Append(hostname == null ? GetHostName() : hostname)
+                .Append(hostname ?? GetHostName())
                 .Append(subjectName.AsSpan(index + dclocalhost.Length));
 #else
             buffer.Append(subjectName.Substring(0, index + 3))
-                .Append(hostname == null ? GetHostName() : hostname)
+                .Append(hostname ?? GetHostName())
                 .Append(subjectName.Substring(index + dclocalhost.Length));
 #endif
             return buffer.ToString();
@@ -1365,6 +1367,26 @@ namespace Opc.Ua
 
             // return the original instance uri.
             return instanceUri;
+        }
+
+        /// <summary>
+        /// Sets the identifier to a lower limit if smaller. Thread safe.
+        /// </summary>
+        /// <returns>Returns the new value.</returns>
+        public static uint LowerLimitIdentifier(ref long identifier, uint lowerLimit)
+        {
+            long value;
+            long exchangedValue;
+            do
+            {
+                value = System.Threading.Interlocked.Read(ref identifier);
+                exchangedValue = value;
+                if (value < lowerLimit)
+                {
+                    exchangedValue = System.Threading.Interlocked.CompareExchange(ref identifier, lowerLimit, value);
+                }
+            } while (exchangedValue != value);
+            return (uint)System.Threading.Interlocked.Read(ref identifier);
         }
 
         /// <summary>
@@ -1560,7 +1582,6 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if a string is a valid locale identifier.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "RCS1075:Avoid empty catch clause that catches System.Exception.")]
         public static bool IsValidLocaleId(string localeId)
         {
             if (String.IsNullOrEmpty(localeId))
@@ -2091,6 +2112,49 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Checks if two identities are equal.
+        /// </summary>
+        public static bool IsEqualUserIdentity(UserIdentityToken identity1, UserIdentityToken identity2)
+        {
+            // check for reference equality.
+            if (Object.ReferenceEquals(identity1, identity2))
+            {
+                return true;
+            }
+
+            if (identity1 == null || identity2 == null)
+            {
+                return false;
+            }
+
+            if (identity1 is AnonymousIdentityToken &&
+                identity2 is AnonymousIdentityToken)
+            {
+                return true;
+            }
+
+            if (identity1 is UserNameIdentityToken userName1 &&
+                identity2 is UserNameIdentityToken userName2)
+            {
+                return string.Equals(userName1.UserName, userName2.UserName, StringComparison.Ordinal);
+            }
+
+            if (identity1 is X509IdentityToken x509Token1 &&
+                identity2 is X509IdentityToken x509Token2)
+            {
+                return Utils.IsEqual(x509Token1.CertificateData, x509Token2.CertificateData);
+            }
+
+            if (identity1 is IssuedIdentityToken issuedToken1 &&
+                identity2 is IssuedIdentityToken issuedToken2)
+            {
+                return Utils.IsEqual(issuedToken1.DecryptedTokenData, issuedToken2.DecryptedTokenData);
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Checks if two values are equal.
         /// </summary>
         public static bool IsEqual(object value1, object value2)
@@ -2125,9 +2189,9 @@ namespace Opc.Ua
             }
 
             // check for DateTime objects
-            if (value1 is DateTime)
+            if (value1 is DateTime time)
             {
-                return (Utils.ToOpcUaUniversalTime((DateTime)value1).CompareTo(Utils.ToOpcUaUniversalTime((DateTime)value2))) == 0;
+                return (Utils.ToOpcUaUniversalTime(time).CompareTo(Utils.ToOpcUaUniversalTime((DateTime)value2))) == 0;
             }
 
             // check for compareable objects.
@@ -2143,9 +2207,7 @@ namespace Opc.Ua
 
             if (encodeable1 != null)
             {
-                IEncodeable encodeable2 = value2 as IEncodeable;
-
-                if (encodeable2 == null)
+                if (!(value2 is IEncodeable encodeable2))
                 {
                     return false;
                 }
@@ -2158,9 +2220,7 @@ namespace Opc.Ua
 
             if (element1 != null)
             {
-                XmlElement element2 = value2 as XmlElement;
-
-                if (element2 == null)
+                if (!(value2 is XmlElement element2))
                 {
                     return false;
                 }
@@ -2173,10 +2233,8 @@ namespace Opc.Ua
 
             if (array1 != null)
             {
-                Array array2 = value2 as Array;
-
                 // arrays are greater than non-arrays.
-                if (array2 == null)
+                if (!(value2 is Array array2))
                 {
                     return false;
                 }
@@ -2207,10 +2265,8 @@ namespace Opc.Ua
 
             if (enumerable1 != null)
             {
-                IEnumerable enumerable2 = value2 as IEnumerable;
-
                 // collections are greater than non-collections.
-                if (enumerable2 == null)
+                if (!(value2 is IEnumerable enumerable2))
                 {
                     return false;
                 }
@@ -2255,13 +2311,13 @@ namespace Opc.Ua
         public static bool Match(string target, string pattern, bool caseSensitive)
         {
             // an empty pattern always matches.
-            if (pattern == null || pattern.Length == 0)
+            if (string.IsNullOrEmpty(pattern))
             {
                 return true;
             }
 
             // an empty string never matches.
-            if (target == null || target.Length == 0)
+            if (string.IsNullOrEmpty(target))
             {
                 return false;
             }
@@ -2276,7 +2332,7 @@ namespace Opc.Ua
             }
             else
             {
-                if (String.Equals(target, pattern, StringComparison.InvariantCultureIgnoreCase))
+                if (String.Equals(target, pattern, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -2471,7 +2527,7 @@ namespace Opc.Ua
 
             if (tIndex >= target.Length)
             {
-                return (pIndex >= pattern.Length); // if end of pattern true
+                return pIndex >= pattern.Length; // if end of pattern true
             }
 
             return true;
@@ -2749,12 +2805,26 @@ namespace Opc.Ua
         /// DtdProcessing Prohibited, XmlResolver disabled and
         /// ConformanceLevel Document.
         /// </summary>
-        internal static XmlReaderSettings DefaultXmlReaderSettings()
+        public static XmlReaderSettings DefaultXmlReaderSettings()
         {
             return new XmlReaderSettings() {
                 DtdProcessing = DtdProcessing.Prohibit,
                 XmlResolver = null,
                 ConformanceLevel = ConformanceLevel.Document
+            };
+        }
+
+        /// <summary>
+        /// Returns a XmlWriterSetting with deterministic defaults across .NET versions.
+        /// </summary>
+        public static XmlWriterSettings DefaultXmlWriterSettings()
+        {
+            return new XmlWriterSettings() {
+                Encoding = Encoding.UTF8,
+                Indent = true,
+                ConformanceLevel = ConformanceLevel.Document,
+                IndentChars = "  ",
+                CloseOutput = false,
             };
         }
 
@@ -3022,7 +3092,7 @@ namespace Opc.Ua
             }
 
             byte[] keySeed = hmac.ComputeHash(seed);
-            byte[] prfSeed = new byte[hmac.HashSize / 8 + seed.Length];
+            byte[] prfSeed = new byte[(hmac.HashSize / 8) + seed.Length];
             Array.Copy(keySeed, prfSeed, keySeed.Length);
             Array.Copy(seed, 0, prfSeed, keySeed.Length, seed.Length);
 
@@ -3085,7 +3155,7 @@ namespace Opc.Ua
         /// <summary>
         /// Lazy helper to allow runtime check for Mono.
         /// </summary>
-        private static readonly Lazy<bool> IsRunningOnMonoValue = new Lazy<bool>(() => {
+        private static readonly Lazy<bool> s_isRunningOnMonoValue = new Lazy<bool>(() => {
             return Type.GetType("Mono.Runtime") != null;
         });
 
@@ -3095,8 +3165,8 @@ namespace Opc.Ua
         /// <returns>true if running on Mono runtime</returns>
         public static bool IsRunningOnMono()
         {
-            return IsRunningOnMonoValue.Value;
+            return s_isRunningOnMonoValue.Value;
         }
-        #endregion
+        #endregion 
     }
 }

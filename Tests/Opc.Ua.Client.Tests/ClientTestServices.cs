@@ -168,6 +168,16 @@ namespace Opc.Ua.Client.Tests
             return m_session.DeleteSubscriptions(requestHeader, subscriptionIds, out results, out diagnosticInfos);
         }
 
+        public ResponseHeader TransferSubscriptions(
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool sendInitialValues,
+            out TransferResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            return m_session.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialValues, out results, out diagnosticInfos);
+        }
+
         public ResponseHeader TranslateBrowsePathsToNodeIds(
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,

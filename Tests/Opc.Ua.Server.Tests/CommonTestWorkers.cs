@@ -39,6 +39,55 @@ namespace Opc.Ua.Server.Tests
     /// </summary>
     public static class CommonTestWorkers
     {
+        public const int DefaultMonitoredItemsQueueSize = 0;
+        public const int DefaultMonitoredItemsSamplingInterval = -1;
+
+        #region Public Test Sets
+        public static readonly ExpandedNodeId[] NodeIdTestSetStatic =
+        {
+            new ExpandedNodeId("Scalar_Static_SByte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_Byte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_UInt16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_UInt32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_NodeId", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+        };
+
+        // static variables from namespace TestData
+        public static readonly ExpandedNodeId[] NodeIdTestDataSetStatic =
+        {
+            new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_Int16Value, TestData.Namespaces.TestData),
+            new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_Int32Value, TestData.Namespaces.TestData),
+            new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_UInt16Value, TestData.Namespaces.TestData),
+            new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_UInt32Value, TestData.Namespaces.TestData),
+        };
+
+        public static readonly ExpandedNodeId[] NodeIdTestSetSimulation =
+        {
+            new ExpandedNodeId("Scalar_Simulation_SByte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_Byte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_UInt16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_UInt32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_NodeId", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+        };
+
+        public static readonly ExpandedNodeId[] NodeIdMemoryBufferSimulation =
+        {
+            // dynamic variables from namespace MemoryBuffer
+            new ExpandedNodeId("UInt32[64]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"),
+            new ExpandedNodeId("Double[40]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"),
+        };
+        #endregion
+
         #region Public Workers
         /// <summary>
         /// Worker function to browse the full address space of a server.
@@ -393,6 +442,216 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions);
         }
+
+        /// <summary>
+        /// Worker method to test TransferSubscriptions of a server.
+        /// </summary>
+        public static UInt32Collection CreateSubscriptionForTransfer(
+            IServerTestServices services,
+            RequestHeader requestHeader,
+            NodeId[] testNodes,
+            uint queueSize = DefaultMonitoredItemsQueueSize,
+            int samplingInterval = DefaultMonitoredItemsSamplingInterval)
+        {
+            // start time
+
+            requestHeader.Timestamp = DateTime.UtcNow;
+            uint subscriptionId = CreateSubscription(services, requestHeader);
+            uint clientHandle = 1;
+            foreach (NodeId testNode in testNodes)
+            {
+                CreateMonitoredItem(services, requestHeader, subscriptionId, testNode, clientHandle++, queueSize, samplingInterval);
+            }
+
+            var subscriptionIds = new UInt32Collection();
+            subscriptionIds.Add(subscriptionId);
+
+            // enable publishing
+            var response = services.SetPublishingMode(requestHeader, true, subscriptionIds,
+                        out var statuses, out var diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+
+            // wait some time to settle
+            Thread.Sleep(1000);
+
+            // publish request
+            var acknoledgements = new SubscriptionAcknowledgementCollection();
+            response = services.Publish(requestHeader, acknoledgements,
+                out uint publishedId, out UInt32Collection availableSequenceNumbers,
+                out bool moreNotifications, out NotificationMessage notificationMessage,
+                out StatusCodeCollection _, out diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+            Assert.AreEqual(subscriptionId, publishedId);
+
+            // static node, do not acknoledge
+            Assert.AreEqual(1, availableSequenceNumbers.Count);
+
+            return subscriptionIds;
+        }
+
+        /// <summary>
+        /// Worker method to test Transfer of subscriptions to new session.
+        /// </summary>
+        public static void TransferSubscriptionTest(
+            IServerTestServices services,
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool sendInitialData,
+            bool expectAccessDenied)
+        {
+            Assert.AreEqual(1, subscriptionIds.Count);
+
+            requestHeader.Timestamp = DateTime.UtcNow;
+            var response = services.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialData,
+                out TransferResultCollection transferResults, out DiagnosticInfoCollection diagnosticInfos);
+            Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+            Assert.AreEqual(subscriptionIds.Count, transferResults.Count);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+
+            foreach (var transferResult in transferResults)
+            {
+                TestContext.Out.WriteLine("TransferResult: {0}", transferResult.StatusCode);
+                if (expectAccessDenied)
+                {
+                    Assert.AreEqual(StatusCodes.BadUserAccessDenied, transferResult.StatusCode.Code);
+                }
+                else
+                {
+                    Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
+                    Assert.AreEqual(1, transferResult.AvailableSequenceNumbers.Count);
+                }
+            }
+
+            if (expectAccessDenied)
+            {
+                return;
+            }
+
+            requestHeader.Timestamp = DateTime.UtcNow;
+            var acknoledgements = new SubscriptionAcknowledgementCollection();
+            response = services.Publish(requestHeader, acknoledgements,
+                out uint publishedId, out UInt32Collection availableSequenceNumbers,
+                out bool moreNotifications, out NotificationMessage notificationMessage,
+                out StatusCodeCollection _, out diagnosticInfos);
+            Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+            Assert.AreEqual(subscriptionIds[0], publishedId);
+            Assert.AreEqual(sendInitialData ? 1 : 0, notificationMessage.NotificationData.Count);
+            if (sendInitialData)
+            {
+                var items = notificationMessage.NotificationData.FirstOrDefault();
+                Assert.IsTrue(items.Body is Opc.Ua.DataChangeNotification);
+                var monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
+                Assert.IsNotEmpty(monitoredItemsCollection);
+            }
+            //Assert.AreEqual(0, availableSequenceNumbers.Count);
+
+            requestHeader.Timestamp = DateTime.UtcNow;
+            response = services.DeleteSubscriptions(requestHeader, subscriptionIds, out StatusCodeCollection statusResults, out diagnosticInfos);
+            Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+        }
+
+        /// <summary>
+        /// Worker method to verify the SubscriptionTransferred message of a server.
+        /// </summary>
+        public static void VerifySubscriptionTransferred(
+            IServerTestServices services,
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool deleteSubscriptions)
+        {
+            // start time
+            requestHeader.Timestamp = DateTime.UtcNow;
+
+            // wait some time to settle
+            Thread.Sleep(100);
+
+            // publish request
+            var acknoledgements = new SubscriptionAcknowledgementCollection();
+            var response = services.Publish(requestHeader, acknoledgements,
+                out uint publishedId, out UInt32Collection availableSequenceNumbers,
+                out bool moreNotifications, out NotificationMessage notificationMessage,
+                out StatusCodeCollection _, out var diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+            Assert.IsFalse(moreNotifications);
+            Assert.IsTrue(subscriptionIds.Contains(publishedId));
+            Assert.AreEqual(1, notificationMessage.NotificationData.Count);
+            var statusMessage = notificationMessage.NotificationData[0].ToString();
+            Assert.IsTrue(statusMessage.Contains("GoodSubscriptionTransferred"));
+
+            // static node, do not acknoledge
+            if (availableSequenceNumbers != null)
+            {
+                Assert.AreEqual(0, availableSequenceNumbers.Count);
+            }
+
+            if (deleteSubscriptions)
+            {
+                response = services.DeleteSubscriptions(requestHeader, subscriptionIds, out var _, out diagnosticInfos);
+                ServerFixtureUtils.ValidateResponse(response);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+            }
+        }
         #endregion
+
+        #region Private Helpers
+        private static uint CreateSubscription(IServerTestServices services, RequestHeader requestHeader)
+        {
+            // start time
+            requestHeader.Timestamp = DateTime.UtcNow;
+
+            // create subscription
+            double publishingInterval = 1000.0;
+            uint lifetimeCount = 60;
+            uint maxKeepAliveCount = 2;
+            uint maxNotificationPerPublish = 0;
+            byte priority = 128;
+            bool enabled = false;
+
+            var response = services.CreateSubscription(requestHeader,
+                publishingInterval, lifetimeCount, maxKeepAliveCount,
+                maxNotificationPerPublish, enabled, priority,
+                out uint id, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount);
+            ServerFixtureUtils.ValidateResponse(response);
+
+            return id;
+        }
+
+        private static void CreateMonitoredItem(
+            IServerTestServices services, RequestHeader requestHeader,
+            uint subscriptionId, NodeId nodeId,
+            uint clientHandle,
+            uint queueSize,
+            int samplingInterval
+            )
+        {
+            var itemsToCreate = new MonitoredItemCreateRequestCollection {
+                // add item
+                new MonitoredItemCreateRequest {
+                    ItemToMonitor = new ReadValueId {
+                        AttributeId = Attributes.Value,
+                        NodeId = nodeId
+                    },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters {
+                        ClientHandle = clientHandle,
+                        SamplingInterval = samplingInterval,
+                        Filter = null,
+                        DiscardOldest = true,
+                        QueueSize = queueSize
+                    }
+                }
+            };
+            var response = services.CreateMonitoredItems(requestHeader, subscriptionId, TimestampsToReturn.Neither, itemsToCreate,
+                out MonitoredItemCreateResultCollection itemCreateResults, out DiagnosticInfoCollection diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToCreate);
+        }
+        #endregion
+
     }
 }

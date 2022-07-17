@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -232,12 +232,35 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Check for self signed certificate if there is match of the Subject/Issuer.
+        /// </summary>
+        /// <param name="certificate">The certificate to test.</param>
+        /// <returns>True if self signed.</returns>
+        public static bool IsSelfSigned(X509Certificate2 certificate)
+        {
+            return X509Utils.CompareDistinguishedName(certificate.SubjectName, certificate.IssuerName);
+        }
+
+        /// <summary>
         /// Compares two distinguished names.
         /// </summary>
+        public static bool CompareDistinguishedName(X500DistinguishedName name1, X500DistinguishedName name2)
+        {
+            // check for simple binary equality.
+            return Utils.IsEqual(name1.RawData, name2.RawData);
+        }
+
+        /// <summary>
+        /// Compares two distinguished names as strings.
+        /// </summary>
+        /// <remarks>
+        /// Where possible, distinguished names should be compared
+        /// by using the <see cref="X500DistinguishedName"/> version.
+        /// </remarks>
         public static bool CompareDistinguishedName(string name1, string name2)
         {
             // check for simple equality.
-            if (String.Equals(name1, name2, StringComparison.OrdinalIgnoreCase))
+            if (String.Equals(name1, name2, StringComparison.Ordinal))
             {
                 return true;
             }
@@ -252,19 +275,28 @@ namespace Opc.Ua
                 return false;
             }
 
-            // sort to ensure similar entries are compared
-            fields1.Sort(StringComparer.OrdinalIgnoreCase);
-            fields2.Sort(StringComparer.OrdinalIgnoreCase);
+            return CompareDistinguishedNameFields(fields1, fields2);
+        }
 
+        /// <summary>
+        /// Compares string fields of two distinguished names.
+        /// </summary>
+        private static bool CompareDistinguishedNameFields(IList<string> fields1, IList<string> fields2)
+        {
             // compare each.
             for (int ii = 0; ii < fields1.Count; ii++)
             {
-                if (!String.Equals(fields1[ii], fields2[ii], StringComparison.OrdinalIgnoreCase))
+                var comparison = StringComparison.Ordinal;
+                if (fields1[ii].StartsWith("DC=", StringComparison.OrdinalIgnoreCase))
+                {
+                    // DC hostnames may have different case
+                    comparison = StringComparison.OrdinalIgnoreCase;
+                }
+                if (!String.Equals(fields1[ii], fields2[ii], comparison))
                 {
                     return false;
                 }
             }
-
             return true;
         }
 
@@ -288,20 +320,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            // sort to ensure similar entries are compared
-            parsedName.Sort(StringComparer.OrdinalIgnoreCase);
-            certificateName.Sort(StringComparer.OrdinalIgnoreCase);
-
-            // compare each entry
-            for (int ii = 0; ii < parsedName.Count; ii++)
-            {
-                if (!String.Equals(parsedName[ii], certificateName[ii], StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return CompareDistinguishedNameFields(parsedName, certificateName);
         }
 
         /// <summary>
@@ -489,14 +508,14 @@ namespace Opc.Ua
         /// </summary>
         public static async Task<X509Certificate2> FindIssuerCABySerialNumberAsync(
             ICertificateStore store,
-            string issuer,
+            X500DistinguishedName issuer,
             string serialnumber)
         {
             X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
 
             foreach (var certificate in certificates)
             {
-                if (X509Utils.CompareDistinguishedName(certificate.Subject, issuer) &&
+                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, issuer) &&
                     Utils.IsEqual(certificate.SerialNumber, serialnumber))
                 {
                     return certificate;
@@ -565,5 +584,16 @@ namespace Opc.Ua
                 return HashAlgorithmName.SHA512;
             }
         }
+
+        /// <summary>
+        /// Create secure temporary passcode.
+        /// </summary>
+        internal static string GeneratePasscode()
+        {
+            const int kLength = 18;
+            byte[] tokenBuffer = Utils.Nonce.CreateNonce(kLength);
+            return Convert.ToBase64String(tokenBuffer);
+        }
+
     }
 }

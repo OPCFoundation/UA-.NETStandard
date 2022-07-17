@@ -44,6 +44,11 @@ namespace Opc.Ua.Server
         /// <param name="server">The server instance.</param>
         /// <param name="configuration">The application configuration.</param>
         INodeManager Create(IServerInternal server, ApplicationConfiguration configuration);
+
+        /// <summary>
+        /// The namespace table of the NodeManager.
+        /// </summary>
+        StringCollection NamespacesUris { get; }
     }
 
     /// <summary>
@@ -296,6 +301,19 @@ namespace Opc.Ua.Server
         /// </summary>
         void DeleteMonitoredItems(
             OperationContext context,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors);
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <remarks>
+        /// Queue initial values from monitored items in the node managers.
+        /// </remarks>
+        void TransferMonitoredItems(
+            OperationContext context,
+            bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors);

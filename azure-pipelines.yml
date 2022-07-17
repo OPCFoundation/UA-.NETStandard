@@ -23,14 +23,19 @@ pr:
     include:
     - '*' 
 
+variables:
+  FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsFork'], 'False')) }}
+  ScheduledBuild: ${{ eq(variables['Build.Reason'], 'Schedule') }}
+
 stages:
 - stage: build
-  displayName: 'Build .Net Core Samples'
+  displayName: 'Build .NET Core Samples'
   jobs:
   - template: .azurepipelines/ci.yml
 - stage: buildnohttps
   dependsOn: []
-  displayName: 'Build NoHttps .Net Core Samples'
+  displayName: 'Build NoHttps .NET Core Samples'
+  condition: ne(variables.FullBuild, 'False')
   jobs:
   - template: .azurepipelines/ci.yml
     parameters:
@@ -51,6 +56,7 @@ stages:
 - stage: testrelease
   dependsOn: [build]
   displayName: 'Test Core and SDK Release'
+  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -63,15 +69,32 @@ stages:
       configuration: Release
       framework: netcoreapp3.1
       jobnamesuffix: core3
+- stage: test6release
+  dependsOn: [build]
+  displayName: 'Test .NET 6 Core and SDK Release'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
       framework: net6.0
       agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"; mac = "macOS-11"}'
       jobnamesuffix: net60
+- stage: testreleasepr
+  dependsOn: []
+  displayName: 'Fast PR Test Core and SDK Release'
+  condition: and(eq(variables.FullBuild, 'False'), eq(variables.ScheduledBuild, 'False'))
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      framework: net6.0
+      agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"}'
+      jobnamesuffix: net60pr
 - stage: testdebug
   dependsOn: [build]
   displayName: 'Test Core and SDK Debug'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -80,7 +103,7 @@ stages:
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
-  condition: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/testcc.yml
     parameters:
