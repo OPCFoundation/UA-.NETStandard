@@ -207,13 +207,14 @@ namespace Opc.Ua
                     ServiceResult.IsGood(error),
                     DateTime.UtcNow);
 
-                e.SourceName.Value = "Attribute/Call";
+                e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                e.SetChildValue(context, BrowseNames.SourceName, "Method/Acknowledge", false);
 
-                e.MethodId = new PropertyState<NodeId>(e);
-                e.MethodId.Value = method.NodeId;
+                e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                e.SetChildValue(context, BrowseNames.InputArguments, new object[] { eventId, comment }, false);
 
-                e.InputArguments = new PropertyState<object[]>(e);
-                e.InputArguments.Value = new object[] { eventId, comment };
+                e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
+                e.SetChildValue(context, BrowseNames.Comment, comment, false);
 
                 ReportEvent(context, e);
             }
@@ -366,13 +367,14 @@ namespace Opc.Ua
                     ServiceResult.IsGood(error),
                     DateTime.UtcNow);
 
-                e.SourceName.Value = "Attribute/Call";
+                e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                e.SetChildValue(context, BrowseNames.SourceName, "Method/Confirm", false);
 
-                e.MethodId = new PropertyState<NodeId>(e);
-                e.MethodId.Value = method.NodeId;
+                e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                e.SetChildValue(context, BrowseNames.InputArguments, new object[] { eventId, comment }, false);
 
-                e.InputArguments = new PropertyState<object[]>(e);
-                e.InputArguments.Value = new object[] { eventId, comment };
+                e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
+                e.SetChildValue(context, BrowseNames.Comment, comment, false);
 
                 ReportEvent(context, e);
             }
@@ -467,12 +469,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Determines if a comment should be added on Acknowledgement or Confirm.
+        /// Determines if a comment should be added on Acknowledgment or Confirm.
         /// </summary>
         /// <param name="comment">The client provided comment.</param>
         /// <returns>Boolean stating whether the comment should be set</returns>
         /// <remarks>
-        /// According to the specification for Alarms, the Acknowledgement states that
+        /// According to the specification for Alarms, the Acknowledgment states that
         /// "If the comment field is NULL (both locale and text are empty) it will be
         /// ignored and any existing comments will remain unchanged."
         /// This also applies to the Confirm method, although the spec needs updating

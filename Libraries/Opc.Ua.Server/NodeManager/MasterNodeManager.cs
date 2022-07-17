@@ -1842,7 +1842,7 @@ namespace Opc.Ua.Server
                     }
 
                     ServerUtils.ReportWriteValue(nodesToWrite[ii].NodeId, nodesToWrite[ii].Value, results[ii]);
-                }
+                }                
             }
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.

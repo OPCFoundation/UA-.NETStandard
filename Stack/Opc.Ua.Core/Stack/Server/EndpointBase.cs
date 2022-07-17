@@ -12,6 +12,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -123,6 +125,48 @@ namespace Opc.Ua
         {
             return ProcessRequestAsyncResult.WaitForComplete(result, false);
         }
+
+        #endregion
+
+        #region IAuditEventCallback Members
+        /// <summary>
+        /// Report the open secure channel audit event
+        /// </summary>
+        /// <param name="channel">The <see cref="TcpServerChannel"/> that processes the open secure channel request.</param>
+        /// <param name="request">The incoming <see cref="OpenSecureChannelRequest"/></param>
+        /// <param name="clientCertificate">The client certificate.</param>
+        /// <param name="exception">The exception resulted from the open secure channel request.</param>
+        public void ReportAuditOpenSecureChannelEvent(TcpServerChannel channel,
+            OpenSecureChannelRequest request,
+            X509Certificate2 clientCertificate,
+            Exception exception)
+        {
+            // trigger the reporting of AuditOpenSecureChannelEventType
+            ServerForContext?.ReportAuditOpenSecureChannelEvent(channel, request, clientCertificate, exception);
+        }
+
+        /// <summary>
+        /// Report the close secure channel audit event
+        /// </summary>
+        /// <param name="channel"></param>
+        /// <param name="exception">The exception resulted from the open secure channel request.</param>
+        public void ReportAuditCloseSecureChannelEvent(TcpServerChannel channel, Exception exception)
+        {
+            // trigger the reporting of close AuditChannelEventType
+            ServerForContext?.ReportAuditCloseSecureChannelEvent(channel, exception);
+        }
+
+        /// <summary>
+        /// Reports all audit events for client certificate ServiceResultException. It goes recursively for all service results stored in the exception
+        /// </summary>
+        /// <param name="clientCertificate">The client certificate.</param>
+        /// <param name="exception">The Exception that triggers a certificate audit event.</param>
+        public void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
+        {
+            // trigger the reporting of OpenSecureChannelAuditEvent
+            ServerForContext?.ReportAuditCertificateEvent(clientCertificate, exception);
+        }
+
         #endregion
 
         #region Public Methods
@@ -235,7 +279,7 @@ namespace Opc.Ua
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
-        /// <param name="ar">The ar.</param>
+        /// <param name="ar">The async result.</param>
         public virtual InvokeServiceResponseMessage EndInvokeService(IAsyncResult ar)
         {
             try
@@ -243,7 +287,7 @@ namespace Opc.Ua
                 // wait for the response.
                 IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(ar, false);
 
-                // encode the repsonse.
+                // encode the response.
                 InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
                 outgoing.InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, MessageContext);
                 return outgoing;
@@ -388,7 +432,7 @@ namespace Opc.Ua
             if (sre != null)
             {
                 result = new ServiceResult(sre);
-                Utils.LogWarning("SERVER - Service Fault Occured. Reason={0}", result.StatusCode);
+                Utils.LogWarning("SERVER - Service Fault Occurred. Reason={0}", result.StatusCode);
                 if (sre.StatusCode == StatusCodes.BadUnexpectedError)
                 {
                     Utils.LogWarning(Utils.TraceMasks.StackTrace, sre, sre.ToString());
@@ -511,7 +555,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region ServiceDefinition Classe
+        #region ServiceDefinition Class
         /// <summary>
         /// Stores the definition of a service supported by the server.
         /// </summary>

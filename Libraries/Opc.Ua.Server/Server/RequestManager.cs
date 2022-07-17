@@ -162,6 +162,9 @@ namespace Opc.Ua.Server
                     {
                         request.SetStatusCode(StatusCodes.BadRequestCancelledByRequest);
                         cancelledRequests.Add(request.RequestId);
+
+                        // report the AuditCancelEventType
+                        m_server.ReportAuditCancelEvent(request.Session.Id, requestHandle, StatusCodes.Good);
                     }
                 }
             }
