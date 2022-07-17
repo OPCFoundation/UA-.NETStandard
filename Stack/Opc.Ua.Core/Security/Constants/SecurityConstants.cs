@@ -139,6 +139,11 @@ namespace Opc.Ua
         public const string JwtUserToken = "http://opcfoundation.org/UA/UserToken#JWT";
 
         /// <summary>
+        /// The security policy header used by the Https transport.
+        /// </summary>
+        public const string HttpsSecurityPolicyHeader = "OPCUA-SecurityPolicy";
+
+        /// <summary>
         /// Converts the URI to a URI that can be used for comparison.
         /// </summary>
         /// <param name="profileUri">The profile URI.</param>

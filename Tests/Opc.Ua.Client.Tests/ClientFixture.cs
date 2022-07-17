@@ -182,16 +182,16 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Connects the url endpoint with specified security profile.
         /// </summary>
-        public async Task<Session> ConnectAsync(Uri url, string securityProfile, EndpointDescriptionCollection endpoints = null)
+        public async Task<Session> ConnectAsync(Uri url, string securityProfile, EndpointDescriptionCollection endpoints = null, IUserIdentity userIdentity = null)
         {
-            return await ConnectAsync(await GetEndpointAsync(url, securityProfile, endpoints).ConfigureAwait(false)).ConfigureAwait(false);
+            return await ConnectAsync(await GetEndpointAsync(url, securityProfile, endpoints).ConfigureAwait(false), userIdentity).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Connects the specified endpoint.
         /// </summary>
         /// <param name="endpoint">The configured endpoint.</param>
-        public async Task<Session> ConnectAsync(ConfiguredEndpoint endpoint)
+        public async Task<Session> ConnectAsync(ConfiguredEndpoint endpoint, IUserIdentity userIdentity = null)
         {
             if (endpoint == null)
             {
@@ -204,7 +204,7 @@ namespace Opc.Ua.Client.Tests
 
             var session = await Session.Create(
                 Config, endpoint, false, false,
-                Config.ApplicationName, SessionTimeout, null, null).ConfigureAwait(false);
+                Config.ApplicationName, SessionTimeout, userIdentity, null).ConfigureAwait(false);
 
             Endpoint = session.ConfiguredEndpoint;
 

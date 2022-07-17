@@ -98,9 +98,9 @@ namespace Opc.Ua.Server.Tests
             {
                 serverConfig.SetOperationLimits(new OperationLimits() {
                     MaxNodesPerBrowse = 2500,
-                    MaxNodesPerRead = 250,
-                    MaxNodesPerWrite = 250,
-                    MaxNodesPerMethodCall = 500,
+                    MaxNodesPerRead = 1000,
+                    MaxNodesPerWrite = 1000,
+                    MaxNodesPerMethodCall = 1000,
                     MaxMonitoredItemsPerCall = 1000,
                     MaxNodesPerTranslateBrowsePathsToNodeIds = 1000
                 });

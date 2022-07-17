@@ -32,7 +32,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -242,6 +244,71 @@ namespace Opc.Ua.Client.Tests
             session.Dispose();
         }
 
+        [Theory, Order(220)]
+        public async Task ConnectJWT(string securityPolicy)
+        {
+            var identityToken = "fakeTokenString";
+
+            var issuedToken = new IssuedIdentityToken() {
+                IssuedTokenType = IssuedTokenType.JWT,
+                PolicyId = Profiles.JwtUserToken,
+                DecryptedTokenData = Encoding.UTF8.GetBytes(identityToken)
+            };
+
+            var userIdentity = new UserIdentity(issuedToken);
+
+            var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity).ConfigureAwait(false);
+            Assert.NotNull(session);
+            Assert.NotNull(TokenValidator.LastIssuedToken);
+
+            var receivedToken = Encoding.UTF8.GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
+            Assert.AreEqual(identityToken, receivedToken);
+
+            var result = session.Close();
+            Assert.NotNull(result);
+
+            session.Dispose();
+        }
+
+        [Theory, Order(230)]
+        public async Task ReconnectJWT(string securityPolicy)
+        {
+            UserIdentity CreateUserIdentity(string tokenData)
+            {
+                var issuedToken = new IssuedIdentityToken() {
+                    IssuedTokenType = IssuedTokenType.JWT,
+                    PolicyId = Profiles.JwtUserToken,
+                    DecryptedTokenData = Encoding.UTF8.GetBytes(tokenData)
+                };
+
+                return new UserIdentity(issuedToken);
+            }
+
+            var identityToken = "fakeTokenString";
+            var userIdentity = CreateUserIdentity(identityToken);
+
+            var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity).ConfigureAwait(false);
+            Assert.NotNull(session);
+            Assert.NotNull(TokenValidator.LastIssuedToken);
+
+            var receivedToken = Encoding.UTF8.GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
+            Assert.AreEqual(identityToken, receivedToken);
+
+            var newIdentityToken = "fakeTokenStringNew";
+            session.RenewUserIdentity += (s, i) => {
+                return CreateUserIdentity(newIdentityToken);
+            };
+
+            session.Reconnect();
+            receivedToken = Encoding.UTF8.GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
+            Assert.AreEqual(newIdentityToken, receivedToken);
+
+            var result = session.Close();
+            Assert.NotNull(result);
+
+            session.Dispose();
+        }
+
         [Test, Order(240)]
         public async Task ConnectMultipleSessionsAsync()
         {
@@ -313,7 +380,17 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadValue()
+        public void ReadValueAsync()
+        {
+            // Test ReadValue
+            Task task1 = Session.ReadValueAsync(VariableIds.Server_ServerRedundancy_RedundancySupport);
+            Task task2 = Session.ReadValueAsync(VariableIds.Server_ServerStatus);
+            Task task3 = Session.ReadValueAsync(VariableIds.Server_ServerStatus);
+            Task.WaitAll(task1, task2, task3);
+        }
+
+        [Test]
+        public void ReadValueTyped()
         {
             // Test ReadValue
             _ = Session.ReadValue(VariableIds.Server_ServerRedundancy_RedundancySupport, typeof(Int32));
@@ -323,7 +400,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadValues()
+        public void ReadValue()
         {
             var namespaceUris = Session.NamespaceUris;
             var testSet = GetTestSetStatic(namespaceUris).ToList();
@@ -337,10 +414,81 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void ReadValues()
+        {
+            var namespaceUris = Session.NamespaceUris;
+            var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
+            testSet.AddRange(GetTestSetSimulation(namespaceUris));
+            Session.ReadValues(testSet, out DataValueCollection values, out IList<ServiceResult> errors);
+            Assert.AreEqual(testSet.Count, values.Count);
+            Assert.AreEqual(testSet.Count, errors.Count);
+        }
+
+        [Test]
+        public async Task ReadValuesAsync()
+        {
+            var namespaceUris = Session.NamespaceUris;
+            var testSet = GetTestSetStatic(namespaceUris).ToList();
+            testSet.AddRange(GetTestSetSimulation(namespaceUris));
+            DataValueCollection values;
+            IList<ServiceResult> errors;
+            (values, errors) = await Session.ReadValuesAsync(new NodeIdCollection(testSet)).ConfigureAwait(false);
+            Assert.AreEqual(testSet.Count, values.Count);
+            Assert.AreEqual(testSet.Count, errors.Count);
+        }
+
+        [Test]
         public void ReadDataTypeDefinition()
         {
             // Test Read a DataType Node
-            var node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType);
+            INode node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType);
+            ValidateDataTypeDefinition(node);
+        }
+
+        [Test]
+        public async Task ReadDataTypeDefinitionAsync()
+        {
+            // Test Read a DataType Node
+            INode node = await Session.ReadNodeAsync(DataTypeIds.ProgramDiagnosticDataType).ConfigureAwait(false);
+            ValidateDataTypeDefinition(node);
+        }
+
+        [Test]
+        public void ReadDataTypeDefinition2()
+        {
+            // Test Read a DataType Node, the nodeclass is known
+            INode node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType, NodeClass.DataType, false);
+            ValidateDataTypeDefinition(node);
+        }
+
+        [Test]
+        public async Task ReadDataTypeDefinition2Async()
+        {
+            // Test Read a DataType Node, the nodeclass is known
+            INode node = await Session.ReadNodeAsync(DataTypeIds.ProgramDiagnosticDataType, NodeClass.DataType, false).ConfigureAwait(false);
+            ValidateDataTypeDefinition(node);
+        }
+
+        [Test]
+        public void ReadDataTypeDefinitionNodes()
+        {
+            // Test Read a DataType Node, the nodeclass is known
+            Session.ReadNodes(new NodeIdCollection() { DataTypeIds.ProgramDiagnosticDataType }, NodeClass.DataType, out NodeCollection nodes, out IList<ServiceResult> errors, false);
+            ValidateDataTypeDefinition(nodes[0]);
+        }
+
+        [Test]
+        public async Task ReadDataTypeDefinitionNodesAsync()
+        {
+            // Test Read a DataType Node, the nodeclass is known
+            (var nodes, var errors) = await Session.ReadNodesAsync(new NodeIdCollection() { DataTypeIds.ProgramDiagnosticDataType }, NodeClass.DataType, false).ConfigureAwait(false);
+            Assert.AreEqual(nodes.Count, errors.Count);
+            ValidateDataTypeDefinition(nodes[0]);
+        }
+
+
+        private void ValidateDataTypeDefinition(INode node)
+        {
             Assert.NotNull(node);
             var dataTypeNode = (DataTypeNode)node;
             Assert.NotNull(dataTypeNode);
@@ -569,7 +717,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(550)]
-        public async Task Read()
+        public async Task ReadNode()
         {
             if (ReferenceDescriptions == null)
             {
@@ -598,8 +746,150 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+        [Test, Order(550)]
+        public async Task ReadNodeAsync()
+        {
+            if (ReferenceDescriptions == null)
+            {
+                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+            }
+
+            foreach (var reference in ReferenceDescriptions.Take(MaxReferences))
+            {
+                var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                INode node = await Session.ReadNodeAsync(nodeId).ConfigureAwait(false);
+                Assert.NotNull(node);
+                TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
+                if (node is VariableNode)
+                {
+                    try
+                    {
+                        var value = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
+                        Assert.NotNull(value);
+                        TestContext.Out.WriteLine("-- Value {0} ", value);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        TestContext.Out.WriteLine("-- Read Value {0} ", sre.Message);
+                    }
+                }
+            }
+        }
+
+        [Test, Order(560)]
+        public async Task ReadNodes()
+        {
+            if (ReferenceDescriptions == null)
+            {
+                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+            }
+
+            NodeIdCollection nodes = new NodeIdCollection(
+                ReferenceDescriptions.Take(MaxReferences).Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
+                );
+            Session.ReadNodes(nodes, out NodeCollection nodeCollection, out IList<ServiceResult> errors);
+            Assert.NotNull(nodeCollection);
+            Assert.NotNull(errors);
+            Assert.AreEqual(nodes.Count, nodeCollection.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+
+
+            int ii = 0;
+            var variableNodes = new NodeIdCollection();
+            foreach (Node node in nodeCollection)
+            {
+                Assert.NotNull(node);
+                Assert.AreEqual(ServiceResult.Good, errors[ii]);
+                TestContext.Out.WriteLine("NodeId: {0} Node: {1}", node.NodeId, node);
+                if (node is VariableNode)
+                {
+                    try
+                    {
+                        variableNodes.Add(node.NodeId);
+                        var value = Session.ReadValue(node.NodeId);
+                        Assert.NotNull(value);
+                        TestContext.Out.WriteLine("-- Value {0} ", value);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        TestContext.Out.WriteLine("-- Read Value {0} ", sre.Message);
+                    }
+                }
+                ii++;
+            }
+
+            Session.ReadValues(nodes, out DataValueCollection values, out errors);
+
+            Assert.NotNull(values);
+            Assert.AreEqual(nodes.Count, values.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+
+            Session.ReadValues(variableNodes, out values, out errors);
+
+            Assert.NotNull(values);
+            Assert.AreEqual(variableNodes.Count, values.Count);
+            Assert.AreEqual(variableNodes.Count, errors.Count);
+        }
+
+        [Test, Order(570)]
+        public async Task ReadNodesAsync()
+        {
+            if (ReferenceDescriptions == null)
+            {
+                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+            }
+
+            NodeIdCollection nodes = new NodeIdCollection(
+                ReferenceDescriptions.Take(MaxReferences).Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
+                );
+            (NodeCollection nodeCollection, IList<ServiceResult> errors) = await Session.ReadNodesAsync(nodes).ConfigureAwait(false);
+            Assert.NotNull(nodeCollection);
+            Assert.NotNull(errors);
+            Assert.AreEqual(nodes.Count, nodeCollection.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+
+            int ii = 0;
+            var variableNodes = new NodeIdCollection();
+            foreach (Node node in nodeCollection)
+            {
+                Assert.NotNull(node);
+                Assert.AreEqual(ServiceResult.Good, errors[ii]);
+                TestContext.Out.WriteLine("NodeId: {0} Node: {1}", node.NodeId, node);
+                if (node is VariableNode)
+                {
+                    try
+                    {
+                        variableNodes.Add(node.NodeId);
+                        var value = await Session.ReadValueAsync(node.NodeId).ConfigureAwait(false);
+                        Assert.NotNull(value);
+                        TestContext.Out.WriteLine("-- Value {0} ", value);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        TestContext.Out.WriteLine("-- Read Value {0} ", sre.Message);
+                    }
+                }
+                ii++;
+            }
+
+            DataValueCollection values;
+            (values, errors) = await Session.ReadValuesAsync(nodes).ConfigureAwait(false);
+
+            Assert.NotNull(values);
+            Assert.NotNull(errors);
+            Assert.AreEqual(nodes.Count, values.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+
+            (values, errors) = await Session.ReadValuesAsync(variableNodes).ConfigureAwait(false);
+
+            Assert.NotNull(values);
+            Assert.NotNull(errors);
+            Assert.AreEqual(variableNodes.Count, values.Count);
+            Assert.AreEqual(variableNodes.Count, errors.Count);
+        }
+
         [Test, Order(600)]
-        public async Task NodeCache_Read()
+        public async Task NodeCacheRead()
         {
             if (ReferenceDescriptions == null)
             {

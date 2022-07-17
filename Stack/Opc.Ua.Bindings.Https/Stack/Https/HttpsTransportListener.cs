@@ -334,7 +334,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                if (!context.Request.Headers.TryGetValue("OPCUA-SecurityPolicy", out var header))
+                if (!context.Request.Headers.TryGetValue(Profiles.HttpsSecurityPolicyHeader, out var header))
                 {
                     header = SecurityPolicies.None;
                 }
