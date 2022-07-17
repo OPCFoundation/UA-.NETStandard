@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace Opc.Ua.Client
@@ -568,6 +569,59 @@ namespace Opc.Ua.Client
             m_nodes.Attach(source);
 
             return source;
+        }
+
+        /// <inheritdoc/>
+        public NodeCollection FetchNodes(ExpandedNodeIdCollection nodeIds)
+        {
+            NodeIdCollection localIds = new NodeIdCollection(
+                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris)));
+            int count = localIds.Count;
+
+            // fetch nodes from server.
+            m_session.ReadNodes(localIds, out NodeCollection sourceNodes, out IList<ServiceResult> errors);
+
+            int ii = 0;
+            for (ii = 0; ii < count; ii++)
+            {
+                if (ServiceResult.IsBad(errors[ii]))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    // fetch references from server.
+                    ReferenceDescriptionCollection references = m_session.FetchReferences(localIds[ii]);
+
+                    foreach (ReferenceDescription reference in references)
+                    {
+                        // create a placeholder for the node if it does not already exist.
+                        if (!m_nodes.Exists(reference.NodeId))
+                        {
+                            // transform absolute identifiers.
+                            if (reference.NodeId != null && reference.NodeId.IsAbsolute)
+                            {
+                                reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
+                            }
+
+                            Node target = new Node(reference);
+                            m_nodes.Attach(target);
+                        }
+
+                        // add the reference.
+                        sourceNodes[ii].ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Utils.LogError("Could not fetch references for valid node with NodeId = {0}. Error = {1}", localIds[ii], e.Message);
+                }
+
+                // add to cache.
+                m_nodes.Attach(sourceNodes[ii]);
+            }
+            return sourceNodes;
         }
 
         /// <inheritdoc/>
