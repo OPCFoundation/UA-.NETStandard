@@ -385,7 +385,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                         structureDefinition = structuredObject.ToStructureDefinition(
                                             binaryEncodingId,
                                             typeDictionary,
-                                            m_session.NamespaceUris,
+                                            m_complexTypeResolver.NamespaceUris,
                                             dataTypeNode.NodeId);
                                     }
                                     catch (DataTypeNotSupportedException)

@@ -127,10 +127,5 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Finish the type creation and returns the new type.
         /// </summary>
         Type CreateType();
-
-        /// <summary>
-        /// The type of the structure of the field.
-        /// </summary>
-        Type GetStructureType(int valueRank);
     }
 }//namespace
