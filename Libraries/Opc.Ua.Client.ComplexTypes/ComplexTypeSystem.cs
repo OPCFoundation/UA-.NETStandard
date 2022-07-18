@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -385,7 +385,8 @@ namespace Opc.Ua.Client.ComplexTypes
                                         structureDefinition = structuredObject.ToStructureDefinition(
                                             binaryEncodingId,
                                             typeDictionary,
-                                            m_complexTypeResolver.NamespaceUris);
+                                            m_session.NamespaceUris,
+                                            dataTypeNode.NodeId);
                                     }
                                     catch (DataTypeNotSupportedException)
                                     {

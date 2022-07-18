@@ -130,7 +130,7 @@ namespace Opc.Ua.Server
             {
                 // stop the monitoring thread.
                 m_shutdownEvent.Set();
-
+                
                 // dispose of session objects.
                 foreach (Session session in m_sessions.Values)
                 {
@@ -282,7 +282,11 @@ namespace Opc.Ua.Server
                 // check if session timeout has expired.
                 if (session.HasExpired)
                 {
+                    // raise audit event for session closed because of timeout
+                    m_server.ReportAuditCloseSessionEvent(null, session, "Session/Timeout");
+
                     m_server.CloseSession(null, session.Id, false);
+
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
@@ -593,6 +597,9 @@ namespace Opc.Ua.Server
                                 m_server.ServerDiagnostics.SessionTimeoutCount++;
                             }
 
+                            // raise audit event for session closed because of timeout
+                            m_server.ReportAuditCloseSessionEvent(null, sessions[ii], "Session/Timeout");
+
                             m_server.CloseSession(null, sessions[ii].Id, false);
                         }
                     }
@@ -744,6 +751,20 @@ namespace Opc.Ua.Server
                 return new List<Session>(m_sessions.Values);
             }
         }
+
+
+        /// <inheritdoc/>
+        public Session GetSession(NodeId authenticationToken)
+        {
+
+            Session session = null;
+            lock (m_lock)
+            {
+                // find session.
+                m_sessions.TryGetValue(authenticationToken, out session);
+            }
+            return session;
+        }
         #endregion
     }
 
@@ -785,6 +806,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <returns>A list of the sessions.</returns>
         IList<Session> GetSessions();
+
+        /// <summary>
+        /// Find and return a session specified by authentication token
+        /// </summary>
+        /// <returns>The requested session.</returns>
+        Session GetSession(NodeId authenticationToken);
     }
 
     /// <summary>

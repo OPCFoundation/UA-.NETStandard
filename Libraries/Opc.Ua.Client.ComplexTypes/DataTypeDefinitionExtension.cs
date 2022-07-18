@@ -62,7 +62,8 @@ namespace Opc.Ua.Client.ComplexTypes
             this Schema.Binary.StructuredType structuredType,
             ExpandedNodeId defaultEncodingId,
             Dictionary<XmlQualifiedName, NodeId> typeDictionary,
-            NamespaceTable namespaceTable)
+            NamespaceTable namespaceTable,
+            NodeId dataTypeNodeId)
         {
             var structureDefinition = new StructureDefinition() {
                 BaseDataType = null,
@@ -159,18 +160,20 @@ namespace Opc.Ua.Client.ComplexTypes
                     throw new DataTypeNotSupportedException(
                         "Bitwise option selectors must have 32 bits.");
                 }
-
-                var dataType = field.TypeName.ToNodeId(typeDictionary);
-                if (NodeId.IsNull(dataType))
+                NodeId fieldDataTypeNodeId;
+                if(field.TypeName == structuredType.QName)
                 {
-                    // the type name was not found in the type dictionary
-                    return null;
+                    // recursive type
+                    fieldDataTypeNodeId = dataTypeNodeId;
                 }
-
+                else
+                {
+                    fieldDataTypeNodeId = field.TypeName.ToNodeId(typeDictionary);
+                }
                 var dataTypeField = new StructureField() {
                     Name = field.Name,
                     Description = null,
-                    DataType = dataType,
+                    DataType = fieldDataTypeNodeId,
                     IsOptional = false,
                     MaxStringLength = 0,
                     ArrayDimensions = null,
@@ -187,7 +190,7 @@ namespace Opc.Ua.Client.ComplexTypes
                             "The length field must precede the type field of an array.");
                     }
                     lastField.Name = field.Name;
-                    lastField.DataType = dataType;
+                    lastField.DataType = fieldDataTypeNodeId;
                     lastField.ValueRank = 1;
                 }
                 else
