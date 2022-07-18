@@ -1093,15 +1093,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 var isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_session.NamespaceUris), field.DataType);
                 if (isRecursiveDataType)
                 {
-                    if (field.ValueRank < 0) // scalar
-                    {
-                        fieldBuilder.AddField(field, fieldBuilder.StructureTypeBuilder, order);
-                    }
-                    else // array
-                    {
-                        var arrayType = fieldBuilder.StructureTypeBuilder.MakeArrayType();
-                        fieldBuilder.AddField(field, arrayType, order);
-                    }
+                    fieldBuilder.AddField(field, fieldBuilder.GetStructureType(field.ValueRank), order);
                 }
                 else
                 {

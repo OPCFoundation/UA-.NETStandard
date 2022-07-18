@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Reflection.Emit;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -125,8 +124,8 @@ namespace Opc.Ua.Client.ComplexTypes
         Type CreateType();
 
         /// <summary>
-        /// Defines and creates types at runtime
+        /// The type of the structure of the field.
         /// </summary>
-        TypeBuilder StructureTypeBuilder { get; }
+        Type GetStructureType(int valueRank);
     }
 }//namespace

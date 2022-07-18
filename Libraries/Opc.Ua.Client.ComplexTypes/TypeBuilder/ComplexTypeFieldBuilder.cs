@@ -54,9 +54,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion Constructors
 
         #region Public Properties
-        /// <summary>
-        /// Build the StructureTypeId attribute for a complex type.
-        /// </summary>
+        /// <inheritdoc/>
         public void AddTypeIdAttribute(
             ExpandedNodeId complexTypeId,
             ExpandedNodeId binaryEncodingId,
@@ -70,9 +68,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 );
         }
 
-        /// <summary>
-        /// Create a property field of a class with get and set.
-        /// </summary>
+        /// <inheritdoc/>
         public void AddField(StructureField field, Type fieldType, int order)
         {
             var fieldBuilder = m_structureBuilder.DefineField("_" + field.Name, fieldType, FieldAttributes.Private);
@@ -116,9 +112,7 @@ namespace Opc.Ua.Client.ComplexTypes
             propertyBuilder.StructureFieldAttribute(field);
         }
 
-        /// <summary>
-        /// Finish the type creation and returns the new type.
-        /// </summary>
+        /// <inheritdoc/>
         public Type CreateType()
         {
             var complexType = m_structureBuilder.CreateType();
@@ -126,14 +120,24 @@ namespace Opc.Ua.Client.ComplexTypes
             return complexType;
         }
 
-        /// <summary>
-        /// Defines and creates types
-        /// </summary>
-        public TypeBuilder StructureTypeBuilder { get => this.m_structureBuilder; }
+        /// <inheritdoc/>
+        public Type GetStructureType(int valueRank)
+        {
+            if (valueRank == ValueRanks.Scalar)
+            {
+                return m_structureBuilder;
+            }
+            else if (valueRank >= ValueRanks.OneDimension)
+            {
+                return m_structureBuilder.MakeArrayType(valueRank);
+            }
+            else
+            {
+                // invalid
+                return null;
+            }
+        }
         #endregion Public Properties
-
-        #region Internal Properties
-        #endregion
 
         #region Private Member
         private TypeBuilder m_structureBuilder;
