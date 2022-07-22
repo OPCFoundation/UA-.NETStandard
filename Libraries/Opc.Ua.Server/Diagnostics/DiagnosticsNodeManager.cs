@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 
@@ -744,6 +745,8 @@ namespace Opc.Ua.Server
                 diagnosticsValue.Error = StatusCodes.BadWaitingForInitialData;
                 diagnosticsValue.CopyPolicy = Opc.Ua.VariableCopyPolicy.Never;
                 diagnosticsValue.OnBeforeRead = OnBeforeReadDiagnostics;
+                // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
+                diagnosticsNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
 
                 m_serverDiagnostics = diagnosticsValue;
                 m_serverDiagnosticsCallback = updateCallback;
@@ -776,6 +779,8 @@ namespace Opc.Ua.Server
                 if (array3 != null)
                 {
                     array3.OnSimpleReadValue = OnReadDiagnosticsArray;
+                    // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
+                    array3.OnReadUserRolePermissions = OnReadUserRolePermissions;
                 }
 
                 // send initial update.
@@ -831,6 +836,9 @@ namespace Opc.Ua.Server
                 {
                     summary.AddReference(ReferenceTypeIds.HasComponent, false, sessionNode.NodeId);
                 }
+
+                // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
+                sessionNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
 
                 // initialize diagnostics node.
                 SessionDiagnosticsVariableState diagnosticsNode = sessionNode.CreateChild(
@@ -1322,6 +1330,128 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Set custom role permissions for desired node
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="node"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        private ServiceResult OnReadUserRolePermissions(
+        ISystemContext context,
+        NodeState node,
+        ref RolePermissionTypeCollection value)
+        {
+            bool admitUser;
+
+            if ((node.NodeId == VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary) ||
+                 (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray))
+            {
+                admitUser = HasApplicationSecureAdminAccess(context);
+            }
+            else
+            {
+                admitUser = (node.NodeId == context.SessionId) ||
+                            HasApplicationSecureAdminAccess(context);
+            }
+
+            if (admitUser)
+            {
+                value = new RolePermissionTypeCollection()
+                {
+                        // allow access to users in all roles in this case
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Anonymous,
+                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Engineer,
+                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Observer,
+                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Operator,
+                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Supervisor,
+                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                        },
+                };
+            }
+            else
+            {
+                value = new RolePermissionTypeCollection()
+                 {
+                        // deny access to users in all roles in this case
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                            Permissions = (uint)PermissionType.None,
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Anonymous,
+                            Permissions = (uint)PermissionType.None,
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                            Permissions = (uint)PermissionType.None,
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+                            Permissions = (uint)PermissionType.None,
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Engineer,
+                            Permissions = (uint)PermissionType.None,
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Observer,
+                            Permissions = (uint)PermissionType.None,
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Operator,
+                            Permissions = (uint)PermissionType.None,
+                        },
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Supervisor,
+                            Permissions = (uint)PermissionType.None,
+                        },
+                };
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
         /// Does a scan before the diagnostics are read.
         /// </summary>
         private void OnBeforeReadDiagnostics(
@@ -1377,6 +1507,20 @@ namespace Opc.Ua.Server
                         UpdateSessionDiagnostics(diagnostics, sessionArray, ii);
                     }
 
+                    // filter out the members which corespond to users that are not allowed to see their contents
+                    SessionDiagnosticsDataType[] selectedToPass = new SessionDiagnosticsDataType[m_sessions.Count];
+                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    {
+                        // Current user is allowed to read its SessionDiagnostics
+                        // together with users which have permissions
+                        if ((sessionArray[ii].SessionId == context.SessionId) ||
+                            HasApplicationSecureAdminAccess(context))
+                        {
+                            selectedToPass[ii] = sessionArray[ii];
+                        }
+                    }
+                    sessionArray = selectedToPass.Where(s => s != null).ToArray();
+
                     value = sessionArray;
                 }
                 else if (node.NodeId == VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray)
@@ -1388,6 +1532,20 @@ namespace Opc.Ua.Server
                     {
                         UpdateSessionSecurityDiagnostics(m_sessions[ii], sessionSecurityArray, ii);
                     }
+
+                    // filter out the members which corespond to users that are not allowed to see their contents
+                    SessionSecurityDiagnosticsDataType[] selectedToPass = new SessionSecurityDiagnosticsDataType[m_sessions.Count];
+                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    {
+                        // Current user is allowed to read its SessionSecurityDiagnostics
+                        // together with users which have permissions
+                        if ((sessionSecurityArray[ii].SessionId == context.SessionId) ||
+                            HasApplicationSecureAdminAccess(context))
+                        {
+                            selectedToPass[ii] = sessionSecurityArray[ii];
+                        }
+                    }
+                    sessionSecurityArray = selectedToPass.Where(s => s != null).ToArray();
 
                     value = sessionSecurityArray;
                 }
@@ -1401,12 +1559,56 @@ namespace Opc.Ua.Server
                         UpdateSubscriptionDiagnostics(m_subscriptions[ii], subscriptionArray, ii);
                     }
 
+                    // filter out the members which corespond to users that are not allowed to see their contents
+                    SubscriptionDiagnosticsDataType[] selectedToPass = new SubscriptionDiagnosticsDataType[m_sessions.Count];
+                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    {
+                        // Current user is allowed to read its SubscriptionDiagnostics
+                        // together with users which have permissions
+                        if ((subscriptionArray[ii].SessionId == context.SessionId) ||
+                            HasApplicationSecureAdminAccess(context))
+                        {
+                            selectedToPass[ii] = subscriptionArray[ii];
+                        }
+                    }
+                    subscriptionArray = selectedToPass.Where(s => s != null).ToArray();
+
                     value = subscriptionArray;
                 }
 
                 return ServiceResult.Good;
             }
         }
+
+        /// <summary>
+        /// Determine if the impersonated user has admin access.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <exception cref="ServiceResultException"/>
+        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
+        private bool HasApplicationSecureAdminAccess(ISystemContext context)
+        {
+            OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
+            if (operationContext != null)
+            {
+                if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+                {
+                    return false;
+                }
+
+                SystemConfigurationIdentity user = context.UserIdentity as SystemConfigurationIdentity;
+                if (user == null ||
+                    user.TokenType == UserTokenType.Anonymous ||
+                    !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+            return false;
+        }
+ 
 
         /// <summary>
         /// Reports notifications for any monitored diagnostic nodes.
