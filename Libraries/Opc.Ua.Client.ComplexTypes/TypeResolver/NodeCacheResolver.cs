@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -71,6 +72,33 @@ namespace Opc.Ua.Client.ComplexTypes
 
         /// <inheritdoc/>
         public IList<NodeId> BrowseForEncodings(
+            IList<ExpandedNodeId> nodeIds,
+            string[] supportedEncodings
+            )
+        {
+            // cache type encodings
+            var encodings = m_session.NodeCache.FindReferences(
+                 nodeIds,
+                 ReferenceTypeIds.HasEncoding,
+                 false,
+                 false
+                 );
+
+            // cache dictionary descriptions
+            nodeIds = encodings.Select(r => r.NodeId).ToList();
+            var descriptions = m_session.NodeCache.FindReferences(
+                nodeIds,
+                ReferenceTypeIds.HasDescription,
+                false,
+                false
+                );
+
+            return encodings.Where(r => supportedEncodings.Contains(r.BrowseName.Name))
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)).ToList();
+        }
+
+        /// <inheritdoc/>
+        public IList<NodeId> BrowseForEncodings(
             ExpandedNodeId nodeId,
             string[] supportedEncodings,
             out ExpandedNodeId binaryEncodingId,
@@ -82,6 +110,7 @@ namespace Opc.Ua.Client.ComplexTypes
                  false,
                  false
                  );
+
             binaryEncodingId = references.FirstOrDefault(r => r.BrowseName.Name == BrowseNames.DefaultBinary)?.NodeId;
             binaryEncodingId = NormalizeExpandedNodeId(binaryEncodingId);
             xmlEncodingId = references.FirstOrDefault(r => r.BrowseName.Name == BrowseNames.DefaultXml)?.NodeId;
@@ -137,10 +166,13 @@ namespace Opc.Ua.Client.ComplexTypes
             bool addRootNode = false,
             bool filterUATypes = true)
         {
+            var stopwatch = new Stopwatch();
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection {
                 dataType
             };
+
+            stopwatch.Start();
 
             if (addRootNode)
             {
@@ -154,31 +186,32 @@ namespace Opc.Ua.Client.ComplexTypes
 
             while (nodesToBrowse.Count > 0)
             {
-                var nextNodesToBrowse = new ExpandedNodeIdCollection();
-                foreach (var node in nodesToBrowse)
-                {
-                    var response = m_session.NodeCache.FindReferences(
-                        node,
-                        ReferenceTypeIds.HasSubtype,
-                        false,
-                        false);
+                var response = m_session.NodeCache.FindReferences(
+                    nodesToBrowse,
+                    ReferenceTypeIds.HasSubtype,
+                    false,
+                    false);
 
-                    if (nestedSubTypes)
-                    {
-                        nextNodesToBrowse.AddRange(response.Select(r => r.NodeId).ToList());
-                    }
-                    if (filterUATypes)
-                    {
-                        // filter out default namespace
-                        result.AddRange(response.Where(rd => rd.NodeId.NamespaceIndex != 0));
-                    }
-                    else
-                    {
-                        result.AddRange(response);
-                    }
+                var nextNodesToBrowse = new ExpandedNodeIdCollection();
+                if (nestedSubTypes)
+                {
+                    nextNodesToBrowse.AddRange(response.Select(r => r.NodeId).ToList());
+                }
+
+                if (filterUATypes)
+                {
+                    // filter out default namespace
+                    result.AddRange(response.Where(rd => rd.NodeId.NamespaceIndex != 0));
+                }
+                else
+                {
+                    result.AddRange(response);
                 }
                 nodesToBrowse = nextNodesToBrowse;
             }
+
+            stopwatch.Stop();
+            Utils.LogInfo("LoadDataTypes returns {0} nodes in {1}ms", result.Count, stopwatch.ElapsedMilliseconds);
 
             return result;
         }

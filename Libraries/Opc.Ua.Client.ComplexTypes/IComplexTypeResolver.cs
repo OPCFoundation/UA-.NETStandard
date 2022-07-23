@@ -80,6 +80,16 @@ namespace Opc.Ua.Client.ComplexTypes
             out DataTypeNode dataTypeNode);
 
         /// <summary>
+        /// Browse for the encodings of a datatype list.
+        /// </summary>
+        /// <remarks>
+        /// Is called to allow for caching of encoding information on the client.
+        /// </remarks>
+        IList<NodeId> BrowseForEncodings(
+            IList<ExpandedNodeId> nodeIds,
+            string[] supportedEncodings);
+        
+        /// <summary>
         /// Browse for the encodings of a type.
         /// </summary>
         /// <remarks>

@@ -74,6 +74,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         /// <inheritdoc/>
+        public IList<NodeId> BrowseForEncodings(IList<ExpandedNodeId> nodeIds, string[] supportedEncodings)
+        {
+            return new List<NodeId>();
+        }
+
+        /// <inheritdoc/>
         public IList<NodeId> BrowseForEncodings(
             ExpandedNodeId nodeId,
             string[] supportedEncodings,
