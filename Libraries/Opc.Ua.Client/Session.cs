@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -248,6 +249,7 @@ namespace Opc.Ua.Client
             m_sessionTimeout = 0;
             m_namespaceUris = new NamespaceTable();
             m_serverUris = new StringTable();
+            m_operationLimits = new OperationLimits();
             m_factory = EncodeableFactory.GlobalFactory;
             m_nodeCache = new NodeCache(this);
             m_configuration = null;
@@ -542,9 +544,15 @@ namespace Opc.Ua.Client
         public NamespaceTable NamespaceUris => m_namespaceUris;
 
         /// <summary>
-        /// Gest the table of remote server uris known to the server.
+        /// Gets the table of remote server uris known to the server.
         /// </summary>
         public StringTable ServerUris => m_serverUris;
+
+
+        /// <summary>
+        /// Contains the operation limits used by the client for the server.
+        /// </summary>
+        public OperationLimits OperationLimits => m_operationLimits;
 
         /// <summary>
         /// Gets the system context for use with the session.
@@ -1436,32 +1444,29 @@ namespace Opc.Ua.Client
             ReadValueIdCollection nodesToRead = new ReadValueIdCollection();
 
             // request namespace array.
-            ReadValueId valueId = new ReadValueId();
-
-            valueId.NodeId = Variables.Server_NamespaceArray;
-            valueId.AttributeId = Attributes.Value;
+            ReadValueId valueId = new ReadValueId {
+                NodeId = Variables.Server_NamespaceArray,
+                AttributeId = Attributes.Value
+            };
 
             nodesToRead.Add(valueId);
 
             // request server array.
-            valueId = new ReadValueId();
-
-            valueId.NodeId = Variables.Server_ServerArray;
-            valueId.AttributeId = Attributes.Value;
+            valueId = new ReadValueId {
+                NodeId = Variables.Server_ServerArray,
+                AttributeId = Attributes.Value
+            };
 
             nodesToRead.Add(valueId);
 
             // read from server.
-            DataValueCollection values = null;
-            DiagnosticInfoCollection diagnosticInfos = null;
-
             ResponseHeader responseHeader = this.Read(
                 null,
                 0,
                 TimestampsToReturn.Both,
                 nodesToRead,
-                out values,
-                out diagnosticInfos);
+                out DataValueCollection values,
+                out DiagnosticInfoCollection diagnosticInfos);
 
             ValidateResponse(values, nodesToRead);
             ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
@@ -1492,6 +1497,57 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Fetch the operation limits of the server.
+        /// </summary>
+        public void FetchOperationLimits()
+        {
+            try
+            {
+                var operationLimitsProperties = typeof(OperationLimits)
+                    .GetProperties().Select(p => p.Name).ToList();
+
+                var nodeIds = new NodeIdCollection(
+                    operationLimitsProperties.Select(name => (NodeId)typeof(VariableIds)
+                    .GetField("Server_ServerCapabilities_OperationLimits_" + name, BindingFlags.Public | BindingFlags.Static)
+                    .GetValue(null))
+                    );
+
+                ReadValues(nodeIds, Enumerable.Repeat(typeof(uint), nodeIds.Count).ToList(), out var values, out var errors);
+
+                var configOperationLimits = m_configuration.ClientConfiguration.OperationLimits;
+                var operationLimits = new OperationLimits();
+
+                for (int ii = 0; ii < nodeIds.Count; ii++)
+                {
+                    var property = typeof(OperationLimits).GetProperty(operationLimitsProperties[ii]);
+                    uint value = (uint)property.GetValue(configOperationLimits);
+                    if (values[ii] != null &&
+                        ServiceResult.IsNotBad(errors[ii]))
+                    {
+                        uint serverValue = (uint)values[ii];
+                        if (serverValue > 0 &&
+                           (value == 0 || serverValue < value))
+                        {
+                            value = serverValue;
+                        }
+                    }
+                    property.SetValue(operationLimits, value);
+                }
+
+                m_operationLimits = operationLimits;
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Failed to read operation limits from server. Using configuration defaults.");
+                var operationLimits = m_configuration?.ClientConfiguration?.OperationLimits;
+                if (operationLimits != null)
+                {
+                    m_operationLimits = operationLimits;
+                }
+            }
+        }
+
+        /// <summary>
         /// Updates the cache with the type and its subtypes.
         /// </summary>
         /// <remarks>
@@ -1503,10 +1559,44 @@ namespace Opc.Ua.Client
 
             if (node != null)
             {
+                var subTypes = new ExpandedNodeIdCollection();
                 foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
                 {
-                    FetchTypeTree(reference.TargetId);
+                    subTypes.Add(reference.TargetId);
                 }
+                if (subTypes.Count > 0)
+                {
+                    FetchTypeTree(subTypes);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Updates the cache with the types and its subtypes.
+        /// </summary>
+        /// <remarks>
+        /// This method can be used to ensure the TypeTree is populated.
+        /// </remarks>
+        public void FetchTypeTree(ExpandedNodeIdCollection typeIds)
+        {
+            IList<INode> nodes = NodeCache.FindReferences(typeIds, ReferenceTypeIds.HasSubtype, false, false);
+            var subTypes = new ExpandedNodeIdCollection();
+            foreach (INode inode in nodes)
+            {
+                if (inode is Node node)
+                {
+                    foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
+                    {
+                        if (!typeIds.Contains(reference.TargetId))
+                        {
+                            subTypes.Add(reference.TargetId);
+                        }
+                    }
+                }
+            }
+            if (subTypes.Count > 0)
+            {
+                FetchTypeTree(subTypes);
             }
         }
 
@@ -1723,13 +1813,13 @@ namespace Opc.Ua.Client
         /// and passed as nodeClass, reads only values of required attributes.
         /// Otherwise NodeClass.Unspecified should be used.
         /// </remarks>
-        /// <param name="nodeIdCollection">The nodeId collection to read.</param>
+        /// <param name="nodeIds">The nodeId collection to read.</param>
         /// <param name="nodeClass">The nodeClass of all nodes in the collection. Set to <c>NodeClass.Unspecified</c> if the nodeclass is unknown.</param>
         /// <param name="nodeCollection">The node collection that is created from attributes read from the server.</param>
         /// <param name="errors">The errors that occured reading the nodes.</param>
         /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
         public void ReadNodes(
-            NodeIdCollection nodeIdCollection,
+            IList<NodeId> nodeIds,
             NodeClass nodeClass,
             out NodeCollection nodeCollection,
             out IList<ServiceResult> errors,
@@ -1737,19 +1827,19 @@ namespace Opc.Ua.Client
         {
             if (nodeClass == NodeClass.Unspecified)
             {
-                ReadNodes(nodeIdCollection, out nodeCollection, out errors, optionalAttributes);
+                ReadNodes(nodeIds, out nodeCollection, out errors, optionalAttributes);
                 return;
             }
 
-            nodeCollection = new NodeCollection(nodeIdCollection.Count);
-            errors = new ServiceResult[nodeIdCollection.Count].ToList();
+            nodeCollection = new NodeCollection(nodeIds.Count);
+            errors = new ServiceResult[nodeIds.Count].ToList();
 
             // determine attributes to read for nodeclass
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIdCollection.Count].ToList();
+            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIds.Count].ToList();
             var attributesToRead = new ReadValueIdCollection();
 
             CreateNodeClassAttributesReadNodesRequest(
-                nodeIdCollection, nodeClass,
+                nodeIds, nodeClass,
                 attributesToRead, attributesPerNodeId,
                 nodeCollection, optionalAttributes);
 
@@ -1776,21 +1866,28 @@ namespace Opc.Ua.Client
         /// Reads the nodeclass of the nodeIds, then reads
         /// the values for the node attributes and returns a node object collection.
         /// </summary>
-        /// <param name="nodeIdCollection">The nodeId collection.</param>
+        /// <param name="nodeIds">The nodeId collection.</param>
         /// <param name="nodeCollection">The node collection read from the server.</param>
         /// <param name="errors">The errors occured reading the nodes.</param>
         /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
         public void ReadNodes(
-            NodeIdCollection nodeIdCollection,
+            IList<NodeId> nodeIds,
             out NodeCollection nodeCollection,
             out IList<ServiceResult> errors,
             bool optionalAttributes = false)
         {
-            nodeCollection = new NodeCollection(nodeIdCollection.Count);
+            int count = nodeIds.Count;
+            nodeCollection = new NodeCollection(count);
+
+            if (count == 0)
+            {
+                errors = new List<ServiceResult>();
+                return;
+            }
 
             // first read only nodeclasses for nodes from server.
             var itemsToRead = new ReadValueIdCollection(
-                nodeIdCollection.Select(nodeId =>
+                nodeIds.Select(nodeId =>
                     new ReadValueId {
                         NodeId = nodeId,
                         AttributeId = Attributes.NodeClass
@@ -1798,21 +1895,33 @@ namespace Opc.Ua.Client
 
             DataValueCollection nodeClassValues = null;
             DiagnosticInfoCollection diagnosticInfos = null;
+            ResponseHeader responseHeader = null;
 
-            ResponseHeader responseHeader = Read(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                itemsToRead,
-                out nodeClassValues,
-                out diagnosticInfos);
+            if (count > 1)
+            {
+                responseHeader = Read(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    itemsToRead,
+                    out nodeClassValues,
+                    out diagnosticInfos);
 
-            ClientBase.ValidateResponse(nodeClassValues, itemsToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+                ClientBase.ValidateResponse(nodeClassValues, itemsToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+            }
+            else
+            {
+                // for a single node read all attributes to skip the first service call
+                nodeClassValues = new DataValueCollection() {
+                    new DataValue(new Variant((int)NodeClass.Unspecified),
+                    statusCode: StatusCodes.Good)
+                    };
+            }
 
             // second determine attributes to read per nodeclass
-            errors = new ServiceResult[nodeIdCollection.Count].ToList();
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIdCollection.Count].ToList();
+            errors = new ServiceResult[count].ToList();
+            var attributesPerNodeId = new IDictionary<uint, DataValue>[count].ToList();
             var attributesToRead = new ReadValueIdCollection();
 
             CreateAttributesReadNodesRequest(
@@ -1822,16 +1931,33 @@ namespace Opc.Ua.Client
                 nodeCollection, errors,
                 optionalAttributes);
 
-            responseHeader = Read(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                attributesToRead,
-                out DataValueCollection values,
-                out diagnosticInfos);
+            DataValueCollection values = new DataValueCollection();
+            while (attributesToRead.Count > values.Count)
+            {
+                ReadValueIdCollection chunkAttributesToRead;
+                if (OperationLimits.MaxNodesPerRead > 0 &&
+                    (attributesToRead.Count - values.Count) > OperationLimits.MaxNodesPerRead)
+                {
+                    chunkAttributesToRead = new ReadValueIdCollection(attributesToRead.Skip(values.Count).Take((int)OperationLimits.MaxNodesPerRead));
+                }
+                else
+                {
+                    chunkAttributesToRead = new ReadValueIdCollection(attributesToRead.Skip(values.Count));
+                }
 
-            ClientBase.ValidateResponse(values, attributesToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
+                responseHeader = Read(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    chunkAttributesToRead,
+                    out DataValueCollection chunkValues,
+                    out diagnosticInfos);
+
+                ClientBase.ValidateResponse(chunkValues, chunkAttributesToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, chunkAttributesToRead);
+
+                values.AddRange(chunkValues);
+            }
 
             ProcessAttributesReadNodesResponse(
                 responseHeader,
@@ -1941,10 +2067,17 @@ namespace Opc.Ua.Client
         /// <param name="values">The data values read from the server.</param>
         /// <param name="errors">The errors reported by the server.</param>
         public void ReadValues(
-            NodeIdCollection nodeIds,
+            IList<NodeId> nodeIds,
             out DataValueCollection values,
             out IList<ServiceResult> errors)
         {
+            if (nodeIds.Count == 0)
+            {
+                values = new DataValueCollection();
+                errors = new List<ServiceResult>();
+                return;
+            }
+
             // read all values from server.
             var itemsToRead = new ReadValueIdCollection(
                 nodeIds.Select(nodeId =>
@@ -1967,14 +2100,16 @@ namespace Opc.Ua.Client
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
+            int ii = 0;
             foreach (var value in values)
             {
                 ServiceResult result = ServiceResult.Good;
-                if (StatusCode.IsBad(value.StatusCode))
+                if (StatusCode.IsNotGood(value.StatusCode))
                 {
-                    result = ClientBase.GetResult(values[0].StatusCode, 0, diagnosticInfos, responseHeader);
+                    result = ClientBase.GetResult(value.StatusCode, ii, diagnosticInfos, responseHeader);
                 }
                 errors.Add(result);
+                ii++;
             }
         }
 
@@ -2051,6 +2186,80 @@ namespace Opc.Ua.Client
             }
 
             return descriptions;
+        }
+
+        /// <summary>
+        /// Fetches all references for the specified nodes.
+        /// </summary>
+        /// <param name="nodeIds">The node id collection.</param>
+        /// <param name="referenceDescriptions">A list of reference collections.</param>
+        /// <param name="errors">The errors reported by the server.</param>
+        public void FetchReferences(
+            IList<NodeId> nodeIds,
+            out IList<ReferenceDescriptionCollection> referenceDescriptions,
+            out IList<ServiceResult> errors)
+        {
+            var result = new List<ReferenceDescriptionCollection>();
+
+            // browse for all references.
+            Browse(
+                null,
+                null,
+                nodeIds,
+                0,
+                BrowseDirection.Both,
+                null,
+                true,
+                0,
+                out ByteStringCollection continuationPoints,
+                out IList<ReferenceDescriptionCollection> descriptions,
+                out errors);
+
+            result.AddRange(descriptions);
+
+            // process any continuation point.
+            var previousResult = result;
+            var previousErrors = errors;
+            while (HasAnyContinuationPoint(continuationPoints))
+            {
+                var nextContinuationPoints = new ByteStringCollection();
+                var nextResult = new List<ReferenceDescriptionCollection>();
+                var nextErrors = new List<ServiceResult>();
+
+                for (int ii = 0; ii < continuationPoints.Count; ii++)
+                {
+                    var cp = continuationPoints[ii];
+                    if (cp != null)
+                    {
+                        nextContinuationPoints.Add(cp);
+                        nextResult.Add(previousResult[ii]);
+                        nextErrors.Add(previousErrors[ii]);
+                    }
+                }
+
+                BrowseNext(
+                    null,
+                    false,
+                    nextContinuationPoints,
+                    out ByteStringCollection revisedContinuationPoints,
+                    out descriptions,
+                    out IList<ServiceResult> browseNextErrors);
+
+                continuationPoints = revisedContinuationPoints;
+                previousResult = nextResult;
+                previousErrors = nextErrors;
+
+                for (int ii = 0; ii < descriptions.Count; ii++)
+                {
+                    nextResult[ii].AddRange(descriptions[ii]);
+                    if (StatusCode.IsBad(browseNextErrors[ii].StatusCode))
+                    {
+                        nextErrors[ii] = browseNextErrors[ii];
+                    }
+                }
+            }
+
+            referenceDescriptions = result;
         }
 
         /// <summary>
@@ -2569,6 +2778,9 @@ namespace Opc.Ua.Client
                     m_systemContext.SessionId = this.SessionId;
                     m_systemContext.UserIdentity = identity;
                 }
+
+                // fetch operation limits
+                FetchOperationLimits();
 
                 // start keep alive thread.
                 StartKeepAliveTimer();
@@ -3343,6 +3555,82 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Invokes the Browse service. Handles multiple nodes for browse request.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="view">The view to browse.</param>
+        /// <param name="nodesToBrowse">The nodes to browse.</param>
+        /// <param name="maxResultsToReturn">The maximum number of returned values.</param>
+        /// <param name="browseDirection">The browse direction.</param>
+        /// <param name="referenceTypeId">The reference type id.</param>
+        /// <param name="includeSubtypes">If set to <c>true</c> the subtypes of the ReferenceType will be included in the browse.</param>
+        /// <param name="nodeClassMask">The node class mask.</param>
+        /// <param name="continuationPoints">The continuation points per browse.</param>
+        /// <param name="referencesList">The list of node references collections.</param>
+        /// <param name="errors"></param>
+        public virtual ResponseHeader Browse(
+            RequestHeader requestHeader,
+            ViewDescription view,
+            IList<NodeId> nodesToBrowse,
+            uint maxResultsToReturn,
+            BrowseDirection browseDirection,
+            NodeId referenceTypeId,
+            bool includeSubtypes,
+            uint nodeClassMask,
+            out ByteStringCollection continuationPoints,
+            out IList<ReferenceDescriptionCollection> referencesList,
+            out IList<ServiceResult> errors)
+        {
+
+            BrowseDescriptionCollection browseDescription = new BrowseDescriptionCollection();
+            foreach (var nodeToBrowse in nodesToBrowse)
+            {
+                BrowseDescription description = new BrowseDescription {
+                    NodeId = nodeToBrowse,
+                    BrowseDirection = browseDirection,
+                    ReferenceTypeId = referenceTypeId,
+                    IncludeSubtypes = includeSubtypes,
+                    NodeClassMask = nodeClassMask,
+                    ResultMask = (uint)BrowseResultMask.All
+                };
+
+                browseDescription.Add(description);
+            }
+
+            ResponseHeader responseHeader = Browse(
+                requestHeader,
+                view,
+                maxResultsToReturn,
+                browseDescription,
+                out BrowseResultCollection results,
+                out DiagnosticInfoCollection diagnosticInfos);
+
+            ClientBase.ValidateResponse(results, browseDescription);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browseDescription);
+
+            int ii = 0;
+            errors = new List<ServiceResult>();
+            continuationPoints = new ByteStringCollection();
+            referencesList = new List<ReferenceDescriptionCollection>();
+            foreach (var result in results)
+            {
+                if (StatusCode.IsBad(result.StatusCode))
+                {
+                    errors.Add(new ServiceResult(result.StatusCode, ii, diagnosticInfos, responseHeader.StringTable));
+                }
+                else
+                {
+                    errors.Add(ServiceResult.Good);
+                }
+                continuationPoints.Add(result.ContinuationPoint);
+                referencesList.Add(result.References);
+                ii++;
+            }
+
+            return responseHeader;
+        }
+
+        /// <summary>
         /// Begins an asynchronous invocation of the Browse service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -3458,6 +3746,52 @@ namespace Opc.Ua.Client
 
             revisedContinuationPoint = results[0].ContinuationPoint;
             references = results[0].References;
+
+            return responseHeader;
+        }
+
+        /// <summary>
+        /// Invokes the BrowseNext service. Handles multiple continuation points.
+        /// </summary>
+        public virtual ResponseHeader BrowseNext(
+            RequestHeader requestHeader,
+            bool releaseContinuationPoint,
+            ByteStringCollection continuationPoints,
+            out ByteStringCollection revisedContinuationPoints,
+            out IList<ReferenceDescriptionCollection> referencesList,
+            out IList<ServiceResult> errors)
+        {
+            BrowseResultCollection results;
+            DiagnosticInfoCollection diagnosticInfos;
+
+            ResponseHeader responseHeader = BrowseNext(
+                requestHeader,
+                releaseContinuationPoint,
+                continuationPoints,
+                out results,
+                out diagnosticInfos);
+
+            ClientBase.ValidateResponse(results, continuationPoints);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
+
+            int ii = 0;
+            errors = new List<ServiceResult>();
+            revisedContinuationPoints = new ByteStringCollection();
+            referencesList = new List<ReferenceDescriptionCollection>();
+            foreach (var result in results)
+            {
+                if (StatusCode.IsBad(result.StatusCode))
+                {
+                    errors.Add(new ServiceResult(result.StatusCode, ii, diagnosticInfos, responseHeader.StringTable));
+                }
+                else
+                {
+                    errors.Add(ServiceResult.Good);
+                }
+                revisedContinuationPoints.Add(result.ContinuationPoint);
+                referencesList.Add(results[0].References);
+                ii++;
+            }
 
             return responseHeader;
         }
@@ -3949,7 +4283,7 @@ namespace Opc.Ua.Client
         /// Creates a read request with attributes determined by the NodeClass.
         /// </summary>
         private void CreateNodeClassAttributesReadNodesRequest(
-            NodeIdCollection nodeIdCollection,
+            IList<NodeId> nodeIdCollection,
             NodeClass nodeClass,
             ReadValueIdCollection attributesToRead,
             IList<IDictionary<uint, DataValue>> attributesPerNodeId,
@@ -5275,6 +5609,21 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Helper to determine if a continuation point needs to be processed.
+        /// </summary>
+        private bool HasAnyContinuationPoint(ByteStringCollection continuationPoints)
+        {
+            foreach (byte[] cp in continuationPoints)
+            {
+                if (cp != null)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Returns true if the Bad_TooManyPublishRequests limit
         /// has not been reached.
         /// </summary>
@@ -5345,6 +5694,7 @@ namespace Opc.Ua.Client
         private uint m_maxRequestMessageSize;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
+        private OperationLimits m_operationLimits;
         private IEncodeableFactory m_factory;
         private SystemContext m_systemContext;
         private NodeCache m_nodeCache;
