@@ -107,6 +107,58 @@ namespace Opc.Ua
             return responseHeader;
         }
 
+        /// <summary>
+        /// Invokes the Browse service.
+        /// </summary>
+        public override ResponseHeader Browse(
+            RequestHeader requestHeader,
+            ViewDescription view,
+            uint requestedMaxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            out BrowseResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            ResponseHeader responseHeader = null;
+            results = new BrowseResultCollection();
+            diagnosticInfos = new DiagnosticInfoCollection();
+
+            while (nodesToBrowse.Count > results.Count)
+            {
+                BrowseDescriptionCollection chunknodesToBrowse;
+                if (OperationLimits.MaxNodesPerBrowse > 0 &&
+                    (nodesToBrowse.Count - results.Count) > OperationLimits.MaxNodesPerBrowse)
+                {
+                    chunknodesToBrowse = new BrowseDescriptionCollection(nodesToBrowse.Skip(results.Count).Take((int)OperationLimits.MaxNodesPerBrowse));
+                }
+                else
+                {
+                    chunknodesToBrowse = new BrowseDescriptionCollection(nodesToBrowse.Skip(results.Count));
+                }
+
+                if (requestHeader != null)
+                {
+                    requestHeader.RequestHandle = 0;
+                }
+
+                responseHeader = base.Browse(
+                    requestHeader,
+                    view,
+                    requestedMaxReferencesPerNode,
+                    chunknodesToBrowse,
+                    out BrowseResultCollection chunkResults,
+                    out DiagnosticInfoCollection chunkDiagnosticInfos);
+
+                ClientBase.ValidateResponse(chunkResults, chunknodesToBrowse);
+                ClientBase.ValidateDiagnosticInfos(chunkDiagnosticInfos, chunknodesToBrowse);
+
+                results.AddRange(chunkResults);
+                diagnosticInfos.AddRange(chunkDiagnosticInfos);
+            }
+
+            return responseHeader;
+        }
+
+
 #if (CLIENT_ASYNC)
         /// <inheritdoc/>
         public override async Task<ReadResponse> ReadAsync(
@@ -151,6 +203,60 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(chunkDiagnosticInfos, chunkAttributesToRead);
 
                 results.AddRange(chunkValues);
+                diagnosticInfos.AddRange(chunkDiagnosticInfos);
+            }
+
+            response.Results = results;
+            response.DiagnosticInfos = diagnosticInfos;
+
+            return response;
+        }
+
+        /// <summary>
+        /// Invokes the Browse service using async Task based request.
+        /// </summary>
+        public override async Task<BrowseResponse> BrowseAsync(
+            RequestHeader requestHeader,
+            ViewDescription view,
+            uint requestedMaxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            CancellationToken ct)
+        {
+            BrowseResponse response = null;
+            var results = new BrowseResultCollection();
+            var diagnosticInfos = new DiagnosticInfoCollection();
+
+            while (nodesToBrowse.Count > results.Count)
+            {
+                BrowseDescriptionCollection chunknodesToBrowse;
+                if (OperationLimits.MaxNodesPerBrowse > 0 &&
+                    (nodesToBrowse.Count - results.Count) > OperationLimits.MaxNodesPerBrowse)
+                {
+                    chunknodesToBrowse = new BrowseDescriptionCollection(nodesToBrowse.Skip(results.Count).Take((int)OperationLimits.MaxNodesPerBrowse));
+                }
+                else
+                {
+                    chunknodesToBrowse = new BrowseDescriptionCollection(nodesToBrowse.Skip(results.Count));
+                }
+
+                if (requestHeader != null)
+                {
+                    requestHeader.RequestHandle = 0;
+                }
+
+                response = await base.BrowseAsync(
+                    requestHeader,
+                    view,
+                    requestedMaxReferencesPerNode,
+                    chunknodesToBrowse, ct).ConfigureAwait(false);
+
+                BrowseResultCollection chunkResults = response.Results;
+                DiagnosticInfoCollection chunkDiagnosticInfos = response.DiagnosticInfos;
+
+                ClientBase.ValidateResponse(chunkResults, chunknodesToBrowse);
+                ClientBase.ValidateDiagnosticInfos(chunkDiagnosticInfos, chunknodesToBrowse);
+
+                results.AddRange(chunkResults);
                 diagnosticInfos.AddRange(chunkDiagnosticInfos);
             }
 
