@@ -544,6 +544,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(410)]
+        [NonParallelizable]
         public async Task ReadDisplayNames()
         {
             if (ReferenceDescriptions == null) { await BrowseFullAddressSpace(null).ConfigureAwait(false); }
@@ -551,16 +552,25 @@ namespace Opc.Ua.Client.Tests
             if (OperationLimits.MaxNodesPerRead > 0 &&
                 nodeIds.Count > OperationLimits.MaxNodesPerRead)
             {
-                var sre = Assert.Throws<ServiceResultException>(() => Session.ReadDisplayName(nodeIds, out var displayNames, out var errors));
-                Assert.AreEqual(StatusCodes.BadTooManyOperations, sre.StatusCode);
-                while (nodeIds.Count > 0)
+                // force error
+                try
                 {
-                    Session.ReadDisplayName(nodeIds.Take((int)OperationLimits.MaxNodesPerRead).ToArray(), out var displayNames, out var errors);
-                    foreach (var name in displayNames)
+                    Session.OperationLimits.MaxNodesPerRead = 0;
+                    var sre = Assert.Throws<ServiceResultException>(() => Session.ReadDisplayName(nodeIds, out var displayNames, out var errors));
+                    Assert.AreEqual(StatusCodes.BadTooManyOperations, sre.StatusCode);
+                    while (nodeIds.Count > 0)
                     {
-                        TestContext.Out.WriteLine("{0}", name);
+                        Session.ReadDisplayName(nodeIds.Take((int)OperationLimits.MaxNodesPerRead).ToArray(), out var displayNames, out var errors);
+                        foreach (var name in displayNames)
+                        {
+                            TestContext.Out.WriteLine("{0}", name);
+                        }
+                        nodeIds = nodeIds.Skip((int)OperationLimits.MaxNodesPerRead).ToList();
                     }
-                    nodeIds = nodeIds.Skip((int)OperationLimits.MaxNodesPerRead).ToList();
+                }
+                finally
+                {
+                    Session.OperationLimits.MaxNodesPerRead = OperationLimits.MaxNodesPerRead;
                 }
             }
             else

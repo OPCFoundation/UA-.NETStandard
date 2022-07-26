@@ -27,32 +27,22 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#define NET_STANDARD
-#define NET_STANDARD_ASYNC
-
-using System;
-using System.Collections.Generic;
 using System.Linq;
-
-
-
-#if (NET_STANDARD_ASYNC)
 using System.Threading;
 using System.Threading.Tasks;
-#endif
 
 namespace Opc.Ua
 {
     /// <summary>
     /// The client side interface with support for operation limits.
     /// </summary>
-    public class SessionClientManaged : SessionClient
+    public class SessionClientOperationLimits : SessionClient
     {
         #region Constructors
         /// <summary>
         /// Intializes the object with a channel and a message context.
         /// </summary>
-        public SessionClientManaged(ITransportChannel channel)
+        public SessionClientOperationLimits(ITransportChannel channel)
         :
             base(channel)
         {
@@ -99,7 +89,7 @@ namespace Opc.Ua
                     requestHeader.RequestHandle = 0;
                 }
 
-                responseHeader = Read(
+                responseHeader = base.Read(
                     requestHeader,
                     maxAge,
                     timestampsToReturn,
@@ -148,7 +138,7 @@ namespace Opc.Ua
                     requestHeader.RequestHandle = 0;
                 }
 
-                response = await ReadAsync(
+                response = await base.ReadAsync(
                     requestHeader,
                     maxAge,
                     timestampsToReturn,
