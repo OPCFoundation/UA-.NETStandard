@@ -1514,7 +1514,7 @@ namespace Opc.Ua.Client
 
                 ReadValues(nodeIds, Enumerable.Repeat(typeof(uint), nodeIds.Count).ToList(), out var values, out var errors);
 
-                var configOperationLimits = m_configuration.ClientConfiguration.OperationLimits;
+                var configOperationLimits = m_configuration?.ClientConfiguration?.OperationLimits ?? new OperationLimits();
                 var operationLimits = new OperationLimits();
 
                 for (int ii = 0; ii < nodeIds.Count; ii++)
@@ -1821,7 +1821,7 @@ namespace Opc.Ua.Client
         public void ReadNodes(
             IList<NodeId> nodeIds,
             NodeClass nodeClass,
-            out NodeCollection nodeCollection,
+            out IList<Node> nodeCollection,
             out IList<ServiceResult> errors,
             bool optionalAttributes = false)
         {
@@ -1872,7 +1872,7 @@ namespace Opc.Ua.Client
         /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
         public void ReadNodes(
             IList<NodeId> nodeIds,
-            out NodeCollection nodeCollection,
+            out IList<Node> nodeCollection,
             out IList<ServiceResult> errors,
             bool optionalAttributes = false)
         {
@@ -4287,7 +4287,7 @@ namespace Opc.Ua.Client
             NodeClass nodeClass,
             ReadValueIdCollection attributesToRead,
             IList<IDictionary<uint, DataValue>> attributesPerNodeId,
-            NodeCollection nodeCollection,
+            IList<Node> nodeCollection,
             bool optionalAttributes)
         {
             for (int ii = 0; ii < nodeIdCollection.Count; ii++)
@@ -4321,7 +4321,7 @@ namespace Opc.Ua.Client
             DiagnosticInfoCollection diagnosticInfos,
             ReadValueIdCollection attributesToRead,
             IList<IDictionary<uint, DataValue>> attributesPerNodeId,
-            NodeCollection nodeCollection,
+            IList<Node> nodeCollection,
             IList<ServiceResult> errors,
             bool optionalAttributes
             )
@@ -4383,7 +4383,7 @@ namespace Opc.Ua.Client
             IList<IDictionary<uint, DataValue>> attributesPerNodeId,
             DataValueCollection values,
             DiagnosticInfoCollection diagnosticInfos,
-            NodeCollection nodeCollection,
+            IList<Node> nodeCollection,
             IList<ServiceResult> errors)
         {
             int readIndex = 0;

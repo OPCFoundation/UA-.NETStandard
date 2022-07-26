@@ -146,7 +146,7 @@ namespace Opc.Ua.Client
             }
 
             // fetch missing nodes from server.
-            NodeCollection fetchedNodes;
+            IList<Node> fetchedNodes;
             try
             {
                 fetchedNodes = FetchNodes(fetchNodeIds);
@@ -165,9 +165,14 @@ namespace Opc.Ua.Client
                 {
                     ii++;
                 }
-                if (ii < count)
+                if (ii < count && nodes[ii] == null)
                 {
                     nodes[ii++] = fetchedNode;
+                }
+                else
+                {
+                    Utils.LogError("Inconsistency fetching nodes from server. Not all nodes could be assigned.");
+                    break;
                 }
             }
 
@@ -642,14 +647,14 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public NodeCollection FetchNodes(IList<ExpandedNodeId> nodeIds)
+        public IList<Node> FetchNodes(IList<ExpandedNodeId> nodeIds)
         {
             int count = nodeIds.Count;
             NodeIdCollection localIds = new NodeIdCollection(
                 nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris)));
 
             // fetch nodes and references from server.
-            m_session.ReadNodes(localIds, out NodeCollection sourceNodes, out IList<ServiceResult> readErrors);
+            m_session.ReadNodes(localIds, out IList<Node> sourceNodes, out IList<ServiceResult> readErrors);
             m_session.FetchReferences(localIds, out IList<ReferenceDescriptionCollection> referenceCollectionList, out IList<ServiceResult> fetchErrors);
 
             int ii = 0;

@@ -55,7 +55,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Fetches a node collection from the server and updates the cache.
         /// </summary>
-        NodeCollection FetchNodes(IList<ExpandedNodeId> nodeIds);
+        IList<Node> FetchNodes(IList<ExpandedNodeId> nodeIds);
 
         /// <summary>
         /// Adds the supertypes of the node to the cache.

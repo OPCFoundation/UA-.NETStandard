@@ -2320,8 +2320,8 @@ namespace Opc.Ua
         /// Gets or sets the default operation limits of the OPC UA client.
         /// </summary>
         /// <remarks>
-        /// Values not equal to zeror are overwritten with smaller values set by the server.
-        /// The value is used for client service calls.
+        /// Values not equal to zero are overwritten with smaller values set by the server.
+        /// The values are used to limit client service calls.
         /// </remarks>
         [DataMember(IsRequired = false, Order = 6)]
         public OperationLimits OperationLimits
