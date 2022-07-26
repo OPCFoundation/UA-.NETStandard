@@ -45,7 +45,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public partial class Session : SessionClient, IDisposable
+    public partial class Session : SessionClientManaged, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -548,11 +548,12 @@ namespace Opc.Ua.Client
         /// </summary>
         public StringTable ServerUris => m_serverUris;
 
-
+#if mist
         /// <summary>
         /// Contains the operation limits used by the client for the server.
         /// </summary>
-        public OperationLimits OperationLimits => m_operationLimits;
+        //public OperationLimits OperationLimits => m_operationLimits;
+#endif
 
         /// <summary>
         /// Gets the system context for use with the session.
@@ -1534,7 +1535,7 @@ namespace Opc.Ua.Client
                     property.SetValue(operationLimits, value);
                 }
 
-                m_operationLimits = operationLimits;
+                OperationLimits = operationLimits;
             }
             catch (Exception ex)
             {
@@ -1542,7 +1543,7 @@ namespace Opc.Ua.Client
                 var operationLimits = m_configuration?.ClientConfiguration?.OperationLimits;
                 if (operationLimits != null)
                 {
-                    m_operationLimits = operationLimits;
+                    OperationLimits = operationLimits;
                 }
             }
         }
@@ -1931,33 +1932,16 @@ namespace Opc.Ua.Client
                 nodeCollection, errors,
                 optionalAttributes);
 
-            DataValueCollection values = new DataValueCollection();
-            while (attributesToRead.Count > values.Count)
-            {
-                ReadValueIdCollection chunkAttributesToRead;
-                if (OperationLimits.MaxNodesPerRead > 0 &&
-                    (attributesToRead.Count - values.Count) > OperationLimits.MaxNodesPerRead)
-                {
-                    chunkAttributesToRead = new ReadValueIdCollection(attributesToRead.Skip(values.Count).Take((int)OperationLimits.MaxNodesPerRead));
-                }
-                else
-                {
-                    chunkAttributesToRead = new ReadValueIdCollection(attributesToRead.Skip(values.Count));
-                }
+            responseHeader = Read(
+                null,
+                0,
+                TimestampsToReturn.Neither,
+                attributesToRead,
+                out DataValueCollection values,
+                out diagnosticInfos);
 
-                responseHeader = Read(
-                    null,
-                    0,
-                    TimestampsToReturn.Neither,
-                    chunkAttributesToRead,
-                    out DataValueCollection chunkValues,
-                    out diagnosticInfos);
-
-                ClientBase.ValidateResponse(chunkValues, chunkAttributesToRead);
-                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, chunkAttributesToRead);
-
-                values.AddRange(chunkValues);
-            }
+            ClientBase.ValidateResponse(values, attributesToRead);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
             ProcessAttributesReadNodesResponse(
                 responseHeader,
