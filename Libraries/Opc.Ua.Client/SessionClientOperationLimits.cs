@@ -54,62 +54,11 @@ namespace Opc.Ua
         /// <summary>
         /// The operation limits are used to chunk service requests.
         /// </summary>
-        public OperationLimits OperationLimits { get => m_operationLimits; set => m_operationLimits = value; }
+        public OperationLimits OperationLimits { get => m_operationLimits; internal set => m_operationLimits = value; }
         #endregion
 
-        #region Read Methods
+        #region Browse Methods
         /// <inheritdoc/>
-        public override ResponseHeader Read(
-            RequestHeader requestHeader,
-            double maxAge,
-            TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
-            out DataValueCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-            results = new DataValueCollection();
-            diagnosticInfos = new DiagnosticInfoCollection();
-
-            while (nodesToRead.Count > results.Count)
-            {
-                ReadValueIdCollection chunkAttributesToRead;
-                if (OperationLimits.MaxNodesPerRead > 0 &&
-                    (nodesToRead.Count - results.Count) > OperationLimits.MaxNodesPerRead)
-                {
-                    chunkAttributesToRead = new ReadValueIdCollection(nodesToRead.Skip(results.Count).Take((int)OperationLimits.MaxNodesPerRead));
-                }
-                else
-                {
-                    chunkAttributesToRead = new ReadValueIdCollection(nodesToRead.Skip(results.Count));
-                }
-
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.Read(
-                    requestHeader,
-                    maxAge,
-                    timestampsToReturn,
-                    chunkAttributesToRead,
-                    out DataValueCollection chunkValues,
-                    out DiagnosticInfoCollection chunkDiagnosticInfos);
-
-                ClientBase.ValidateResponse(chunkValues, chunkAttributesToRead);
-                ClientBase.ValidateDiagnosticInfos(chunkDiagnosticInfos, chunkAttributesToRead);
-
-                results.AddRange(chunkValues);
-                diagnosticInfos.AddRange(chunkDiagnosticInfos);
-            }
-
-            return responseHeader;
-        }
-
-        /// <summary>
-        /// Invokes the Browse service.
-        /// </summary>
         public override ResponseHeader Browse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -118,6 +67,12 @@ namespace Opc.Ua
             out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+            if (OperationLimits.MaxNodesPerBrowse == 0 ||
+                nodesToBrowse.Count <= OperationLimits.MaxNodesPerBrowse)
+            {
+                return base.Browse(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, out results, out diagnosticInfos);
+            }
+
             ResponseHeader responseHeader = null;
             results = new BrowseResultCollection();
             diagnosticInfos = new DiagnosticInfoCollection();
@@ -158,63 +113,8 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-
 #if (CLIENT_ASYNC)
         /// <inheritdoc/>
-        public override async Task<ReadResponse> ReadAsync(
-            RequestHeader requestHeader,
-            double maxAge,
-            TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
-            CancellationToken ct)
-        {
-            ReadResponse response = null;
-            DataValueCollection results = new DataValueCollection();
-            DiagnosticInfoCollection diagnosticInfos = new DiagnosticInfoCollection();
-
-            while (nodesToRead.Count > results.Count)
-            {
-                ReadValueIdCollection chunkAttributesToRead;
-                if (OperationLimits.MaxNodesPerRead > 0 &&
-                    (nodesToRead.Count - results.Count) > OperationLimits.MaxNodesPerRead)
-                {
-                    chunkAttributesToRead = new ReadValueIdCollection(nodesToRead.Skip(results.Count).Take((int)OperationLimits.MaxNodesPerRead));
-                }
-                else
-                {
-                    chunkAttributesToRead = new ReadValueIdCollection(nodesToRead.Skip(results.Count));
-                }
-
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                response = await base.ReadAsync(
-                    requestHeader,
-                    maxAge,
-                    timestampsToReturn,
-                    chunkAttributesToRead, ct).ConfigureAwait(false);
-
-                DataValueCollection chunkValues = response.Results;
-                DiagnosticInfoCollection chunkDiagnosticInfos = response.DiagnosticInfos;
-
-                ClientBase.ValidateResponse(chunkValues, chunkAttributesToRead);
-                ClientBase.ValidateDiagnosticInfos(chunkDiagnosticInfos, chunkAttributesToRead);
-
-                results.AddRange(chunkValues);
-                diagnosticInfos.AddRange(chunkDiagnosticInfos);
-            }
-
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-
-            return response;
-        }
-
-        /// <summary>
-        /// Invokes the Browse service using async Task based request.
-        /// </summary>
         public override async Task<BrowseResponse> BrowseAsync(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -222,6 +122,12 @@ namespace Opc.Ua
             BrowseDescriptionCollection nodesToBrowse,
             CancellationToken ct)
         {
+            if (OperationLimits.MaxNodesPerBrowse == 0 ||
+                nodesToBrowse.Count <= OperationLimits.MaxNodesPerBrowse)
+            {
+                return await base.BrowseAsync(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, ct);
+            }
+
             BrowseResponse response = null;
             var results = new BrowseResultCollection();
             var diagnosticInfos = new DiagnosticInfoCollection();
@@ -229,8 +135,7 @@ namespace Opc.Ua
             while (nodesToBrowse.Count > results.Count)
             {
                 BrowseDescriptionCollection chunknodesToBrowse;
-                if (OperationLimits.MaxNodesPerBrowse > 0 &&
-                    (nodesToBrowse.Count - results.Count) > OperationLimits.MaxNodesPerBrowse)
+                if ((nodesToBrowse.Count - results.Count) > OperationLimits.MaxNodesPerBrowse)
                 {
                     chunknodesToBrowse = new BrowseDescriptionCollection(nodesToBrowse.Skip(results.Count).Take((int)OperationLimits.MaxNodesPerBrowse));
                 }
@@ -257,6 +162,121 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(chunkDiagnosticInfos, chunknodesToBrowse);
 
                 results.AddRange(chunkResults);
+                diagnosticInfos.AddRange(chunkDiagnosticInfos);
+            }
+
+            response.Results = results;
+            response.DiagnosticInfos = diagnosticInfos;
+
+            return response;
+        }
+#endif
+        #endregion
+
+        #region Read Methods
+        /// <inheritdoc/>
+        public override ResponseHeader Read(
+            RequestHeader requestHeader,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            out DataValueCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            if (OperationLimits.MaxNodesPerRead == 0 ||
+                nodesToRead.Count <= OperationLimits.MaxNodesPerRead)
+            {
+                return base.Read(requestHeader, maxAge, timestampsToReturn, nodesToRead, out results, out diagnosticInfos);
+            }
+
+            ResponseHeader responseHeader = null;
+            results = new DataValueCollection();
+            diagnosticInfos = new DiagnosticInfoCollection();
+
+            while (nodesToRead.Count > results.Count)
+            {
+                ReadValueIdCollection chunkAttributesToRead;
+                if ((nodesToRead.Count - results.Count) > OperationLimits.MaxNodesPerRead)
+                {
+                    chunkAttributesToRead = new ReadValueIdCollection(nodesToRead.Skip(results.Count).Take((int)OperationLimits.MaxNodesPerRead));
+                }
+                else
+                {
+                    chunkAttributesToRead = new ReadValueIdCollection(nodesToRead.Skip(results.Count));
+                }
+
+                if (requestHeader != null)
+                {
+                    requestHeader.RequestHandle = 0;
+                }
+
+                responseHeader = base.Read(
+                    requestHeader,
+                    maxAge,
+                    timestampsToReturn,
+                    chunkAttributesToRead,
+                    out DataValueCollection chunkValues,
+                    out DiagnosticInfoCollection chunkDiagnosticInfos);
+
+                ClientBase.ValidateResponse(chunkValues, chunkAttributesToRead);
+                ClientBase.ValidateDiagnosticInfos(chunkDiagnosticInfos, chunkAttributesToRead);
+
+                results.AddRange(chunkValues);
+                diagnosticInfos.AddRange(chunkDiagnosticInfos);
+            }
+
+            return responseHeader;
+        }
+
+#if (CLIENT_ASYNC)
+        /// <inheritdoc/>
+        public override async Task<ReadResponse> ReadAsync(
+            RequestHeader requestHeader,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            CancellationToken ct)
+        {
+            if (OperationLimits.MaxNodesPerRead == 0 ||
+                nodesToRead.Count <= OperationLimits.MaxNodesPerRead)
+            {
+                return await base.ReadAsync(requestHeader, maxAge, timestampsToReturn, nodesToRead, ct);
+            }
+
+            ReadResponse response = null;
+            DataValueCollection results = new DataValueCollection();
+            DiagnosticInfoCollection diagnosticInfos = new DiagnosticInfoCollection();
+
+            while (nodesToRead.Count > results.Count)
+            {
+                ReadValueIdCollection chunkAttributesToRead;
+                if ((nodesToRead.Count - results.Count) > OperationLimits.MaxNodesPerRead)
+                {
+                    chunkAttributesToRead = new ReadValueIdCollection(nodesToRead.Skip(results.Count).Take((int)OperationLimits.MaxNodesPerRead));
+                }
+                else
+                {
+                    chunkAttributesToRead = new ReadValueIdCollection(nodesToRead.Skip(results.Count));
+                }
+
+                if (requestHeader != null)
+                {
+                    requestHeader.RequestHandle = 0;
+                }
+
+                response = await base.ReadAsync(
+                    requestHeader,
+                    maxAge,
+                    timestampsToReturn,
+                    chunkAttributesToRead, ct).ConfigureAwait(false);
+
+                DataValueCollection chunkValues = response.Results;
+                DiagnosticInfoCollection chunkDiagnosticInfos = response.DiagnosticInfos;
+
+                ClientBase.ValidateResponse(chunkValues, chunkAttributesToRead);
+                ClientBase.ValidateDiagnosticInfos(chunkDiagnosticInfos, chunkAttributesToRead);
+
+                results.AddRange(chunkValues);
                 diagnosticInfos.AddRange(chunkDiagnosticInfos);
             }
 

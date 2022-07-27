@@ -514,7 +514,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(400)]
-        public async Task BrowseFullAddressSpace(string securityPolicy)
+        public async Task BrowseFullAddressSpace(string securityPolicy, bool operationLimits = false)
         {
             if (OperationLimits == null) { GetOperationLimits(); }
 
@@ -527,6 +527,11 @@ namespace Opc.Ua.Client.Tests
             if (securityPolicy != null)
             {
                 session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+                if (operationLimits)
+                {
+                    // disable the operation limit handler in SessionClientOperationLimits
+                    session.OperationLimits.MaxNodesPerBrowse = 0;
+                }
             }
             else
             {
@@ -534,7 +539,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var clientTestServices = new ClientTestServices(session);
-            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader, OperationLimits);
+            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader, operationLimits ? OperationLimits : null);
 
             if (securityPolicy != null)
             {
