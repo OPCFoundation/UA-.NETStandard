@@ -1354,99 +1354,30 @@ namespace Opc.Ua.Server
                             HasApplicationSecureAdminAccess(context);
             }
 
+            IEnumerable<FieldInfo> roleIds = typeof(ObjectIds).GetFields().Where(predicate: fieldInfo => {
+                return fieldInfo.Name.StartsWith("WellKnownRole", StringComparison.InvariantCulture);
+            });
+
             if (admitUser)
             {
-                value = new RolePermissionTypeCollection()
-                {
-                        // allow access to users in all roles in this case
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
-                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_Anonymous,
-                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
-                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
-                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_Engineer,
-                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_Observer,
-                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_Operator,
-                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_Supervisor,
-                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
-                        },
-                };
+                var rolePermissionTypes = from roleId in roleIds
+                                          select new RolePermissionType() {
+                                              RoleId = (NodeId)roleId.GetValue(null),
+                                              Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.ReadRolePermissions | PermissionType.Write)
+                                          };
+
+                value = new RolePermissionTypeCollection(rolePermissionTypes);
             }
             else
             {
-                value = new RolePermissionTypeCollection()
-                 {
-                        // deny access to users in all roles in this case
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
-                            Permissions = (uint)PermissionType.None,
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_Anonymous,
-                            Permissions = (uint)PermissionType.None,
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
-                            Permissions = (uint)PermissionType.None,
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
-                            Permissions = (uint)PermissionType.None,
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_Engineer,
-                            Permissions = (uint)PermissionType.None,
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_Observer,
-                            Permissions = (uint)PermissionType.None,
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_Operator,
-                            Permissions = (uint)PermissionType.None,
-                        },
-                        new RolePermissionType()
-                        {
-                            RoleId = ObjectIds.WellKnownRole_Supervisor,
-                            Permissions = (uint)PermissionType.None,
-                        },
-                };
+                var rolePermissionTypes = from roleId in roleIds
+                                          select new RolePermissionType() {
+                                              RoleId = (NodeId)roleId.GetValue(null),
+                                              Permissions = (uint)PermissionType.None
+                                          };
+
+                value = new RolePermissionTypeCollection(rolePermissionTypes);
+
             }
             return ServiceResult.Good;
         }
