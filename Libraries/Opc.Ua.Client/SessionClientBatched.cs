@@ -27,9 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#define NET_STANDARD
-#define NET_STANDARD_ASYNC
-
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,13 +37,13 @@ namespace Opc.Ua
     /// <summary>
     /// The client side interface with support for operation limits.
     /// </summary>
-    public class SessionClientOperationLimits : SessionClient
+    public class SessionClientBatched : SessionClient
     {
         #region Constructors
         /// <summary>
         /// Intializes the object with a channel and a message context.
         /// </summary>
-        public SessionClientOperationLimits(ITransportChannel channel)
+        public SessionClientBatched(ITransportChannel channel)
         :
             base(channel)
         {
@@ -404,43 +402,27 @@ namespace Opc.Ua
             out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            if (OperationLimits.MaxNodesPerBrowse == 0 ||
-                nodesToBrowse.Count <= OperationLimits.MaxNodesPerBrowse)
-            {
-                return base.Browse(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, out results, out diagnosticInfos);
-            }
-
             ResponseHeader responseHeader = null;
             results = new BrowseResultCollection();
             diagnosticInfos = new DiagnosticInfoCollection();
 
-            while (nodesToBrowse.Count > results.Count)
+            foreach (var nodesToBrowseBatch in
+                nodesToBrowse.Batch<BrowseDescription, BrowseDescriptionCollection>(OperationLimits.MaxNodesPerBrowse))
             {
-                BrowseDescriptionCollection chunknodesToBrowse;
-                if ((nodesToBrowse.Count - results.Count) > OperationLimits.MaxNodesPerBrowse)
-                {
-                    chunknodesToBrowse = new BrowseDescriptionCollection(nodesToBrowse.Skip(results.Count).Take((int)OperationLimits.MaxNodesPerBrowse));
-                }
-                else
-                {
-                    chunknodesToBrowse = new BrowseDescriptionCollection(nodesToBrowse.Skip(results.Count));
-                }
-
                 if (requestHeader != null)
                 {
                     requestHeader.RequestHandle = 0;
                 }
 
-                responseHeader = base.Browse(
-                    requestHeader,
+                responseHeader = base.Browse(requestHeader,
                     view,
                     requestedMaxReferencesPerNode,
-                    chunknodesToBrowse,
+                    nodesToBrowseBatch,
                     out BrowseResultCollection chunkResults,
                     out DiagnosticInfoCollection chunkDiagnosticInfos);
 
-                ClientBase.ValidateResponse(chunkResults, chunknodesToBrowse);
-                ClientBase.ValidateDiagnosticInfos(chunkDiagnosticInfos, chunknodesToBrowse);
+                ClientBase.ValidateResponse(chunkResults, nodesToBrowseBatch);
+                ClientBase.ValidateDiagnosticInfos(chunkDiagnosticInfos, nodesToBrowseBatch);
 
                 results.AddRange(chunkResults);
                 diagnosticInfos.AddRange(chunkDiagnosticInfos);
@@ -458,28 +440,13 @@ namespace Opc.Ua
             BrowseDescriptionCollection nodesToBrowse,
             CancellationToken ct)
         {
-            if (OperationLimits.MaxNodesPerBrowse == 0 ||
-                nodesToBrowse.Count <= OperationLimits.MaxNodesPerBrowse)
-            {
-                return await base.BrowseAsync(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, ct);
-            }
-
             BrowseResponse response = null;
             var results = new BrowseResultCollection();
             var diagnosticInfos = new DiagnosticInfoCollection();
 
-            while (nodesToBrowse.Count > results.Count)
+            foreach (var nodesToBrowseBatch in
+                nodesToBrowse.Batch<BrowseDescription, BrowseDescriptionCollection>(OperationLimits.MaxNodesPerBrowse))
             {
-                BrowseDescriptionCollection chunknodesToBrowse;
-                if ((nodesToBrowse.Count - results.Count) > OperationLimits.MaxNodesPerBrowse)
-                {
-                    chunknodesToBrowse = new BrowseDescriptionCollection(nodesToBrowse.Skip(results.Count).Take((int)OperationLimits.MaxNodesPerBrowse));
-                }
-                else
-                {
-                    chunknodesToBrowse = new BrowseDescriptionCollection(nodesToBrowse.Skip(results.Count));
-                }
-
                 if (requestHeader != null)
                 {
                     requestHeader.RequestHandle = 0;
@@ -489,13 +456,13 @@ namespace Opc.Ua
                     requestHeader,
                     view,
                     requestedMaxReferencesPerNode,
-                    chunknodesToBrowse, ct).ConfigureAwait(false);
+                    nodesToBrowseBatch, ct).ConfigureAwait(false);
 
                 BrowseResultCollection chunkResults = response.Results;
                 DiagnosticInfoCollection chunkDiagnosticInfos = response.DiagnosticInfos;
 
-                ClientBase.ValidateResponse(chunkResults, chunknodesToBrowse);
-                ClientBase.ValidateDiagnosticInfos(chunkDiagnosticInfos, chunknodesToBrowse);
+                ClientBase.ValidateResponse(chunkResults, nodesToBrowseBatch);
+                ClientBase.ValidateDiagnosticInfos(chunkDiagnosticInfos, nodesToBrowseBatch);
 
                 results.AddRange(chunkResults);
                 diagnosticInfos.AddRange(chunkDiagnosticInfos);
@@ -1638,5 +1605,51 @@ namespace Opc.Ua
         #region Private 
         private OperationLimits m_operationLimits;
         #endregion
+    }
+
+    /// <summary>
+    /// Extension helpers for client service calls.
+    /// </summary>
+    public static class SessionClientExtensions
+    {
+        /// <summary>
+        /// Returns batches of a collection for processing.
+        /// </summary>
+        /// <remarks>
+        /// Returns the original collection if batchsize is 0 or the collection count is smaller than the batch size.
+        /// </remarks>
+        /// <typeparam name="T">The type of the items in the collection.</typeparam>
+        /// <typeparam name="C">The type of the items in the collection.</typeparam>
+        /// <param name="collection">The collection from which items are batched.</param>
+        /// <param name="batchSize">The size of a batch.</param>
+        /// <returns>The collection.</returns>
+        internal static IEnumerable<C> Batch<T, C>(this C collection, uint batchSize) where C : List<T>, new()
+        {
+            if (collection.Count < batchSize || batchSize == 0)
+            {
+                yield return collection;
+            }
+            else
+            {
+                C nextbatch = new C {
+                    Capacity = (int)batchSize
+                };
+                foreach (T item in collection)
+                {
+                    nextbatch.Add(item);
+                    if (nextbatch.Count == batchSize)
+                    {
+                        yield return nextbatch;
+                        nextbatch = new C {
+                            Capacity = (int)batchSize
+                        };
+                    }
+                }
+                if (nextbatch.Count > 0)
+                {
+                    yield return nextbatch;
+                }
+            }
+        }
     }
 }

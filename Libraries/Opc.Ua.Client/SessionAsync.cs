@@ -41,9 +41,9 @@ namespace Opc.Ua.Client
     /// Manages a session with a server.
     /// Contains the async versions of the public session api.
     /// </summary>
-    public partial class Session : SessionClientOperationLimits, IDisposable
+    public partial class Session : SessionClientBatched, IDisposable
     {
-        #region Subscription Methods
+        #region Subscription Async Methods
         /// <summary>
         /// Removes a subscription from the session.
         /// </summary>
