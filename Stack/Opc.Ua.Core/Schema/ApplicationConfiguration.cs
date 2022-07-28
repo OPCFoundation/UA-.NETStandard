@@ -2216,6 +2216,7 @@ namespace Opc.Ua
             m_minSubscriptionLifetime = 10000;
             m_wellKnownDiscoveryUrls = new StringCollection();
             m_discoveryServers = new EndpointDescriptionCollection();
+            m_operationLimits = new OperationLimits();
         }
 
         /// <summary>

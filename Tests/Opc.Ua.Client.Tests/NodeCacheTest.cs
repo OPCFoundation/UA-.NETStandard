@@ -388,7 +388,7 @@ namespace Opc.Ua.Client.Tests
 
             // Session
             var clientTestServices = new ClientTestServices(Session);
-            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader, Session.OperationLimits);
+            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader);
         }
         #endregion
     }

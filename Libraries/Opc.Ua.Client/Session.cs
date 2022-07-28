@@ -249,7 +249,6 @@ namespace Opc.Ua.Client
             m_sessionTimeout = 0;
             m_namespaceUris = new NamespaceTable();
             m_serverUris = new StringTable();
-            m_operationLimits = new OperationLimits();
             m_factory = EncodeableFactory.GlobalFactory;
             m_nodeCache = new NodeCache(this);
             m_configuration = null;
@@ -3122,8 +3121,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public void ReadDisplayName(
             IList<NodeId> nodeIds,
-            out List<string> displayNames,
-            out List<ServiceResult> errors)
+            out IList<string> displayNames,
+            out IList<ServiceResult> errors)
         {
             displayNames = new List<string>();
             errors = new List<ServiceResult>();
@@ -3150,7 +3149,7 @@ namespace Opc.Ua.Client
             ResponseHeader responseHeader = Read(
                 null,
                 Int32.MaxValue,
-                TimestampsToReturn.Both,
+                TimestampsToReturn.Neither,
                 valuesToRead,
                 out results,
                 out diagnosticInfos);
@@ -5678,7 +5677,6 @@ namespace Opc.Ua.Client
         private uint m_maxRequestMessageSize;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
-        private OperationLimits m_operationLimits;
         private IEncodeableFactory m_factory;
         private SystemContext m_systemContext;
         private NodeCache m_nodeCache;

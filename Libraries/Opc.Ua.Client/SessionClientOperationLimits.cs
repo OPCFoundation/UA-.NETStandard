@@ -80,8 +80,7 @@ namespace Opc.Ua
             while (nodesToBrowse.Count > results.Count)
             {
                 BrowseDescriptionCollection chunknodesToBrowse;
-                if (OperationLimits.MaxNodesPerBrowse > 0 &&
-                    (nodesToBrowse.Count - results.Count) > OperationLimits.MaxNodesPerBrowse)
+                if ((nodesToBrowse.Count - results.Count) > OperationLimits.MaxNodesPerBrowse)
                 {
                     chunknodesToBrowse = new BrowseDescriptionCollection(nodesToBrowse.Skip(results.Count).Take((int)OperationLimits.MaxNodesPerBrowse));
                 }
