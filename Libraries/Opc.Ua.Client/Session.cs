@@ -547,13 +547,6 @@ namespace Opc.Ua.Client
         /// </summary>
         public StringTable ServerUris => m_serverUris;
 
-#if mist
-        /// <summary>
-        /// Contains the operation limits used by the client for the server.
-        /// </summary>
-        //public OperationLimits OperationLimits => m_operationLimits;
-#endif
-
         /// <summary>
         /// Gets the system context for use with the session.
         /// </summary>
