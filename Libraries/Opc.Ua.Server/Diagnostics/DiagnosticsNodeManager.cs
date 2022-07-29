@@ -1354,15 +1354,11 @@ namespace Opc.Ua.Server
                             HasApplicationSecureAdminAccess(context);
             }
 
-            IEnumerable<FieldInfo> roleIds = typeof(ObjectIds).GetFields().Where(predicate: fieldInfo => {
-                return fieldInfo.Name.StartsWith("WellKnownRole", StringComparison.InvariantCulture);
-            });
-
             if (admitUser)
             {
-                var rolePermissionTypes = from roleId in roleIds
+                var rolePermissionTypes = from roleId in m_kWellKnownRoles
                                           select new RolePermissionType() {
-                                              RoleId = (NodeId)roleId.GetValue(null),
+                                              RoleId = roleId,
                                               Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.ReadRolePermissions | PermissionType.Write)
                                           };
 
@@ -1370,9 +1366,9 @@ namespace Opc.Ua.Server
             }
             else
             {
-                var rolePermissionTypes = from roleId in roleIds
+                var rolePermissionTypes = from roleId in m_kWellKnownRoles
                                           select new RolePermissionType() {
-                                              RoleId = (NodeId)roleId.GetValue(null),
+                                              RoleId = roleId,
                                               Permissions = (uint)PermissionType.None
                                           };
 
@@ -1539,7 +1535,7 @@ namespace Opc.Ua.Server
             }
             return false;
         }
- 
+
 
         /// <summary>
         /// Reports notifications for any monitored diagnostic nodes.
@@ -2110,6 +2106,18 @@ namespace Opc.Ua.Server
         private List<MonitoredItem> m_sampledItems;
         private double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState m_historyCapabilities;
+        #endregion
+
+        #region Private Readonly Fields
+        private readonly NodeId[] m_kWellKnownRoles = {
+            ObjectIds.WellKnownRole_Anonymous,
+            ObjectIds.WellKnownRole_AuthenticatedUser,
+            ObjectIds.WellKnownRole_ConfigureAdmin,
+            ObjectIds.WellKnownRole_Engineer,
+            ObjectIds.WellKnownRole_Observer,
+            ObjectIds.WellKnownRole_Operator,
+            ObjectIds.WellKnownRole_SecurityAdmin,
+            ObjectIds.WellKnownRole_Supervisor };
         #endregion
     }
 }
