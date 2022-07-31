@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -42,7 +42,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Intializes the object with a channel and a message context.
+        /// Intializes the object with a channel and default operation limits.
         /// </summary>
         public SessionClientBatched(ITransportChannel channel)
         :
@@ -74,9 +74,7 @@ namespace Opc.Ua
         #endregion
 
         #region AddNodes Methods
-        /// <summary>
-        /// Invokes the AddNodes service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader AddNodes(
             RequestHeader requestHeader,
             AddNodesItemCollection nodesToAdd,
@@ -115,9 +113,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the AddNodes service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<AddNodesResponse> AddNodesAsync(
             RequestHeader requestHeader,
             AddNodesItemCollection nodesToAdd,
@@ -160,9 +156,7 @@ namespace Opc.Ua
         #endregion
 
         #region AddReferences Methods
-        /// <summary>
-        /// Invokes the AddReferences service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader AddReferences(
             RequestHeader requestHeader,
             AddReferencesItemCollection referencesToAdd,
@@ -201,9 +195,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the AddReferences service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<AddReferencesResponse> AddReferencesAsync(
             RequestHeader requestHeader,
             AddReferencesItemCollection referencesToAdd,
@@ -246,9 +238,7 @@ namespace Opc.Ua
         #endregion
 
         #region DeleteNodes Methods
-        /// <summary>
-        /// Invokes the DeleteNodes service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader DeleteNodes(
             RequestHeader requestHeader,
             DeleteNodesItemCollection nodesToDelete,
@@ -287,9 +277,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the DeleteNodes service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<DeleteNodesResponse> DeleteNodesAsync(
             RequestHeader requestHeader,
             DeleteNodesItemCollection nodesToDelete,
@@ -333,9 +321,7 @@ namespace Opc.Ua
         #endregion
 
         #region DeleteReferences Methods
-        /// <summary>
-        /// Invokes the DeleteReferences service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader DeleteReferences(
             RequestHeader requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
@@ -374,9 +360,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the DeleteReferences service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<DeleteReferencesResponse> DeleteReferencesAsync(
             RequestHeader requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
@@ -512,9 +496,7 @@ namespace Opc.Ua
         #endregion
 
         #region TranslateBrowsePathsToNodeIds Methods
-        /// <summary>
-        /// Invokes the TranslateBrowsePathsToNodeIds service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader TranslateBrowsePathsToNodeIds(
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
@@ -553,9 +535,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the TranslateBrowsePathsToNodeIds service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
@@ -601,9 +581,7 @@ namespace Opc.Ua
         #endregion
 
         #region RegisterNodes Methods
-        /// <summary>
-        /// Invokes the RegisterNodes service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader RegisterNodes(
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
@@ -634,9 +612,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the RegisterNodes service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<RegisterNodesResponse> RegisterNodesAsync(
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
@@ -672,9 +648,7 @@ namespace Opc.Ua
         #endregion
 
         #region UnregisterNodes Methods
-        /// <summary>
-        /// Invokes the UnregisterNodes service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader UnregisterNodes(
             RequestHeader requestHeader,
             NodeIdCollection nodesToUnregister)
@@ -696,9 +670,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the UnregisterNodes service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<UnregisterNodesResponse> UnregisterNodesAsync(
             RequestHeader requestHeader,
             NodeIdCollection nodesToUnregister,
@@ -816,9 +788,7 @@ namespace Opc.Ua
         #endregion
 
         #region HistoryRead Methods
-        /// <summary>
-        /// Invokes the HistoryRead service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader HistoryRead(
             RequestHeader requestHeader,
             ExtensionObject historyReadDetails,
@@ -868,9 +838,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the HistoryRead service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<HistoryReadResponse> HistoryReadAsync(
             RequestHeader requestHeader,
             ExtensionObject historyReadDetails,
@@ -925,9 +893,7 @@ namespace Opc.Ua
         #endregion
 
         #region Write Methods
-        /// <summary>
-        /// Invokes the Write service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader Write(
             RequestHeader requestHeader,
             WriteValueCollection nodesToWrite,
@@ -966,9 +932,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the Write service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<WriteResponse> WriteAsync(
             RequestHeader requestHeader,
             WriteValueCollection nodesToWrite,
@@ -1012,9 +976,7 @@ namespace Opc.Ua
         #endregion
 
         #region HistoryUpdate Methods
-        /// <summary>
-        /// Invokes the HistoryUpdate service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader HistoryUpdate(
             RequestHeader requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
@@ -1059,9 +1021,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the HistoryUpdate service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<HistoryUpdateResponse> HistoryUpdateAsync(
             RequestHeader requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
@@ -1110,9 +1070,7 @@ namespace Opc.Ua
         #endregion
 
         #region Call Methods
-        /// <summary>
-        /// Invokes the Call service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader Call(
             RequestHeader requestHeader,
             CallMethodRequestCollection methodsToCall,
@@ -1151,9 +1109,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the Call service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<CallResponse> CallAsync(
             RequestHeader requestHeader,
             CallMethodRequestCollection methodsToCall,
@@ -1197,9 +1153,7 @@ namespace Opc.Ua
         #endregion
 
         #region CreateMonitoredItems Methods
-        /// <summary>
-        /// Invokes the CreateMonitoredItems service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader CreateMonitoredItems(
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1242,9 +1196,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the CreateMonitoredItems service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1292,9 +1244,7 @@ namespace Opc.Ua
         #endregion
 
         #region ModifyMonitoredItems Methods
-        /// <summary>
-        /// Invokes the ModifyMonitoredItems service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader ModifyMonitoredItems(
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1337,9 +1287,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the ModifyMonitoredItems service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1387,9 +1335,7 @@ namespace Opc.Ua
         #endregion
 
         #region SetMonitoringMode Methods
-        /// <summary>
-        /// Invokes the SetMonitoringMode service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader SetMonitoringMode(
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1432,9 +1378,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the SetMonitoringMode service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1482,9 +1426,7 @@ namespace Opc.Ua
         #endregion
 
         #region SetTriggering Methods
-        /// <summary>
-        /// Invokes the SetTriggering service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader SetTriggering(
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1513,12 +1455,12 @@ namespace Opc.Ua
                 linksToAdd.Batch<UInt32, UInt32Collection>(operationLimit))
             {
                 UInt32Collection batchLinksToRemove;
-                if (OperationLimits.MaxMonitoredItemsPerCall == 0)
+                if (operationLimit == 0)
                 {
                     batchLinksToRemove = linksToRemove;
                     linksToRemove = new UInt32Collection();
                 }
-                else if (batchLinksToAdd.Count < OperationLimits.MaxMonitoredItemsPerCall)
+                else if (batchLinksToAdd.Count < operationLimit)
                 {
                     batchLinksToRemove = new UInt32Collection(linksToRemove.Take((int)operationLimit - batchLinksToAdd.Count));
                     linksToRemove = new UInt32Collection(linksToRemove.Skip(batchLinksToRemove.Count));
@@ -1593,9 +1535,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the SetTriggering service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<SetTriggeringResponse> SetTriggeringAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1621,12 +1561,12 @@ namespace Opc.Ua
                 linksToAdd.Batch<UInt32, UInt32Collection>(operationLimit))
             {
                 UInt32Collection batchLinksToRemove;
-                if (OperationLimits.MaxMonitoredItemsPerCall == 0)
+                if (operationLimit == 0)
                 {
                     batchLinksToRemove = linksToRemove;
                     linksToRemove = new UInt32Collection();
                 }
-                else if (batchLinksToAdd.Count < OperationLimits.MaxMonitoredItemsPerCall)
+                else if (batchLinksToAdd.Count < operationLimit)
                 {
                     batchLinksToRemove = new UInt32Collection(linksToRemove.Take((int)operationLimit - batchLinksToAdd.Count));
                     linksToRemove = new UInt32Collection(linksToRemove.Skip(batchLinksToRemove.Count));
@@ -1694,6 +1634,9 @@ namespace Opc.Ua
                     ClientBase.ValidateDiagnosticInfos(batchRemoveDiagnosticInfos, batchLinksToRemove);
 
                     AddResponses<StatusCode, StatusCodeCollection>(
+                        ref addResults, ref addDiagnosticInfos, batchAddResults, batchAddDiagnosticInfos);
+
+                    AddResponses<StatusCode, StatusCodeCollection>(
                         ref removeResults, ref removeDiagnosticInfos, batchRemoveResults, batchRemoveDiagnosticInfos);
                 }
             }
@@ -1709,9 +1652,7 @@ namespace Opc.Ua
         #endregion
 
         #region DeleteMonitoredItems Methods
-        /// <summary>
-        /// Invokes the DeleteMonitoredItems service.
-        /// </summary>
+        /// <inheritdoc/>
         public override ResponseHeader DeleteMonitoredItems(
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1752,9 +1693,7 @@ namespace Opc.Ua
         }
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Invokes the DeleteMonitoredItems service using async Task based request.
-        /// </summary>
+        /// <inheritdoc/>
         public override async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -1801,6 +1740,13 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Initialize the collections for a service call.
+        /// </summary>
+        /// <remarks>
+        /// Preset the result collections with null if the operation limit
+        /// is sufficient or with the final size if batching is necessary.
+        /// </remarks>
         private static void InitResponseCollections<T, C>(
             out C results,
             out DiagnosticInfoCollection diagnosticInfos,
@@ -1819,6 +1765,14 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Add the result of a batched service call to the results.
+        /// </summary>
+        /// <remarks>
+        /// Assigns the batched collection result to the result if the result
+        /// collection is not initialized, adds the range to the result
+        /// collections otherwise.
+        /// </remarks>
         private static void AddResponses<T, C>(
             ref C results,
             ref DiagnosticInfoCollection diagnosticInfos,
