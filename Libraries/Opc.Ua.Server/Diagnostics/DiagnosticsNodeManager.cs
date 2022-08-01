@@ -1183,6 +1183,7 @@ namespace Opc.Ua.Server
         /// Updates the session diagnostics summary structure.
         /// </summary>
         private bool UpdateSessionDiagnostics(
+            ISystemContext context,
             SessionDiagnosticsData diagnostics,
             SessionDiagnosticsDataType[] sessionArray,
             int index)
@@ -1196,7 +1197,13 @@ namespace Opc.Ua.Server
                 ref value);
 
             SessionDiagnosticsDataType newValue = value as SessionDiagnosticsDataType;
+
             sessionArray[index] = newValue;
+
+            if ((context != null) && (sessionArray?[index] != null))
+            {
+                FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
+            }
 
             // check for changes.
             if (Utils.IsEqual(newValue, diagnostics.Value.Value))
@@ -1233,6 +1240,7 @@ namespace Opc.Ua.Server
         /// Updates the session diagnostics summary structure.
         /// </summary>
         private bool UpdateSessionSecurityDiagnostics(
+            ISystemContext context,
             SessionDiagnosticsData diagnostics,
             SessionSecurityDiagnosticsDataType[] sessionArray,
             int index)
@@ -1246,7 +1254,13 @@ namespace Opc.Ua.Server
                 ref value);
 
             SessionSecurityDiagnosticsDataType newValue = value as SessionSecurityDiagnosticsDataType;
+
             sessionArray[index] = newValue;
+
+            if ((context != null) && (sessionArray?[index] != null))
+            {
+                FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
+            }
 
             // check for changes.
             if (Utils.IsEqual(newValue, diagnostics.SecurityValue.Value))
@@ -1283,6 +1297,7 @@ namespace Opc.Ua.Server
         /// Updates the subscription diagnostics summary structure.
         /// </summary>
         private bool UpdateSubscriptionDiagnostics(
+            ISystemContext context,
             SubscriptionDiagnosticsData diagnostics,
             SubscriptionDiagnosticsDataType[] subscriptionArray,
             int index)
@@ -1296,7 +1311,13 @@ namespace Opc.Ua.Server
                 ref value);
 
             SubscriptionDiagnosticsDataType newValue = value as SubscriptionDiagnosticsDataType;
+
             subscriptionArray[index] = newValue;
+
+            if ((context != null) && (subscriptionArray?[index] != null))
+            {
+                FilterOutUnAuthorized(subscriptionArray, newValue.SessionId, context, index);
+            }
 
             // check for changes.
             if (Utils.IsEqual(newValue, diagnostics.Value.Value))
@@ -1327,6 +1348,25 @@ namespace Opc.Ua.Server
             diagnostics.Value.ChangesComplete(SystemContext);
 
             return true;
+        }
+
+
+        /// <summary>
+        /// Filter out the members which corespond to users that are not allowed to see their contents
+        /// Current user is allowed to read its data, together with users which have permissions
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list"></param>
+        /// <param name="sessionId"></param>
+        /// <param name="context"></param>
+        /// <param name="index"></param>
+        private void FilterOutUnAuthorized<T>(IList<T> list, NodeId sessionId, ISystemContext context, int index)
+        {
+            if ((sessionId != context.SessionId) &&
+                    !HasApplicationSecureAdminAccess(context))
+            {
+                list[index] = default(T);
+            }
         }
 
         /// <summary>
@@ -1431,22 +1471,9 @@ namespace Opc.Ua.Server
                     for (int ii = 0; ii < m_sessions.Count; ii++)
                     {
                         SessionDiagnosticsData diagnostics = m_sessions[ii];
-                        UpdateSessionDiagnostics(diagnostics, sessionArray, ii);
+                        UpdateSessionDiagnostics(context, diagnostics, sessionArray, ii);
                     }
-
-                    // filter out the members which corespond to users that are not allowed to see their contents
-                    SessionDiagnosticsDataType[] selectedToPass = new SessionDiagnosticsDataType[m_sessions.Count];
-                    for (int ii = 0; ii < m_sessions.Count; ii++)
-                    {
-                        // Current user is allowed to read its SessionDiagnostics
-                        // together with users which have permissions
-                        if ((sessionArray[ii].SessionId == context.SessionId) ||
-                            HasApplicationSecureAdminAccess(context))
-                        {
-                            selectedToPass[ii] = sessionArray[ii];
-                        }
-                    }
-                    sessionArray = selectedToPass.Where(s => s != null).ToArray();
+                    sessionArray = sessionArray.Where(s => s != null).ToArray();
 
                     value = sessionArray;
                 }
@@ -1457,22 +1484,9 @@ namespace Opc.Ua.Server
 
                     for (int ii = 0; ii < m_sessions.Count; ii++)
                     {
-                        UpdateSessionSecurityDiagnostics(m_sessions[ii], sessionSecurityArray, ii);
+                        UpdateSessionSecurityDiagnostics(context, m_sessions[ii], sessionSecurityArray, ii);
                     }
-
-                    // filter out the members which corespond to users that are not allowed to see their contents
-                    SessionSecurityDiagnosticsDataType[] selectedToPass = new SessionSecurityDiagnosticsDataType[m_sessions.Count];
-                    for (int ii = 0; ii < m_sessions.Count; ii++)
-                    {
-                        // Current user is allowed to read its SessionSecurityDiagnostics
-                        // together with users which have permissions
-                        if ((sessionSecurityArray[ii].SessionId == context.SessionId) ||
-                            HasApplicationSecureAdminAccess(context))
-                        {
-                            selectedToPass[ii] = sessionSecurityArray[ii];
-                        }
-                    }
-                    sessionSecurityArray = selectedToPass.Where(s => s != null).ToArray();
+                    sessionSecurityArray = sessionSecurityArray.Where(s => s != null).ToArray();
 
                     value = sessionSecurityArray;
                 }
@@ -1483,22 +1497,9 @@ namespace Opc.Ua.Server
 
                     for (int ii = 0; ii < m_subscriptions.Count; ii++)
                     {
-                        UpdateSubscriptionDiagnostics(m_subscriptions[ii], subscriptionArray, ii);
+                        UpdateSubscriptionDiagnostics(context, m_subscriptions[ii], subscriptionArray, ii);
                     }
-
-                    // filter out the members which corespond to users that are not allowed to see their contents
-                    SubscriptionDiagnosticsDataType[] selectedToPass = new SubscriptionDiagnosticsDataType[m_sessions.Count];
-                    for (int ii = 0; ii < m_sessions.Count; ii++)
-                    {
-                        // Current user is allowed to read its SubscriptionDiagnostics
-                        // together with users which have permissions
-                        if ((subscriptionArray[ii].SessionId == context.SessionId) ||
-                            HasApplicationSecureAdminAccess(context))
-                        {
-                            selectedToPass[ii] = subscriptionArray[ii];
-                        }
-                    }
-                    subscriptionArray = selectedToPass.Where(s => s != null).ToArray();
+                    subscriptionArray = subscriptionArray.Where(s => s != null).ToArray();
 
                     value = subscriptionArray;
                 }
@@ -1564,7 +1565,7 @@ namespace Opc.Ua.Server
                     {
                         SessionDiagnosticsData diagnostics = m_sessions[ii];
 
-                        if (UpdateSessionDiagnostics(diagnostics, sessionArray, ii))
+                        if (UpdateSessionDiagnostics(null, diagnostics, sessionArray, ii))
                         {
                             sessionsChanged = true;
                         }
@@ -1588,7 +1589,7 @@ namespace Opc.Ua.Server
                     {
                         SessionDiagnosticsData diagnostics = m_sessions[ii];
 
-                        if (UpdateSessionSecurityDiagnostics(diagnostics, sessionSecurityArray, ii))
+                        if (UpdateSessionSecurityDiagnostics(null, diagnostics, sessionSecurityArray, ii))
                         {
                             sessionsSecurityChanged = true;
                         }
@@ -1612,7 +1613,7 @@ namespace Opc.Ua.Server
                     {
                         SubscriptionDiagnosticsData diagnostics = m_subscriptions[ii];
 
-                        if (UpdateSubscriptionDiagnostics(diagnostics, subscriptionArray, ii))
+                        if (UpdateSubscriptionDiagnostics(null, diagnostics, subscriptionArray, ii))
                         {
                             subscriptionsChanged = true;
                         }
