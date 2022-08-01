@@ -60,13 +60,6 @@ namespace Opc.Ua.Client.Tests
         {
         }
 
-        #region DataPointSources
-        public static readonly NodeId[] TypeSystems = {
-            ObjectIds.OPCBinarySchema_TypeSystem,
-            ObjectIds.XmlSchema_TypeSystem
-        };
-        #endregion
-
         #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
