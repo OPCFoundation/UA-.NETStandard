@@ -1,8 +1,8 @@
 /* ========================================================================
- * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,214 +29,200 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BenchmarkDotNet.Attributes;
+using NUnit.Framework;
+using Opc.Ua.Configuration;
+using Opc.Ua.Server.Tests;
+using Quickstarts.ReferenceServer;
 
-namespace Opc.Ua
+namespace Opc.Ua.Client.Tests
 {
     /// <summary>
-    /// The client side interface with support for batching according to operation limits.
+    /// Client tests.
     /// </summary>
-    public class SessionClientBatched : SessionClient
+    [TestFixture, Category("Client"), Category("SessionClient")]
+    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixtureSource(nameof(FixtureArgs))]
+    [MemoryDiagnoser]
+    [DisassemblyDiagnoser]
+    public class SessionClientBatchTest : ClientTestFramework
     {
-        #region Constructors
-        /// <summary>
-        /// Intializes the object with a channel and default operation limits.
-        /// </summary>
-        public SessionClientBatched(ITransportChannel channel)
-        :
-            base(channel)
+        public const uint kOperationLimit = 5;
+        public SessionClientBatchTest(string uriScheme = Utils.UriSchemeOpcTcp) :
+            base(uriScheme)
         {
-            m_operationLimits = new OperationLimits();
+        }
+
+        #region Test Setup
+        /// <summary>
+        /// Set up a Server and a Client instance.
+        /// </summary>
+        [OneTimeSetUp]
+        public new async Task OneTimeSetUp()
+        {
+            SupportsExternalServerUrl = true;
+            await base.OneTimeSetUp();
+            Session.OperationLimits = new OperationLimits() {
+                MaxMonitoredItemsPerCall = kOperationLimit,
+                MaxNodesPerBrowse = kOperationLimit,
+                MaxNodesPerHistoryReadData = kOperationLimit,
+                MaxNodesPerHistoryReadEvents = kOperationLimit,
+                MaxNodesPerHistoryUpdateData = kOperationLimit,
+                MaxNodesPerHistoryUpdateEvents = kOperationLimit,
+                MaxNodesPerMethodCall = kOperationLimit,
+                MaxNodesPerNodeManagement = kOperationLimit,
+                MaxNodesPerRead = kOperationLimit,
+                MaxNodesPerRegisterNodes = kOperationLimit,
+                MaxNodesPerTranslateBrowsePathsToNodeIds = kOperationLimit,
+                MaxNodesPerWrite = kOperationLimit
+            };
+        }
+
+        /// <summary>
+        /// Tear down the Server and the Client.
+        /// </summary>
+        [OneTimeTearDown]
+        public new Task OneTimeTearDownAsync()
+        {
+            return base.OneTimeTearDownAsync();
+        }
+
+        /// <summary>
+        /// Test setup.
+        /// </summary>
+        [SetUp]
+        public new async Task SetUp()
+        {
+            await base.SetUp().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Test teardown.
+        /// </summary>
+        [TearDown]
+        public new Task TearDown()
+        {
+            return base.TearDown();
         }
         #endregion
 
-        #region Public Properties
-        /// <summary>
-        /// The operation limits are used to batch the service requests.
-        /// </summary>
-        public OperationLimits OperationLimits
+        #region Test Methods
+        [Test]
+        public void AddNodes()
         {
-            get => m_operationLimits;
-            internal set
+            var nodesToAdd = new AddNodesItemCollection();
+            var addNodesItem = new AddNodesItem() { };
+            for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
-                if (value == null)
-                {
-                    m_operationLimits = new OperationLimits();
-                }
-                else
-                {
-                    m_operationLimits = value;
-                };
-            }
-        }
-        #endregion
-
-        #region AddNodes Methods
-        /// <inheritdoc/>
-        public override ResponseHeader AddNodes(
-            RequestHeader requestHeader,
-            AddNodesItemCollection nodesToAdd,
-            out AddNodesResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
-            InitResponseCollections<AddNodesResult, AddNodesResultCollection>(
-                out results, out diagnosticInfos,
-                nodesToAdd.Count, operationLimit
-                );
-
-            foreach (var batchNodesToAdd in
-                nodesToAdd.Batch<AddNodesItem, AddNodesItemCollection>(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.AddNodes(requestHeader,
-                    batchNodesToAdd,
-                    out AddNodesResultCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ClientBase.ValidateResponse(batchResults, batchNodesToAdd);
-                ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToAdd);
-
-                AddResponses<AddNodesResult, AddNodesResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                nodesToAdd.Add(addNodesItem);
             }
 
-            return responseHeader;
+            var requestHeader = new RequestHeader();
+            var sre = Assert.Throws<ServiceResultException>(() => {
+                var responseHeader = Session.AddNodes(requestHeader,
+                    nodesToAdd,
+                    out AddNodesResultCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
+
+                Assert.NotNull(responseHeader);
+                Assert.AreEqual(nodesToAdd.Count, results.Count);
+                Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
+            });
+
+            Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode);
         }
 
 #if (CLIENT_ASYNC)
-        /// <inheritdoc/>
-        public override async Task<AddNodesResponse> AddNodesAsync(
-            RequestHeader requestHeader,
-            AddNodesItemCollection nodesToAdd,
-            CancellationToken ct)
+        [Test]
+        public void AddNodesAsync()
         {
-            AddNodesResponse response = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
-            InitResponseCollections<AddNodesResult, AddNodesResultCollection>(
-                out var results, out var diagnosticInfos,
-                nodesToAdd.Count, operationLimit
-                );
-
-            foreach (var batchNodesToAdd in
-                nodesToAdd.Batch<AddNodesItem, AddNodesItemCollection>(operationLimit))
+            var nodesToAdd = new AddNodesItemCollection();
+            var addNodesItem = new AddNodesItem() { };
+            for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                response = await base.AddNodesAsync(requestHeader, batchNodesToAdd, ct).ConfigureAwait(false);
-
-                AddNodesResultCollection batchResults = response.Results;
-                DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
-
-                ClientBase.ValidateResponse(batchResults, batchNodesToAdd);
-                ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToAdd);
-
-                AddResponses<AddNodesResult, AddNodesResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                nodesToAdd.Add(addNodesItem);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
+            var requestHeader = new RequestHeader();
+            var sre = Assert.ThrowsAsync<ServiceResultException>(async () => {
+                var response = await Session.AddNodesAsync(requestHeader,
+                    nodesToAdd, CancellationToken.None).ConfigureAwait(false); ;
 
-            return response;
+                Assert.NotNull(response);
+                AddNodesResultCollection results = response.Results;
+                DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+
+                Assert.AreEqual(nodesToAdd.Count, results.Count);
+                Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
+            });
+
+            Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode);
         }
+
 #endif
-        #endregion
 
-        #region AddReferences Methods
-        /// <inheritdoc/>
-        public override ResponseHeader AddReferences(
-            RequestHeader requestHeader,
-            AddReferencesItemCollection referencesToAdd,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+        [Test]
+        public void AddReferences()
         {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos,
-                referencesToAdd.Count, operationLimit
-                );
-
-            foreach (var batchReferencesToAdd in
-                referencesToAdd.Batch<AddReferencesItem, AddReferencesItemCollection>(operationLimit))
+            var referencesToAdd = new AddReferencesItemCollection();
+            var addReferencesItem = new AddReferencesItem() { };
+            for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.AddReferences(requestHeader,
-                    batchReferencesToAdd,
-                    out StatusCodeCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ClientBase.ValidateResponse(batchResults, batchReferencesToAdd);
-                ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToAdd);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                referencesToAdd.Add(addReferencesItem);
             }
 
-            return responseHeader;
+            var requestHeader = new RequestHeader();
+            var sre = Assert.Throws<ServiceResultException>(() => {
+                var responseHeader = Session.AddReferences(requestHeader,
+                    referencesToAdd,
+                    out StatusCodeCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
+
+                Assert.NotNull(responseHeader);
+                Assert.AreEqual(referencesToAdd.Count, results.Count);
+                Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
+            });
+
+            Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode);
         }
 
 #if (CLIENT_ASYNC)
-        /// <inheritdoc/>
-        public override async Task<AddReferencesResponse> AddReferencesAsync(
-            RequestHeader requestHeader,
-            AddReferencesItemCollection referencesToAdd,
-            CancellationToken ct)
+        [Test]
+        public void AddReferencesAsync()
         {
-            AddReferencesResponse response = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos,
-                referencesToAdd.Count, operationLimit
-                );
-
-            foreach (var batchReferencesToAdd in
-                referencesToAdd.Batch<AddReferencesItem, AddReferencesItemCollection>(operationLimit))
+            var referencesToAdd = new AddReferencesItemCollection();
+            var addReferencesItem = new AddReferencesItem() { };
+            for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                response = await base.AddReferencesAsync(requestHeader, batchReferencesToAdd, ct).ConfigureAwait(false);
-
-                StatusCodeCollection batchResults = response.Results;
-                DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
-
-                ClientBase.ValidateResponse(batchResults, batchReferencesToAdd);
-                ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToAdd);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                referencesToAdd.Add(addReferencesItem);
             }
 
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
+            var requestHeader = new RequestHeader();
+            var sre = Assert.ThrowsAsync<ServiceResultException>(async () => {
+                var response = await Session.AddReferencesAsync(requestHeader,
+                    referencesToAdd, CancellationToken.None).ConfigureAwait(false); ;
 
-            return response;
+                Assert.NotNull(response);
+                StatusCodeCollection results = response.Results;
+                DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+
+                Assert.AreEqual(referencesToAdd.Count, results.Count);
+                Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
+            });
+
+            Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode);
         }
 #endif
-        #endregion
 
+#if mist
         #region DeleteNodes Methods
         /// <inheritdoc/>
         public override ResponseHeader DeleteNodes(
@@ -245,35 +231,6 @@ namespace Opc.Ua
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos,
-                nodesToDelete.Count, operationLimit
-                );
-
-            foreach (var batchNodesToDelete in
-                nodesToDelete.Batch<DeleteNodesItem, DeleteNodesItemCollection>(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.DeleteNodes(requestHeader,
-                    batchNodesToDelete,
-                    out StatusCodeCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ClientBase.ValidateResponse(batchResults, batchNodesToDelete);
-                ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToDelete);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
-            }
-
-            return responseHeader;
         }
 
 #if (CLIENT_ASYNC)
@@ -283,39 +240,6 @@ namespace Opc.Ua
             DeleteNodesItemCollection nodesToDelete,
             CancellationToken ct)
         {
-            DeleteNodesResponse response = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos,
-                nodesToDelete.Count, operationLimit
-                );
-
-            foreach (var batchNodesToDelete in
-                nodesToDelete.Batch<DeleteNodesItem, DeleteNodesItemCollection>(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                response = await base.DeleteNodesAsync(requestHeader,
-                    batchNodesToDelete, ct).ConfigureAwait(false);
-
-                StatusCodeCollection batchResults = response.Results;
-                DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
-
-                ClientBase.ValidateResponse(batchResults, batchNodesToDelete);
-                ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToDelete);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
-            }
-
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-
-            return response;
         }
 #endif
         #endregion
@@ -328,35 +252,6 @@ namespace Opc.Ua
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos,
-                referencesToDelete.Count, operationLimit
-                );
-
-            foreach (var batchReferencesToDelete in
-                referencesToDelete.Batch<DeleteReferencesItem, DeleteReferencesItemCollection>(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.DeleteReferences(requestHeader,
-                    batchReferencesToDelete,
-                    out StatusCodeCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ClientBase.ValidateResponse(batchResults, batchReferencesToDelete);
-                ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToDelete);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
-            }
-
-            return responseHeader;
         }
 
 #if (CLIENT_ASYNC)
@@ -366,43 +261,10 @@ namespace Opc.Ua
             DeleteReferencesItemCollection referencesToDelete,
             CancellationToken ct)
         {
-            DeleteReferencesResponse response = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos,
-                referencesToDelete.Count, operationLimit
-                );
-
-            foreach (var batchReferencesToDelete in
-                referencesToDelete.Batch<DeleteReferencesItem, DeleteReferencesItemCollection>(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                response = await base.DeleteReferencesAsync(requestHeader,
-                    batchReferencesToDelete, ct).ConfigureAwait(false);
-
-                StatusCodeCollection batchResults = response.Results;
-                DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
-
-                ClientBase.ValidateResponse(batchResults, batchReferencesToDelete);
-                ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToDelete);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
-            }
-
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-
-            return response;
         }
 #endif
         #endregion
-
+#if mist
         #region Browse Methods
         /// <inheritdoc/>
         public override ResponseHeader Browse(
@@ -1739,107 +1601,14 @@ namespace Opc.Ua
 #endif
         #endregion
 
+#endif
+#endif
+        #endregion
+
+        #region Benchmarks
+        #endregion
+
         #region Private Methods
-        /// <summary>
-        /// Initialize the collections for a service call.
-        /// </summary>
-        /// <remarks>
-        /// Preset the result collections with null if the operation limit
-        /// is sufficient or with the final size if batching is necessary.
-        /// </remarks>
-        private static void InitResponseCollections<T, C>(
-            out C results,
-            out DiagnosticInfoCollection diagnosticInfos,
-            int count,
-            uint operationLimit) where C : List<T>, new()
-        {
-            results = null;
-            diagnosticInfos = null;
-
-            if (count > operationLimit)
-            {
-                results = new C() {
-                    Capacity = count
-                };
-                diagnosticInfos = new DiagnosticInfoCollection(count);
-            }
-        }
-
-        /// <summary>
-        /// Add the result of a batched service call to the results.
-        /// </summary>
-        /// <remarks>
-        /// Assigns the batched collection result to the result if the result
-        /// collection is not initialized, adds the range to the result
-        /// collections otherwise.
-        /// </remarks>
-        private static void AddResponses<T, C>(
-            ref C results,
-            ref DiagnosticInfoCollection diagnosticInfos,
-            C batchedResults,
-            DiagnosticInfoCollection batchedDiagnosticInfos) where C : List<T>
-        {
-            if (results == null)
-            {
-                results = batchedResults;
-                diagnosticInfos = batchedDiagnosticInfos;
-            }
-            else
-            {
-                results.AddRange(batchedResults);
-                diagnosticInfos.AddRange(batchedDiagnosticInfos);
-            }
-        }
         #endregion
-
-        #region Private 
-        private OperationLimits m_operationLimits;
-        #endregion
-    }
-
-    /// <summary>
-    /// Extension helpers for client service calls.
-    /// </summary>
-    public static class SessionClientExtensions
-    {
-        /// <summary>
-        /// Returns batches of a collection for processing.
-        /// </summary>
-        /// <remarks>
-        /// Returns the original collection if batchsize is 0 or the collection count is smaller than the batch size.
-        /// </remarks>
-        /// <typeparam name="T">The type of the items in the collection.</typeparam>
-        /// <typeparam name="C">The type of the items in the collection.</typeparam>
-        /// <param name="collection">The collection from which items are batched.</param>
-        /// <param name="batchSize">The size of a batch.</param>
-        /// <returns>The collection.</returns>
-        internal static IEnumerable<C> Batch<T, C>(this C collection, uint batchSize) where C : List<T>, new()
-        {
-            if (collection.Count < batchSize || batchSize == 0)
-            {
-                yield return collection;
-            }
-            else
-            {
-                C nextbatch = new C {
-                    Capacity = (int)batchSize
-                };
-                foreach (T item in collection)
-                {
-                    nextbatch.Add(item);
-                    if (nextbatch.Count == batchSize)
-                    {
-                        yield return nextbatch;
-                        nextbatch = new C {
-                            Capacity = (int)batchSize
-                        };
-                    }
-                }
-                if (nextbatch.Count > 0)
-                {
-                    yield return nextbatch;
-                }
-            }
-        }
     }
 }
