@@ -342,6 +342,7 @@ namespace Opc.Ua.Client.Tests
                 ResultMask = (uint)BrowseResultMask.All
             };
 
+            ResponseHeader response;
             var requestHeader = new RequestHeader();
             var referenceDescriptions = new ReferenceDescriptionCollection();
 
@@ -364,7 +365,7 @@ namespace Opc.Ua.Client.Tests
                 while (continuationPoints.Any())
                 {
                     requestHeader.Timestamp = DateTime.UtcNow;
-                    var response = Session.BrowseNext(requestHeader, false, continuationPoints,
+                    response = Session.BrowseNext(requestHeader, false, continuationPoints,
                         out var browseNextResultCollection, out diagnosticInfos);
                     ServerFixtureUtils.ValidateResponse(response);
                     ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
@@ -395,6 +396,10 @@ namespace Opc.Ua.Client.Tests
                 }));
 
             var readResponse = Session.Read(requestHeader, 0, TimestampsToReturn.Neither, nodesToRead, out var valueResults, out _);
+
+            var nodesToRegister = new NodeIdCollection(nodesToRead.Select(n => n.NodeId));
+            response = Session.RegisterNodes(requestHeader, nodesToRegister, out var registeredNodeIds);
+            response = Session.UnregisterNodes(requestHeader, registeredNodeIds);
 
             TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
             int ii = 0;
@@ -475,6 +480,10 @@ namespace Opc.Ua.Client.Tests
                 }));
 
             var readResponse = await Session.ReadAsync(requestHeader, 0, TimestampsToReturn.Neither, nodesToRead, CancellationToken.None).ConfigureAwait(false);
+
+            var nodesToRegister = new NodeIdCollection(nodesToRead.Select(n => n.NodeId));
+            var registerResponse = await Session.RegisterNodesAsync(requestHeader, nodesToRegister, CancellationToken.None).ConfigureAwait(false);
+            var unregisterResponse = await Session.UnregisterNodesAsync(requestHeader, registerResponse.RegisteredNodeIds, CancellationToken.None).ConfigureAwait(false);
 
             TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
             int ii = 0;
