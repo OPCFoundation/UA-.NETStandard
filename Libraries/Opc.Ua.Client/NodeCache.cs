@@ -771,8 +771,8 @@ namespace Opc.Ua.Client
             bool includeSubtypes)
         {
             ExpandedNodeIdCollection targetIds = new ExpandedNodeIdCollection();
-            var sources = Find(nodeIds);
-            foreach (var source in sources)
+            IList<INode> sources = Find(nodeIds);
+            foreach (INode source in sources)
             {
                 if (!(source is Node node))
                 {
