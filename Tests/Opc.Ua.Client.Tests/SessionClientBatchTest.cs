@@ -411,7 +411,7 @@ namespace Opc.Ua.Client.Tests
                     var writeValue = new WriteValue() {
                         AttributeId = Attributes.Value,
                         NodeId = nodesToRead[ii].NodeId,
-                        Value = result
+                        Value = new DataValue(result.WrappedValue)
                     };
                     nodesToWrite.Add(writeValue);
                 }
@@ -515,7 +515,7 @@ namespace Opc.Ua.Client.Tests
                     var writeValue = new WriteValue() {
                         AttributeId = Attributes.Value,
                         NodeId = nodesToRead[ii].NodeId,
-                        Value = result
+                        Value = new DataValue(result.WrappedValue)
                     };
                     nodesToWrite.Add(writeValue);
                 }
