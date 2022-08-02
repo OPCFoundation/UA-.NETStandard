@@ -401,8 +401,26 @@ namespace Opc.Ua.Client.Tests
             response = Session.RegisterNodes(requestHeader, nodesToRegister, out var registeredNodeIds);
             response = Session.UnregisterNodes(requestHeader, registeredNodeIds);
 
-            TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
+            // test writes
+            var nodesToWrite = new WriteValueCollection();
             int ii = 0;
+            foreach (var result in valueResults)
+            {
+                if (StatusCode.IsGood(result.StatusCode))
+                {
+                    var writeValue = new WriteValue() {
+                        AttributeId = Attributes.Value,
+                        NodeId = nodesToRead[ii].NodeId,
+                        Value = result
+                    };
+                    nodesToWrite.Add(writeValue);
+                }
+                ii++;
+            }
+            var writeResponse = Session.Write(requestHeader, nodesToWrite, out var writeResults, out var writeDiagnostics);
+
+            TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
+            ii = 0;
             foreach (var reference in referenceDescriptions)
             {
                 TestContext.Out.WriteLine("NodeId {0} {1} {2} {3}", reference.NodeId, reference.NodeClass, reference.BrowseName, valueResults[ii++].WrappedValue);
@@ -479,14 +497,34 @@ namespace Opc.Ua.Client.Tests
                     AttributeId = Attributes.Value
                 }));
 
+            // test reads
             var readResponse = await Session.ReadAsync(requestHeader, 0, TimestampsToReturn.Neither, nodesToRead, CancellationToken.None).ConfigureAwait(false);
 
+            // test register nodes
             var nodesToRegister = new NodeIdCollection(nodesToRead.Select(n => n.NodeId));
             var registerResponse = await Session.RegisterNodesAsync(requestHeader, nodesToRegister, CancellationToken.None).ConfigureAwait(false);
             var unregisterResponse = await Session.UnregisterNodesAsync(requestHeader, registerResponse.RegisteredNodeIds, CancellationToken.None).ConfigureAwait(false);
 
-            TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
+            // test writes
+            var nodesToWrite = new WriteValueCollection();
             int ii = 0;
+            foreach (var result in readResponse.Results)
+            {
+                if (StatusCode.IsGood(result.StatusCode))
+                {
+                    var writeValue = new WriteValue() {
+                        AttributeId = Attributes.Value,
+                        NodeId = nodesToRead[ii].NodeId,
+                        Value = result
+                    };
+                    nodesToWrite.Add(writeValue);
+                }
+                ii++;
+            }
+            var writeResponse = await Session.WriteAsync(requestHeader, nodesToWrite, CancellationToken.None).ConfigureAwait(false);
+
+            TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
+            ii = 0;
             foreach (var reference in referenceDescriptions)
             {
                 TestContext.Out.WriteLine("NodeId {0} {1} {2} {3}", reference.NodeId, reference.NodeClass, reference.BrowseName, readResponse.Results[ii++].WrappedValue);
