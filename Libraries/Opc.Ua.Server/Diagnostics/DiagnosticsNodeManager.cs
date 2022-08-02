@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 
@@ -744,6 +745,8 @@ namespace Opc.Ua.Server
                 diagnosticsValue.Error = StatusCodes.BadWaitingForInitialData;
                 diagnosticsValue.CopyPolicy = Opc.Ua.VariableCopyPolicy.Never;
                 diagnosticsValue.OnBeforeRead = OnBeforeReadDiagnostics;
+                // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
+                diagnosticsNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
 
                 m_serverDiagnostics = diagnosticsValue;
                 m_serverDiagnosticsCallback = updateCallback;
@@ -776,6 +779,8 @@ namespace Opc.Ua.Server
                 if (array3 != null)
                 {
                     array3.OnSimpleReadValue = OnReadDiagnosticsArray;
+                    // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
+                    array3.OnReadUserRolePermissions = OnReadUserRolePermissions;
                 }
 
                 // send initial update.
@@ -831,6 +836,9 @@ namespace Opc.Ua.Server
                 {
                     summary.AddReference(ReferenceTypeIds.HasComponent, false, sessionNode.NodeId);
                 }
+
+                // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
+                sessionNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
 
                 // initialize diagnostics node.
                 SessionDiagnosticsVariableState diagnosticsNode = sessionNode.CreateChild(
@@ -1175,6 +1183,7 @@ namespace Opc.Ua.Server
         /// Updates the session diagnostics summary structure.
         /// </summary>
         private bool UpdateSessionDiagnostics(
+            ISystemContext context,
             SessionDiagnosticsData diagnostics,
             SessionDiagnosticsDataType[] sessionArray,
             int index)
@@ -1188,7 +1197,13 @@ namespace Opc.Ua.Server
                 ref value);
 
             SessionDiagnosticsDataType newValue = value as SessionDiagnosticsDataType;
+
             sessionArray[index] = newValue;
+
+            if ((context != null) && (sessionArray?[index] != null))
+            {
+                FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
+            }
 
             // check for changes.
             if (Utils.IsEqual(newValue, diagnostics.Value.Value))
@@ -1225,6 +1240,7 @@ namespace Opc.Ua.Server
         /// Updates the session diagnostics summary structure.
         /// </summary>
         private bool UpdateSessionSecurityDiagnostics(
+            ISystemContext context,
             SessionDiagnosticsData diagnostics,
             SessionSecurityDiagnosticsDataType[] sessionArray,
             int index)
@@ -1238,7 +1254,13 @@ namespace Opc.Ua.Server
                 ref value);
 
             SessionSecurityDiagnosticsDataType newValue = value as SessionSecurityDiagnosticsDataType;
+
             sessionArray[index] = newValue;
+
+            if ((context != null) && (sessionArray?[index] != null))
+            {
+                FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
+            }
 
             // check for changes.
             if (Utils.IsEqual(newValue, diagnostics.SecurityValue.Value))
@@ -1275,6 +1297,7 @@ namespace Opc.Ua.Server
         /// Updates the subscription diagnostics summary structure.
         /// </summary>
         private bool UpdateSubscriptionDiagnostics(
+            ISystemContext context,
             SubscriptionDiagnosticsData diagnostics,
             SubscriptionDiagnosticsDataType[] subscriptionArray,
             int index)
@@ -1288,7 +1311,13 @@ namespace Opc.Ua.Server
                 ref value);
 
             SubscriptionDiagnosticsDataType newValue = value as SubscriptionDiagnosticsDataType;
+
             subscriptionArray[index] = newValue;
+
+            if ((context != null) && (subscriptionArray?[index] != null))
+            {
+                FilterOutUnAuthorized(subscriptionArray, newValue.SessionId, context, index);
+            }
 
             // check for changes.
             if (Utils.IsEqual(newValue, diagnostics.Value.Value))
@@ -1319,6 +1348,74 @@ namespace Opc.Ua.Server
             diagnostics.Value.ChangesComplete(SystemContext);
 
             return true;
+        }
+
+
+        /// <summary>
+        /// Filter out the members which corespond to users that are not allowed to see their contents
+        /// Current user is allowed to read its data, together with users which have permissions
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list"></param>
+        /// <param name="sessionId"></param>
+        /// <param name="context"></param>
+        /// <param name="index"></param>
+        private void FilterOutUnAuthorized<T>(IList<T> list, NodeId sessionId, ISystemContext context, int index)
+        {
+            if ((sessionId != context.SessionId) &&
+                    !HasApplicationSecureAdminAccess(context))
+            {
+                list[index] = default(T);
+            }
+        }
+
+        /// <summary>
+        /// Set custom role permissions for desired node
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="node"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        private ServiceResult OnReadUserRolePermissions(
+        ISystemContext context,
+        NodeState node,
+        ref RolePermissionTypeCollection value)
+        {
+            bool admitUser;
+
+            if ((node.NodeId == VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary) ||
+                 (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray))
+            {
+                admitUser = HasApplicationSecureAdminAccess(context);
+            }
+            else
+            {
+                admitUser = (node.NodeId == context.SessionId) ||
+                            HasApplicationSecureAdminAccess(context);
+            }
+
+            if (admitUser)
+            {
+                var rolePermissionTypes = from roleId in m_kWellKnownRoles
+                                          select new RolePermissionType() {
+                                              RoleId = roleId,
+                                              Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.ReadRolePermissions | PermissionType.Write)
+                                          };
+
+                value = new RolePermissionTypeCollection(rolePermissionTypes);
+            }
+            else
+            {
+                var rolePermissionTypes = from roleId in m_kWellKnownRoles
+                                          select new RolePermissionType() {
+                                              RoleId = roleId,
+                                              Permissions = (uint)PermissionType.None
+                                          };
+
+                value = new RolePermissionTypeCollection(rolePermissionTypes);
+
+            }
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -1374,8 +1471,9 @@ namespace Opc.Ua.Server
                     for (int ii = 0; ii < m_sessions.Count; ii++)
                     {
                         SessionDiagnosticsData diagnostics = m_sessions[ii];
-                        UpdateSessionDiagnostics(diagnostics, sessionArray, ii);
+                        UpdateSessionDiagnostics(context, diagnostics, sessionArray, ii);
                     }
+                    sessionArray = sessionArray.Where(s => s != null).ToArray();
 
                     value = sessionArray;
                 }
@@ -1386,8 +1484,9 @@ namespace Opc.Ua.Server
 
                     for (int ii = 0; ii < m_sessions.Count; ii++)
                     {
-                        UpdateSessionSecurityDiagnostics(m_sessions[ii], sessionSecurityArray, ii);
+                        UpdateSessionSecurityDiagnostics(context, m_sessions[ii], sessionSecurityArray, ii);
                     }
+                    sessionSecurityArray = sessionSecurityArray.Where(s => s != null).ToArray();
 
                     value = sessionSecurityArray;
                 }
@@ -1398,8 +1497,9 @@ namespace Opc.Ua.Server
 
                     for (int ii = 0; ii < m_subscriptions.Count; ii++)
                     {
-                        UpdateSubscriptionDiagnostics(m_subscriptions[ii], subscriptionArray, ii);
+                        UpdateSubscriptionDiagnostics(context, m_subscriptions[ii], subscriptionArray, ii);
                     }
+                    subscriptionArray = subscriptionArray.Where(s => s != null).ToArray();
 
                     value = subscriptionArray;
                 }
@@ -1407,6 +1507,36 @@ namespace Opc.Ua.Server
                 return ServiceResult.Good;
             }
         }
+
+        /// <summary>
+        /// Determine if the impersonated user has admin access.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <exception cref="ServiceResultException"/>
+        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
+        private bool HasApplicationSecureAdminAccess(ISystemContext context)
+        {
+            OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
+            if (operationContext != null)
+            {
+                if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+                {
+                    return false;
+                }
+
+                SystemConfigurationIdentity user = context.UserIdentity as SystemConfigurationIdentity;
+                if (user == null ||
+                    user.TokenType == UserTokenType.Anonymous ||
+                    !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+            return false;
+        }
+
 
         /// <summary>
         /// Reports notifications for any monitored diagnostic nodes.
@@ -1435,7 +1565,7 @@ namespace Opc.Ua.Server
                     {
                         SessionDiagnosticsData diagnostics = m_sessions[ii];
 
-                        if (UpdateSessionDiagnostics(diagnostics, sessionArray, ii))
+                        if (UpdateSessionDiagnostics(null, diagnostics, sessionArray, ii))
                         {
                             sessionsChanged = true;
                         }
@@ -1459,7 +1589,7 @@ namespace Opc.Ua.Server
                     {
                         SessionDiagnosticsData diagnostics = m_sessions[ii];
 
-                        if (UpdateSessionSecurityDiagnostics(diagnostics, sessionSecurityArray, ii))
+                        if (UpdateSessionSecurityDiagnostics(null, diagnostics, sessionSecurityArray, ii))
                         {
                             sessionsSecurityChanged = true;
                         }
@@ -1483,7 +1613,7 @@ namespace Opc.Ua.Server
                     {
                         SubscriptionDiagnosticsData diagnostics = m_subscriptions[ii];
 
-                        if (UpdateSubscriptionDiagnostics(diagnostics, subscriptionArray, ii))
+                        if (UpdateSubscriptionDiagnostics(null, diagnostics, subscriptionArray, ii))
                         {
                             subscriptionsChanged = true;
                         }
@@ -1977,6 +2107,18 @@ namespace Opc.Ua.Server
         private List<MonitoredItem> m_sampledItems;
         private double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState m_historyCapabilities;
+        #endregion
+
+        #region Private Readonly Fields
+        private readonly NodeId[] m_kWellKnownRoles = {
+            ObjectIds.WellKnownRole_Anonymous,
+            ObjectIds.WellKnownRole_AuthenticatedUser,
+            ObjectIds.WellKnownRole_ConfigureAdmin,
+            ObjectIds.WellKnownRole_Engineer,
+            ObjectIds.WellKnownRole_Observer,
+            ObjectIds.WellKnownRole_Operator,
+            ObjectIds.WellKnownRole_SecurityAdmin,
+            ObjectIds.WellKnownRole_Supervisor };
         #endregion
     }
 }
