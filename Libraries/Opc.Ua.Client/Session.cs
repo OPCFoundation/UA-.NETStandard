@@ -1572,7 +1572,8 @@ namespace Opc.Ua.Client
         /// </remarks>
         public void FetchTypeTree(ExpandedNodeIdCollection typeIds)
         {
-            IList<INode> nodes = NodeCache.FindReferences(typeIds, ReferenceTypeIds.HasSubtype, false, false);
+            var referenceTypeIds = new NodeIdCollection() { ReferenceTypeIds.HasSubtype };
+            IList<INode> nodes = NodeCache.FindReferences(typeIds, referenceTypeIds, false, false);
             var subTypes = new ExpandedNodeIdCollection();
             foreach (INode inode in nodes)
             {

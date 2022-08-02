@@ -70,6 +70,7 @@ namespace Opc.Ua.Client.Tests
         {
             SupportsExternalServerUrl = true;
             await base.OneTimeSetUp();
+            Session.OperationLimits = null;
             Session.OperationLimits = new OperationLimits() {
                 MaxMonitoredItemsPerCall = kOperationLimit,
                 MaxNodesPerBrowse = kOperationLimit,
@@ -166,7 +167,6 @@ namespace Opc.Ua.Client.Tests
 
             Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode);
         }
-
 #endif
 
         [Test]
@@ -491,6 +491,58 @@ namespace Opc.Ua.Client.Tests
             {
                 TestContext.Out.WriteLine("NodeId {0} {1} {2} {3}", reference.NodeId, reference.NodeClass, reference.BrowseName, readResponse.Results[ii++].WrappedValue);
             }
+        }
+#endif
+
+        [Test]
+        public void TranslateBrowsePathsToNodeIds()
+        {
+            var browsePaths = new BrowsePathCollection();
+            var browsePath = new BrowsePath() {
+                StartingNode = ObjectIds.RootFolder,
+                RelativePath = new RelativePath("Objects")
+            };
+
+            for (int ii = 0; ii < kOperationLimit * 2; ii++)
+            {
+                browsePaths.Add(browsePath);
+            }
+
+            var requestHeader = new RequestHeader();
+            var responseHeader = Session.TranslateBrowsePathsToNodeIds(requestHeader,
+                    browsePaths,
+                    out BrowsePathResultCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
+
+            ClientBase.ValidateResponse(results, browsePaths);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browsePaths);
+            Assert.NotNull(responseHeader);
+        }
+
+#if (CLIENT_ASYNC)
+        [Test]
+        public async Task TranslateBrowsePathsToNodeIdsAsync()
+        {
+            var browsePaths = new BrowsePathCollection();
+            var browsePath = new BrowsePath() {
+                StartingNode = ObjectIds.RootFolder,
+                RelativePath = new RelativePath("Types")
+            };
+
+            for (int ii = 0; ii < kOperationLimit * 2; ii++)
+            {
+                browsePaths.Add(browsePath);
+            }
+
+            var requestHeader = new RequestHeader();
+            var response = await Session.TranslateBrowsePathsToNodeIdsAsync(requestHeader,
+                    browsePaths, CancellationToken.None).ConfigureAwait(false);
+            BrowsePathResultCollection results = response.Results;
+            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+
+            ClientBase.ValidateResponse(results, browsePaths);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browsePaths);
+            Assert.NotNull(response.ResponseHeader);
         }
 #endif
         #endregion

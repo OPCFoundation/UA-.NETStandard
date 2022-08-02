@@ -766,7 +766,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IList<INode> FindReferences(
             IList<ExpandedNodeId> nodeIds,
-            NodeId referenceTypeId,
+            IList<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes)
         {
@@ -779,14 +779,17 @@ namespace Opc.Ua.Client
                     continue;
                 }
 
-                IList<IReference> references = node.ReferenceTable.Find(
-                    referenceTypeId,
-                    isInverse,
-                    includeSubtypes,
-                    m_typeTree);
+                foreach (var referenceTypeId in referenceTypeIds)
+                {
+                    IList<IReference> references = node.ReferenceTable.Find(
+                        referenceTypeId,
+                        isInverse,
+                        includeSubtypes,
+                        m_typeTree);
 
-                targetIds.AddRange(
-                    references.Select(reference => reference.TargetId));
+                    targetIds.AddRange(
+                        references.Select(reference => reference.TargetId));
+                }
             }
 
             IList<INode> targets = new List<INode>();

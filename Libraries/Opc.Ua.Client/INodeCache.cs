@@ -70,7 +70,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Returns the references of the specified nodes that meet the criteria specified.
         /// </summary>
-        IList<INode> FindReferences(IList<ExpandedNodeId> nodeIds, NodeId referenceTypeId, bool isInverse, bool includeSubtypes);
+        IList<INode> FindReferences(IList<ExpandedNodeId> nodeIds, IList<NodeId> referenceTypeIds, bool isInverse, bool includeSubtypes);
 
         /// <summary>
         /// Returns a display name for a node.

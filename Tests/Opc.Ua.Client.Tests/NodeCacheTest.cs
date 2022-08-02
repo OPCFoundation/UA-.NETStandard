@@ -200,7 +200,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             Session.FetchTypeTree(ReferenceTypeIds.References);
-
+            var referenceTypeIds = new NodeIdCollection() { ReferenceTypeIds.HierarchicalReferences };
             while (nodesToBrowse.Count > 0)
             {
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
@@ -208,14 +208,12 @@ namespace Opc.Ua.Client.Tests
                 {
                     var organizers = Session.NodeCache.FindReferences(
                         nodesToBrowse,
-                        ReferenceTypeIds.HierarchicalReferences,
+                        referenceTypeIds,
                         false,
                         true);
-                   //TestContext.Out.WriteLine("Found {0} references", organizers.Count);
                     nextNodesToBrowse.AddRange(organizers.Select(n => n.NodeId));
                     var objectNodes = organizers.Where(n => n is ObjectNode);
                     var variableNodes = organizers.Where(n => n is VariableNode);
-                    //nextNodesToBrowse.AddRange(variableNodes.Select(n => n.NodeId).ToList());
                     result.AddRange(variableNodes);
                 }
                 catch (ServiceResultException sre)
@@ -338,7 +336,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var testSet = ReferenceDescriptions.Take(MaxReferences).Select(r => r.NodeId).ToList();
-            IList<INode> nodes = Session.NodeCache.FindReferences(testSet, ReferenceTypeIds.NonHierarchicalReferences, false, true);
+            IList<INode> nodes = Session.NodeCache.FindReferences(testSet, new NodeIdCollection() { ReferenceTypeIds.NonHierarchicalReferences }, false, true);
 
             foreach (var node in nodes)
             {
