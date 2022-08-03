@@ -985,9 +985,13 @@ namespace Opc.Ua
         {
             ResponseHeader responseHeader = null;
 
+            // see https://reference.opcfoundation.org/v104/Core/docs/Part11/6.8.1/ as to why
+            // history update of event, data or annotations should be called individually.
+            // Mixed arrays have unpredicatble results, only the first entry is checked and taken
+            // as operation limit source
             uint operationLimit = OperationLimits.MaxNodesPerHistoryUpdateData;
             if (historyUpdateDetails.Count > 0 &&
-                historyUpdateDetails[0].TypeId == DataTypeIds.UpdateEventDetails)
+                historyUpdateDetails[0]?.Body is UpdateEventDetails)
             {
                 operationLimit = OperationLimits.MaxNodesPerHistoryUpdateEvents;
             }

@@ -635,6 +635,82 @@ namespace Opc.Ua.Client.Tests
             Session.ValidateResponse(response.Results, nodesToRead);
             Session.ValidateDiagnosticInfos(response.DiagnosticInfos, nodesToRead);
         }
+
+        [Theory]
+        public void HistoryUpdate(bool eventDetails)
+        {
+            HistoryUpdateResultCollection results = null;
+            DiagnosticInfoCollection diagnosticInfos = null;
+
+            // there are no historizing nodes, instead use some real nodes to test
+            var testSet = GetTestSetSimulation(Session.NamespaceUris);
+
+            // see https://reference.opcfoundation.org/v104/Core/docs/Part11/6.8.1/ as to why
+            // history update of event, data or annotations should be called individually
+            ExtensionObjectCollection historyUpdateDetails;
+            if (eventDetails)
+            {
+                historyUpdateDetails = new ExtensionObjectCollection(
+                    testSet.Select(nodeId => new ExtensionObject(new UpdateEventDetails() {
+                        NodeId = nodeId,
+                        PerformInsertReplace = PerformUpdateType.Insert
+                    })));
+            }
+            else
+            {
+                historyUpdateDetails = new ExtensionObjectCollection(
+                    testSet.Select(nodeId => new ExtensionObject(
+                        new UpdateDataDetails() {
+                            NodeId = nodeId,
+                            PerformInsertReplace = PerformUpdateType.Replace
+                        })));
+            }
+
+            var responseHeader = Session.HistoryUpdate(
+                null,
+                historyUpdateDetails,
+                out results,
+                out diagnosticInfos);
+
+            Session.ValidateResponse(results, historyUpdateDetails);
+            Session.ValidateDiagnosticInfos(diagnosticInfos, historyUpdateDetails);
+        }
+
+        [Theory]
+        public async Task HistoryUpdateAsync(bool eventDetails)
+        {
+            // there are no historizing nodes, instead use some real nodes to test
+            var testSet = GetTestSetSimulation(Session.NamespaceUris);
+
+            // see https://reference.opcfoundation.org/v104/Core/docs/Part11/6.8.1/ as to why
+            // history update of event, data or annotations should be called individually
+            ExtensionObjectCollection historyUpdateDetails;
+            if (eventDetails)
+            {
+                historyUpdateDetails = new ExtensionObjectCollection(
+                    testSet.Select(nodeId => new ExtensionObject(new UpdateEventDetails() {
+                        NodeId = nodeId,
+                        PerformInsertReplace = PerformUpdateType.Insert
+                    })));
+            }
+            else
+            {
+                historyUpdateDetails = new ExtensionObjectCollection(
+                    testSet.Select(nodeId => new ExtensionObject(
+                        new UpdateDataDetails() {
+                            NodeId = nodeId,
+                            PerformInsertReplace = PerformUpdateType.Replace
+                        })));
+            }
+
+            var response = await Session.HistoryUpdateAsync(
+                null,
+                historyUpdateDetails,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Session.ValidateResponse(response.Results, historyUpdateDetails);
+            Session.ValidateDiagnosticInfos(response.DiagnosticInfos, historyUpdateDetails);
+        }
         #endregion
 
         #region Benchmarks
