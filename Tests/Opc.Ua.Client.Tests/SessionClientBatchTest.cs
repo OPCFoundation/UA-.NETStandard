@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -342,13 +342,14 @@ namespace Opc.Ua.Client.Tests
                 ResultMask = (uint)BrowseResultMask.All
             };
 
+            var browseDescriptionCollection = ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
+                new NodeIdCollection(new NodeId[] { Objects.RootFolder }),
+                browseTemplate);
+
             ResponseHeader response;
             var requestHeader = new RequestHeader();
             var referenceDescriptions = new ReferenceDescriptionCollection();
 
-            var browseDescriptionCollection = ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
-                new NodeIdCollection(new NodeId[] { Objects.RootFolder }),
-                browseTemplate);
             while (browseDescriptionCollection.Any())
             {
                 requestHeader.Timestamp = DateTime.UtcNow;
@@ -359,15 +360,18 @@ namespace Opc.Ua.Client.Tests
                     out BrowseResultCollection results,
                     out DiagnosticInfoCollection diagnosticInfos);
 
+                ServerFixtureUtils.ValidateResponse(responseHeader);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, browseDescriptionCollection);
+
                 allResults.AddRange(results);
 
                 var continuationPoints = ServerFixtureUtils.PrepareBrowseNext(results);
                 while (continuationPoints.Any())
                 {
                     requestHeader.Timestamp = DateTime.UtcNow;
-                    response = Session.BrowseNext(requestHeader, false, continuationPoints,
+                    responseHeader = Session.BrowseNext(requestHeader, false, continuationPoints,
                         out var browseNextResultCollection, out diagnosticInfos);
-                    ServerFixtureUtils.ValidateResponse(response);
+                    ServerFixtureUtils.ValidateResponse(responseHeader);
                     ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
                     allResults.AddRange(browseNextResultCollection);
                     continuationPoints = ServerFixtureUtils.PrepareBrowseNext(browseNextResultCollection);
@@ -397,11 +401,12 @@ namespace Opc.Ua.Client.Tests
 
             var readResponse = Session.Read(requestHeader, 0, TimestampsToReturn.Neither, nodesToRead, out var valueResults, out _);
 
+            // test register
             var nodesToRegister = new NodeIdCollection(nodesToRead.Select(n => n.NodeId));
             response = Session.RegisterNodes(requestHeader, nodesToRegister, out var registeredNodeIds);
             response = Session.UnregisterNodes(requestHeader, registeredNodeIds);
 
-            // test writes
+            // write values
             var nodesToWrite = new WriteValueCollection();
             int ii = 0;
             foreach (var result in valueResults)
@@ -583,12 +588,80 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(response.ResponseHeader);
         }
 #endif
+
+        [Theory]
+        public void HistoryRead(bool eventDetails)
+        {
+            HistoryReadResultCollection results = null;
+            DiagnosticInfoCollection diagnosticInfos = null;
+
+            // there are no historizing nodes, but create some real ones
+            var testSet = GetTestSetSimulation(Session.NamespaceUris);
+            HistoryReadValueIdCollection nodesToRead = new HistoryReadValueIdCollection(
+                testSet.Select(nodeId => new HistoryReadValueId {
+                    NodeId = nodeId
+                }));
+
+            var responseHeader = Session.HistoryRead(
+                null,
+                eventDetails ? ReadEventDetails() : ReadRawModifiedDetails(),
+                TimestampsToReturn.Source,
+                false,
+                nodesToRead,
+                out results,
+                out diagnosticInfos);
+
+            Session.ValidateResponse(results, nodesToRead);
+            Session.ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
+        }
+
+        [Theory]
+        public async Task HistoryReadAsync(bool eventDetails)
+        {
+            // there are no historizing nodes, but create some real ones
+            var testSet = GetTestSetSimulation(Session.NamespaceUris);
+            HistoryReadValueIdCollection nodesToRead = new HistoryReadValueIdCollection(
+                testSet.Select(nodeId => new HistoryReadValueId {
+                    NodeId = nodeId
+                }));
+
+            var response = await Session.HistoryReadAsync(
+                null,
+                eventDetails ? ReadEventDetails() : ReadRawModifiedDetails(),
+                TimestampsToReturn.Source,
+                false,
+                nodesToRead, CancellationToken.None).ConfigureAwait(false);
+
+            Session.ValidateResponse(response.Results, nodesToRead);
+            Session.ValidateDiagnosticInfos(response.DiagnosticInfos, nodesToRead);
+        }
         #endregion
 
         #region Benchmarks
         #endregion
 
         #region Private Methods
-        #endregion
+        private ExtensionObject ReadRawModifiedDetails()
+        {
+            ReadRawModifiedDetails details = new ReadRawModifiedDetails {
+                StartTime = DateTime.MinValue,
+                EndTime = DateTime.UtcNow.AddDays(1),
+                NumValuesPerNode = 1,
+                IsReadModified = false,
+                ReturnBounds = false
+            };
+            return new ExtensionObject(details);
+        }
+        private ExtensionObject ReadEventDetails()
+        {
+            ReadEventDetails details = new ReadEventDetails {
+                NumValuesPerNode = 10,
+                StartTime = DateTime.UtcNow.AddSeconds(30),
+                EndTime = DateTime.UtcNow.AddHours(-1),
+            };
+            return new ExtensionObject(details);
+        }
     }
+    #endregion
 }
+

@@ -801,7 +801,7 @@ namespace Opc.Ua
             ResponseHeader responseHeader = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerHistoryReadData;
-            if (historyReadDetails.TypeId == DataTypeIds.ReadEventDetails)
+            if (historyReadDetails?.Body is ReadEventDetails)
             {
                 operationLimit = OperationLimits.MaxNodesPerHistoryReadEvents;
             }
@@ -850,7 +850,7 @@ namespace Opc.Ua
             HistoryReadResponse response = null;
 
             uint operationLimit = OperationLimits.MaxNodesPerHistoryReadData;
-            if (historyReadDetails.TypeId == DataTypeIds.ReadEventDetails)
+            if (historyReadDetails?.Body is ReadEventDetails)
             {
                 operationLimit = OperationLimits.MaxNodesPerHistoryReadEvents;
             }
