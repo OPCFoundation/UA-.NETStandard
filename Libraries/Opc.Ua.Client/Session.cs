@@ -225,20 +225,23 @@ namespace Opc.Ua.Client
                 m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
             }
 
+            // initialize the NodeCache late, it needs references to the namespaceUris
+            m_nodeCache = new NodeCache(this);
+
             // set the default preferred locales.
             m_preferredLocales = new string[] { CultureInfo.CurrentCulture.Name };
 
             // create a context to use.
-            m_systemContext = new SystemContext();
-
-            m_systemContext.SystemHandle = this;
-            m_systemContext.EncodeableFactory = m_factory;
-            m_systemContext.NamespaceUris = m_namespaceUris;
-            m_systemContext.ServerUris = m_serverUris;
-            m_systemContext.TypeTable = TypeTree;
-            m_systemContext.PreferredLocales = null;
-            m_systemContext.SessionId = null;
-            m_systemContext.UserIdentity = null;
+            m_systemContext = new SystemContext {
+                SystemHandle = this,
+                EncodeableFactory = m_factory,
+                NamespaceUris = m_namespaceUris,
+                ServerUris = m_serverUris,
+                TypeTable = TypeTree,
+                PreferredLocales = null,
+                SessionId = null,
+                UserIdentity = null
+            };
         }
 
         /// <summary>
@@ -250,7 +253,6 @@ namespace Opc.Ua.Client
             m_namespaceUris = new NamespaceTable();
             m_serverUris = new StringTable();
             m_factory = EncodeableFactory.GlobalFactory;
-            m_nodeCache = new NodeCache(this);
             m_configuration = null;
             m_instanceCertificate = null;
             m_endpoint = null;
