@@ -1117,7 +1117,7 @@ namespace Opc.Ua
             if (trustedCertificate == null && !isIssuerTrusted)
             {
                 // TODO ECC cert
-                bool isApplicationCertificate = false;
+                bool isApplicationCertificate = true;
                 if (isApplicationCertificate)
                 //if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
                 {

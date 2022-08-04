@@ -164,6 +164,12 @@ namespace Opc.Ua.Client
                 if (clientCertificate == null)
                 {
                     m_instanceCertificate = LoadCertificate(configuration, m_endpoint.Description.SecurityPolicyUri).GetAwaiter().GetResult();
+                    if (m_instanceCertificate == null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadConfigurationError,
+                            "The client configuration does not specify an application instance certificate.");
+                    }
                 }
                 else
                 {
@@ -189,7 +195,8 @@ namespace Opc.Ua.Client
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
                         "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
-                        m_instanceCertificate.Subject, m_instanceCertificate.Thumbprint);
+                        m_instanceCertificate.Subject, 
+                        m_instanceCertificate.Thumbprint);
                 }
 
                 // load certificate chain.
