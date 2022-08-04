@@ -525,6 +525,8 @@ namespace Opc.Ua.Server
                                 }
                             }
                         }
+
+                        ReportCertificateUpdatedAuditEvent(context, objectId, method, inputArguments, certificateGroupId, certificateTypeId);
                     }
                     catch (Exception ex)
                     {
@@ -532,11 +534,14 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to update certificate.", ex);
                     }
                 }
-
             }
-            catch
+            catch (Exception e)
             {
-
+                // repiort the failure of UpdateCertificate via an audit event
+                ReportCertificateUpdatedAuditEvent(context, objectId, method, inputArguments, certificateGroupId, certificateTypeId, e);
+                // Raise audit certificate event 
+                Server.ReportAuditCertificateEvent(newCert, e);
+                throw;
             }
 
             return ServiceResult.Good;
@@ -553,12 +558,12 @@ namespace Opc.Ua.Server
         /// <param name="certificateTypeId">the certificate ype id</param>
         /// <param name="exception">The exception resulted after executing the UpdateCertificate method. If null, the operation was successfull.</param>
         private void ReportCertificateUpdatedAuditEvent(ISystemContext systemContext,
-       NodeId objectId,
-       MethodState method,
-       object[] inputArguments,
-       NodeId certificateGroupId,
-       NodeId certificateTypeId,
-       Exception exception = null)
+            NodeId objectId,
+            MethodState method,
+            object[] inputArguments,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            Exception exception = null)
         {
             try
             {

@@ -657,7 +657,7 @@ namespace Opc.Ua.Server
                         EndpointUrl = new Uri(endpointUrl)
                     };
 
-                    CertificateValidator.ValidateDomains(InstanceCertificate, configuredEndpoint);
+                    CertificateValidator.ValidateDomains(instanceCertificate, configuredEndpoint);
                 }
 
                 lock (m_lock)
