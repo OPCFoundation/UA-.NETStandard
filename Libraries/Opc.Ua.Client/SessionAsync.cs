@@ -41,9 +41,9 @@ namespace Opc.Ua.Client
     /// Manages a session with a server.
     /// Contains the async versions of the public session api.
     /// </summary>
-    public partial class Session : SessionClient, IDisposable
+    public partial class Session : SessionClientBatched, IDisposable
     {
-        #region Subscription Methods
+        #region Subscription Async Methods
         /// <summary>
         /// Removes a subscription from the session.
         /// </summary>
@@ -118,7 +118,7 @@ namespace Opc.Ua.Client
         /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The node collection and associated errors.</returns>
-        public async Task<(NodeCollection, IList<ServiceResult>)> ReadNodesAsync(
+        public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
             IList<NodeId> nodeIds,
             NodeClass nodeClass,
             bool optionalAttributes = false,
@@ -126,7 +126,7 @@ namespace Opc.Ua.Client
         {
             if (nodeIds.Count == 0)
             {
-                return (new NodeCollection(), new List<ServiceResult>());
+                return (new List<Node>(), new List<ServiceResult>());
             }
 
             if (nodeClass == NodeClass.Unspecified)
@@ -177,14 +177,14 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">The nodeId collection.</param>
         /// <param name="optionalAttributes">If optional attributes to read.</param>
         /// <param name="ct">The cancellation token.</param>
-        public async Task<(NodeCollection, IList<ServiceResult>)> ReadNodesAsync(
+        public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
             IList<NodeId> nodeIds,
             bool optionalAttributes = false,
             CancellationToken ct = default)
         {
             if (nodeIds.Count == 0)
             {
-                return (new NodeCollection(), new List<ServiceResult>());
+                return (new List<Node>(), new List<ServiceResult>());
             }
 
             var nodeCollection = new NodeCollection(nodeIds.Count);

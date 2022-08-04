@@ -268,6 +268,22 @@
 
   <Extensions>
     <ua:XmlElement>
+      <MemoryBufferConfiguration xmlns="http://samples.org/UA/MemoryBuffer">
+        <Buffers>
+          <MemoryBufferInstance>
+            <Name>UInt32</Name>
+            <TagCount>100</TagCount>
+            <DataType>UInt32</DataType>
+          </MemoryBufferInstance>
+          <MemoryBufferInstance>
+            <Name>Double</Name>
+            <TagCount>100</TagCount>
+            <DataType>Double</DataType>
+          </MemoryBufferInstance>
+        </Buffers>
+      </MemoryBufferConfiguration>
+    </ua:XmlElement>
+    <ua:XmlElement>
       <!-- For CTT testing set ShowCertificateValidationDialog to false -->
       <ReferenceServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/ReferenceServer">
         <ShowCertificateValidationDialog>true</ShowCertificateValidationDialog>

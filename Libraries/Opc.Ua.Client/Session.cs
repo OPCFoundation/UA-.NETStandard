@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -44,7 +45,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public partial class Session : SessionClient, IDisposable
+    public partial class Session : SessionClientBatched, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -224,20 +225,23 @@ namespace Opc.Ua.Client
                 m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
             }
 
+            // initialize the NodeCache late, it needs references to the namespaceUris
+            m_nodeCache = new NodeCache(this);
+
             // set the default preferred locales.
             m_preferredLocales = new string[] { CultureInfo.CurrentCulture.Name };
 
             // create a context to use.
-            m_systemContext = new SystemContext();
-
-            m_systemContext.SystemHandle = this;
-            m_systemContext.EncodeableFactory = m_factory;
-            m_systemContext.NamespaceUris = m_namespaceUris;
-            m_systemContext.ServerUris = m_serverUris;
-            m_systemContext.TypeTable = TypeTree;
-            m_systemContext.PreferredLocales = null;
-            m_systemContext.SessionId = null;
-            m_systemContext.UserIdentity = null;
+            m_systemContext = new SystemContext {
+                SystemHandle = this,
+                EncodeableFactory = m_factory,
+                NamespaceUris = m_namespaceUris,
+                ServerUris = m_serverUris,
+                TypeTable = TypeTree,
+                PreferredLocales = null,
+                SessionId = null,
+                UserIdentity = null
+            };
         }
 
         /// <summary>
@@ -249,7 +253,6 @@ namespace Opc.Ua.Client
             m_namespaceUris = new NamespaceTable();
             m_serverUris = new StringTable();
             m_factory = EncodeableFactory.GlobalFactory;
-            m_nodeCache = new NodeCache(this);
             m_configuration = null;
             m_instanceCertificate = null;
             m_endpoint = null;
@@ -542,7 +545,7 @@ namespace Opc.Ua.Client
         public NamespaceTable NamespaceUris => m_namespaceUris;
 
         /// <summary>
-        /// Gest the table of remote server uris known to the server.
+        /// Gets the table of remote server uris known to the server.
         /// </summary>
         public StringTable ServerUris => m_serverUris;
 
@@ -1436,32 +1439,29 @@ namespace Opc.Ua.Client
             ReadValueIdCollection nodesToRead = new ReadValueIdCollection();
 
             // request namespace array.
-            ReadValueId valueId = new ReadValueId();
-
-            valueId.NodeId = Variables.Server_NamespaceArray;
-            valueId.AttributeId = Attributes.Value;
+            ReadValueId valueId = new ReadValueId {
+                NodeId = Variables.Server_NamespaceArray,
+                AttributeId = Attributes.Value
+            };
 
             nodesToRead.Add(valueId);
 
             // request server array.
-            valueId = new ReadValueId();
-
-            valueId.NodeId = Variables.Server_ServerArray;
-            valueId.AttributeId = Attributes.Value;
+            valueId = new ReadValueId {
+                NodeId = Variables.Server_ServerArray,
+                AttributeId = Attributes.Value
+            };
 
             nodesToRead.Add(valueId);
 
             // read from server.
-            DataValueCollection values = null;
-            DiagnosticInfoCollection diagnosticInfos = null;
-
             ResponseHeader responseHeader = this.Read(
                 null,
                 0,
                 TimestampsToReturn.Both,
                 nodesToRead,
-                out values,
-                out diagnosticInfos);
+                out DataValueCollection values,
+                out DiagnosticInfoCollection diagnosticInfos);
 
             ValidateResponse(values, nodesToRead);
             ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
@@ -1492,6 +1492,57 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Fetch the operation limits of the server.
+        /// </summary>
+        public void FetchOperationLimits()
+        {
+            try
+            {
+                var operationLimitsProperties = typeof(OperationLimits)
+                    .GetProperties().Select(p => p.Name).ToList();
+
+                var nodeIds = new NodeIdCollection(
+                    operationLimitsProperties.Select(name => (NodeId)typeof(VariableIds)
+                    .GetField("Server_ServerCapabilities_OperationLimits_" + name, BindingFlags.Public | BindingFlags.Static)
+                    .GetValue(null))
+                    );
+
+                ReadValues(nodeIds, Enumerable.Repeat(typeof(uint), nodeIds.Count).ToList(), out var values, out var errors);
+
+                var configOperationLimits = m_configuration?.ClientConfiguration?.OperationLimits ?? new OperationLimits();
+                var operationLimits = new OperationLimits();
+
+                for (int ii = 0; ii < nodeIds.Count; ii++)
+                {
+                    var property = typeof(OperationLimits).GetProperty(operationLimitsProperties[ii]);
+                    uint value = (uint)property.GetValue(configOperationLimits);
+                    if (values[ii] != null &&
+                        ServiceResult.IsNotBad(errors[ii]))
+                    {
+                        uint serverValue = (uint)values[ii];
+                        if (serverValue > 0 &&
+                           (value == 0 || serverValue < value))
+                        {
+                            value = serverValue;
+                        }
+                    }
+                    property.SetValue(operationLimits, value);
+                }
+
+                OperationLimits = operationLimits;
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Failed to read operation limits from server. Using configuration defaults.");
+                var operationLimits = m_configuration?.ClientConfiguration?.OperationLimits;
+                if (operationLimits != null)
+                {
+                    OperationLimits = operationLimits;
+                }
+            }
+        }
+
+        /// <summary>
         /// Updates the cache with the type and its subtypes.
         /// </summary>
         /// <remarks>
@@ -1503,10 +1554,45 @@ namespace Opc.Ua.Client
 
             if (node != null)
             {
+                var subTypes = new ExpandedNodeIdCollection();
                 foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
                 {
-                    FetchTypeTree(reference.TargetId);
+                    subTypes.Add(reference.TargetId);
                 }
+                if (subTypes.Count > 0)
+                {
+                    FetchTypeTree(subTypes);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Updates the cache with the types and its subtypes.
+        /// </summary>
+        /// <remarks>
+        /// This method can be used to ensure the TypeTree is populated.
+        /// </remarks>
+        public void FetchTypeTree(ExpandedNodeIdCollection typeIds)
+        {
+            var referenceTypeIds = new NodeIdCollection() { ReferenceTypeIds.HasSubtype };
+            IList<INode> nodes = NodeCache.FindReferences(typeIds, referenceTypeIds, false, false);
+            var subTypes = new ExpandedNodeIdCollection();
+            foreach (INode inode in nodes)
+            {
+                if (inode is Node node)
+                {
+                    foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
+                    {
+                        if (!typeIds.Contains(reference.TargetId))
+                        {
+                            subTypes.Add(reference.TargetId);
+                        }
+                    }
+                }
+            }
+            if (subTypes.Count > 0)
+            {
+                FetchTypeTree(subTypes);
             }
         }
 
@@ -1679,7 +1765,7 @@ namespace Opc.Ua.Client
             var referenceNodeIds = references.Select(r => r.NodeId).ToList();
 
             // find namespace properties
-            var namespaceNodes = this.NodeCache.FindReferences(referenceNodeIds, ReferenceTypeIds.HasProperty, false, false)
+            var namespaceNodes = this.NodeCache.FindReferences(referenceNodeIds, new NodeIdCollection { ReferenceTypeIds.HasProperty }, false, false)
                 .Where(n => n.BrowseName == BrowseNames.NamespaceUri).ToList();
             var namespaceNodeIds = namespaceNodes.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, this.NamespaceUris)).ToList();
 
@@ -1760,7 +1846,7 @@ namespace Opc.Ua.Client
         public void ReadNodes(
             IList<NodeId> nodeIds,
             NodeClass nodeClass,
-            out NodeCollection nodeCollection,
+            out IList<Node> nodeCollection,
             out IList<ServiceResult> errors,
             bool optionalAttributes = false)
         {
@@ -1811,7 +1897,7 @@ namespace Opc.Ua.Client
         /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
         public void ReadNodes(
             IList<NodeId> nodeIds,
-            out NodeCollection nodeCollection,
+            out IList<Node> nodeCollection,
             out IList<ServiceResult> errors,
             bool optionalAttributes = false)
         {
@@ -1874,8 +1960,8 @@ namespace Opc.Ua.Client
                 null,
                 0,
                 TimestampsToReturn.Neither,
-                attributesToRead,
-                out DataValueCollection values,
+            attributesToRead,
+            out DataValueCollection values,
                 out diagnosticInfos);
 
             ClientBase.ValidateResponse(values, attributesToRead);
@@ -2117,9 +2203,9 @@ namespace Opc.Ua.Client
         /// <param name="referenceDescriptions">A list of reference collections.</param>
         /// <param name="errors">The errors reported by the server.</param>
         public void FetchReferences(
-            IList<NodeId> nodeIds,
-            out IList<ReferenceDescriptionCollection> referenceDescriptions,
-            out IList<ServiceResult> errors)
+        IList<NodeId> nodeIds,
+        out IList<ReferenceDescriptionCollection> referenceDescriptions,
+        out IList<ServiceResult> errors)
         {
             var result = new List<ReferenceDescriptionCollection>();
 
@@ -2141,10 +2227,12 @@ namespace Opc.Ua.Client
 
             // process any continuation point.
             var previousResult = result;
+            var previousErrors = errors;
             while (HasAnyContinuationPoint(continuationPoints))
             {
                 var nextContinuationPoints = new ByteStringCollection();
                 var nextResult = new List<ReferenceDescriptionCollection>();
+                var nextErrors = new List<ServiceResult>();
 
                 for (int ii = 0; ii < continuationPoints.Count; ii++)
                 {
@@ -2153,6 +2241,7 @@ namespace Opc.Ua.Client
                     {
                         nextContinuationPoints.Add(cp);
                         nextResult.Add(previousResult[ii]);
+                        nextErrors.Add(previousErrors[ii]);
                     }
                 }
 
@@ -2162,14 +2251,19 @@ namespace Opc.Ua.Client
                     nextContinuationPoints,
                     out ByteStringCollection revisedContinuationPoints,
                     out descriptions,
-                    out errors);
+                    out IList<ServiceResult> browseNextErrors);
 
                 continuationPoints = revisedContinuationPoints;
                 previousResult = nextResult;
+                previousErrors = nextErrors;
 
                 for (int ii = 0; ii < descriptions.Count; ii++)
                 {
-                    result[ii].AddRange(descriptions[ii]);
+                    nextResult[ii].AddRange(descriptions[ii]);
+                    if (StatusCode.IsBad(browseNextErrors[ii].StatusCode))
+                    {
+                        nextErrors[ii] = browseNextErrors[ii];
+                    }
                 }
             }
 
@@ -2693,6 +2787,9 @@ namespace Opc.Ua.Client
                     m_systemContext.UserIdentity = identity;
                 }
 
+                // fetch operation limits
+                FetchOperationLimits();
+
                 // start keep alive thread.
                 StartKeepAliveTimer();
             }
@@ -3049,8 +3146,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public void ReadDisplayName(
             IList<NodeId> nodeIds,
-            out List<string> displayNames,
-            out List<ServiceResult> errors)
+            out IList<string> displayNames,
+            out IList<ServiceResult> errors)
         {
             displayNames = new List<string>();
             errors = new List<ServiceResult>();
@@ -3077,7 +3174,7 @@ namespace Opc.Ua.Client
             ResponseHeader responseHeader = Read(
                 null,
                 Int32.MaxValue,
-                TimestampsToReturn.Both,
+                TimestampsToReturn.Neither,
                 valuesToRead,
                 out results,
                 out diagnosticInfos);
@@ -4198,7 +4295,7 @@ namespace Opc.Ua.Client
             NodeClass nodeClass,
             ReadValueIdCollection attributesToRead,
             IList<IDictionary<uint, DataValue>> attributesPerNodeId,
-            NodeCollection nodeCollection,
+            IList<Node> nodeCollection,
             bool optionalAttributes)
         {
             for (int ii = 0; ii < nodeIdCollection.Count; ii++)
@@ -4232,7 +4329,7 @@ namespace Opc.Ua.Client
             DiagnosticInfoCollection diagnosticInfos,
             ReadValueIdCollection attributesToRead,
             IList<IDictionary<uint, DataValue>> attributesPerNodeId,
-            NodeCollection nodeCollection,
+            IList<Node> nodeCollection,
             IList<ServiceResult> errors,
             bool optionalAttributes
             )
@@ -4294,7 +4391,7 @@ namespace Opc.Ua.Client
             IList<IDictionary<uint, DataValue>> attributesPerNodeId,
             DataValueCollection values,
             DiagnosticInfoCollection diagnosticInfos,
-            NodeCollection nodeCollection,
+            IList<Node> nodeCollection,
             IList<ServiceResult> errors)
         {
             int readIndex = 0;

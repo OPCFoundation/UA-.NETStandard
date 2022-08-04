@@ -79,7 +79,7 @@ namespace Opc.Ua.Client.ComplexTypes
             // cache type encodings
             var encodings = m_session.NodeCache.FindReferences(
                  nodeIds,
-                 ReferenceTypeIds.HasEncoding,
+                 new NodeIdCollection { ReferenceTypeIds.HasEncoding },
                  false,
                  false
                  );
@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.ComplexTypes
             nodeIds = encodings.Select(r => r.NodeId).ToList();
             var descriptions = m_session.NodeCache.FindReferences(
                 nodeIds,
-                ReferenceTypeIds.HasDescription,
+                new NodeIdCollection { ReferenceTypeIds.HasDescription },
                 false,
                 false
                 );
@@ -188,7 +188,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 var response = m_session.NodeCache.FindReferences(
                     nodesToBrowse,
-                    ReferenceTypeIds.HasSubtype,
+                    new NodeIdCollection { ReferenceTypeIds.HasSubtype },
                     false,
                     false);
 

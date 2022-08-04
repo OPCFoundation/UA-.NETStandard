@@ -146,7 +146,7 @@ namespace Opc.Ua.Client
             }
 
             // fetch missing nodes from server.
-            NodeCollection fetchedNodes;
+            IList<Node> fetchedNodes;
             try
             {
                 fetchedNodes = FetchNodes(fetchNodeIds);
@@ -165,9 +165,14 @@ namespace Opc.Ua.Client
                 {
                     ii++;
                 }
-                if (ii < count)
+                if (ii < count && nodes[ii] == null)
                 {
                     nodes[ii++] = fetchedNode;
+                }
+                else
+                {
+                    Utils.LogError("Inconsistency fetching nodes from server. Not all nodes could be assigned.");
+                    break;
                 }
             }
 
@@ -642,14 +647,14 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public NodeCollection FetchNodes(IList<ExpandedNodeId> nodeIds)
+        public IList<Node> FetchNodes(IList<ExpandedNodeId> nodeIds)
         {
             int count = nodeIds.Count;
             NodeIdCollection localIds = new NodeIdCollection(
                 nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris)));
 
             // fetch nodes and references from server.
-            m_session.ReadNodes(localIds, out NodeCollection sourceNodes, out IList<ServiceResult> readErrors);
+            m_session.ReadNodes(localIds, out IList<Node> sourceNodes, out IList<ServiceResult> readErrors);
             m_session.FetchReferences(localIds, out IList<ReferenceDescriptionCollection> referenceCollectionList, out IList<ServiceResult> fetchErrors);
 
             int ii = 0;
@@ -761,27 +766,30 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IList<INode> FindReferences(
             IList<ExpandedNodeId> nodeIds,
-            NodeId referenceTypeId,
+            IList<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes)
         {
             ExpandedNodeIdCollection targetIds = new ExpandedNodeIdCollection();
-            var sources = Find(nodeIds);
-            foreach (var source in sources)
+            IList<INode> sources = Find(nodeIds);
+            foreach (INode source in sources)
             {
                 if (!(source is Node node))
                 {
                     continue;
                 }
 
-                IList<IReference> references = node.ReferenceTable.Find(
-                    referenceTypeId,
-                    isInverse,
-                    includeSubtypes,
-                    m_typeTree);
+                foreach (var referenceTypeId in referenceTypeIds)
+                {
+                    IList<IReference> references = node.ReferenceTable.Find(
+                        referenceTypeId,
+                        isInverse,
+                        includeSubtypes,
+                        m_typeTree);
 
-                targetIds.AddRange(
-                    references.Select(reference => reference.TargetId));
+                    targetIds.AddRange(
+                        references.Select(reference => reference.TargetId));
+                }
             }
 
             IList<INode> targets = new List<INode>();
