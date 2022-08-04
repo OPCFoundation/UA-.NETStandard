@@ -152,6 +152,44 @@ namespace Opc.Ua
         {
             m_requestQueue.ScheduleIncomingRequest(request);
         }
+
+        #region ITransportListenerCallback Members
+        /// <summary>
+        /// Report the open secure channel audit event
+        /// </summary>
+        /// <param name="channel">The <see cref="TcpServerChannel"/> that processes the open secure channel request.</param>
+        /// <param name="request">The incoming <see cref="OpenSecureChannelRequest"/></param>
+        /// <param name="clientCertificate">The client certificate.</param>
+        /// <param name="exception">The exception resulted from the open secure channel request.</param>
+        public virtual void ReportAuditOpenSecureChannelEvent(TcpServerChannel channel,
+            OpenSecureChannelRequest request,
+            X509Certificate2 clientCertificate,
+            Exception exception)
+        {
+            // raise an audit open secure channel event.            
+        }
+
+        /// <summary>
+        /// Report the close secure channel audit event
+        /// </summary>
+        /// <param name="channel"></param>
+        /// <param name="exception">The exception resulted from the open secure channel request.</param>
+        public virtual void ReportAuditCloseSecureChannelEvent(TcpServerChannel channel, Exception exception)
+        {
+            // raise an audit close secure channel event.    
+        }
+
+        /// <summary>
+        /// Reports the audit event for client certificate error
+        /// </summary>
+        /// <param name="clientCertificate">The Client certificate</param>
+        /// <param name="exception">The <see cref="Exception"/> that triggers a certificate audit event.</param>
+        public virtual void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
+        {
+            // raise the audit certificate
+        }
+        #endregion
+
         #endregion
 
         #region Public Methods
@@ -211,7 +249,7 @@ namespace Opc.Ua
             // do any pre-startup processing
             OnServerStarting(configuration);
 
-            // intialize the request queue from the configuration.
+            // initialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
 
             // create the binding factory.
@@ -274,7 +312,7 @@ namespace Opc.Ua
             // do any pre-startup processing
             OnServerStarting(configuration);
 
-            // intialize the request queue from the configuration.
+            // initialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
 
             // create the listener factory.
@@ -704,16 +742,21 @@ namespace Opc.Ua
         /// <param name="description">The description.</param>
         public static bool RequireEncryption(EndpointDescription description)
         {
-            bool requireEncryption = description.SecurityPolicyUri != SecurityPolicies.None;
+            bool requireEncryption = false;
 
-            if (!requireEncryption)
+            if (description != null)
             {
-                foreach (UserTokenPolicy userTokenPolicy in description.UserIdentityTokens)
+                requireEncryption = description.SecurityPolicyUri != SecurityPolicies.None;
+
+                if (!requireEncryption)
                 {
-                    if (userTokenPolicy.SecurityPolicyUri != SecurityPolicies.None)
+                    foreach (UserTokenPolicy userTokenPolicy in description.UserIdentityTokens)
                     {
-                        requireEncryption = true;
-                        break;
+                        if (userTokenPolicy.SecurityPolicyUri != SecurityPolicies.None)
+                        {
+                            requireEncryption = true;
+                            break;
+                        }
                     }
                 }
             }

@@ -12,14 +12,16 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// This is an interface to a object that receives notifications from the listener when a message arrives.
     /// </summary>
-    public interface ITransportListenerCallback
+    public interface ITransportListenerCallback : IAuditEventCallback
     {
         /// <summary>
         /// Begins processing a request received via a binary encoded channel.

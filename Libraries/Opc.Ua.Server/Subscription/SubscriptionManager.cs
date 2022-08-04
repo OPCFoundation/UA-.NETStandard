@@ -1338,6 +1338,11 @@ namespace Opc.Ua.Server
                         diagnosticInfos.Add(new DiagnosticInfo(e, context.DiagnosticsMask, false, null));
                     }
                 }
+
+                for(int i = 0; i < results.Count; i++)
+                {
+                    m_server.ReportAuditTransferSubscriptionEvent(context.AuditEntryId, context.Session, results[i].StatusCode);
+                }
             }
         }
 
