@@ -29,19 +29,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
-using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -166,11 +159,9 @@ namespace Opc.Ua.Client.Tests
                             ReferenceTypeIds.HierarchicalReferences,
                             false,
                             true);
-                        //TestContext.Out.WriteLine("Found {0} references", organizers.Count);
                         nextNodesToBrowse.AddRange(organizers.Select(n => n.NodeId));
                         var objectNodes = organizers.Where(n => n is ObjectNode);
                         var variableNodes = organizers.Where(n => n is VariableNode);
-                        //nextNodesToBrowse.AddRange(variableNodes.Select(n => n.NodeId).ToList());
                         result.AddRange(variableNodes);
                     }
                     catch (ServiceResultException sre)

@@ -28,20 +28,12 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
-using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.Tests
 {
