@@ -399,6 +399,22 @@ namespace Opc.Ua.Server
                 instance.Create(contextToUse, null, browseName, null, true);
                 AddPredefinedNode(contextToUse, instance);
 
+                // report audit event
+                if (Server?.EventManager?.ServerAuditing == true)
+                {
+                    // current server supports auditing, prepare the added nodes info
+                    AddNodesItem[] addNodesItems = GetFlattenedNodeTree(context, instance).Select(n => new AddNodesItem() {
+                        BrowseName = n.BrowseName,
+                        NodeClass = n.NodeClass,
+                        RequestedNewNodeId = n.NodeId,
+                        TypeDefinition = (n as BaseInstanceState)?.TypeDefinitionId,
+                        ReferenceTypeId = (n as BaseInstanceState)?.ReferenceTypeId,
+                        ParentNodeId = (n as BaseInstanceState)?.Parent?.NodeId
+                    }).ToArray();
+
+                    ReportAuditAddNodesEvent(context, addNodesItems, "CreateNode", StatusCodes.Good);
+                }
+
                 return instance.NodeId;
             }
         }
@@ -426,6 +442,18 @@ namespace Opc.Ua.Server
 
                 if (PredefinedNodes.TryGetValue(nodeId, out node))
                 {
+                    // report audit event
+                    if (Server?.EventManager?.ServerAuditing == true)
+                    {
+                        // current server supports auditing, prepare the deleted nodes info
+                        DeleteNodesItem[] nodesToDelete = GetFlattenedNodeTree(context, node as BaseInstanceState).Select(n => new DeleteNodesItem() {
+                            NodeId = n.NodeId,
+                            DeleteTargetReferences = true
+                        }).ToArray();
+
+                        ReportAuditDeleteNodesEvent(context, nodesToDelete, "DeleteNode", StatusCodes.Good);
+                    }
+
                     RemovePredefinedNode(contextToUse, node, referencesToRemove);
                     found = true;
                 }
@@ -709,6 +737,36 @@ namespace Opc.Ua.Server
 
                 referencesToRemove.Add(referenceToRemove);
             }
+        }
+
+
+        /// <summary>
+        /// Get the flattened tree of nodes starting from the specified node
+        /// </summary>
+        /// <param name="context">Current server context.</param>
+        /// <param name="rootNode">The root node from where the search begins.</param>
+        /// <returns></returns>
+        protected IList<BaseInstanceState> GetFlattenedNodeTree(ISystemContext context, BaseInstanceState rootNode)
+        {
+            if (rootNode == null) return new List<BaseInstanceState>();
+
+            List<BaseInstanceState> nodes = new List<BaseInstanceState>() { rootNode };
+            List<BaseInstanceState> results = new List<BaseInstanceState> { rootNode };
+            while (nodes.Count > 0)
+            {
+                List<BaseInstanceState> childNodes = new List<BaseInstanceState>();
+                foreach (BaseInstanceState node in nodes)
+                {
+                    IList<BaseInstanceState> children = new List<BaseInstanceState>();
+                    node.GetChildren(context, children);
+
+                    childNodes.AddRange(children);
+                    results.AddRange(children);
+                }
+                nodes = childNodes;
+            }
+
+            return results;
         }
 
         /// <summary>
@@ -1954,7 +2012,7 @@ namespace Opc.Ua.Server
                         nodeToWrite.Value);
 
                     // report the write value audit event 
-                    ReportAuditWriteUpdateEvent(systemContext, nodeToWrite, oldValue?.Value, errors[ii].StatusCode);
+                    ReportAuditWriteUpdateEvent(systemContext, nodeToWrite, oldValue?.Value, errors[ii]?.StatusCode ?? StatusCodes.Good);
 
                     if (!ServiceResult.IsGood(errors[ii]))
                     {
@@ -2703,7 +2761,7 @@ namespace Opc.Ua.Server
                     errors,
                     nodesToProcess,
                     cache);
-                
+
                 return;
             }
 
@@ -4603,15 +4661,15 @@ namespace Opc.Ua.Server
                 e.SetChildValue(systemContext, BrowseNames.ClientAuditEntryId, systemContext?.AuditEntryId, false);
 
                 e.SetChildValue(systemContext, BrowseNames.AttributeId, writeValue.AttributeId, false);
-                e.SetChildValue(systemContext, BrowseNames.IndexRange, writeValue.ParsedIndexRange, false);                
+                e.SetChildValue(systemContext, BrowseNames.IndexRange, writeValue.IndexRange, false);
 
-                object newvalue = writeValue.Value?.Value;
+                object newValue = writeValue.Value?.Value;
                 if (writeValue.ParsedIndexRange != NumericRange.Empty)
-                {                    
-                    writeValue.ParsedIndexRange.UpdateRange(ref newvalue, writeValue.Value?.Value);
+                {
+                    writeValue.ParsedIndexRange.UpdateRange(ref newValue, writeValue.Value?.Value);
                 }
 
-                e.SetChildValue(systemContext, BrowseNames.NewValue, newvalue, false);
+                e.SetChildValue(systemContext, BrowseNames.NewValue, newValue, false);
                 e.SetChildValue(systemContext, BrowseNames.OldValue, oldValue, false);
 
                 Server?.ReportEvent(systemContext, e);
@@ -4631,12 +4689,12 @@ namespace Opc.Ua.Server
         /// <param name="sourceName">Source name</param>
         /// <param name="historyUpdateDetails">History update details</param>
         /// <param name="statusCode">The resulting status code</param>
-        private void InitializeAuditHistoryUpdateEvent(AuditUpdateEventState e,
-            ServerSystemContext systemContext,
-            string auditEventName,
-            string sourceName,
-            HistoryUpdateDetails historyUpdateDetails,
-            StatusCode statusCode)
+        private void InitializeAuditHistoryUpdateEvent(AuditHistoryUpdateEventState e,
+             ISystemContext systemContext,
+             string auditEventName,
+             string sourceName,
+             HistoryUpdateDetails historyUpdateDetails,
+             StatusCode statusCode)
         {
             TranslationInfo message = new TranslationInfo(
                auditEventName,
@@ -4668,7 +4726,7 @@ namespace Opc.Ua.Server
         /// <param name="updateDataDetails">Update data details</param>
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
-        protected void ReportAuditHistoryValueUpdateEvent(ServerSystemContext systemContext,
+        protected void ReportAuditHistoryValueUpdateEvent(ISystemContext systemContext,
             UpdateDataDetails updateDataDetails,
             DataValue[] oldValues,
             StatusCode statusCode)
@@ -4733,7 +4791,7 @@ namespace Opc.Ua.Server
                     statusCode);
 
                 e.SetChildValue(systemContext, BrowseNames.PerformInsertReplace, updateStructureDataDetails.PerformInsertReplace, false);
-                e.SetChildValue(systemContext, BrowseNames.NewValues, updateStructureDataDetails.UpdateValues.ToArray(), false);
+                e.SetChildValue(systemContext, BrowseNames.NewValues, updateStructureDataDetails.UpdateValues?.ToArray(), false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
 
                 Server.ReportEvent(systemContext, e);
@@ -4751,7 +4809,7 @@ namespace Opc.Ua.Server
         /// <param name="updateEventDetails">Update event details</param>
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
-        protected void ReportAuditHistoryEventUpdateEvent(ServerSystemContext systemContext,
+        protected void ReportAuditHistoryEventUpdateEvent(ISystemContext systemContext,
             UpdateEventDetails updateEventDetails,
             HistoryEventFieldList[] oldValues,
             StatusCode statusCode)
@@ -4794,7 +4852,7 @@ namespace Opc.Ua.Server
         /// <param name="deleteRawModifiedDetails">History raw modified details</param>
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
-        protected void ReportAuditHistoryRawModifyDeleteEvent(ServerSystemContext systemContext,
+        protected void ReportAuditHistoryRawModifyDeleteEvent(ISystemContext systemContext,
             DeleteRawModifiedDetails deleteRawModifiedDetails,
             DataValue[] oldValues,
             StatusCode statusCode)
@@ -4837,7 +4895,7 @@ namespace Opc.Ua.Server
         /// <param name="deleteAtTimeDetails">History delete at time details</param>
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
-        protected void ReportAuditHistoryAtTimeDeleteEvent(ServerSystemContext systemContext,
+        protected void ReportAuditHistoryAtTimeDeleteEvent(ISystemContext systemContext,
             DeleteAtTimeDetails deleteAtTimeDetails,
             DataValue[] oldValues,
             StatusCode statusCode)
@@ -4879,7 +4937,7 @@ namespace Opc.Ua.Server
         /// <param name="deleteEventDetails">History delete event details</param>
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
-        protected void ReportAuditHistoryEventDeleteEvent(ServerSystemContext systemContext,
+        protected void ReportAuditHistoryEventDeleteEvent(ISystemContext systemContext,
             DeleteEventDetails deleteEventDetails,
             DataValue[] oldValues,
             StatusCode statusCode)
@@ -4913,6 +4971,96 @@ namespace Opc.Ua.Server
             }
         }
 
+
+        /// <summary>
+        /// Report the AuditAddNodesEvent
+        /// </summary>
+        /// <param name="systemContext">Server information.</param>
+        /// <param name="addNodesItems">The added nodes information.</param>
+        /// <param name="customMessage">Custom message for add nodes audit event.</param>
+        /// <param name="statusCode">The resulting status code.</param>
+        protected void ReportAuditAddNodesEvent(ISystemContext systemContext, AddNodesItem[] addNodesItems, string customMessage, StatusCode statusCode)
+        {
+            if (Server?.EventManager?.ServerAuditing != true)
+            {
+                // current server does not support auditing
+                return;
+            }
+            try
+            {
+                AuditAddNodesEventState e = new AuditAddNodesEventState(null);
+
+                TranslationInfo message = new TranslationInfo(
+                           "AuditAddNodesEventState",
+                           "en-US",
+                           $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
+
+                e.Initialize(
+                   systemContext,
+                   null,
+                   EventSeverity.Min,
+                   new LocalizedText(message),
+                   StatusCode.IsGood(statusCode),
+                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+
+                e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
+                e.SetChildValue(systemContext, BrowseNames.SourceName, "NodeManagement/AddNodes", false);
+                e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
+
+                e.SetChildValue(systemContext, BrowseNames.NodesToAdd, addNodesItems, false);
+
+                Server.ReportEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Error while reporting AuditAddNodesEvent event.");
+            }
+        }
+
+        /// <summary>
+        /// Reports the AuditDeleteNodesEven
+        /// </summary>
+        /// <param name="systemContext">Server information.</param>
+        /// <param name="nodesToDelete">The delete nodes information.</param>
+        /// <param name="customMessage">Custom message for delete nodes.</param>
+        /// <param name="statusCode">The resulting status code.</param>
+        protected void ReportAuditDeleteNodesEvent(ISystemContext systemContext, DeleteNodesItem[] nodesToDelete, string customMessage, StatusCode statusCode)
+        {
+            if (Server?.EventManager?.ServerAuditing != true)
+            {
+                // current server does not support auditing
+                return;
+            }
+            try
+            {
+                AuditDeleteNodesEventState e = new AuditDeleteNodesEventState(null);
+
+                TranslationInfo message = new TranslationInfo(
+                           "AuditDeleteNodesEventState",
+                           "en-US",
+                           $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
+
+                e.Initialize(
+                   systemContext,
+                   null,
+                   EventSeverity.Min,
+                   new LocalizedText(message),
+                   StatusCode.IsGood(statusCode),
+                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+
+                e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
+                e.SetChildValue(systemContext, BrowseNames.SourceName, "NodeManagement/DeleteNodes", false);
+                e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
+
+                e.SetChildValue(systemContext, BrowseNames.NodesToDelete, nodesToDelete, false);
+
+                Server.ReportEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Error while reporting AuditDeleteNodesEvent event.");
+            }
+        }
         #endregion Report Audit Events
 
         #region ComponentCache Functions
