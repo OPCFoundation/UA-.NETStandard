@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 
 
@@ -407,9 +408,9 @@ namespace Opc.Ua.Server
                         BrowseName = n.BrowseName,
                         NodeClass = n.NodeClass,
                         RequestedNewNodeId = n.NodeId,
-                        TypeDefinition = (n as BaseInstanceState)?.TypeDefinitionId,
-                        ReferenceTypeId = (n as BaseInstanceState)?.ReferenceTypeId,
-                        ParentNodeId = (n as BaseInstanceState)?.Parent?.NodeId
+                        TypeDefinition = n.TypeDefinitionId,
+                        ReferenceTypeId = n.ReferenceTypeId,
+                        ParentNodeId = n.Parent?.NodeId
                     }).ToArray();
 
                     ReportAuditAddNodesEvent(context, addNodesItems, "CreateNode", StatusCodes.Good);
