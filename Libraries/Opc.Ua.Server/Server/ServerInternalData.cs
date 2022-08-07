@@ -554,7 +554,7 @@ namespace Opc.Ua.Server
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="exception">The Exception that triggers a certificate audit event.</param>
         public void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
-        { 
+        {
             if (exception == null)
             {
                 return;
@@ -652,7 +652,7 @@ namespace Opc.Ua.Server
                 Utils.LogError(ex, "Error while reporting ReportAuditCertificateDataMismatch event.");
             }
         }
-              
+
         /// <summary>
         /// Reports the AuditCertificateDataMismatchEventType for Invalid Uri
         /// </summary>        
@@ -780,7 +780,7 @@ namespace Opc.Ua.Server
                    $"RoleMappingRuleChanged - {method?.BrowseName}",
                    status,
                    DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
-                
+
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Attribute/Call", false);
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, roleStateObjectId, false);
                 e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
@@ -892,8 +892,20 @@ namespace Opc.Ua.Server
                 InitializeAuditSessionEvent(systemContext, e, message, exception == null, session, auditEntryId);
 
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Session/ActivateSession", false);
-                e.SetChildValue(systemContext, BrowseNames.ClientSoftwareCertificates, softwareCertificates?.ToArray(), false);
                 e.SetChildValue(systemContext, BrowseNames.UserIdentityToken, Utils.Clone(session?.IdentityToken), false);
+
+                if (softwareCertificates != null)
+                {
+                    // build the list of SignedSoftwareCertificate
+                    List<SignedSoftwareCertificate> signedSoftwareCertificates = new List<SignedSoftwareCertificate>();
+                    foreach (SoftwareCertificate softwareCertificate in softwareCertificates)
+                    {
+                        SignedSoftwareCertificate item = new SignedSoftwareCertificate();
+                        item.CertificateData = softwareCertificate.SignedCertificate.RawData;
+                        signedSoftwareCertificates.Add(item);
+                    }
+                    e.SetChildValue(systemContext, BrowseNames.ClientSoftwareCertificates, signedSoftwareCertificates.ToArray(), false);
+                }
 
                 ReportEvent(systemContext, e);
             }
@@ -1115,7 +1127,7 @@ namespace Opc.Ua.Server
 
                 // setup PublishSubscribe Status State value
                 PubSubState pubSubState = PubSubState.Disabled;
-                
+
                 var default_PubSubState = (BaseVariableState)m_diagnosticsNodeManager.FindPredefinedNode(
                     VariableIds.PublishSubscribe_Status_State,
                     typeof(BaseVariableState));
