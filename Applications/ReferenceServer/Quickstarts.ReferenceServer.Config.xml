@@ -178,7 +178,7 @@
         <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
     </UserTokenPolicies>
-    
+
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <MaxSessionCount>100</MaxSessionCount>
     <MinSessionTimeout>10000</MinSessionTimeout>

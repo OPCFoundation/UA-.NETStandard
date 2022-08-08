@@ -710,6 +710,13 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderClientOptions SetClientOperationLimits(OperationLimits operationLimits)
+        {
+            ApplicationConfiguration.ClientConfiguration.OperationLimits = operationLimits;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderTraceConfiguration SetOutputFilePath(string outputFilePath)
         {
             ApplicationConfiguration.TraceConfiguration.OutputFilePath = outputFilePath;
