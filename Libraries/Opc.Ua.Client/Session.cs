@@ -1910,6 +1910,12 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            if (count == 0)
+            {
+                errors = new List<ServiceResult>();
+                return;
+            }
+
             // first read only nodeclasses for nodes from server.
             var itemsToRead = new ReadValueIdCollection(
                 nodeIds.Select(nodeId =>
@@ -1960,8 +1966,8 @@ namespace Opc.Ua.Client
                 null,
                 0,
                 TimestampsToReturn.Neither,
-            attributesToRead,
-            out DataValueCollection values,
+                attributesToRead,
+                out DataValueCollection values,
                 out diagnosticInfos);
 
             ClientBase.ValidateResponse(values, attributesToRead);
@@ -2194,6 +2200,80 @@ namespace Opc.Ua.Client
             }
 
             return descriptions;
+        }
+
+        /// <summary>
+        /// Fetches all references for the specified nodes.
+        /// </summary>
+        /// <param name="nodeIds">The node id collection.</param>
+        /// <param name="referenceDescriptions">A list of reference collections.</param>
+        /// <param name="errors">The errors reported by the server.</param>
+        public void FetchReferences(
+            IList<NodeId> nodeIds,
+            out IList<ReferenceDescriptionCollection> referenceDescriptions,
+            out IList<ServiceResult> errors)
+        {
+            var result = new List<ReferenceDescriptionCollection>();
+
+            // browse for all references.
+            Browse(
+                null,
+                null,
+                nodeIds,
+                0,
+                BrowseDirection.Both,
+                null,
+                true,
+                0,
+                out ByteStringCollection continuationPoints,
+                out IList<ReferenceDescriptionCollection> descriptions,
+                out errors);
+
+            result.AddRange(descriptions);
+
+            // process any continuation point.
+            var previousResult = result;
+            var previousErrors = errors;
+            while (HasAnyContinuationPoint(continuationPoints))
+            {
+                var nextContinuationPoints = new ByteStringCollection();
+                var nextResult = new List<ReferenceDescriptionCollection>();
+                var nextErrors = new List<ServiceResult>();
+
+                for (int ii = 0; ii < continuationPoints.Count; ii++)
+                {
+                    var cp = continuationPoints[ii];
+                    if (cp != null)
+                    {
+                        nextContinuationPoints.Add(cp);
+                        nextResult.Add(previousResult[ii]);
+                        nextErrors.Add(previousErrors[ii]);
+                    }
+                }
+
+                BrowseNext(
+                    null,
+                    false,
+                    nextContinuationPoints,
+                    out ByteStringCollection revisedContinuationPoints,
+                    out descriptions,
+                    out IList<ServiceResult> browseNextErrors);
+
+                continuationPoints = revisedContinuationPoints;
+                previousResult = nextResult;
+                previousErrors = nextErrors;
+
+                for (int ii = 0; ii < descriptions.Count; ii++)
+                {
+                    nextResult[ii].AddRange(descriptions[ii]);
+                    if (StatusCode.IsBad(browseNextErrors[ii].StatusCode))
+                    {
+                        nextErrors[ii] = browseNextErrors[ii];
+                    }
+                }
+            }
+
+            referenceDescriptions = result;
         }
 
         /// <summary>

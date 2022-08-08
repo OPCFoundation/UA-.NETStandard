@@ -1624,6 +1624,16 @@ namespace Opc.Ua
                             length = 0;
                             break;
                         }
+                        else if (dimensions[ii] > m_context.MaxArrayLength)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingLimitsExceeded,
+                                "ArrayDimensions [{0}] = {1} is greater than MaxArrayLength {2}.",
+                                ii,
+                                dimensions[ii],
+                                m_context.MaxArrayLength);
+                        }
+
                         length *= dimensions[ii];
                     }
                     if (length > m_context.MaxArrayLength)
@@ -2310,6 +2320,12 @@ namespace Opc.Ua
                                 throw new ServiceResultException(
                                     StatusCodes.BadDecodingError,
                                     Utils.Format("ArrayDimensions [{0}] is zero in Variant object.", ii));
+                            }
+                            else if (dimensionsArray[ii] > length && length > 0)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadDecodingError,
+                                    Utils.Format("ArrayDimensions [{0}] = {1} is greater than length {2}.", ii, dimensionsArray[ii], length));
                             }
 
                             matrixLength *= dimensionsArray[ii];
