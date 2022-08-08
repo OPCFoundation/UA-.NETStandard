@@ -264,6 +264,7 @@
       <MaxNodesPerTranslateBrowsePathsToNodeIds>1000</MaxNodesPerTranslateBrowsePathsToNodeIds>
       <MaxMonitoredItemsPerCall>1000</MaxMonitoredItemsPerCall>
     </OperationLimits>
+    <AuditingEnabled>true</AuditingEnabled>
   </ServerConfiguration>
 
   <Extensions>

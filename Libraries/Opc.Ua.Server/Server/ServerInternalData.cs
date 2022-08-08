@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Bindings;
 
@@ -705,6 +706,7 @@ namespace Opc.Ua.Server
                     auditing.OnSimpleWriteValue += OnWriteAuditing;
                     auditing.OnSimpleReadValue += OnReadAuditing;
                     auditing.Value = m_auditing;
+// TODO: admin only
                     auditing.AccessLevel = AccessLevels.CurrentReadOrWrite;
                     auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                 }
@@ -737,7 +739,7 @@ namespace Opc.Ua.Server
         {
             lock (m_dataLock)
             {
-                m_auditing = Convert.ToBoolean(value, System.Globalization.CultureInfo.InvariantCulture);
+                m_auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
             }
             return ServiceResult.Good;
         }

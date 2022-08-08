@@ -521,7 +521,7 @@ namespace Opc.Ua.Server
                             }
                         }
 
-                        ReportCertificateUpdatedAuditEvent(context, objectId, method, inputArguments, certificateGroupId, certificateTypeId);
+                        Server.ReportCertificateUpdatedAuditEvent(context, objectId, method, inputArguments, certificateGroupId, certificateTypeId);
                     }
                     catch (Exception ex)
                     {
@@ -532,78 +532,14 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                // repiort the failure of UpdateCertificate via an audit event
-                ReportCertificateUpdatedAuditEvent(context, objectId, method, inputArguments, certificateGroupId, certificateTypeId, e);
+                // report the failure of UpdateCertificate via an audit event
+                Server.ReportCertificateUpdatedAuditEvent(context, objectId, method, inputArguments, certificateGroupId, certificateTypeId, e);
                 // Raise audit certificate event 
                 Server.ReportAuditCertificateEvent(newCert, e);
                 throw;
             }
 
             return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// Raise CertificateUpdatedAudit event
-        /// </summary>
-        /// <param name="systemContext"></param>
-        /// <param name="objectId">The id of the object ued for update certificate method</param>
-        /// <param name="method">The method that triggered the audit event.</param>
-        /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
-        /// <param name="certificateGroupId">The id of the certificate group</param>
-        /// <param name="certificateTypeId">the certificate ype id</param>
-        /// <param name="exception">The exception resulted after executing the UpdateCertificate method. If null, the operation was successfull.</param>
-        private void ReportCertificateUpdatedAuditEvent(ISystemContext systemContext,
-           NodeId objectId,
-           MethodState method,
-           object[] inputArguments,
-           NodeId certificateGroupId,
-           NodeId certificateTypeId,
-           Exception exception = null)
-        {
-            try
-            {
-                CertificateUpdatedAuditEventState e = new CertificateUpdatedAuditEventState(null);
-
-                TranslationInfo message = null;
-                if (exception == null)
-                {
-                    message = new TranslationInfo(
-                       "CertificateUpdatedAuditEvent",
-                       "en-US",
-                       "CertificateUpdatedAuditEvent.");
-                }
-                else
-                {
-                    message = new TranslationInfo(
-                      "CertificateUpdatedAuditEvent",
-                      "en-US",
-                      $"CertificateUpdatedAuditEvent - Exception: {exception.Message}.");
-                }
-
-                e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   new LocalizedText(message),
-                   exception == null,
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
-
-                e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
-                e.SetChildValue(systemContext, BrowseNames.SourceName, "Method/UpdateCertificate", false);
-                e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
-
-                e.SetChildValue(systemContext, BrowseNames.MethodId, method.NodeId, false);
-                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArguments, false);
-
-                e.SetChildValue(systemContext, BrowseNames.CertificateGroup, certificateGroupId, false);
-                e.SetChildValue(systemContext, BrowseNames.CertificateType, certificateTypeId, false);
-
-                Server.ReportEvent(systemContext, e);
-            }
-            catch (Exception ex)
-            {
-                Utils.LogError(ex, "Error while reporting ReportCertificateUpdatedAuditEvent event.");
-            }
         }
 
         private ServiceResult CreateSigningRequest(

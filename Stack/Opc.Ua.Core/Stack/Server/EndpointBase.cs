@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+// TODO remove dependency on TcpServerChannel
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua
@@ -125,9 +126,9 @@ namespace Opc.Ua
         {
             return ProcessRequestAsyncResult.WaitForComplete(result, false);
         }
-
         #endregion
 
+        // TODO: refactor callbacks
         #region IAuditEventCallback Members
         /// <summary>
         /// Report the open secure channel audit event
@@ -136,7 +137,8 @@ namespace Opc.Ua
         /// <param name="request">The incoming <see cref="OpenSecureChannelRequest"/></param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="exception">The exception resulted from the open secure channel request.</param>
-        public void ReportAuditOpenSecureChannelEvent(TcpServerChannel channel,
+        public void ReportAuditOpenSecureChannelEvent(
+            TcpServerChannel channel,
             OpenSecureChannelRequest request,
             X509Certificate2 clientCertificate,
             Exception exception)
@@ -150,7 +152,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="channel"></param>
         /// <param name="exception">The exception resulted from the open secure channel request.</param>
-        public void ReportAuditCloseSecureChannelEvent(TcpServerChannel channel, Exception exception)
+        public void ReportAuditCloseSecureChannelEvent(
+            TcpServerChannel channel,
+            Exception exception)
         {
             // trigger the reporting of close AuditChannelEventType
             ServerForContext?.ReportAuditCloseSecureChannelEvent(channel, exception);

@@ -11,16 +11,13 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// This is an interface to a object that receives notifications from the listener when a message arrives.
     /// </summary>
+    // TODO: why is audit event plugged in here?
     public interface ITransportListenerCallback : IAuditEventCallback
     {
         /// <summary>
