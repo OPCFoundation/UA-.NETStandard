@@ -2216,6 +2216,7 @@ namespace Opc.Ua
             m_minSubscriptionLifetime = 10000;
             m_wellKnownDiscoveryUrls = new StringCollection();
             m_discoveryServers = new EndpointDescriptionCollection();
+            m_operationLimits = new OperationLimits();
         }
 
         /// <summary>
@@ -2315,6 +2316,20 @@ namespace Opc.Ua
             get { return m_reverseConnect; }
             set { m_reverseConnect = value; }
         }
+
+        /// <summary>
+        /// Gets or sets the default operation limits of the OPC UA client.
+        /// </summary>
+        /// <remarks>
+        /// Values not equal to zero are overwritten with smaller values set by the server.
+        /// The values are used to limit client service calls.
+        /// </remarks>
+        [DataMember(IsRequired = false, Order = 6)]
+        public OperationLimits OperationLimits
+        {
+            get { return m_operationLimits; }
+            set { m_operationLimits = value; }
+        }
         #endregion
 
         #region Private Members
@@ -2324,6 +2339,7 @@ namespace Opc.Ua
         private string m_endpointCacheFilePath;
         private int m_minSubscriptionLifetime;
         private ReverseConnectClientConfiguration m_reverseConnect;
+        private OperationLimits m_operationLimits;
         #endregion
     }
     #endregion
