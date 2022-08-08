@@ -112,7 +112,7 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri></SecurityPolicyUri>
       </ServerSecurityPolicy>
-      <!-- deprecated security policies for reference only
+      <!-- deprecated security policies for reference only -->
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
@@ -129,7 +129,7 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
       </ServerSecurityPolicy>
-      -->
+      <!-- -->
     </SecurityPolicies>
 
     <MinRequestThreadCount>5</MinRequestThreadCount>
@@ -270,7 +270,7 @@
       <MaxNodesPerNodeManagement>2500</MaxNodesPerNodeManagement>
       <MaxMonitoredItemsPerCall>2500</MaxMonitoredItemsPerCall>
     </OperationLimits>
-
+    <AuditingEnabled>true</AuditingEnabled>
   </ServerConfiguration>
 
   <Extensions>
