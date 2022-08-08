@@ -42,7 +42,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The interface that a server exposes to objects that it contains.
     /// </summary>
-    public interface IServerInternal
+    public interface IServerInternal : IAuditEventServer
     {
         /// <summary>
         /// The endpoint addresses used by the server.
@@ -240,47 +240,5 @@ namespace Opc.Ua.Server
         /// <param name="subscriptionId">The subscription identifier.</param>
         /// <param name="monitoredItemId">The monitored item identifier.</param>
         void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId);
-
-        /// <summary>
-        /// Reports all audit events for client certificate ServiceResultException. It goes recursively for all service results stored in the exception
-        /// </summary>
-        /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="exception">The Exception that triggers a certificate audit event.</param>
-        void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception);
-
-        /// <summary>
-        /// Report the AuditCancelEventState
-        /// </summary>
-        /// <param name="sessionId">Session id of the current session</param>
-        /// <param name="requestHandle">The handle of the canceled request</param>
-        /// <param name="statusCode">The resulted status code of cancel request.</param>
-        void ReportAuditCancelEvent(NodeId sessionId, uint requestHandle, StatusCode statusCode);
-
-        /// <summary>
-        /// Reports a RoleMappingRuleChangedAuditEvent when a method is called on a RoleType instance
-        /// </summary>
-        /// <param name="roleStateObjectId"></param>
-        /// <param name="method"></param>
-        /// <param name="inputArguments"></param>
-        /// <param name="status"></param>
-        void ReportRoleMappingRuleChangedAuditEvent(NodeId roleStateObjectId, MethodState method, object[] inputArguments, bool status);
-
-        /// <summary>
-        /// Reports an audit close session event.
-        /// </summary>
-        /// <param name="auditEntryId">The audit entry id.</param>
-        /// <param name="session">The session object that was created.</param>
-        /// <param name="sourceName">Session/CloseSession when the session is closed by request
-        /// “Session/Timeout” for a Session timeout
-        /// “Session/Terminated” for all other cases.</param>
-        void ReportAuditCloseSessionEvent(string auditEntryId, Session session, string sourceName = "Session/Terminated");
-
-        /// <summary>
-        /// Reports an audit session event for the transfer subscription.
-        /// </summary>
-        /// <param name="auditEntryId">The audit entry id.</param>
-        /// <param name="session">The session object that was created.</param>
-        /// <param name="statusCode">The status code resulting .</param>
-        void ReportAuditTransferSubscriptionEvent(string auditEntryId, Session session, StatusCode statusCode);
     }
 }

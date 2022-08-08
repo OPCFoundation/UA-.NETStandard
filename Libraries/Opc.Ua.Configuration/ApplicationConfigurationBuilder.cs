@@ -661,6 +661,13 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetAuditingEnabled(bool auditingEnabled)
+        {
+            ApplicationConfiguration.ServerConfiguration.AuditingEnabled = auditingEnabled;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderClientOptions SetDefaultSessionTimeout(int defaultSessionTimeout)
         {
             ApplicationConfiguration.ClientConfiguration.DefaultSessionTimeout = defaultSessionTimeout;

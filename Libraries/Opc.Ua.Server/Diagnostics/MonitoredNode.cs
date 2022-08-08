@@ -225,7 +225,7 @@ namespace Opc.Ua.Server
                 if (e is AuditEventState)
                 {
                     // check Server.Auditing flag and skip if false
-                    if (!NodeManager.Server.EventManager.ServerAuditing)
+                    if (!NodeManager.Server.Auditing)
                     {
                         continue;
                     }
