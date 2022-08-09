@@ -720,6 +720,7 @@ namespace Opc.Ua.Server
                             }};
                     auditing.AccessLevel = AccessLevels.CurrentReadOrWrite;
                     auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                    auditing.MinimumSamplingInterval = 1000;
                 }
             }
         }
@@ -738,36 +739,6 @@ namespace Opc.Ua.Server
                 m_serverStatus.Timestamp = now;
                 m_serverStatus.Value.CurrentTime = now;
             }
-        }
-
-        /// <summary>
-        /// Updates the server auditing value.
-        /// </summary>
-        private ServiceResult OnWriteAuditing(
-            ISystemContext context,
-            NodeState node,
-            ref object value)
-        {
-            lock (m_dataLock)
-            {
-                m_auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
-            }
-            return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// Updates the server auditing value.
-        /// </summary>
-        private ServiceResult OnReadAuditing(
-            ISystemContext context,
-            NodeState node,
-            ref object value)
-        {
-            lock (m_dataLock)
-            {
-                value = m_auditing;
-            }
-            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -819,6 +790,30 @@ namespace Opc.Ua.Server
                 m_defaultSystemContext,
                 enabled);
 
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Updates the Server.Auditing flag.
+        /// </summary>
+        private ServiceResult OnWriteAuditing(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
+        {
+            m_auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Updates the Server.Auditing flag.
+        /// </summary>
+        private ServiceResult OnReadAuditing(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
+        {
+            value = m_auditing;
             return ServiceResult.Good;
         }
 

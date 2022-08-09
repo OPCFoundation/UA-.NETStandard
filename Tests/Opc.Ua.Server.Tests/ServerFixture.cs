@@ -103,7 +103,7 @@ namespace Opc.Ua.Server.Tests
                 });
             }
 
-            serverConfig.SetAuditingEnabled(true);
+            serverConfig.SetDiagnosticsEnabled(true).SetAuditingEnabled(true);
 
             if (ReverseConnectTimeout != 0)
             {
