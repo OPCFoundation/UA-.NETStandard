@@ -644,11 +644,11 @@ namespace Opc.Ua.Server
                 serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
                 // initialize status.
-                ServerStatusDataType serverStatus = new ServerStatusDataType();
-
-                serverStatus.StartTime = DateTime.UtcNow;
-                serverStatus.CurrentTime = DateTime.UtcNow;
-                serverStatus.State = ServerState.Shutdown;
+                ServerStatusDataType serverStatus = new ServerStatusDataType {
+                    StartTime = DateTime.UtcNow,
+                    CurrentTime = DateTime.UtcNow,
+                    State = ServerState.Shutdown
+                };
                 serverStatus.BuildInfo.ProductName = m_serverDescription.ProductName;
                 serverStatus.BuildInfo.ProductUri = m_serverDescription.ProductUri;
                 serverStatus.BuildInfo.ManufacturerName = m_serverDescription.ManufacturerName;
@@ -699,13 +699,11 @@ namespace Opc.Ua.Server
                     m_configuration);
 
                 m_auditing = m_configuration.ServerConfiguration.AuditingEnabled;
-                BaseVariableState auditing = (BaseVariableState)m_diagnosticsNodeManager.FindPredefinedNode(VariableIds.Server_Auditing, typeof(BaseVariableState));
-                if (auditing != null)
-                {
-                    auditing.OnSimpleWriteValue += OnWriteAuditing;
-                    auditing.OnSimpleReadValue += OnReadAuditing;
-                    auditing.Value = m_auditing;
-                    auditing.RolePermissions = new RolePermissionTypeCollection {
+                PropertyState<bool> auditing = serverObject.Auditing;
+                auditing.OnSimpleWriteValue += OnWriteAuditing;
+                auditing.OnSimpleReadValue += OnReadAuditing;
+                auditing.Value = m_auditing;
+                auditing.RolePermissions = new RolePermissionTypeCollection {
                         new RolePermissionType {
                             RoleId = ObjectIds.WellKnownRole_Anonymous,
                             Permissions = (uint)(PermissionType.Browse|PermissionType.Read)
@@ -718,10 +716,9 @@ namespace Opc.Ua.Server
                             RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
                             Permissions = (uint)(PermissionType.Browse|PermissionType.Write|PermissionType.ReadRolePermissions|PermissionType.Read)
                             }};
-                    auditing.AccessLevel = AccessLevels.CurrentReadOrWrite;
-                    auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-                    auditing.MinimumSamplingInterval = 1000;
-                }
+                auditing.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                auditing.MinimumSamplingInterval = 1000;
             }
         }
 
