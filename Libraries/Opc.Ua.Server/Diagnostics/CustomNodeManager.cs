@@ -3465,6 +3465,12 @@ namespace Opc.Ua.Server
                 // queue the events.
                 for (int jj = 0; jj < events.Count; jj++)
                 {
+                    // verify if the event can be received by the current monitored item
+                    var result = ValidateEventRolePermissions(monitoredItem, events[jj]);
+                    if (ServiceResult.IsBad(result))
+                    {
+                        continue;
+                    }
                     monitoredItem.QueueEvent(events[jj]);
                 }
             }
@@ -3810,6 +3816,42 @@ namespace Opc.Ua.Server
             NodeMetadata nodeMetadata = nodeManager.GetNodeMetadata(operationContext, nodeHandle, BrowseResultMask.All);
 
             return MasterNodeManager.ValidateRolePermissions(operationContext, nodeMetadata, requestedPermission);
+        }
+
+        /// <summary>
+        /// Validates if the specified event monitored item has enough permissions to receive the specified event
+        /// </summary>
+        /// <returns></returns>
+        public ServiceResult ValidateEventRolePermissions(IEventMonitoredItem monitoredItem, IFilterTarget filterTarget)
+        {
+            NodeId eventTypeId = null;
+            NodeId sourceNodeId = null;
+            BaseEventState baseEventState = filterTarget as BaseEventState;
+
+            if (baseEventState == null && filterTarget is InstanceStateSnapshot snapshot)
+            {
+                // try to get the event instance from snapshot object
+                baseEventState = snapshot.Handle as BaseEventState;
+            }
+
+            if (baseEventState != null)
+            {
+                eventTypeId = baseEventState.EventType?.Value;
+                sourceNodeId = baseEventState.SourceNode?.Value;
+            }
+            
+            OperationContext operationContext = new OperationContext(monitoredItem);
+
+            // validate the event type id permissions as specified
+            ServiceResult result = ValidateRolePermissions(operationContext, eventTypeId, PermissionType.ReceiveEvents);
+
+            if (ServiceResult.IsBad(result))
+            {
+                return result;
+            }
+
+            // validate the source node id permissions as specified
+            return ValidateRolePermissions(operationContext, sourceNodeId, PermissionType.ReceiveEvents);
         }
 
         /// <summary>
