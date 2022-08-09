@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Bindings;
 
 #pragma warning disable 0618
 
@@ -706,7 +705,19 @@ namespace Opc.Ua.Server
                     auditing.OnSimpleWriteValue += OnWriteAuditing;
                     auditing.OnSimpleReadValue += OnReadAuditing;
                     auditing.Value = m_auditing;
-// TODO: admin only
+                    auditing.RolePermissions = new RolePermissionTypeCollection {
+                        new RolePermissionType {
+                            RoleId = ObjectIds.WellKnownRole_Anonymous,
+                            Permissions = (uint)(PermissionType.Browse|PermissionType.Read)
+                            },
+                        new RolePermissionType {
+                            RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                            Permissions = (uint)(PermissionType.Browse|PermissionType.Read)
+                            },
+                        new RolePermissionType {
+                            RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+                            Permissions = (uint)(PermissionType.Browse|PermissionType.Write|PermissionType.ReadRolePermissions|PermissionType.Read)
+                            }};
                     auditing.AccessLevel = AccessLevels.CurrentReadOrWrite;
                     auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                 }
