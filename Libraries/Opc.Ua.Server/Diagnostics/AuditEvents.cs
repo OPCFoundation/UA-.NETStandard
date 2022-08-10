@@ -1123,7 +1123,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Reports the AuditDeleteNodesEven
+        /// Reports the AuditDeleteNodesEvent.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
         /// <param name="systemContext">The current system context.</param>
@@ -1175,16 +1175,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Report the open secure channel audit event
+        /// Report the open secure channel audit event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
-        /// <param name="channel">The <see cref="Bindings.TcpServerChannel"/> that processes the open secure channel request.</param>
+        /// <param name="globalChannelId">The global unique channel id.</param>
+        /// <param name="endpointDescription">The endpoint description used for the request.</param>
         /// <param name="request">The incoming <see cref="OpenSecureChannelRequest"/></param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="exception">The exception resulted from the open secure channel request.</param>
         public static void ReportAuditOpenSecureChannelEvent(
             this IAuditEventServer server,
-            Bindings.TcpServerChannel channel,
+            string globalChannelId,
+            EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
             X509Certificate2 clientCertificate,
             Exception exception)
@@ -1250,14 +1252,14 @@ namespace Opc.Ua.Server
                 e.SetChildValue(systemContext, BrowseNames.StatusCodeId, statusCode, false);
 
                 // set AuditChannelEventType fields
-                e.SetChildValue(systemContext, BrowseNames.SecureChannelId, channel.GlobalChannelId, false);
+                e.SetChildValue(systemContext, BrowseNames.SecureChannelId, globalChannelId, false);
 
                 // set AuditOpenSecureChannelEventType fields
                 e.SetChildValue(systemContext, BrowseNames.ClientCertificate, clientCertificate?.RawData, false);
                 e.SetChildValue(systemContext, BrowseNames.ClientCertificateThumbprint, clientCertificate?.Thumbprint, false);
                 e.SetChildValue(systemContext, BrowseNames.RequestType, request?.RequestType, false);
-                e.SetChildValue(systemContext, BrowseNames.SecurityPolicyUri, channel.EndpointDescription?.SecurityPolicyUri, false);
-                e.SetChildValue(systemContext, BrowseNames.SecurityMode, channel.EndpointDescription?.SecurityMode, false);
+                e.SetChildValue(systemContext, BrowseNames.SecurityPolicyUri, endpointDescription?.SecurityPolicyUri, false);
+                e.SetChildValue(systemContext, BrowseNames.SecurityMode, endpointDescription?.SecurityMode, false);
                 e.SetChildValue(systemContext, BrowseNames.RequestedLifetime, request?.RequestedLifetime, false);
 
                 server.ReportAuditEvent(systemContext, e);
@@ -1269,14 +1271,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Report the close secure channel audit event
+        /// Report the close secure channel audit event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
-        /// <param name="channel">The server channel.</param>
+        /// <param name="globalChannelId">The global unique channel id.</param>
         /// <param name="exception">The exception resulted from the open secure channel request.</param>
         public static void ReportAuditCloseSecureChannelEvent(
             this IAuditEventServer server,
-            Bindings.TcpServerChannel channel,
+            string globalChannelId,
             Exception exception)
         {
             if (server?.Auditing != true)
@@ -1339,7 +1341,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(systemContext, BrowseNames.StatusCodeId, statusCode, false);
 
                 // set AuditChannelEventType fields
-                e.SetChildValue(systemContext, BrowseNames.SecureChannelId, channel.GlobalChannelId, false);
+                e.SetChildValue(systemContext, BrowseNames.SecureChannelId, globalChannelId, false);
 
                 server.ReportAuditEvent(systemContext, e);
             }

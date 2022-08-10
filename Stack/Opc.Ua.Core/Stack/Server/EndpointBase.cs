@@ -128,49 +128,34 @@ namespace Opc.Ua
         }
         #endregion
 
-        // TODO: refactor callbacks
         #region IAuditEventCallback Members
-        /// <summary>
-        /// Report the open secure channel audit event
-        /// </summary>
-        /// <param name="channel">The <see cref="TcpServerChannel"/> that processes the open secure channel request.</param>
-        /// <param name="request">The incoming <see cref="OpenSecureChannelRequest"/></param>
-        /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="exception">The exception resulted from the open secure channel request.</param>
+        /// <inheritdoc/>
         public void ReportAuditOpenSecureChannelEvent(
-            TcpServerChannel channel,
+            string globalChannelId,
+            EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
             X509Certificate2 clientCertificate,
             Exception exception)
         {
             // trigger the reporting of AuditOpenSecureChannelEventType
-            ServerForContext?.ReportAuditOpenSecureChannelEvent(channel, request, clientCertificate, exception);
+            ServerForContext?.ReportAuditOpenSecureChannelEvent(globalChannelId, endpointDescription, request, clientCertificate, exception);
         }
 
-        /// <summary>
-        /// Report the close secure channel audit event
-        /// </summary>
-        /// <param name="channel"></param>
-        /// <param name="exception">The exception resulted from the open secure channel request.</param>
+        /// <inheritdoc/>
         public void ReportAuditCloseSecureChannelEvent(
-            TcpServerChannel channel,
+            string globalChannelId,
             Exception exception)
         {
             // trigger the reporting of close AuditChannelEventType
-            ServerForContext?.ReportAuditCloseSecureChannelEvent(channel, exception);
+            ServerForContext?.ReportAuditCloseSecureChannelEvent(globalChannelId, exception);
         }
 
-        /// <summary>
-        /// Reports all audit events for client certificate ServiceResultException. It goes recursively for all service results stored in the exception
-        /// </summary>
-        /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="exception">The Exception that triggers a certificate audit event.</param>
+        /// <inheritdoc/>
         public void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
         {
             // trigger the reporting of OpenSecureChannelAuditEvent
             ServerForContext?.ReportAuditCertificateEvent(clientCertificate, exception);
         }
-
         #endregion
 
         #region Public Methods

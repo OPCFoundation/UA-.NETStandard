@@ -705,18 +705,14 @@ namespace Opc.Ua.Server
                 auditing.Value = m_auditing;
                 auditing.RolePermissions = new RolePermissionTypeCollection {
                         new RolePermissionType {
-                            RoleId = ObjectIds.WellKnownRole_Anonymous,
-                            Permissions = (uint)(PermissionType.Browse|PermissionType.Read)
-                            },
-                        new RolePermissionType {
                             RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
                             Permissions = (uint)(PermissionType.Browse|PermissionType.Read)
                             },
                         new RolePermissionType {
-                            RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+                            RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
                             Permissions = (uint)(PermissionType.Browse|PermissionType.Write|PermissionType.ReadRolePermissions|PermissionType.Read)
                             }};
-                auditing.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                auditing.AccessLevel = AccessLevels.CurrentRead;
                 auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                 auditing.MinimumSamplingInterval = 1000;
             }
