@@ -1396,7 +1396,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes a session audit event.
         /// </summary>
-        private static void InitializeAuditSessionEvent(ISystemContext systemContext, AuditEventState e, TranslationInfo message, bool status, Session session, string auditEntryId)
+        private static void InitializeAuditSessionEvent(
+            ISystemContext systemContext,
+            AuditEventState e,
+            TranslationInfo message,
+            bool status,
+            Session session,
+            string auditEntryId)
         {
             e.Initialize(
                 systemContext,

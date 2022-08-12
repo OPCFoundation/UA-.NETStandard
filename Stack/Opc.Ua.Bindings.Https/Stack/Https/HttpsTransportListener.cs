@@ -11,6 +11,7 @@ using System.IO;
 using System.Net;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -47,6 +48,8 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class Startup
     {
+        private const string kHttpsContentType = "text/plain";
+
         /// <summary>
         /// Get the Https listener.
         /// </summary>
@@ -58,17 +61,17 @@ namespace Opc.Ua.Bindings
         /// <param name="appBuilder">The application builder.</param>
         public void Configure(IApplicationBuilder appBuilder)
         {
-            appBuilder.Run(async context => {
+            appBuilder.Run(context => {
                 if (context.Request.Method != "POST")
                 {
                     context.Response.ContentLength = 0;
-                    context.Response.ContentType = "text/plain";
+                    context.Response.ContentType = kHttpsContentType;
                     context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
-                    await context.Response.WriteAsync(string.Empty).ConfigureAwait(false);
+                    return context.Response.WriteAsync(string.Empty);
                 }
                 else
                 {
-                    await Listener.SendAsync(context).ConfigureAwait(false);
+                    return Listener.SendAsync(context);
                 }
             });
         }
@@ -79,6 +82,10 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class HttpsTransportListener : ITransportListener
     {
+        private const string kHttpsContentType = "text/plain";
+        private const string kAuthorizationKey = "Authorization";
+        private const string kBearerKey = "Bearer";
+
         #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="HttpsTransportListener"/> class.
@@ -276,25 +283,24 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task SendAsync(HttpContext context)
         {
-            IAsyncResult result = null;
-
+            CancellationToken ct = context.RequestAborted;
             try
             {
                 if (m_callback == null)
                 {
                     context.Response.ContentLength = 0;
-                    context.Response.ContentType = "text/plain";
+                    context.Response.ContentType = kHttpsContentType;
                     context.Response.StatusCode = (int)HttpStatusCode.NotImplemented;
-                    await context.Response.WriteAsync(string.Empty).ConfigureAwait(false);
+                    await context.Response.WriteAsync(string.Empty, ct).ConfigureAwait(false);
                     return;
                 }
 
                 if (context.Request.ContentType != "application/octet-stream")
                 {
                     context.Response.ContentLength = 0;
-                    context.Response.ContentType = "text/plain";
+                    context.Response.ContentType = kHttpsContentType;
                     context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    await context.Response.WriteAsync("HTTPSLISTENER - Unsupported content type.").ConfigureAwait(false);
+                    await context.Response.WriteAsync("HTTPSLISTENER - Unsupported content type.", ct).ConfigureAwait(false);
                     return;
                 }
 
@@ -304,7 +310,7 @@ namespace Opc.Ua.Bindings
                 if (buffer.Length != length)
                 {
                     context.Response.ContentLength = 0;
-                    context.Response.ContentType = "text/plain";
+                    context.Response.ContentType = kHttpsContentType;
                     context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                     await context.Response.WriteAsync("HTTPSLISTENER - Couldn't decode buffer.").ConfigureAwait(false);
                     return;
@@ -318,16 +324,17 @@ namespace Opc.Ua.Bindings
                     input.RequestHeader = new RequestHeader();
                 }
 
-                if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) && input.TypeId != DataTypeIds.CreateSessionRequest)
+                if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) &&
+                    input.TypeId != DataTypeIds.CreateSessionRequest)
                 {
-                    if (context.Request.Headers.ContainsKey("Authorization"))
+                    if (context.Request.Headers.ContainsKey(kAuthorizationKey))
                     {
-                        foreach (string value in context.Request.Headers["Authorization"])
+                        foreach (string value in context.Request.Headers[kAuthorizationKey])
                         {
-                            if (value.StartsWith("Bearer", StringComparison.OrdinalIgnoreCase))
+                            if (value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
                             {
                                 // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
-                                input.RequestHeader.AuthenticationToken = new NodeId(value.Substring("Bearer ".Length).Trim(), 0);
+                                input.RequestHeader.AuthenticationToken = new NodeId(value.Substring(kBearerKey.Length + 1).Trim(), 0);
                             }
                         }
                     }
@@ -363,19 +370,19 @@ namespace Opc.Ua.Bindings
                     var message = "Connection refused, invalid security policy.";
                     Utils.LogError(message);
                     context.Response.ContentLength = message.Length;
-                    context.Response.ContentType = "text/plain";
+                    context.Response.ContentType = kHttpsContentType;
                     context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
-                    await context.Response.WriteAsync(message).ConfigureAwait(false);
+                    await context.Response.WriteAsync(message, ct).ConfigureAwait(false);
                 }
 
-                result = m_callback.BeginProcessRequest(
-                    m_listenerId,
-                    endpoint,
-                    input as IServiceRequest,
-                    null,
-                    null);
-
-                IServiceResponse output = m_callback.EndProcessRequest(result);
+                IServiceResponse output = await Task.Factory.FromAsync(
+                    m_callback.BeginProcessRequest(
+                        m_listenerId,
+                        endpoint,
+                        input as IServiceRequest,
+                        null, null),
+                    m_callback.EndProcessRequest)
+                    .ConfigureAwait(false);
 
                 byte[] response = BinaryEncoder.EncodeMessage(output, m_quotas.MessageContext);
                 context.Response.ContentLength = response.Length;
@@ -384,16 +391,16 @@ namespace Opc.Ua.Bindings
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER || NETCOREAPP3_1_OR_GREATER
                 await context.Response.Body.WriteAsync(response.AsMemory(0, response.Length)).ConfigureAwait(false);
 #else
-                await context.Response.Body.WriteAsync(response, 0, response.Length).ConfigureAwait(false);
+                await context.Response.Body.WriteAsync(response, 0, response.Length, ct).ConfigureAwait(false);
 #endif
             }
             catch (Exception e)
             {
                 Utils.LogError(e, "HTTPSLISTENER - Unexpected error processing request.");
                 context.Response.ContentLength = e.Message.Length;
-                context.Response.ContentType = "text/plain";
+                context.Response.ContentType = kHttpsContentType;
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                await context.Response.WriteAsync(e.Message).ConfigureAwait(false);
+                await context.Response.WriteAsync(e.Message, ct).ConfigureAwait(false);
             }
         }
 
