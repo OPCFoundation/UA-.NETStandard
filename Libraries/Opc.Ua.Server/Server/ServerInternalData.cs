@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Bindings;
 
 #pragma warning disable 0618
 
@@ -645,11 +644,11 @@ namespace Opc.Ua.Server
                 serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
                 // initialize status.
-                ServerStatusDataType serverStatus = new ServerStatusDataType();
-
-                serverStatus.StartTime = DateTime.UtcNow;
-                serverStatus.CurrentTime = DateTime.UtcNow;
-                serverStatus.State = ServerState.Shutdown;
+                ServerStatusDataType serverStatus = new ServerStatusDataType {
+                    StartTime = DateTime.UtcNow,
+                    CurrentTime = DateTime.UtcNow,
+                    State = ServerState.Shutdown
+                };
                 serverStatus.BuildInfo.ProductName = m_serverDescription.ProductName;
                 serverStatus.BuildInfo.ProductUri = m_serverDescription.ProductUri;
                 serverStatus.BuildInfo.ManufacturerName = m_serverDescription.ManufacturerName;
@@ -700,16 +699,22 @@ namespace Opc.Ua.Server
                     m_configuration);
 
                 m_auditing = m_configuration.ServerConfiguration.AuditingEnabled;
-                BaseVariableState auditing = (BaseVariableState)m_diagnosticsNodeManager.FindPredefinedNode(VariableIds.Server_Auditing, typeof(BaseVariableState));
-                if (auditing != null)
-                {
-                    auditing.OnSimpleWriteValue += OnWriteAuditing;
-                    auditing.OnSimpleReadValue += OnReadAuditing;
-                    auditing.Value = m_auditing;
-// TODO: admin only
-                    auditing.AccessLevel = AccessLevels.CurrentReadOrWrite;
-                    auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-                }
+                PropertyState<bool> auditing = serverObject.Auditing;
+                auditing.OnSimpleWriteValue += OnWriteAuditing;
+                auditing.OnSimpleReadValue += OnReadAuditing;
+                auditing.Value = m_auditing;
+                auditing.RolePermissions = new RolePermissionTypeCollection {
+                        new RolePermissionType {
+                            RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                            Permissions = (uint)(PermissionType.Browse|PermissionType.Read)
+                            },
+                        new RolePermissionType {
+                            RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                            Permissions = (uint)(PermissionType.Browse|PermissionType.Write|PermissionType.ReadRolePermissions|PermissionType.Read)
+                            }};
+                auditing.AccessLevel = AccessLevels.CurrentRead;
+                auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                auditing.MinimumSamplingInterval = 1000;
             }
         }
 
@@ -727,36 +732,6 @@ namespace Opc.Ua.Server
                 m_serverStatus.Timestamp = now;
                 m_serverStatus.Value.CurrentTime = now;
             }
-        }
-
-        /// <summary>
-        /// Updates the server auditing value.
-        /// </summary>
-        private ServiceResult OnWriteAuditing(
-            ISystemContext context,
-            NodeState node,
-            ref object value)
-        {
-            lock (m_dataLock)
-            {
-                m_auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
-            }
-            return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// Updates the server auditing value.
-        /// </summary>
-        private ServiceResult OnReadAuditing(
-            ISystemContext context,
-            NodeState node,
-            ref object value)
-        {
-            lock (m_dataLock)
-            {
-                value = m_auditing;
-            }
-            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -808,6 +783,30 @@ namespace Opc.Ua.Server
                 m_defaultSystemContext,
                 enabled);
 
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Updates the Server.Auditing flag.
+        /// </summary>
+        private ServiceResult OnWriteAuditing(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
+        {
+            m_auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Updates the Server.Auditing flag.
+        /// </summary>
+        private ServiceResult OnReadAuditing(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
+        {
+            value = m_auditing;
             return ServiceResult.Good;
         }
 

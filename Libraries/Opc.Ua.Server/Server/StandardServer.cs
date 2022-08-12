@@ -267,38 +267,29 @@ namespace Opc.Ua.Server
         }
 
         #region Report Audit Events
-        /// <summary>
-        /// Report the open secure channel audit event
-        /// </summary>
-        /// <param name="channel">The <see cref="TcpServerChannel"/> that processes the open secure channel request.</param>
-        /// <param name="request">The incoming <see cref="OpenSecureChannelRequest"/></param>
-        /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="exception">The exception resulted from the open secure channel request.</param>
+        /// <inheritdoc/>
         public override void ReportAuditOpenSecureChannelEvent(
-            TcpServerChannel channel,
+            string globalChannelId,
+            EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
             X509Certificate2 clientCertificate,
             Exception exception)
         {
-            ServerInternal?.ReportAuditOpenSecureChannelEvent(channel, request, clientCertificate, exception);
+            ServerInternal?.ReportAuditOpenSecureChannelEvent(globalChannelId, endpointDescription, request, clientCertificate, exception);
         }
 
-        /// <summary>
-        /// Report the close secure channel audit event
-        /// </summary>
-        /// <param name="channel"></param>
-        /// <param name="exception">The exception resulted from the open secure channel request.</param>
-        public override void ReportAuditCloseSecureChannelEvent(TcpServerChannel channel, Exception exception)
+        /// <inheritdoc/>
+        public override void ReportAuditCloseSecureChannelEvent(
+            string globalChannelId,
+            Exception exception)
         {
-            ServerInternal?.ReportAuditCloseSecureChannelEvent(channel, exception);
+            ServerInternal?.ReportAuditCloseSecureChannelEvent(globalChannelId, exception);
         }
 
-        /// <summary>
-        /// Reports all audit events for client certificate ServiceResultException.
-        /// </summary>
-        /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="exception">The Exception that triggers a certificate audit event.</param>
-        public override void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
+        /// <inheritdoc/>
+        public override void ReportAuditCertificateEvent(
+            X509Certificate2 clientCertificate,
+            Exception exception)
         {
             ServerInternal?.ReportAuditCertificateEvent(clientCertificate, exception);
         }

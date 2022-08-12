@@ -28,15 +28,15 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics;
 using System.Collections.Generic;
-using System.Xml;
-using System.Threading;
+using System.Diagnostics;
 using System.Numerics;
+using System.Threading;
+using System.Xml;
 using Opc.Ua;
 using Opc.Ua.Server;
-using Range = Opc.Ua.Range;
 using Opc.Ua.Test;
+using Range = Opc.Ua.Range;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -801,10 +801,10 @@ namespace Quickstarts.ReferenceServer
                     };
                     variables.Add(rpAuthenticatedUser);
 
-                    BaseDataVariableState rpAdminUser = CreateVariable(folderRolePermissions, rolePermissions + "AdminUser", "AdminUser", BuiltInType.Int16, ValueRanks.Scalar);
-                    rpAdminUser.Description = "This node can be accessed by users that have SecurityAdmin Role over an encrypted connection";
-                    rpAdminUser.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
-                    rpAdminUser.RolePermissions = new RolePermissionTypeCollection()
+                    BaseDataVariableState rpSecurityAdminUser = CreateVariable(folderRolePermissions, rolePermissions + "SecurityAdmin", "SecurityAdmin", BuiltInType.Int16, ValueRanks.Scalar);
+                    rpSecurityAdminUser.Description = "This node can be accessed by users that have SecurityAdmin Role over an encrypted connection";
+                    rpSecurityAdminUser.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+                    rpSecurityAdminUser.RolePermissions = new RolePermissionTypeCollection()
                     {
                         // allow access to users with SecurityAdmin role
                         new RolePermissionType()
@@ -813,7 +813,21 @@ namespace Quickstarts.ReferenceServer
                             Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
                         },
                     };
-                    variables.Add(rpAdminUser);
+                    variables.Add(rpSecurityAdminUser);
+
+                    BaseDataVariableState rpConfigAdminUser = CreateVariable(folderRolePermissions, rolePermissions + "ConfigureAdmin", "ConfigureAdmin", BuiltInType.Int16, ValueRanks.Scalar);
+                    rpConfigAdminUser.Description = "This node can be accessed by users that have ConfigureAdmin Role over an encrypted connection";
+                    rpConfigAdminUser.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+                    rpConfigAdminUser.RolePermissions = new RolePermissionTypeCollection()
+                    {
+                        // allow access to users with ConfigureAdmin role
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                        },
+                    };
+                    variables.Add(rpConfigAdminUser);
 
                     // sub-folder for "AccessRestrictions"
                     FolderState folderAccessRestrictions = CreateFolder(folderAccessRights, "AccessRights_AccessRestrictions", "AccessRestrictions");

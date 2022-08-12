@@ -260,6 +260,9 @@ namespace Opc.Ua.Bindings
                 if (m_callback != null)
                 {
                     channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+                    channel.SetReportOpenSecureChannellAuditCalback(new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
+                    channel.SetReportCloseSecureChannellAuditCalback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
+                    channel.SetReportCertificateAuditCalback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
                 }
             }
             catch (Exception e)
@@ -576,7 +579,7 @@ namespace Opc.Ua.Bindings
             {
                 if (m_callback != null)
                 {
-                    m_callback.ReportAuditOpenSecureChannelEvent(channel, request, clientCertificate, exception);
+                    m_callback.ReportAuditOpenSecureChannelEvent(channel.GlobalChannelId, channel.EndpointDescription, request, clientCertificate, exception);
                 }
             }
             catch (Exception e)
@@ -594,7 +597,7 @@ namespace Opc.Ua.Bindings
             {
                 if (m_callback != null)
                 {
-                    m_callback.ReportAuditCloseSecureChannelEvent(channel, exception);
+                    m_callback.ReportAuditCloseSecureChannelEvent(channel.GlobalChannelId, exception);
                 }
             }
             catch (Exception e)
@@ -602,8 +605,6 @@ namespace Opc.Ua.Bindings
                 Utils.LogError(e, "TCPLISTENER - Unexpected error sending CloseSecureChannel Audit event.");
             }
         }
-
-
 
         /// <summary>
         /// Callback for reporting the certificate audit events
@@ -622,6 +623,7 @@ namespace Opc.Ua.Bindings
                 Utils.LogError(e, "TCPLISTENER - Unexpected error sending Certificate Audit event.");
             }
         }
+
         private void OnProcessRequestComplete(IAsyncResult result)
         {
             try

@@ -1377,9 +1377,9 @@ namespace Opc.Ua.Server
         /// <param name="value"></param>
         /// <returns></returns>
         private ServiceResult OnReadUserRolePermissions(
-        ISystemContext context,
-        NodeState node,
-        ref RolePermissionTypeCollection value)
+            ISystemContext context,
+            NodeState node,
+            ref RolePermissionTypeCollection value)
         {
             bool admitUser;
 
@@ -2110,7 +2110,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Readonly Fields
-        private readonly NodeId[] m_kWellKnownRoles = {
+        private static readonly NodeId[] m_kWellKnownRoles = {
             ObjectIds.WellKnownRole_Anonymous,
             ObjectIds.WellKnownRole_AuthenticatedUser,
             ObjectIds.WellKnownRole_ConfigureAdmin,
