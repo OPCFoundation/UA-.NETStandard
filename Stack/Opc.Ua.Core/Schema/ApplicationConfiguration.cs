@@ -1464,6 +1464,7 @@ namespace Opc.Ua
             m_supportedPrivateKeyFormats = new string[] { "PFX", "PEM" };
             m_maxTrustListSize = 0;
             m_multicastDnsEnabled = false;
+            m_auditingEnabled = false;
         }
 
         /// <summary>
@@ -1875,6 +1876,17 @@ namespace Opc.Ua
             get { return m_operationLimits; }
             set { m_operationLimits = value; }
         }
+
+        /// <summary>
+        /// Whether auditing is enabled.
+        /// </summary>
+        /// <value><c>true</c> if auditing is enabled; otherwise, <c>false</c>.</value>
+        [DataMember(IsRequired = false, Order = 36)]
+        public bool AuditingEnabled
+        {
+            get { return m_auditingEnabled; }
+            set { m_auditingEnabled = value; }
+        }
         #endregion
 
         #region Private Members
@@ -1911,6 +1923,7 @@ namespace Opc.Ua
         private bool m_multicastDnsEnabled;
         private ReverseConnectServerConfiguration m_reverseConnect;
         private OperationLimits m_operationLimits;
+        private bool m_auditingEnabled;
         #endregion
     }
     #endregion

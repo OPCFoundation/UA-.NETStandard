@@ -162,6 +162,7 @@
           <xs:element name="MultiCastDnsEnabled" type="xs:boolean" minOccurs="0" />
           <xs:element name="ReverseConnect" type="ReverseConnectServerConfiguration" minOccurs="0" />
           <xs:element name="OperationLimits" type="OperationLimits" minOccurs="0" />
+          <xs:element name="AuditingEnabled" type="xs:boolean" minOccurs="0" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
