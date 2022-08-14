@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="e">The event.</param>
-        void ReportAuditEvent(ISystemContext context, IFilterTarget e);
+        void ReportAuditEvent(ISystemContext context, AuditEventState e);
     }
 
     /// <summary>
@@ -1348,6 +1348,57 @@ namespace Opc.Ua.Server
             catch (Exception ex)
             {
                 Utils.LogError(ex, "Error while reporting AuditOpenSecureChannelEvent event.");
+            }
+        }
+
+        /// <summary>
+        /// Reports an TrustListUpdatedAudit event.
+        /// </summary>
+        /// <param name="node">The trustlist node.</param>
+        /// <param name="systemContext">The current system context</param>
+        /// <param name="objectId">The object id where the truest list update methods was called</param>
+        /// <param name="sourceName">The source name string</param>
+        /// <param name="methodId">The id of the method that was called</param>
+        /// <param name="inputParameters">The input parameters of the called method</param>
+        /// <param name="statusCode">The status code resulted when the TrustList was updated </param>
+        public static void ReportTrustListUpdatedAuditEvent(
+            this TrustListState node,
+            ISystemContext systemContext,
+            NodeId objectId,
+            string sourceName,
+            NodeId methodId,
+            object[] inputParameters,
+            StatusCode statusCode)
+        {
+            try
+            {
+                TrustListUpdatedAuditEventState e = new TrustListUpdatedAuditEventState(null);
+
+                TranslationInfo message = new TranslationInfo(
+                   "TrustListUpdatedAuditEvent",
+                   "en-US",
+                   $"TrustListUpdatedAuditEvent result is: {statusCode.ToString(null, CultureInfo.InvariantCulture)}");
+
+                e.Initialize(
+                   systemContext,
+                   null,
+                   EventSeverity.Min,
+                   new LocalizedText(message),
+                   StatusCode.IsGood(statusCode),
+                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+
+                e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
+                e.SetChildValue(systemContext, BrowseNames.SourceName, sourceName, false);
+                e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
+
+                e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
+                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputParameters, false);
+
+                node?.ReportEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Error while reporting ReportTrustListUpdatedAuditEvent event.");
             }
         }
         #endregion Report Audit Events
