@@ -283,24 +283,20 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task SendAsync(HttpContext context)
         {
+            string message = string.Empty;
             CancellationToken ct = context.RequestAborted;
             try
             {
                 if (m_callback == null)
                 {
-                    context.Response.ContentLength = 0;
-                    context.Response.ContentType = kHttpsContentType;
-                    context.Response.StatusCode = (int)HttpStatusCode.NotImplemented;
-                    await context.Response.WriteAsync(string.Empty, ct).ConfigureAwait(false);
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.NotImplemented, ct).ConfigureAwait(false);
                     return;
                 }
 
                 if (context.Request.ContentType != "application/octet-stream")
                 {
-                    context.Response.ContentLength = 0;
-                    context.Response.ContentType = kHttpsContentType;
-                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    await context.Response.WriteAsync("HTTPSLISTENER - Unsupported content type.", ct).ConfigureAwait(false);
+                    message = "HTTPSLISTENER - Unsupported content type.";
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest, ct).ConfigureAwait(false);
                     return;
                 }
 
@@ -309,10 +305,8 @@ namespace Opc.Ua.Bindings
 
                 if (buffer.Length != length)
                 {
-                    context.Response.ContentLength = 0;
-                    context.Response.ContentType = kHttpsContentType;
-                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    await context.Response.WriteAsync("HTTPSLISTENER - Couldn't decode buffer.").ConfigureAwait(false);
+                    message = "HTTPSLISTENER - Invalid buffer.";
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest, ct).ConfigureAwait(false);
                     return;
                 }
 
@@ -367,12 +361,10 @@ namespace Opc.Ua.Bindings
                     input.TypeId != DataTypeIds.GetEndpointsRequest &&
                     input.TypeId != DataTypeIds.FindServersRequest)
                 {
-                    var message = "Connection refused, invalid security policy.";
+                    message = "Connection refused, invalid security policy.";
                     Utils.LogError(message);
-                    context.Response.ContentLength = message.Length;
-                    context.Response.ContentType = kHttpsContentType;
-                    context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
-                    await context.Response.WriteAsync(message, ct).ConfigureAwait(false);
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized, ct).ConfigureAwait(false);
+                    return;
                 }
 
                 IServiceResponse output = await Task.Factory.FromAsync(
@@ -393,15 +385,15 @@ namespace Opc.Ua.Bindings
 #else
                 await context.Response.Body.WriteAsync(response, 0, response.Length, ct).ConfigureAwait(false);
 #endif
+                return;
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "HTTPSLISTENER - Unexpected error processing request.");
-                context.Response.ContentLength = e.Message.Length;
-                context.Response.ContentType = kHttpsContentType;
-                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                await context.Response.WriteAsync(e.Message, ct).ConfigureAwait(false);
+                message = "HTTPSLISTENER - Unexpected error processing request.";
+                Utils.LogError(e, message);
             }
+
+            await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -425,6 +417,17 @@ namespace Opc.Ua.Bindings
             }
 
             Start();
+        }
+
+        private static async Task WriteResponseAsync(HttpResponse response, string message, HttpStatusCode status, CancellationToken ct)
+        {
+            if (!ct.IsCancellationRequested)
+            {
+                response.ContentLength = message.Length;
+                response.ContentType = kHttpsContentType;
+                response.StatusCode = (int)status;
+                await response.WriteAsync(message, ct).ConfigureAwait(false);
+            }
         }
 
         private static async Task<byte[]> ReadBodyAsync(HttpRequest req)
