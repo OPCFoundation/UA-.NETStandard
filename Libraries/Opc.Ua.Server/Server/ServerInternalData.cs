@@ -837,6 +837,7 @@ namespace Opc.Ua.Server
 
                 InitializeAuditSessionEvent(systemContext, e, message, exception == null, session, auditEntryId);
 
+                e.SetChildValue(systemContext, BrowseNames.ClientUserId, "System/CreateSession", false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Session/CreateSession", false);
 
                 // set AuditCreateSessionEventState fields
