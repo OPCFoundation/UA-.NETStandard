@@ -50,7 +50,8 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class HttpsTransportChannel : ITransportChannel
     {
-        private const int kMaxConnectionsPerServer = 8;
+        // limit the number of concurrent service requests on the server
+        private const int kMaxConnectionsPerServer = 64;
 
         /// <inheritdoc/>
         public void Dispose()
@@ -118,7 +119,7 @@ namespace Opc.Ua.Bindings
                 // if unsupported, the TLS server cert must be trusted by a root CA
                 var handler = new HttpClientHandler();
                 handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-                handler.MaxConnectionsPerServer = Math.Min(handler.MaxConnectionsPerServer, kMaxConnectionsPerServer);
+                handler.MaxConnectionsPerServer = kMaxConnectionsPerServer;
 
                 // send client certificate for servers that require TLS client authentication
                 if (m_settings.ClientCertificate != null)
