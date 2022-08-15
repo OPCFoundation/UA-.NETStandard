@@ -400,22 +400,6 @@ namespace Opc.Ua.Server
                 instance.Create(contextToUse, null, browseName, null, true);
                 AddPredefinedNode(contextToUse, instance);
 
-                // report audit event
-                if (Server?.EventManager?.ServerAuditing == true)
-                {
-                    // current server supports auditing, prepare the added nodes info
-                    AddNodesItem[] addNodesItems = GetFlattenedNodeTree(context, instance).Select(n => new AddNodesItem() {
-                        BrowseName = n.BrowseName,
-                        NodeClass = n.NodeClass,
-                        RequestedNewNodeId = n.NodeId,
-                        TypeDefinition = n.TypeDefinitionId,
-                        ReferenceTypeId = n.ReferenceTypeId,
-                        ParentNodeId = n.Parent?.NodeId
-                    }).ToArray();
-
-                    ReportAuditAddNodesEvent(context, addNodesItems, "CreateNode", StatusCodes.Good);
-                }
-
                 return instance.NodeId;
             }
         }
@@ -443,18 +427,6 @@ namespace Opc.Ua.Server
 
                 if (PredefinedNodes.TryGetValue(nodeId, out node))
                 {
-                    // report audit event
-                    if (Server?.EventManager?.ServerAuditing == true)
-                    {
-                        // current server supports auditing, prepare the deleted nodes info
-                        DeleteNodesItem[] nodesToDelete = GetFlattenedNodeTree(context, node as BaseInstanceState).Select(n => new DeleteNodesItem() {
-                            NodeId = n.NodeId,
-                            DeleteTargetReferences = true
-                        }).ToArray();
-
-                        ReportAuditDeleteNodesEvent(context, nodesToDelete, "DeleteNode", StatusCodes.Good);
-                    }
-
                     RemovePredefinedNode(contextToUse, node, referencesToRemove);
                     found = true;
                 }
@@ -738,36 +710,6 @@ namespace Opc.Ua.Server
 
                 referencesToRemove.Add(referenceToRemove);
             }
-        }
-
-
-        /// <summary>
-        /// Get the flattened tree of nodes starting from the specified node
-        /// </summary>
-        /// <param name="context">Current server context.</param>
-        /// <param name="rootNode">The root node from where the search begins.</param>
-        /// <returns></returns>
-        protected IList<BaseInstanceState> GetFlattenedNodeTree(ISystemContext context, BaseInstanceState rootNode)
-        {
-            if (rootNode == null) return new List<BaseInstanceState>();
-
-            List<BaseInstanceState> nodes = new List<BaseInstanceState>() { rootNode };
-            List<BaseInstanceState> results = new List<BaseInstanceState> { rootNode };
-            while (nodes.Count > 0)
-            {
-                List<BaseInstanceState> childNodes = new List<BaseInstanceState>();
-                foreach (BaseInstanceState node in nodes)
-                {
-                    IList<BaseInstanceState> children = new List<BaseInstanceState>();
-                    node.GetChildren(context, children);
-
-                    childNodes.AddRange(children);
-                    results.AddRange(children);
-                }
-                nodes = childNodes;
-            }
-
-            return results;
         }
 
         /// <summary>
@@ -5096,6 +5038,62 @@ namespace Opc.Ua.Server
                 e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
 
                 e.SetChildValue(systemContext, BrowseNames.NodesToDelete, nodesToDelete, false);
+
+                Server.ReportEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Error while reporting AuditDeleteNodesEvent event.");
+            }
+        }
+
+        /// <summary>
+        /// Reports the AuditUpdateMethodEventType
+        /// </summary>
+        /// <param name="systemContext">Server information.</param>
+        /// <param name="objectId">The id of the object where the method is executed.</param>
+        /// <param name="methodId">The NodeId of the object that the method resides in.</param>
+        /// <param name="inputArgs">The InputArguments of the method </param>
+        /// <param name="customMessage">Custom message for delete nodes.</param>
+        /// <param name="statusCode">The resulting status code.</param>
+        protected void ReportAuditUpdateMethodEvent(ISystemContext systemContext,
+            NodeId objectId,
+            NodeId methodId,
+            object[] inputArgs,
+            string customMessage,
+            StatusCode statusCode)
+        {
+            if (Server?.EventManager?.ServerAuditing != true)
+            {
+                // current server does not support auditing
+                return;
+            }
+            try
+            {
+                AuditUpdateMethodEventState e = new AuditUpdateMethodEventState(null);
+
+                TranslationInfo message = new TranslationInfo(
+                           "AuditUpdateMethodEventState",
+                           "en-US",
+                           $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
+
+                e.Initialize(
+                   systemContext,
+                   null,
+                   EventSeverity.Min,
+                   new LocalizedText(message),
+                   StatusCode.IsGood(statusCode),
+                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+
+                e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
+                e.SetChildValue(systemContext, BrowseNames.SourceName, "Attribute/Call", false);
+                e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
+
+                e.SetChildValue(systemContext, BrowseNames.ClientUserId, systemContext?.UserIdentity?.DisplayName, false);
+                e.SetChildValue(systemContext, BrowseNames.ClientAuditEntryId, systemContext?.AuditEntryId, false);
+
+                e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
+                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArgs, false);
 
                 Server.ReportEvent(systemContext, e);
             }
