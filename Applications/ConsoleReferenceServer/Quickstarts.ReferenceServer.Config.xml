@@ -270,7 +270,7 @@
       <MaxNodesPerNodeManagement>2500</MaxNodesPerNodeManagement>
       <MaxMonitoredItemsPerCall>2500</MaxMonitoredItemsPerCall>
     </OperationLimits>
-
+    <AuditingEnabled>true</AuditingEnabled>
   </ServerConfiguration>
 
   <Extensions>

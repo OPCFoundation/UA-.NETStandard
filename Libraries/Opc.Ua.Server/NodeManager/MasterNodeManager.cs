@@ -460,6 +460,87 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Unregisters the node manager as the node manager for Nodes in the specified namespace.
+        /// </summary>
+        /// <param name="namespaceUri">The URI of the namespace.</param>
+        /// <param name="nodeManager">The NodeManager which no longer owns nodes in the namespace.</param>
+        /// <returns>A value indicating whether the node manager was successfully unregistered.</returns>
+        /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+        public bool UnregisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
+        {
+            if (String.IsNullOrEmpty(namespaceUri)) throw new ArgumentNullException(nameof(namespaceUri));
+            if (nodeManager == null) throw new ArgumentNullException(nameof(nodeManager));
+
+            // look up the namespace uri.
+            int namespaceIndex = m_server.NamespaceUris.GetIndex(namespaceUri);
+            if (namespaceIndex < 0)
+            {
+                return false;
+            }
+
+            // look up the node manager in the registered node managers for the namespace.
+            int nodeManagerIndex = Array.IndexOf(m_namespaceManagers[namespaceIndex], nodeManager);
+            if (nodeManagerIndex < 0)
+            {
+                return false;
+            }
+
+            // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
+            INodeManager[][] namespaceManagers = new INodeManager[m_server.NamespaceUris.Count][];
+
+            try
+            {
+                m_readWriterLockSlim.EnterWriteLock();
+
+                // copy existing values.
+                for (int ii = 0; ii < m_namespaceManagers.Length; ii++)
+                {
+                    if (m_namespaceManagers.Length >= ii)
+                    {
+                        namespaceManagers[ii] = m_namespaceManagers[ii];
+                    }
+                }
+
+                // allocate a new smaller array to support element removal for the index being updated.
+                INodeManager[] registeredManagers = new INodeManager[namespaceManagers[namespaceIndex].Length - 1];
+
+                // begin by populating the new array with existing elements up to the target index. 
+                if (nodeManagerIndex > 0)
+                {
+                    Array.Copy(
+                        namespaceManagers[namespaceIndex],
+                        0,
+                        registeredManagers,
+                        0,
+                        nodeManagerIndex);
+                }
+
+                // finish by populating the new array with existing elements after the target index.
+                if (nodeManagerIndex < namespaceManagers[namespaceIndex].Length - 1)
+                {
+                    Array.Copy(
+                        namespaceManagers[namespaceIndex],
+                        nodeManagerIndex + 1,
+                        registeredManagers,
+                        nodeManagerIndex,
+                        namespaceManagers[namespaceIndex].Length - nodeManagerIndex - 1);
+                }
+
+                // update the array for the target index.
+                namespaceManagers[namespaceIndex] = registeredManagers;
+
+                // replace the table.
+                m_namespaceManagers = namespaceManagers;
+
+                return true;
+            }
+            finally
+            {
+                m_readWriterLockSlim.ExitWriteLock();
+            }
+        }
+
+        /// <summary>
         /// Returns node handle and its node manager.
         /// </summary>
         public virtual object GetManagerHandle(NodeId nodeId, out INodeManager nodeManager)
@@ -1117,7 +1198,7 @@ namespace Opc.Ua.Server
         private void PrepareValidationCache<T>(List<T> nodesCollection,
             out Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes)
         {
-            List<NodeId> uniqueNodes = new List<NodeId>();
+            HashSet<NodeId> uniqueNodes = new HashSet<NodeId>();
             for (int i = 0; i < nodesCollection.Count; i++)
             {
                 Type listType = typeof(T);
@@ -1842,7 +1923,7 @@ namespace Opc.Ua.Server
                     }
 
                     ServerUtils.ReportWriteValue(nodesToWrite[ii].NodeId, nodesToWrite[ii].Value, results[ii]);
-                }
+                }                
             }
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
@@ -2709,6 +2790,11 @@ namespace Opc.Ua.Server
         {
             get { return m_nodeManagers; }
         }
+
+        /// <summary>
+        /// The namespace managers being managed
+        /// </summary>
+        internal INodeManager[][] NamespaceManagers => m_namespaceManagers;
 
         /// <summary>
         /// Validates a monitoring attributes parameter.

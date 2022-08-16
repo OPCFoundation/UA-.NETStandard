@@ -44,6 +44,7 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ClientFixture
     {
+        private const uint kDefaultOperationLimits = 5000;
         private NUnitTraceLogger m_traceLogger;
         public ApplicationConfiguration Config { get; private set; }
         public ConfiguredEndpoint Endpoint { get; private set; }
@@ -72,6 +73,12 @@ namespace Opc.Ua.Client.Tests
                     "urn:localhost:opcfoundation.org:" + clientName,
                     "http://opcfoundation.org/UA/" + clientName)
                 .AsClient()
+                .SetClientOperationLimits(new OperationLimits {
+                    MaxNodesPerBrowse = kDefaultOperationLimits,
+                    MaxNodesPerRead = kDefaultOperationLimits,
+                    MaxMonitoredItemsPerCall = kDefaultOperationLimits,
+                    MaxNodesPerWrite = kDefaultOperationLimits
+                })
                 .AddSecurityConfiguration(
                     "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
                     pkiRoot)
@@ -278,14 +285,14 @@ namespace Opc.Ua.Client.Tests
 
                     // pick the first available endpoint by default.
                     if (selectedEndpoint == null &&
-                        securityPolicy.Equals(endpoint.SecurityPolicyUri))
+                        securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal))
                     {
                         selectedEndpoint = endpoint;
                         continue;
                     }
 
                     if (selectedEndpoint?.SecurityMode < endpoint.SecurityMode &&
-                        securityPolicy.Equals(endpoint.SecurityPolicyUri))
+                        securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal))
                     {
                         selectedEndpoint = endpoint;
                     }

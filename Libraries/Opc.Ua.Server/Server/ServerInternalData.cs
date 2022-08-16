@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
 
 #pragma warning disable 0618
@@ -250,7 +251,6 @@ namespace Opc.Ua.Server
             get { return m_factory; }
         }
 
-
         /// <summary>
         /// The datatypes, object types and variable types known to the server.
         /// </summary>
@@ -282,7 +282,6 @@ namespace Opc.Ua.Server
         {
             get { return m_coreNodeManager; }
         }
-
 
         /// <summary>
         /// Returns the node manager that managers the server diagnostics.
@@ -512,16 +511,7 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void ReportEvent(ISystemContext context, IFilterTarget e)
         {
-            if (e is AuditEventState && (EventManager?.ServerAuditing == false))
-            {
-                // do not report auditing events if server Auditing flag is false
-                return;
-            }
-
-            if (m_serverObject != null)
-            {
-                m_serverObject.ReportEvent(context, e);
-            }
+            m_serverObject?.ReportEvent(context, e);
         }
 
         /// <summary>
@@ -544,7 +534,26 @@ namespace Opc.Ua.Server
         {
             m_subscriptionManager.ConditionRefresh2(context, subscriptionId, monitoredItemId);
         }
+        #endregion
 
+        #region IAuditReportEvents Members
+        /// <inheritdoc/>
+        public bool Auditing => m_auditing;
+
+        /// <inheritdoc/>
+        public ISystemContext DefaultAuditContext => DefaultSystemContext.Copy();
+
+        /// <inheritdoc/>
+        public void ReportAuditEvent(ISystemContext context, IFilterTarget e)
+        {
+            if ((e is AuditEventState) && (Auditing == false))
+            {
+                // do not report auditing events if server Auditing flag is false
+                return;
+            }
+
+            ReportEvent(context, e);
+        }
         #endregion
 
         #region Private Methods
@@ -608,7 +617,7 @@ namespace Opc.Ua.Server
 
                 // setup PublishSubscribe Status State value
                 PubSubState pubSubState = PubSubState.Disabled;
-                
+
                 var default_PubSubState = (BaseVariableState)m_diagnosticsNodeManager.FindPredefinedNode(
                     VariableIds.PublishSubscribe_Status_State,
                     typeof(BaseVariableState));
@@ -635,11 +644,11 @@ namespace Opc.Ua.Server
                 serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
                 // initialize status.
-                ServerStatusDataType serverStatus = new ServerStatusDataType();
-
-                serverStatus.StartTime = DateTime.UtcNow;
-                serverStatus.CurrentTime = DateTime.UtcNow;
-                serverStatus.State = ServerState.Shutdown;
+                ServerStatusDataType serverStatus = new ServerStatusDataType {
+                    StartTime = DateTime.UtcNow,
+                    CurrentTime = DateTime.UtcNow,
+                    State = ServerState.Shutdown
+                };
                 serverStatus.BuildInfo.ProductName = m_serverDescription.ProductName;
                 serverStatus.BuildInfo.ProductUri = m_serverDescription.ProductUri;
                 serverStatus.BuildInfo.ManufacturerName = m_serverDescription.ManufacturerName;
@@ -659,20 +668,20 @@ namespace Opc.Ua.Server
                 m_serverStatus.OnBeforeRead = OnReadServerStatus;
 
                 // initialize diagnostics.
-                m_serverDiagnostics = new ServerDiagnosticsSummaryDataType();
-
-                m_serverDiagnostics.ServerViewCount = 0;
-                m_serverDiagnostics.CurrentSessionCount = 0;
-                m_serverDiagnostics.CumulatedSessionCount = 0;
-                m_serverDiagnostics.SecurityRejectedSessionCount = 0;
-                m_serverDiagnostics.RejectedSessionCount = 0;
-                m_serverDiagnostics.SessionTimeoutCount = 0;
-                m_serverDiagnostics.SessionAbortCount = 0;
-                m_serverDiagnostics.PublishingIntervalCount = 0;
-                m_serverDiagnostics.CurrentSubscriptionCount = 0;
-                m_serverDiagnostics.CumulatedSubscriptionCount = 0;
-                m_serverDiagnostics.SecurityRejectedRequestsCount = 0;
-                m_serverDiagnostics.RejectedRequestsCount = 0;
+                m_serverDiagnostics = new ServerDiagnosticsSummaryDataType {
+                    ServerViewCount = 0,
+                    CurrentSessionCount = 0,
+                    CumulatedSessionCount = 0,
+                    SecurityRejectedSessionCount = 0,
+                    RejectedSessionCount = 0,
+                    SessionTimeoutCount = 0,
+                    SessionAbortCount = 0,
+                    PublishingIntervalCount = 0,
+                    CurrentSubscriptionCount = 0,
+                    CumulatedSubscriptionCount = 0,
+                    SecurityRejectedRequestsCount = 0,
+                    RejectedRequestsCount = 0
+                };
 
                 m_diagnosticsNodeManager.CreateServerDiagnostics(
                     m_defaultSystemContext,
@@ -688,6 +697,24 @@ namespace Opc.Ua.Server
                 configurationNodeManager?.CreateServerConfiguration(
                     m_defaultSystemContext,
                     m_configuration);
+
+                m_auditing = m_configuration.ServerConfiguration.AuditingEnabled;
+                PropertyState<bool> auditing = serverObject.Auditing;
+                auditing.OnSimpleWriteValue += OnWriteAuditing;
+                auditing.OnSimpleReadValue += OnReadAuditing;
+                auditing.Value = m_auditing;
+                auditing.RolePermissions = new RolePermissionTypeCollection {
+                        new RolePermissionType {
+                            RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                            Permissions = (uint)(PermissionType.Browse|PermissionType.Read)
+                            },
+                        new RolePermissionType {
+                            RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                            Permissions = (uint)(PermissionType.Browse|PermissionType.Write|PermissionType.ReadRolePermissions|PermissionType.Read)
+                            }};
+                auditing.AccessLevel = AccessLevels.CurrentRead;
+                auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                auditing.MinimumSamplingInterval = 1000;
             }
         }
 
@@ -760,6 +787,30 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Updates the Server.Auditing flag.
+        /// </summary>
+        private ServiceResult OnWriteAuditing(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
+        {
+            m_auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Updates the Server.Auditing flag.
+        /// </summary>
+        private ServiceResult OnReadAuditing(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
+        {
+            value = m_auditing;
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
         /// Returns a copy of the current diagnostics.
         /// </summary>
         private ServiceResult OnUpdateDiagnostics(
@@ -816,6 +867,7 @@ namespace Opc.Ua.Server
         private object m_dataLock = new object();
         private ServerObjectState m_serverObject;
         private ServerStatusValue m_serverStatus;
+        private bool m_auditing;
         private ServerDiagnosticsSummaryDataType m_serverDiagnostics;
         #endregion
     }

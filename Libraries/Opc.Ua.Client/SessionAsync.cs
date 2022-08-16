@@ -41,9 +41,9 @@ namespace Opc.Ua.Client
     /// Manages a session with a server.
     /// Contains the async versions of the public session api.
     /// </summary>
-    public partial class Session : SessionClient, IDisposable
+    public partial class Session : SessionClientBatched, IDisposable
     {
-        #region Subscription Methods
+        #region Subscription Async Methods
         /// <summary>
         /// Removes a subscription from the session.
         /// </summary>
@@ -104,7 +104,7 @@ namespace Opc.Ua.Client
         }
         #endregion
 
-        #region Node Read Async Methods
+        #region ReadNode Async Methods
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.
         /// </summary>
@@ -113,31 +113,36 @@ namespace Opc.Ua.Client
         /// and passed as nodeClass, reads only values of required attributes.
         /// Otherwise NodeClass.Unspecified should be used.
         /// </remarks>
-        /// <param name="nodeIdCollection">The nodeId collection to read.</param>
+        /// <param name="nodeIds">The nodeId collection to read.</param>
         /// <param name="nodeClass">The nodeClass of all nodes in the collection. Set to <c>NodeClass.Unspecified</c> if the nodeclass is unknown.</param>
         /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The node collection and associated errors.</returns>
-        public async Task<(NodeCollection, IList<ServiceResult>)> ReadNodesAsync(
-            NodeIdCollection nodeIdCollection,
+        public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
+            IList<NodeId> nodeIds,
             NodeClass nodeClass,
             bool optionalAttributes = false,
             CancellationToken ct = default)
         {
-            if (nodeClass == NodeClass.Unspecified)
+            if (nodeIds.Count == 0)
             {
-                return await ReadNodesAsync(nodeIdCollection, optionalAttributes, ct).ConfigureAwait(false);
+                return (new List<Node>(), new List<ServiceResult>());
             }
 
-            var nodeCollection = new NodeCollection(nodeIdCollection.Count);
+            if (nodeClass == NodeClass.Unspecified)
+            {
+                return await ReadNodesAsync(nodeIds, optionalAttributes, ct).ConfigureAwait(false);
+            }
+
+            var nodeCollection = new NodeCollection(nodeIds.Count);
 
             // determine attributes to read for nodeclass
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIdCollection.Count].ToList();
-            var serviceResults = new ServiceResult[nodeIdCollection.Count].ToList();
+            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIds.Count].ToList();
+            var serviceResults = new ServiceResult[nodeIds.Count].ToList();
             var attributesToRead = new ReadValueIdCollection();
 
             CreateNodeClassAttributesReadNodesRequest(
-                nodeIdCollection, nodeClass,
+                nodeIds, nodeClass,
                 attributesToRead, attributesPerNodeId,
                 nodeCollection,
                 optionalAttributes);
@@ -169,20 +174,25 @@ namespace Opc.Ua.Client
         /// Reads the nodeclass of the nodeIds, then reads
         /// the values for the node attributes and returns a node collection.
         /// </summary>
-        /// <param name="nodeIdCollection">The nodeId collection.</param>
+        /// <param name="nodeIds">The nodeId collection.</param>
         /// <param name="optionalAttributes">If optional attributes to read.</param>
         /// <param name="ct">The cancellation token.</param>
-        public async Task<(NodeCollection, IList<ServiceResult>)> ReadNodesAsync(
-            NodeIdCollection nodeIdCollection,
+        public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
+            IList<NodeId> nodeIds,
             bool optionalAttributes = false,
             CancellationToken ct = default)
         {
-            var nodeCollection = new NodeCollection(nodeIdCollection.Count);
-            var itemsToRead = new ReadValueIdCollection(nodeIdCollection.Count);
+            if (nodeIds.Count == 0)
+            {
+                return (new List<Node>(), new List<ServiceResult>());
+            }
+
+            var nodeCollection = new NodeCollection(nodeIds.Count);
+            var itemsToRead = new ReadValueIdCollection(nodeIds.Count);
 
             // first read only nodeclasses for nodes from server.
             itemsToRead = new ReadValueIdCollection(
-                nodeIdCollection.Select(nodeId =>
+                nodeIds.Select(nodeId =>
                     new ReadValueId {
                         NodeId = nodeId,
                         AttributeId = Attributes.NodeClass
@@ -202,8 +212,8 @@ namespace Opc.Ua.Client
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
             // second determine attributes to read per nodeclass
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIdCollection.Count].ToList();
-            var serviceResults = new ServiceResult[nodeIdCollection.Count].ToList();
+            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIds.Count].ToList();
+            var serviceResults = new ServiceResult[nodeIds.Count].ToList();
             var attributesToRead = new ReadValueIdCollection();
 
             CreateAttributesReadNodesRequest(
@@ -339,9 +349,14 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">The node Id.</param>
         /// <param name="ct">The cancellation token for the request.</param>
         public async Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(
-            NodeIdCollection nodeIds,
+            IList<NodeId> nodeIds,
             CancellationToken ct = default)
         {
+            if (nodeIds.Count == 0)
+            {
+                return (new DataValueCollection(), new List<ServiceResult>());
+            }
+
             // read all values from server.
             var itemsToRead = new ReadValueIdCollection(
                 nodeIds.Select(nodeId =>
