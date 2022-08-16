@@ -259,7 +259,7 @@ namespace Opc.Ua.Bindings
                     // process open secure channel repsonse.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                     {
-                        Utils.LogTrace(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessOpenSecureChannelRequest", ChannelId);                       
+                        Utils.LogTrace(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessOpenSecureChannelRequest", ChannelId);
                         return ProcessOpenSecureChannelRequest(messageType, messageChunk);
                     }
 
@@ -501,7 +501,7 @@ namespace Opc.Ua.Bindings
                 // If the certificate structure, signature and trust list checks pass,
                 // return the other specific validation errors instead of BadSecurityChecksFailed
                 if (innerException != null)
-                {       
+                {
                     if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
                         innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
                         innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
@@ -829,7 +829,7 @@ namespace Opc.Ua.Bindings
                 {
                     throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse CloseSecureChannel request body.");
                 }
-                
+
                 // send the response.
                 // SendCloseSecureChannelResponse(requestId, token, request);
 

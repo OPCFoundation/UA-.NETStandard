@@ -106,6 +106,9 @@ namespace Opc.Ua.Server.Tests
                 });
             }
 
+            serverConfig.SetDiagnosticsEnabled(true);
+            serverConfig.SetAuditingEnabled(true);
+
             if (ReverseConnectTimeout != 0)
             {
                 serverConfig.SetReverseConnect(new ReverseConnectServerConfiguration() {

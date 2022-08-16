@@ -225,7 +225,7 @@ namespace Opc.Ua.Server
                 if (e is AuditEventState)
                 {
                     // check Server.Auditing flag and skip if false
-                    if (!NodeManager.Server.EventManager.ServerAuditing)
+                    if (!NodeManager.Server.Auditing)
                     {
                         continue;
                     }
@@ -241,22 +241,8 @@ namespace Opc.Ua.Server
                 }
                 #endregion
 
-
-                NodeId sourceNode = null;
-                if (e is BaseEventState baseEventState)
-                {
-                    sourceNode = baseEventState.NodeId;
-                }
-                else if (e is InstanceStateSnapshot snapshot)
-                {
-                    BaseEventState eventState = snapshot.Handle as BaseEventState;
-                    sourceNode = eventState?.NodeId;
-                }
-                OperationContext operationContext = new OperationContext(monitoredItem);
-
-                ServiceResult validationResult = NodeManager.ValidateRolePermissions(operationContext,
-                        sourceNode, PermissionType.ReceiveEvents);
-
+                // validate if the monitored item has the required role permissions to receive the event
+                ServiceResult validationResult = NodeManager.ValidateEventRolePermissions(monitoredItem, e);
 
                 if (ServiceResult.IsBad(validationResult))
                 {
@@ -270,7 +256,7 @@ namespace Opc.Ua.Server
                     monitoredItem?.QueueEvent(e);
                 }
             }
-        }
+        }        
 
         /// <summary>
         /// Called when the state of a Node changes.

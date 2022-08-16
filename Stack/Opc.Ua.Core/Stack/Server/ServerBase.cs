@@ -153,15 +153,11 @@ namespace Opc.Ua
             m_requestQueue.ScheduleIncomingRequest(request);
         }
 
-        #region ITransportListenerCallback Members
-        /// <summary>
-        /// Report the open secure channel audit event
-        /// </summary>
-        /// <param name="channel">The <see cref="TcpServerChannel"/> that processes the open secure channel request.</param>
-        /// <param name="request">The incoming <see cref="OpenSecureChannelRequest"/></param>
-        /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="exception">The exception resulted from the open secure channel request.</param>
-        public virtual void ReportAuditOpenSecureChannelEvent(TcpServerChannel channel,
+        #region IAuditEventCallback Members
+        /// <inheritdoc/>
+        public virtual void ReportAuditOpenSecureChannelEvent(
+            string globalChannelId,
+            EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
             X509Certificate2 clientCertificate,
             Exception exception)
@@ -169,22 +165,18 @@ namespace Opc.Ua
             // raise an audit open secure channel event.            
         }
 
-        /// <summary>
-        /// Report the close secure channel audit event
-        /// </summary>
-        /// <param name="channel"></param>
-        /// <param name="exception">The exception resulted from the open secure channel request.</param>
-        public virtual void ReportAuditCloseSecureChannelEvent(TcpServerChannel channel, Exception exception)
+        /// <inheritdoc/>
+        public virtual void ReportAuditCloseSecureChannelEvent(
+            string globalChannelId,
+            Exception exception)
         {
             // raise an audit close secure channel event.    
         }
 
-        /// <summary>
-        /// Reports the audit event for client certificate error
-        /// </summary>
-        /// <param name="clientCertificate">The Client certificate</param>
-        /// <param name="exception">The <see cref="Exception"/> that triggers a certificate audit event.</param>
-        public virtual void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
+        /// <inheritdoc/>
+        public virtual void ReportAuditCertificateEvent(
+            X509Certificate2 clientCertificate,
+            Exception exception)
         {
             // raise the audit certificate
         }
