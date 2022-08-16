@@ -271,6 +271,9 @@ namespace Quickstarts.ReferenceServer
             {
                 args.Identity = this.VerifyIssuedToken(issuedToken);
 
+                // set AuthenticatedUser role for accepted identity token
+                args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
+
                 return;
             }
 
@@ -280,6 +283,7 @@ namespace Quickstarts.ReferenceServer
                 // allow anonymous authentication and set Anonymous role for this authentication
                 args.Identity = new UserIdentity();
                 args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_Anonymous);
+                args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
 
                 return;
             }

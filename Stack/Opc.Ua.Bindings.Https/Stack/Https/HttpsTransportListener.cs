@@ -83,6 +83,7 @@ namespace Opc.Ua.Bindings
     public class HttpsTransportListener : ITransportListener
     {
         private const string kHttpsContentType = "text/plain";
+        private const string kApplicationContentType = "application/octet-stream";
         private const string kAuthorizationKey = "Authorization";
         private const string kBearerKey = "Bearer";
 
@@ -238,26 +239,25 @@ namespace Opc.Ua.Bindings
 #else
             httpsOptions.SslProtocols = SslProtocols.None;
 #endif
-            bool bindToSpecifiedAddress = true;
-            UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
-            if (hostType == UriHostNameType.Dns || hostType == UriHostNameType.Unknown || hostType == UriHostNameType.Basic)
-            {
-                bindToSpecifiedAddress = false;
-            }
 
-            if (bindToSpecifiedAddress)
+            UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
+            if (hostType == UriHostNameType.Dns ||
+                hostType == UriHostNameType.Unknown ||
+                hostType == UriHostNameType.Basic)
             {
-                IPAddress ipAddress = IPAddress.Parse(m_uri.Host);
+                // bind to any address
                 m_hostBuilder.UseKestrel(options => {
-                    options.Listen(ipAddress, m_uri.Port, listenOptions => {
+                    options.ListenAnyIP(m_uri.Port, listenOptions => {
                         listenOptions.UseHttps(httpsOptions);
                     });
                 });
             }
             else
             {
+                // bind to specific address
+                IPAddress ipAddress = IPAddress.Parse(m_uri.Host);
                 m_hostBuilder.UseKestrel(options => {
-                    options.ListenAnyIP(m_uri.Port, listenOptions => {
+                    options.Listen(ipAddress, m_uri.Port, listenOptions => {
                         listenOptions.UseHttps(httpsOptions);
                     });
                 });
@@ -293,7 +293,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                if (context.Request.ContentType != "application/octet-stream")
+                if (context.Request.ContentType != kApplicationContentType)
                 {
                     message = "HTTPSLISTENER - Unsupported content type.";
                     await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest, ct).ConfigureAwait(false);
@@ -381,7 +381,7 @@ namespace Opc.Ua.Bindings
                 context.Response.ContentType = context.Request.ContentType;
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER || NETCOREAPP3_1_OR_GREATER
-                await context.Response.Body.WriteAsync(response.AsMemory(0, response.Length)).ConfigureAwait(false);
+                await context.Response.Body.WriteAsync(response.AsMemory(0, response.Length), ct).ConfigureAwait(false);
 #else
                 await context.Response.Body.WriteAsync(response, 0, response.Length, ct).ConfigureAwait(false);
 #endif
