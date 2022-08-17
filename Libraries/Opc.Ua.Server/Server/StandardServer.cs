@@ -440,12 +440,19 @@ namespace Opc.Ua.Server
 
                 if (endpointUrl != null)
                 {
-                    // check the endpointurl
-                    ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint() {
-                        EndpointUrl = new Uri(endpointUrl)
-                    };
+                    try
+                    {
+                        // check the endpointurl
+                        ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint() {
+                            EndpointUrl = new Uri(endpointUrl)
+                        };
 
-                    CertificateValidator.ValidateDomains(InstanceCertificate, configuredEndpoint);
+                        CertificateValidator.ValidateDomains(InstanceCertificate, configuredEndpoint, true);
+                    }
+                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
+                    {
+                        ServerInternal.ReportAuditUrlMismatchEvent(context?.AuditEntryId, session, revisedSessionTimeout, endpointUrl);
+                    }
                 }
 
                 lock (m_lock)
@@ -508,6 +515,7 @@ namespace Opc.Ua.Server
 
                 if (e.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
                 {
+                    // TODO: remove?
                     // report the AuditUrlMismatchEvent
                     ServerInternal.ReportAuditUrlMismatchEvent(context?.AuditEntryId, session, revisedSessionTimeout, endpointUrl);
                 }

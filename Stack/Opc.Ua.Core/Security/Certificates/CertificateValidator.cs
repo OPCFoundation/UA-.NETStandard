@@ -1222,43 +1222,61 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Validate domains in a server certificate against endpoint used to connect a session.
+        /// Validate domains in a server certificate against endpoint used for connection.
+        /// A url mismatch can be accepted by the certificate validation event,
+        /// otherwise an exception is thrown.
         /// </summary>
-        /// <param name="serverCertificate">The server certificate returned by a session connect.</param>
+        /// <remarks>
+        /// On a client: the endpoint is only checked if the certificate is not already validated.
+        ///   A rejected server certificate is saved.
+        /// On a server: the endpoint is always checked but the certificate is not saved.
+        /// </remarks>
+        /// <param name="certificate">The certificate which contains the list of domains.</param>
         /// <param name="endpoint">The endpoint used to connect to a server.</param>
-        public void ValidateDomains(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint)
+        /// <param name="serverValidation">if the domain validation is used by a server or client.</param>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="StatusCodes.BadCertificateHostNameInvalid"/>if the endpoint can not be found in the list of domais in the certificate.
+        /// </exception>
+        public void ValidateDomains(X509Certificate2 certificate, ConfiguredEndpoint endpoint, bool serverValidation = false)
         {
-            X509Certificate2 certificate2;
-            if (m_validatedCertificates.TryGetValue(serverCertificate.Thumbprint, out certificate2))
+            if (!serverValidation)
             {
-                if (Utils.IsEqual(certificate2.RawData, serverCertificate.RawData))
+                if (m_validatedCertificates.TryGetValue(certificate.Thumbprint, out X509Certificate2 certificate2))
                 {
-                    return;
+                    if (Utils.IsEqual(certificate2.RawData, certificate.RawData))
+                    {
+                        return;
+                    }
                 }
             }
 
-            bool domainFound = FindDomain(serverCertificate, endpoint);
+            bool domainFound = FindDomain(certificate, endpoint);
 
             if (!domainFound)
             {
                 bool accept = false;
-                string message = Utils.Format(
-                    "The domain '{0}' is not listed in the server certificate.",
-                    endpoint.EndpointUrl.DnsSafeHost);
-                var serviceResult = new ServiceResultException(StatusCodes.BadCertificateHostNameInvalid, message);
+                const string message = "The domain '{0}' is not listed in the server certificate.";
+                var serviceResult = ServiceResultException.Create(StatusCodes.BadCertificateHostNameInvalid, message, endpoint.EndpointUrl.DnsSafeHost);
                 if (m_CertificateValidation != null)
                 {
-                    var args = new CertificateValidationEventArgs(new ServiceResult(serviceResult), serverCertificate);
+                    var args = new CertificateValidationEventArgs(new ServiceResult(serviceResult), certificate);
                     m_CertificateValidation(this, args);
                     accept = args.Accept || args.AcceptAll;
                 }
                 // throw if rejected.
                 if (!accept)
                 {
-                    // write the invalid certificate to rejected store if specified.
-                    Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={1}.",
-                        serverCertificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
-                    SaveCertificate(serverCertificate);
+                    if (serverValidation)
+                    {
+                        Utils.LogError(message, endpoint.EndpointUrl.DnsSafeHost);
+                    }
+                    else
+                    {
+                        // write the invalid certificate to rejected store if specified.
+                        Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={1}.",
+                            certificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
+                        SaveCertificate(certificate);
+                    }
 
                     throw serviceResult;
                 }
@@ -1475,7 +1493,7 @@ namespace Opc.Ua
                 bool isLocalHost = false;
                 if (endpoint.EndpointUrl.HostNameType == UriHostNameType.Dns)
                 {
-                    if (String.Equals(dnsHostName, "localhost", StringComparison.InvariantCultureIgnoreCase))
+                    if (String.Equals(dnsHostName, "localhost", StringComparison.OrdinalIgnoreCase))
                     {
                         isLocalHost = true;
                     }
