@@ -1231,26 +1231,26 @@ namespace Opc.Ua
         ///   A rejected server certificate is saved.
         /// On a server: the endpoint is always checked but the certificate is not saved.
         /// </remarks>
-        /// <param name="certificate">The certificate which contains the list of domains.</param>
+        /// <param name="serverCertificate">The server certificate which contains the list of domains.</param>
         /// <param name="endpoint">The endpoint used to connect to a server.</param>
-        /// <param name="serverValidation">if the domain validation is used by a server or client.</param>
+        /// <param name="serverValidation">if the domain validation is called by a server or client.</param>
         /// <exception cref="ServiceResultException">
         /// <see cref="StatusCodes.BadCertificateHostNameInvalid"/>if the endpoint can not be found in the list of domais in the certificate.
         /// </exception>
-        public void ValidateDomains(X509Certificate2 certificate, ConfiguredEndpoint endpoint, bool serverValidation = false)
+        public void ValidateDomains(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint, bool serverValidation = false)
         {
             if (!serverValidation)
             {
-                if (m_validatedCertificates.TryGetValue(certificate.Thumbprint, out X509Certificate2 certificate2))
+                if (m_validatedCertificates.TryGetValue(serverCertificate.Thumbprint, out X509Certificate2 certificate2))
                 {
-                    if (Utils.IsEqual(certificate2.RawData, certificate.RawData))
+                    if (Utils.IsEqual(certificate2.RawData, serverCertificate.RawData))
                     {
                         return;
                     }
                 }
             }
 
-            bool domainFound = FindDomain(certificate, endpoint);
+            bool domainFound = FindDomain(serverCertificate, endpoint);
 
             if (!domainFound)
             {
@@ -1259,7 +1259,7 @@ namespace Opc.Ua
                 var serviceResult = ServiceResultException.Create(StatusCodes.BadCertificateHostNameInvalid, message, endpoint.EndpointUrl.DnsSafeHost);
                 if (m_CertificateValidation != null)
                 {
-                    var args = new CertificateValidationEventArgs(new ServiceResult(serviceResult), certificate);
+                    var args = new CertificateValidationEventArgs(new ServiceResult(serviceResult), serverCertificate);
                     m_CertificateValidation(this, args);
                     accept = args.Accept || args.AcceptAll;
                 }
@@ -1274,8 +1274,8 @@ namespace Opc.Ua
                     {
                         // write the invalid certificate to rejected store if specified.
                         Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={1}.",
-                            certificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
-                        SaveCertificate(certificate);
+                            serverCertificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
+                        SaveCertificate(serverCertificate);
                     }
 
                     throw serviceResult;
