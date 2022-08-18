@@ -451,6 +451,7 @@ namespace Opc.Ua.Server
                     }
                     catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
                     {
+                        Utils.LogWarning("Server - Client connects with an endpointUrl [{0}] which does not match Server hostnames.", endpointUrl);
                         ServerInternal.ReportAuditUrlMismatchEvent(context?.AuditEntryId, session, revisedSessionTimeout, endpointUrl);
                     }
                 }
@@ -513,17 +514,8 @@ namespace Opc.Ua.Server
             {
                 Utils.LogError("Server - SESSION CREATE failed. {0}", e.Message);
 
-                if (e.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
-                {
-                    // TODO: remove?
-                    // report the AuditUrlMismatchEvent
-                    ServerInternal.ReportAuditUrlMismatchEvent(context?.AuditEntryId, session, revisedSessionTimeout, endpointUrl);
-                }
-                else
-                {
-                    // report the failed AuditCreateSessionEvent
-                    ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout, e);
-                }
+                // report the failed AuditCreateSessionEvent
+                ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout, e);
 
                 if (session != null)
                 {
