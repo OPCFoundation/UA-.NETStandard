@@ -30,9 +30,14 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Client.ComplexTypes;
 
 namespace Quickstarts.ConsoleReferenceClient
 {
@@ -42,10 +47,11 @@ namespace Quickstarts.ConsoleReferenceClient
     public class ClientSamples
     {
 
-        public ClientSamples(TextWriter output, Action<IList, IList> validateResponse)
+        public ClientSamples(TextWriter output, Action<IList, IList> validateResponse, bool verbose = false)
         {
             m_output = output;
             m_validateResponse = validateResponse;
+            m_verbose = verbose;
         }
 
         #region Public Sample Methods
@@ -113,7 +119,7 @@ namespace Quickstarts.ConsoleReferenceClient
         }
 
         /// <summary>
-        /// Write a list of nodes to the Server
+        /// Write a list of nodes to the Server.
         /// </summary>
         public void WriteNodes(Session session)
         {
@@ -342,6 +348,271 @@ namespace Quickstarts.ConsoleReferenceClient
         }
         #endregion
 
+        #region Fetch all nodes with NodeCache sample
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="session">The session to use.</param>
+        /// <param name="startingNode">The node from which the hierarchical nodes are fetched.</param>
+        /// <param name="fetchTree">Iterate to fetch all nodes in the tree.</param>
+        /// <param name="addRootNode">Adds the root node to the result.</param>
+        /// <param name="filterUATypes">Filters nodes from namespace 0 from the result.</param>
+        /// <returns></returns>
+        public IList<INode> FetchAllNodesNodeCache(
+            Session session,
+            NodeId startingNode,
+            bool fetchTree = false,
+            bool addRootNode = false,
+            bool filterUATypes = true)
+        {
+            var stopwatch = new Stopwatch();
+            var result = new List<INode>();
+            var references = new NodeIdCollection { ReferenceTypeIds.HierarchicalReferences };
+            var nodesToBrowse = new ExpandedNodeIdCollection {
+                    startingNode
+                };
+
+            // clear NodeCache to fetch all nodes from server
+            session.NodeCache.Clear();
+
+            // start
+            stopwatch.Start();
+
+            // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
+            var bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+            var referenceTypes = typeof(ReferenceTypeIds)
+                     .GetFields(bindingFlags)
+                     .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), session.NamespaceUris));
+            session.FetchTypeTree(new ExpandedNodeIdCollection(referenceTypes));
+
+            // add root node
+            if (addRootNode)
+            {
+                var rootNode = session.NodeCache.Find(startingNode);
+                result.Add(rootNode);
+            }
+
+            while (nodesToBrowse.Count > 0)
+            {
+                Utils.LogInfo("Find {0} references after {1}ms", nodesToBrowse.Count, stopwatch.ElapsedMilliseconds);
+                var response = session.NodeCache.FindReferences(
+                    nodesToBrowse,
+                    references,
+                    false,
+                    true);
+
+                var nextNodesToBrowse = new ExpandedNodeIdCollection();
+                if (fetchTree)
+                {
+                    nextNodesToBrowse.AddRange(response.Select(r => r.NodeId).ToList());
+                }
+
+                if (filterUATypes)
+                {
+                    // filter out default namespace
+                    result.AddRange(response.Where(rd => rd.NodeId.NamespaceIndex != 0));
+                }
+                else
+                {
+                    result.AddRange(response);
+                }
+                nodesToBrowse = nextNodesToBrowse;
+            }
+
+            stopwatch.Stop();
+
+            m_output.WriteLine("FetchAllNodesNodeCache found {0} nodes in {1}ms", result.Count, stopwatch.ElapsedMilliseconds);
+
+            result.Sort((a, b) => a.NodeId.CompareTo(b.NodeId));
+
+            if (m_verbose)
+            {
+                foreach (var reference in result)
+                {
+                    m_output.WriteLine("NodeId {0} {1} {2}", reference.NodeId, reference.NodeClass, reference.BrowseName);
+                }
+            }
+
+            return result;
+        }
+        #endregion
+
+        #region BrowseAddressSpace sample
+        /// <summary>
+        /// Browse full address space.
+        /// </summary>
+        /// <param name="session">The session to use.</param>
+        /// <param name="startingNode">The node where the browse operation starts.</param>
+        /// <param name="browseDescription">An optional BrowseDescription to use.</param>
+        public ReferenceDescriptionCollection BrowseFullAddressSpace(
+            Session session,
+            NodeId startingNode = null,
+            BrowseDescription browseDescription = null)
+        {
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+
+            // Browse template
+            const int kMaxReferencesPerNode = 1000;
+            var browseTemplate = browseDescription ?? new BrowseDescription {
+                NodeId = startingNode ?? ObjectIds.RootFolder,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                IncludeSubtypes = true,
+                NodeClassMask = 0,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+            var browseDescriptionCollection = CreateBrowseDescriptionCollectionFromNodeId(
+                new NodeIdCollection(new NodeId[] { startingNode ?? ObjectIds.RootFolder }),
+                browseTemplate);
+
+            // Browse
+            ResponseHeader response = null;
+            var referenceDescriptions = new ReferenceDescriptionCollection();
+
+            uint maxNodesPerBrowse = 0;
+            while (browseDescriptionCollection.Any())
+            {
+                Utils.LogInfo("Browse {0} nodes after {1}ms",
+                    browseDescriptionCollection.Count, stopWatch.ElapsedMilliseconds);
+
+                BrowseResultCollection allResults = new BrowseResultCollection();
+                bool repeatBrowse;
+                BrowseResultCollection browseResultCollection = new BrowseResultCollection();
+                DiagnosticInfoCollection diagnosticsInfoCollection;
+                do
+                {
+                    var browseCollection = (maxNodesPerBrowse == 0) ?
+                        browseDescriptionCollection :
+                        browseDescriptionCollection.Take((int)maxNodesPerBrowse).ToArray();
+                    repeatBrowse = false;
+                    try
+                    {
+                        response = session.Browse(null, null,
+                            kMaxReferencesPerNode, browseCollection,
+                            out browseResultCollection, out diagnosticsInfoCollection);
+                        ClientBase.ValidateResponse(browseResultCollection, browseCollection);
+                        ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, browseCollection);
+
+                        allResults.AddRange(browseResultCollection);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        if (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
+                            sre.StatusCode == StatusCodes.BadResponseTooLarge)
+                        {
+                            // try to address by overriding operation limit
+                            maxNodesPerBrowse = maxNodesPerBrowse == 0 ?
+                                (uint)browseCollection.Count / 2 : maxNodesPerBrowse / 2;
+                            repeatBrowse = true;
+                        }
+                        else
+                        {
+                            m_output.WriteLine("Browse error: {0}", sre.Message);
+                            throw;
+                        }
+                    }
+                } while (repeatBrowse);
+
+                if (maxNodesPerBrowse == 0)
+                {
+                    browseDescriptionCollection.Clear();
+                }
+                else
+                {
+                    browseDescriptionCollection = browseDescriptionCollection.Skip(browseResultCollection.Count).ToArray();
+                }
+
+                // Browse next
+                var continuationPoints = PrepareBrowseNext(browseResultCollection);
+                while (continuationPoints.Any())
+                {
+                    Utils.LogInfo("BrowseNext {0} continuation points.", continuationPoints.Count);
+                    response = session.BrowseNext(null, false, continuationPoints,
+                        out var browseNextResultCollection, out diagnosticsInfoCollection);
+                    ClientBase.ValidateResponse(browseNextResultCollection, continuationPoints);
+                    ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, continuationPoints);
+                    allResults.AddRange(browseNextResultCollection);
+                    continuationPoints = PrepareBrowseNext(browseNextResultCollection);
+                }
+
+                // Build browse request for next level
+                var browseTable = new NodeIdCollection();
+                foreach (var result in allResults)
+                {
+                    referenceDescriptions.AddRange(result.References);
+                    foreach (var reference in result.References)
+                    {
+                        browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris));
+                    }
+                }
+                browseDescriptionCollection = CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate);
+            }
+
+            stopWatch.Stop();
+
+            m_output.WriteLine("BrowseFullAddressSpace found {0} references on server in {1}ms.",
+                referenceDescriptions.Count, stopWatch.ElapsedMilliseconds);
+
+            // sort by NodeId
+            referenceDescriptions.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
+
+            if (m_verbose)
+            {
+                foreach (var reference in referenceDescriptions)
+                {
+                    m_output.WriteLine("NodeId {0} {1} {2}", reference.NodeId, reference.NodeClass, reference.BrowseName);
+                }
+            }
+
+            return referenceDescriptions;
+        }
+        #endregion
+
+        #region Load TypeSystem
+        /// <summary>
+        /// Loads the custom type system of the server in the session.
+        /// </summary>
+        /// <remarks>
+        /// Outputs elapsed time information for perf testing and lists all
+        /// types that were successfully added to the session encodeable type factory.
+        /// </remarks>
+        public async Task LoadTypeSystem(Session session)
+        {
+            m_output.WriteLine("Load the server type system.");
+
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+
+            var complexTypeSystem = new ComplexTypeSystem(session);
+            await complexTypeSystem.Load().ConfigureAwait(false);
+
+            stopWatch.Stop();
+
+            m_output.WriteLine("Loaded {0} types took {1}ms.",
+                complexTypeSystem.GetDefinedTypes().Length, stopWatch.ElapsedMilliseconds);
+
+            if (m_verbose)
+            {
+                m_output.WriteLine("Custom types defined for this session:");
+                foreach (var type in complexTypeSystem.GetDefinedTypes())
+                {
+                    m_output.WriteLine($"{type.Namespace}.{type.Name}");
+                }
+
+                m_output.WriteLine($"Loaded {session.DataTypeSystem.Count} dictionaries:");
+                foreach (var dictionary in session.DataTypeSystem)
+                {
+                    m_output.WriteLine($" + {dictionary.Value.Name}");
+                    foreach (var type in dictionary.Value.DataTypes)
+                    {
+                        m_output.WriteLine($" -- {type.Key}:{type.Value}");
+                    }
+                }
+            }
+        }
+        #endregion
+
         #region Private Methods
         /// <summary>
         /// Handle DataChange notifications from Server
@@ -359,9 +630,48 @@ namespace Quickstarts.ConsoleReferenceClient
                 m_output.WriteLine("OnMonitoredItemNotification error: {0}", ex.Message);
             }
         }
+
+        /// <summary>
+        /// Create a browse description from a node id collection.
+        /// </summary>
+        /// <param name="nodeIdCollection">The node id collection.</param>
+        /// <param name="template">The template for the browse description for each node id.</param>
+        private static BrowseDescriptionCollection CreateBrowseDescriptionCollectionFromNodeId(
+            NodeIdCollection nodeIdCollection,
+            BrowseDescription template)
+        {
+            var browseDescriptionCollection = new BrowseDescriptionCollection();
+            foreach (var nodeId in nodeIdCollection)
+            {
+                BrowseDescription browseDescription = (BrowseDescription)template.MemberwiseClone();
+                browseDescription.NodeId = nodeId;
+                browseDescriptionCollection.Add(browseDescription);
+            }
+            return browseDescriptionCollection;
+        }
+
+        /// <summary>
+        /// Create the continuation point collection from the browse result
+        /// collection for the BrowseNext service.
+        /// </summary>
+        /// <param name="browseResultCollection">The browse result collection to use.</param>
+        /// <returns>The collection of continuation points for the BrowseNext service.</returns>
+        private static ByteStringCollection PrepareBrowseNext(BrowseResultCollection browseResultCollection)
+        {
+            var continuationPoints = new ByteStringCollection();
+            foreach (var browseResult in browseResultCollection)
+            {
+                if (browseResult.ContinuationPoint != null)
+                {
+                    continuationPoints.Add(browseResult.ContinuationPoint);
+                }
+            }
+            return continuationPoints;
+        }
         #endregion
 
         private Action<IList, IList> m_validateResponse;
         private TextWriter m_output;
+        private bool m_verbose;
     }
 }

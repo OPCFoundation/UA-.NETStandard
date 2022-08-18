@@ -1850,18 +1850,23 @@ namespace Opc.Ua.Client
             out IList<ServiceResult> errors,
             bool optionalAttributes = false)
         {
+            if (nodeIds.Count == 0)
+            {
+                nodeCollection = new NodeCollection();
+                errors = new List<ServiceResult>();
+                return;
+            }
+
             if (nodeClass == NodeClass.Unspecified)
             {
                 ReadNodes(nodeIds, out nodeCollection, out errors, optionalAttributes);
                 return;
             }
 
-            nodeCollection = new NodeCollection(nodeIds.Count);
-            errors = new ServiceResult[nodeIds.Count].ToList();
-
             // determine attributes to read for nodeclass
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIds.Count].ToList();
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(nodeIds.Count);
             var attributesToRead = new ReadValueIdCollection();
+            nodeCollection = new NodeCollection(nodeIds.Count);
 
             CreateNodeClassAttributesReadNodesRequest(
                 nodeIds, nodeClass,
@@ -1879,6 +1884,7 @@ namespace Opc.Ua.Client
             ClientBase.ValidateResponse(values, attributesToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
+            errors = new ServiceResult[nodeIds.Count].ToList();
             ProcessAttributesReadNodesResponse(
                 responseHeader,
                 attributesToRead, attributesPerNodeId,
@@ -1903,16 +1909,10 @@ namespace Opc.Ua.Client
         {
             int count = nodeIds.Count;
             nodeCollection = new NodeCollection(count);
+            errors = new List<ServiceResult>(count);
 
             if (count == 0)
             {
-                errors = new List<ServiceResult>();
-                return;
-            }
-
-            if (count == 0)
-            {
-                errors = new List<ServiceResult>();
                 return;
             }
 
@@ -1951,8 +1951,7 @@ namespace Opc.Ua.Client
             }
 
             // second determine attributes to read per nodeclass
-            errors = new ServiceResult[count].ToList();
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[count].ToList();
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(count);
             var attributesToRead = new ReadValueIdCollection();
 
             CreateAttributesReadNodesRequest(
@@ -1962,22 +1961,25 @@ namespace Opc.Ua.Client
                 nodeCollection, errors,
                 optionalAttributes);
 
-            responseHeader = Read(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                attributesToRead,
-                out DataValueCollection values,
-                out diagnosticInfos);
+            if (attributesToRead.Count > 0)
+            {
+                responseHeader = Read(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    attributesToRead,
+                    out DataValueCollection values,
+                    out diagnosticInfos);
 
-            ClientBase.ValidateResponse(values, attributesToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
+                ClientBase.ValidateResponse(values, attributesToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
-            ProcessAttributesReadNodesResponse(
-                responseHeader,
-                attributesToRead, attributesPerNodeId,
-                values, diagnosticInfos,
-                nodeCollection, errors);
+                ProcessAttributesReadNodesResponse(
+                    responseHeader,
+                    attributesToRead, attributesPerNodeId,
+                    values, diagnosticInfos,
+                    nodeCollection, errors);
+            }
         }
 
         /// <summary>
@@ -3803,7 +3805,7 @@ namespace Opc.Ua.Client
                     errors.Add(ServiceResult.Good);
                 }
                 revisedContinuationPoints.Add(result.ContinuationPoint);
-                referencesList.Add(results[0].References);
+                referencesList.Add(result.References);
                 ii++;
             }
 
@@ -4321,7 +4323,7 @@ namespace Opc.Ua.Client
                 }
 
                 nodeCollection.Add(node);
-                attributesPerNodeId[ii] = attributes;
+                attributesPerNodeId.Add(attributes);
             }
         }
 
@@ -4348,7 +4350,8 @@ namespace Opc.Ua.Client
                 if (!DataValue.IsGood(nodeClassValues[ii]))
                 {
                     nodeCollection.Add(node);
-                    errors[ii] = new ServiceResult(nodeClassValues[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable);
+                    errors.Add(new ServiceResult(nodeClassValues[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable));
+                    attributesPerNodeId.Add(null);
                     continue;
                 }
 
@@ -4358,8 +4361,9 @@ namespace Opc.Ua.Client
                 if (nodeClass == null)
                 {
                     nodeCollection.Add(node);
-                    errors[ii] = ServiceResult.Create(StatusCodes.BadUnexpectedError,
-                        "Node does not have a valid value for NodeClass: {0}.", nodeClassValues[ii].Value);
+                    errors.Add(ServiceResult.Create(StatusCodes.BadUnexpectedError,
+                        "Node does not have a valid value for NodeClass: {0}.", nodeClassValues[ii].Value));
+                    attributesPerNodeId.Add(null);
                     continue;
                 }
 
@@ -4376,8 +4380,8 @@ namespace Opc.Ua.Client
                 }
 
                 nodeCollection.Add(node);
-                errors[ii] = ServiceResult.Good;
-                attributesPerNodeId[ii] = attributes;
+                errors.Add(ServiceResult.Good);
+                attributesPerNodeId.Add(attributes);
             }
         }
 
