@@ -322,7 +322,7 @@ namespace Opc.Ua.Server
                     catch (Exception e)
                     {
                         Utils.LogError(e, "Unexpected error creating address space for NodeManager #{0}.", ii);
-                        throw e;
+                        throw;
                     }
                 }
 
@@ -338,7 +338,7 @@ namespace Opc.Ua.Server
                     catch (Exception e)
                     {
                         Utils.LogError(e, "Unexpected error adding references for NodeManager #{0}.", ii);
-                        throw e;
+                        throw;
                     }
                 }
             }
