@@ -440,11 +440,15 @@ namespace Opc.Ua
                 // throw if rejected.
                 if (!accept)
                 {
-                    // write the invalid certificate to rejected store if specified.
+                    // write the invalid certificate chain to rejected store if specified.
                     Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
                         certificate, serviceResult != null ? serviceResult.StatusCode.ToString() : "Unknown Error");
 
-                    SaveCertificate(certificate);
+                    // save the chain to allow to add cert to a trusted or issuer store
+                    foreach (var cert in chain)
+                    {
+                        SaveCertificate(cert);
+                    }
 
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
                 }
