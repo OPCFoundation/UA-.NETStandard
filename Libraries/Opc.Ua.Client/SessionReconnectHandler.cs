@@ -216,8 +216,7 @@ namespace Opc.Ua.Client
                         Utils.LogWarning("Reconnect failed. Reason={0}.", sre.Result);
 
                         // check if the server endpoint could not be reached.
-                        if (sre.StatusCode == StatusCodes.BadUnknownResponse ||
-                            sre.StatusCode == StatusCodes.BadTcpInternalError ||
+                        if (sre.StatusCode == StatusCodes.BadTcpInternalError ||
                             sre.StatusCode == StatusCodes.BadCommunicationError ||
                             sre.StatusCode == StatusCodes.BadNotConnected ||
                             sre.StatusCode == StatusCodes.BadRequestTimeout ||

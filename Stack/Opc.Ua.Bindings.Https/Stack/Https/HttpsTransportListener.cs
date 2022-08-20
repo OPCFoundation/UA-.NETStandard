@@ -289,14 +289,14 @@ namespace Opc.Ua.Bindings
             {
                 if (m_callback == null)
                 {
-                    await WriteResponseAsync(context.Response, message, HttpStatusCode.NotImplemented, ct).ConfigureAwait(false);
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.NotImplemented).ConfigureAwait(false);
                     return;
                 }
 
                 if (context.Request.ContentType != kApplicationContentType)
                 {
                     message = "HTTPSLISTENER - Unsupported content type.";
-                    await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest, ct).ConfigureAwait(false);
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest).ConfigureAwait(false);
                     return;
                 }
 
@@ -306,7 +306,7 @@ namespace Opc.Ua.Bindings
                 if (buffer.Length != length)
                 {
                     message = "HTTPSLISTENER - Invalid buffer.";
-                    await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest, ct).ConfigureAwait(false);
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest).ConfigureAwait(false);
                     return;
                 }
 
@@ -363,18 +363,19 @@ namespace Opc.Ua.Bindings
                 {
                     message = "Connection refused, invalid security policy.";
                     Utils.LogError(message);
-                    await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized, ct).ConfigureAwait(false);
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
                     return;
                 }
 
-                IServiceResponse output = await Task.Factory.FromAsync(
-                    m_callback.BeginProcessRequest(
-                        m_listenerId,
-                        endpoint,
-                        input as IServiceRequest,
-                        null, null),
-                    m_callback.EndProcessRequest)
-                    .ConfigureAwait(false);
+                // note: do not use Task.Factory.FromAsync here 
+                var result = m_callback.BeginProcessRequest(
+                    m_listenerId,
+                    endpoint,
+                    input as IServiceRequest,
+                    null,
+                    null);
+
+                IServiceResponse output = m_callback.EndProcessRequest(result);
 
                 byte[] response = BinaryEncoder.EncodeMessage(output, m_quotas.MessageContext);
                 context.Response.ContentLength = response.Length;
@@ -393,7 +394,7 @@ namespace Opc.Ua.Bindings
                 Utils.LogError(e, message);
             }
 
-            await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError, ct).ConfigureAwait(false);
+            await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -419,15 +420,12 @@ namespace Opc.Ua.Bindings
             Start();
         }
 
-        private static async Task WriteResponseAsync(HttpResponse response, string message, HttpStatusCode status, CancellationToken ct)
+        private static Task WriteResponseAsync(HttpResponse response, string message, HttpStatusCode status)
         {
-            if (!ct.IsCancellationRequested)
-            {
-                response.ContentLength = message.Length;
-                response.ContentType = kHttpsContentType;
-                response.StatusCode = (int)status;
-                await response.WriteAsync(message, ct).ConfigureAwait(false);
-            }
+            response.ContentLength = message.Length;
+            response.ContentType = kHttpsContentType;
+            response.StatusCode = (int)status;
+            return response.WriteAsync(message);
         }
 
         private static async Task<byte[]> ReadBodyAsync(HttpRequest req)
