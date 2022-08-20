@@ -3768,7 +3768,7 @@ namespace Opc.Ua.Client
                     errors.Add(ServiceResult.Good);
                 }
                 revisedContinuationPoints.Add(result.ContinuationPoint);
-                referencesList.Add(results[0].References);
+                referencesList.Add(result.References);
                 ii++;
             }
 
