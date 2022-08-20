@@ -116,13 +116,11 @@ namespace Opc.Ua.Bindings
 
                 // auto validate server cert, if supported
                 // if unsupported, the TLS server cert must be trusted by a root CA
-                var handler = new HttpClientHandler {
+                var handler = new HttpClientHandler
+                {
                     ClientCertificateOptions = ClientCertificateOption.Manual,
                     MaxConnectionsPerServer = kMaxConnectionsPerServer,
                     AllowAutoRedirect = false,
-#if NET6_0_OR_GREATER
-                    MaxResponseContentBufferSize = m_quotas.MaxMessageSize,
-#endif
                     MaxRequestContentBufferSize = m_quotas.MaxMessageSize,
                 };
 
@@ -150,14 +148,15 @@ namespace Opc.Ua.Bindings
                         try
                         {
                             serverCertificateCustomValidationCallback =
-                                (httpRequestMessage, cert, chain, policyErrors) => {
+                                (httpRequestMessage, cert, chain, policyErrors) =>
+                                {
                                     try
                                     {
                                         var validationChain = new X509Certificate2Collection();
                                         if (chain != null && chain.ChainElements != null)
                                         {
                                             int i = 0;
-                                            Utils.LogInfo(Utils.TraceMasks.Security, "Validate HTTPS server chain:");
+                                            Utils.LogInfo(Utils.TraceMasks.Security, "{0} Validate server chain:", nameof(HttpsTransportChannel));
                                             foreach (var element in chain.ChainElements)
                                             {
                                                 Utils.LogCertificate(Utils.TraceMasks.Security, "{0}: ", element.Certificate, i);
@@ -167,7 +166,7 @@ namespace Opc.Ua.Bindings
                                         }
                                         else
                                         {
-                                            Utils.LogCertificate(Utils.TraceMasks.Security, "Validate Https Server Certificate: ", cert);
+                                            Utils.LogCertificate(Utils.TraceMasks.Security, "{0} Validate Server Certificate: ", cert, nameof(HttpsTransportChannel));
                                             validationChain.Add(cert);
                                         }
 
@@ -177,7 +176,7 @@ namespace Opc.Ua.Bindings
                                     }
                                     catch (Exception ex)
                                     {
-                                        Utils.LogError(ex, "HTTPS: Failed to validate certificate.");
+                                        Utils.LogError(ex, "{0} Failed to validate certificate.", nameof(HttpsTransportChannel));
                                     }
                                     return false;
                                 };
@@ -247,7 +246,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, null);
-                Task.Run(async () => {
+                Task.Run(async () =>
+                {
                     try
                     {
                         var ct = new CancellationTokenSource(m_operationTimeout).Token;
@@ -416,13 +416,15 @@ namespace Opc.Ua.Bindings
             m_operationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas {
+            m_quotas = new ChannelQuotas
+            {
                 MaxBufferSize = m_settings.Configuration.MaxBufferSize,
                 MaxMessageSize = m_settings.Configuration.MaxMessageSize,
                 ChannelLifetime = m_settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime,
 
-                MessageContext = new ServiceMessageContext {
+                MessageContext = new ServiceMessageContext
+                {
                     MaxArrayLength = m_settings.Configuration.MaxArrayLength,
                     MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
                     MaxMessageSize = m_settings.Configuration.MaxMessageSize,
