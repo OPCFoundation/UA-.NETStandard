@@ -271,6 +271,9 @@ namespace Quickstarts.ReferenceServer
             {
                 args.Identity = this.VerifyIssuedToken(issuedToken);
 
+                // set AuthenticatedUser role for accepted identity token
+                args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
+
                 return;
             }
 

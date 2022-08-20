@@ -674,7 +674,6 @@ namespace Opc.Ua.Server
         /// Finds the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
         /// </summary>
         /// <param name="namespaceUri"></param>
-        /// <returns></returns>
         private NamespaceMetadataState FindNamespaceMetadataState(string namespaceUri)
         {
             try
