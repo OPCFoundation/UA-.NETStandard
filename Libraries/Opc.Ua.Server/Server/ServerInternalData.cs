@@ -511,6 +511,12 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void ReportEvent(ISystemContext context, IFilterTarget e)
         {
+            if ((Auditing == false) && (e is AuditEventState))
+            {
+                // do not report auditing events if server Auditing flag is false
+                return;
+            }
+
             m_serverObject?.ReportEvent(context, e);
         }
 
@@ -544,9 +550,9 @@ namespace Opc.Ua.Server
         public ISystemContext DefaultAuditContext => DefaultSystemContext.Copy();
 
         /// <inheritdoc/>
-        public void ReportAuditEvent(ISystemContext context, IFilterTarget e)
+        public void ReportAuditEvent(ISystemContext context, AuditEventState e)
         {
-            if ((e is AuditEventState) && (Auditing == false))
+            if (Auditing == false)
             {
                 // do not report auditing events if server Auditing flag is false
                 return;
