@@ -124,6 +124,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                 }
 
+                // cache the server type system
+                m_complexTypeResolver.LoadDataTypes(DataTypeIds.BaseDataType, true);
                 var subTypeNodes = m_complexTypeResolver.LoadDataTypes(nodeId, subTypes, true);
                 var subTypeNodesWithoutKnownTypes = RemoveKnownTypes(subTypeNodes);
 
@@ -177,6 +179,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     throw new ServiceResultException($"Bad argument {nameSpace}. Namespace not found.");
                 }
                 ushort nameSpaceIndex = (ushort)index;
+                m_complexTypeResolver.LoadDataTypes(DataTypeIds.BaseDataType, true);
                 var serverEnumTypes = m_complexTypeResolver.LoadDataTypes(DataTypeIds.Enumeration);
                 var serverStructTypes = m_complexTypeResolver.LoadDataTypes(DataTypeIds.Structure, true);
                 // filter for namespace
@@ -195,7 +198,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Failed to load the custom type dictionary.");
+                Utils.LogError(ex, "Failed to load the custom type namespace {0}.", nameSpace);
                 if (throwOnError)
                 {
                     throw;
@@ -225,7 +228,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             try
             {
-                // preload server types in cache
+                // load server types in cache
                 m_complexTypeResolver.LoadDataTypes(DataTypeIds.BaseDataType, true);
                 IList<INode> serverEnumTypes = m_complexTypeResolver.LoadDataTypes(DataTypeIds.Enumeration);
                 IList<INode> serverStructTypes = onlyEnumTypes ? new List<INode>() : m_complexTypeResolver.LoadDataTypes(DataTypeIds.Structure, true);
@@ -241,7 +244,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Failed to load the custom type dictionary.");
+                Utils.LogError(ex, "Failed to load the custom types.");
                 if (throwOnError)
                 {
                     throw;
@@ -636,10 +639,13 @@ namespace Opc.Ua.Client.ComplexTypes
                                                 missingTypeIdsFromWorkList.Add(missingTypeId);
                                             }
                                         }
-                                        if (missingTypeIdsFromWorkList.Count > 0)
+                                        foreach (var id in missingTypeIdsFromWorkList)
                                         {
-                                            throw new DataTypeNotFoundException(missingTypeIdsFromWorkList,
-                                                string.Format("Required DataType of {0} are missing from the work list.", structType.NodeId));
+                                            if (!structTypesToDoList.Where(n=>n.NodeId == id).Any())
+                                            {
+                                                structTypesToDoList.Add(m_complexTypeResolver.Find(id));
+                                            }
+                                            retryAddStructType = true;
                                         }
                                     }
                                 }
@@ -945,11 +951,11 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (missingTypes == null)
                     {
-                        missingTypes = new ExpandedNodeIdCollection() { complexTypeId };
+                        missingTypes = new ExpandedNodeIdCollection() { field.DataType };
                     }
                     else
                     {
-                        missingTypes.Add(complexTypeId);
+                        missingTypes.Add(field.DataType);
                     }
                 }
                 else
