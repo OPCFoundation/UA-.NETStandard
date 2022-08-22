@@ -1672,7 +1672,7 @@ namespace Opc.Ua
                                Utils.Format("Unexpected null Array for multidimensional matrix with {0} elements.", length));
                     }
                     var result = new Matrix(elements, builtInType, dimensions.ToArray());
-                    if (asCollection)
+                    if (!asCollection)
                     {
                         return result.ToArray();
                     }

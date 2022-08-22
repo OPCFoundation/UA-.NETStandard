@@ -329,6 +329,7 @@ namespace Opc.Ua
         /// Reads an array with the specified valueRank and the specified BuiltInType.
         /// </summary>
         /// <returns>An array or a matrix of the specified built in type.</returns>
+// TODO, remove ascollection        
         object ReadArray(string fieldName, int valueRank, BuiltInType builtInType,
             ExpandedNodeId encodeableTypeId = null, bool asCollection = false);
     }
