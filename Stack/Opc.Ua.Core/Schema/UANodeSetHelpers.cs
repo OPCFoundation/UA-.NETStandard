@@ -507,7 +507,7 @@ namespace Opc.Ua.Export
                     value.ValueRank = o.ValueRank;
                     value.ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions);
                     value.AccessLevelEx = o.AccessLevel;
-                    value.UserAccessLevel = (byte)(o.AccessLevel & 0xFF);
+                    value.UserAccessLevel = (byte)(o.UserAccessLevel & 0xFF);
                     value.MinimumSamplingInterval = o.MinimumSamplingInterval;
                     value.Historizing = o.Historizing;
 
