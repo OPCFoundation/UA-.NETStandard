@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -75,6 +76,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool loadTypes = false;
             bool browseall = false;
             bool fetchall = false;
+            bool jsonvalues = false;
             bool verbose = false;
             string password = null;
             int timeout = Timeout.Infinite;
@@ -96,6 +98,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "lt|loadtypes", "Load custom types", lt => { if (lt != null) loadTypes = true; } },
                 { "b|browseall", "Browse all references", b => { if (b != null) browseall = true; } },
                 { "f|fetchall", "Fetch all nodes", f => { if (f != null) fetchall = true; } },
+                { "j|json", "Output all Values as JSON", j => { if (j != null) jsonvalues = true; } },
                 { "v|verbose", "Verbose output", v => { if (v != null) verbose = true; } },
             };
 
@@ -221,19 +224,85 @@ namespace Quickstarts.ConsoleReferenceClient
                                 await samples.LoadTypeSystem(uaClient.Session).ConfigureAwait(false);
                             }
 
-                            if (browseall || fetchall)
+                            if (browseall || fetchall || jsonvalues)
                             {
-
+                                NodeIdCollection variableIds = null;
+                                ReferenceDescriptionCollection referenceDescriptions = null;
                                 if (browseall)
                                 {
-                                    ReferenceDescriptionCollection referenceDescriptions =
-                                        samples.BrowseFullAddressSpace(uaClient.Session, Objects.RootFolder);
+                                    referenceDescriptions =
+                                        samples.BrowseFullAddressSpace(uaClient, Objects.RootFolder);
+                                    variableIds = new NodeIdCollection(referenceDescriptions
+                                        .Where(r => r.NodeClass == NodeClass.Variable && r.TypeDefinition.NamespaceIndex != 0)
+                                        .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
                                 }
 
+                                IList<INode> allNodes = null;
                                 if (fetchall)
                                 {
-                                    IList<INode> allNodes = samples.FetchAllNodesNodeCache(
-                                        uaClient.Session, Objects.RootFolder, true, true, false);
+                                    allNodes = samples.FetchAllNodesNodeCache(
+                                        uaClient, Objects.RootFolder, true, true, false);
+                                    variableIds = new NodeIdCollection(allNodes
+                                        .Where(r => r.NodeClass == NodeClass.Variable && ((VariableNode)r).DataType.NamespaceIndex != 0)
+                                        .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
+                                }
+
+                                // TODO: move to client samples
+                                if (jsonvalues && variableIds != null)
+                                {
+                                    bool retrySingleRead = false;
+                                    do
+                                    {
+                                        DataValueCollection values;
+                                        IList<ServiceResult> errors;
+                                        try
+                                        {
+                                            if (retrySingleRead)
+                                            {
+                                                values = new DataValueCollection();
+                                                errors = new List<ServiceResult>();
+
+                                                foreach (var variableId in variableIds)
+                                                {
+                                                    try
+                                                    {
+                                                        output.WriteLine("Read {0}", variableId);
+                                                        var value = await uaClient.Session.ReadValueAsync(variableId).ConfigureAwait(false);
+                                                        values.Add(value);
+                                                        errors.Add(value.StatusCode);
+                                                    }
+                                                    catch (ServiceResultException sre)
+                                                    {
+                                                        output.WriteLine("Error: {0}", sre.Message);
+                                                        values.Add(new DataValue(sre.StatusCode));
+                                                        errors.Add(sre.Result);
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                (values, errors) = await uaClient.Session.ReadValuesAsync(variableIds).ConfigureAwait(false);
+                                            }
+
+                                            retrySingleRead = false;
+
+                                            int ii = 0;
+                                            foreach (var value in values)
+                                            {
+                                                if (ServiceResult.IsNotBad(errors[ii]))
+                                                {
+                                                    var valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, variableIds[ii].ToString(), value, true);
+                                                    output.WriteLine(valueString);
+                                                }
+                                                ii++;
+                                            }
+                                        }
+                                        catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+                                        {
+                                            output.WriteLine("Retry to read the values due to error:", sre.Message);
+                                            retrySingleRead = true;
+                                        }
+                                    } while (retrySingleRead);
                                 }
 
                                 quit = true;

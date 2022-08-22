@@ -31,10 +31,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
@@ -348,88 +350,108 @@ namespace Quickstarts.ConsoleReferenceClient
         }
         #endregion
 
-        #region Fetch all nodes with NodeCache sample
+        #region Fetch with NodeCache
         /// <summary>
-        /// 
+        /// Fetch all references and nodes with attributes except values from the server.
         /// </summary>
-        /// <param name="session">The session to use.</param>
+        /// <param name="uaClient">The UAClient with a session to use.</param>
         /// <param name="startingNode">The node from which the hierarchical nodes are fetched.</param>
         /// <param name="fetchTree">Iterate to fetch all nodes in the tree.</param>
         /// <param name="addRootNode">Adds the root node to the result.</param>
         /// <param name="filterUATypes">Filters nodes from namespace 0 from the result.</param>
-        /// <returns></returns>
+        /// <returns>The list of nodes on the server.</returns>
         public IList<INode> FetchAllNodesNodeCache(
-            Session session,
+            UAClient uaClient,
             NodeId startingNode,
             bool fetchTree = false,
             bool addRootNode = false,
             bool filterUATypes = true)
         {
             var stopwatch = new Stopwatch();
-            var result = new List<INode>();
+            var nodeDictionary = new Dictionary<ExpandedNodeId, INode>();
             var references = new NodeIdCollection { ReferenceTypeIds.HierarchicalReferences };
             var nodesToBrowse = new ExpandedNodeIdCollection {
                     startingNode
                 };
 
             // clear NodeCache to fetch all nodes from server
-            session.NodeCache.Clear();
+            uaClient.Session.NodeCache.Clear();
 
             // start
             stopwatch.Start();
 
             // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
             var bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+            var namespaceUris = uaClient.Session.NamespaceUris;
             var referenceTypes = typeof(ReferenceTypeIds)
                      .GetFields(bindingFlags)
-                     .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), session.NamespaceUris));
-            session.FetchTypeTree(new ExpandedNodeIdCollection(referenceTypes));
+                     .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
+            uaClient.Session.FetchTypeTree(new ExpandedNodeIdCollection(referenceTypes));
 
             // add root node
             if (addRootNode)
             {
-                var rootNode = session.NodeCache.Find(startingNode);
-                result.Add(rootNode);
+                var rootNode = uaClient.Session.NodeCache.Find(startingNode);
+                nodeDictionary[rootNode.NodeId] = rootNode;
             }
 
             while (nodesToBrowse.Count > 0)
             {
                 Utils.LogInfo("Find {0} references after {1}ms", nodesToBrowse.Count, stopwatch.ElapsedMilliseconds);
-                var response = session.NodeCache.FindReferences(
+                var response = uaClient.Session.NodeCache.FindReferences(
                     nodesToBrowse,
                     references,
                     false,
                     true);
 
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
-                if (fetchTree)
+                int duplicates = 0;
+                foreach (var node in response)
                 {
-                    nextNodesToBrowse.AddRange(response.Select(r => r.NodeId).ToList());
-                }
+                    if (!nodeDictionary.ContainsKey(node.NodeId))
+                    {
+                        if (fetchTree)
+                        {
+                            nextNodesToBrowse.Add(node.NodeId);
+                        }
 
-                if (filterUATypes)
-                {
-                    // filter out default namespace
-                    result.AddRange(response.Where(rd => rd.NodeId.NamespaceIndex != 0));
+                        if (filterUATypes)
+                        {
+                            if (node.NodeId.NamespaceIndex != 0)
+                            {
+                                // filter out default namespace
+                                nodeDictionary[node.NodeId] = node;
+                            }
+                        }
+                        else
+                        {
+                            nodeDictionary[node.NodeId] = node; ;
+                        }
+                    }
+                    else
+                    {
+                        duplicates++;
+                    }
                 }
-                else
+                if (duplicates > 0)
                 {
-                    result.AddRange(response);
+                    Utils.LogInfo("Find References {0} duplicate nodes were ignored", duplicates);
                 }
                 nodesToBrowse = nextNodesToBrowse;
             }
 
             stopwatch.Stop();
 
-            m_output.WriteLine("FetchAllNodesNodeCache found {0} nodes in {1}ms", result.Count, stopwatch.ElapsedMilliseconds);
+            m_output.WriteLine("FetchAllNodesNodeCache found {0} nodes in {1}ms", nodeDictionary.Count, stopwatch.ElapsedMilliseconds);
 
-            result.Sort((a, b) => a.NodeId.CompareTo(b.NodeId));
+            var result = nodeDictionary.Values.ToList();
+            result.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
 
             if (m_verbose)
             {
-                foreach (var reference in result)
+                foreach (var node in result)
                 {
-                    m_output.WriteLine("NodeId {0} {1} {2}", reference.NodeId, reference.NodeClass, reference.BrowseName);
+                    m_output.WriteLine("NodeId {0} {1} {2}", node.NodeId, node.NodeClass, node.BrowseName);
                 }
             }
 
@@ -441,11 +463,11 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Browse full address space.
         /// </summary>
-        /// <param name="session">The session to use.</param>
+        /// <param name="uaClient">The UAClient with a session to use.</param>
         /// <param name="startingNode">The node where the browse operation starts.</param>
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
         public ReferenceDescriptionCollection BrowseFullAddressSpace(
-            Session session,
+            UAClient uaClient,
             NodeId startingNode = null,
             BrowseDescription browseDescription = null)
         {
@@ -468,7 +490,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
             // Browse
             ResponseHeader response = null;
-            var referenceDescriptions = new ReferenceDescriptionCollection();
+            var referenceDescriptions = new Dictionary<ExpandedNodeId, ReferenceDescription>();
 
             uint maxNodesPerBrowse = 0;
             while (browseDescriptionCollection.Any())
@@ -476,7 +498,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 Utils.LogInfo("Browse {0} nodes after {1}ms",
                     browseDescriptionCollection.Count, stopWatch.ElapsedMilliseconds);
 
-                BrowseResultCollection allResults = new BrowseResultCollection();
+                BrowseResultCollection allBrowseResults = new BrowseResultCollection();
                 bool repeatBrowse;
                 BrowseResultCollection browseResultCollection = new BrowseResultCollection();
                 DiagnosticInfoCollection diagnosticsInfoCollection;
@@ -488,13 +510,13 @@ namespace Quickstarts.ConsoleReferenceClient
                     repeatBrowse = false;
                     try
                     {
-                        response = session.Browse(null, null,
+                        response = uaClient.Session.Browse(null, null,
                             kMaxReferencesPerNode, browseCollection,
                             out browseResultCollection, out diagnosticsInfoCollection);
                         ClientBase.ValidateResponse(browseResultCollection, browseCollection);
                         ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, browseCollection);
 
-                        allResults.AddRange(browseResultCollection);
+                        allBrowseResults.AddRange(browseResultCollection);
                     }
                     catch (ServiceResultException sre)
                     {
@@ -528,44 +550,56 @@ namespace Quickstarts.ConsoleReferenceClient
                 while (continuationPoints.Any())
                 {
                     Utils.LogInfo("BrowseNext {0} continuation points.", continuationPoints.Count);
-                    response = session.BrowseNext(null, false, continuationPoints,
+                    response = uaClient.Session.BrowseNext(null, false, continuationPoints,
                         out var browseNextResultCollection, out diagnosticsInfoCollection);
                     ClientBase.ValidateResponse(browseNextResultCollection, continuationPoints);
                     ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, continuationPoints);
-                    allResults.AddRange(browseNextResultCollection);
+                    allBrowseResults.AddRange(browseNextResultCollection);
                     continuationPoints = PrepareBrowseNext(browseNextResultCollection);
                 }
 
                 // Build browse request for next level
                 var browseTable = new NodeIdCollection();
-                foreach (var result in allResults)
+                int duplicates = 0;
+                foreach (var browseResult in allBrowseResults)
                 {
-                    referenceDescriptions.AddRange(result.References);
-                    foreach (var reference in result.References)
+                    foreach (var reference in browseResult.References)
                     {
-                        browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris));
+                        if (!referenceDescriptions.ContainsKey(reference.NodeId))
+                        {
+                            referenceDescriptions[reference.NodeId] = reference;
+                            browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, uaClient.Session.NamespaceUris));
+                        }
+                        else
+                        {
+                            duplicates++;
+                        }
                     }
                 }
-                browseDescriptionCollection = CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate);
+                if (duplicates > 0)
+                {
+                    Utils.LogInfo("Browse Result {0} duplicate nodes were ignored.", duplicates);
+                }
+                browseDescriptionCollection.AddRange(CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate));
             }
 
             stopWatch.Stop();
 
+            var result = new ReferenceDescriptionCollection(referenceDescriptions.Values);
+            result.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
+
             m_output.WriteLine("BrowseFullAddressSpace found {0} references on server in {1}ms.",
                 referenceDescriptions.Count, stopWatch.ElapsedMilliseconds);
 
-            // sort by NodeId
-            referenceDescriptions.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
-
             if (m_verbose)
             {
-                foreach (var reference in referenceDescriptions)
+                foreach (var reference in result)
                 {
                     m_output.WriteLine("NodeId {0} {1} {2}", reference.NodeId, reference.NodeClass, reference.BrowseName);
                 }
             }
 
-            return referenceDescriptions;
+            return result;
         }
         #endregion
 
@@ -609,6 +643,49 @@ namespace Quickstarts.ConsoleReferenceClient
                         m_output.WriteLine($" -- {type.Key}:{type.Value}");
                     }
                 }
+            }
+        }
+        #endregion
+
+        #region Helper Methods
+        /// <summary>
+        /// Create a prettified JSON string of a DataValue.
+        /// </summary>
+        /// <param name="name">The key of the Json value.</param>
+        /// <param name="value">The DataValue.</param>
+        /// <param name="jsonReversible">Use reversible encoding.</param>
+        public static string FormatValueAsJson(
+            IServiceMessageContext messageContext,
+            string name,
+            DataValue value,
+            bool jsonReversible)
+        {
+            var jsonEncoder = new JsonEncoder(messageContext, jsonReversible);
+            jsonEncoder.WriteDataValue(name, value);
+            var textbuffer = jsonEncoder.CloseAndReturnText();
+            // prettify
+            using (var stringWriter = new StringWriter())
+            {
+                try
+                {
+                    using (var stringReader = new StringReader(textbuffer))
+                    {
+                        var jsonReader = new JsonTextReader(stringReader);
+                        var jsonWriter = new JsonTextWriter(stringWriter) {
+                            Formatting = Formatting.Indented,
+                            Culture = CultureInfo.InvariantCulture
+                        };
+                        jsonWriter.WriteToken(jsonReader);
+                    }
+                }
+                catch (Exception ex)
+                {
+
+                    stringWriter.WriteLine("Failed to format the JSON output:", ex.Message);
+                    stringWriter.WriteLine(textbuffer);
+                    throw;
+                }
+                return stringWriter.ToString();
             }
         }
         #endregion
