@@ -1356,7 +1356,7 @@ namespace Opc.Ua
                     catch (Exception ex)
                     {
                         Utils.LogError(ex, "XmlDecoder: Error reading variant.");
-                        value = new Variant(StatusCodes.BadEncodingError);
+                        value = new Variant(StatusCodes.BadDecodingError);
                     }
                     EndField("Value");
                 }

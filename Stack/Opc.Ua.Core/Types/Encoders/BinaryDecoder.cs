@@ -172,7 +172,7 @@ namespace Opc.Ua
 
                 if (actualType == null || actualType != typeof(SessionlessInvokeRequestType))
                 {
-                    throw new ServiceResultException(StatusCodes.BadEncodingError, Utils.Format("Cannot decode session-less service message with type id: {0}.", absoluteId));
+                    throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Cannot decode session-less service message with type id: {0}.", absoluteId));
                 }
 
                 // decode the actual message.
@@ -226,7 +226,7 @@ namespace Opc.Ua
 
             if (actualType == null)
             {
-                throw new ServiceResultException(StatusCodes.BadEncodingError, Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
+                throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
             }
 
             // read the message.
@@ -2293,7 +2293,7 @@ namespace Opc.Ua
 
                 if (array == null)
                 {
-                    value = new Variant(StatusCodes.BadEncodingError);
+                    value = new Variant(StatusCodes.BadDecodingError);
                 }
                 else
                 {
@@ -2454,7 +2454,7 @@ namespace Opc.Ua
                         catch (Exception ex)
                         {
                             Utils.LogError(ex, "Error reading xml element for variant.");
-                            value.Set(StatusCodes.BadEncodingError);
+                            value.Set(StatusCodes.BadDecodingError);
                         }
                         break;
                     }

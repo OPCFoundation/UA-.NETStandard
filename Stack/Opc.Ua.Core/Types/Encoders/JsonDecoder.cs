@@ -191,7 +191,7 @@ namespace Opc.Ua
 
             if (actualType == null)
             {
-                throw new ServiceResultException(StatusCodes.BadEncodingError, Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
+                throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
             }
 
             // read the message.
