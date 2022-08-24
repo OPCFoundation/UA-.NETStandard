@@ -1994,8 +1994,8 @@ namespace Opc.Ua
                         m_namespaces.Push(Namespaces.OpcUaXsd);
 
                         /*One dimensional Array parameters are always encoded by wrapping the elements in a container element 
-                     * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
-                     * The name of the element in the array shall be the type name.*/
+                        * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
+                        * The name of the element in the array shall be the type name.*/
                         switch (builtInType)
                         {
                             case BuiltInType.Boolean: { WriteBooleanArray(fieldName, (bool[])array); return; }
@@ -2087,7 +2087,21 @@ namespace Opc.Ua
                 // write matrix.
                 else if (valueRank > ValueRanks.OneDimension)
                 {
-                    Matrix matrix = (Matrix)array;
+                    /* Multi-dimensional Arrays are encoded as an Int32 Array containing the dimensions followed by 
+                     * a list of all the values in the Array. The total number of values is equal to the 
+                     * product of the dimensions.
+                     * The number of values is 0 if one or more dimension is less than or equal to 0.*/
+
+                    Matrix matrix = array as Matrix;
+                    if (matrix == null)
+                    {
+                        var multiArray = array as Array;
+                        if (multiArray != null && multiArray.Rank == valueRank)
+                        {
+                            matrix = new Matrix(multiArray, builtInType);
+                        }
+                    }
+
                     if (BeginField(fieldName, matrix == null, true, true))
                     {
                         PushNamespace(Namespaces.OpcUaXsd);

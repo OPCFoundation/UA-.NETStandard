@@ -517,10 +517,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             if (builtInType == BuiltInType.Variant)
             {
                 // decoder result will be an Int32
-                var matrix = value as Matrix;
-                if (matrix?.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+                if (value is Matrix enumMatrix)
                 {
-                    return new Matrix(matrix.Elements, BuiltInType.Int32, matrix.Dimensions);
+                    if (enumMatrix?.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+                    {
+                        return new Matrix(enumMatrix.Elements, BuiltInType.Int32, enumMatrix.Dimensions).ToArray();
+                    }
                 }
             }
             if (encoderType == EncodingType.Binary)
@@ -551,6 +553,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     }
                 }
             }
+
+            if (value is Matrix matrix)
+            {
+                return matrix.ToArray();
+            }
+
             return value;
         }
 

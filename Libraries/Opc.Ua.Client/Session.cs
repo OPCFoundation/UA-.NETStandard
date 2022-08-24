@@ -1747,8 +1747,8 @@ namespace Opc.Ua.Client
                 dataTypeSystem = ObjectIds.OPCBinarySchema_TypeSystem;
             }
             else
-            if (!Utils.Equals(dataTypeSystem, ObjectIds.OPCBinarySchema_TypeSystem) &&
-                !Utils.Equals(dataTypeSystem, ObjectIds.XmlSchema_TypeSystem))
+            if (!Utils.IsEqual(dataTypeSystem, ObjectIds.OPCBinarySchema_TypeSystem) &&
+                !Utils.IsEqual(dataTypeSystem, ObjectIds.XmlSchema_TypeSystem))
             {
                 throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, $"{nameof(dataTypeSystem)} does not refer to a valid data dictionary.");
             }

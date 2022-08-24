@@ -400,9 +400,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("Matrix"), Repeat(kArrayRepeats)]
         public void EncodeMatrixInArray(
-        EncodingType encoderType,
-        BuiltInType builtInType
-            )
+            EncodingType encoderType,
+            BuiltInType builtInType)
         {
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
@@ -583,7 +582,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         });
                     Dispose(encoder);
                     return;
-                    
+
                 }
             }
 
@@ -600,10 +599,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var decoderStream = new MemoryStream(buffer);
             IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type);
 
-            switch(encoderType)
+            switch (encoderType)
             {
-              case EncodingType.Json:
-              {
+                case EncodingType.Json:
+                {
                     // If this would execute:
                     // check such matrix cannot be initialized when decoding from Json format
                     // the exception is thrown while trying to construct the Matrix 
@@ -613,9 +612,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType);
                         });
                     break;
-              }
-              case EncodingType.Xml:
-              {
+                }
+                case EncodingType.Xml:
+                {
                     // check such matrix cannot be initialized when decoding from Xml format
                     // the exception is thrown while trying to construct the Matrix but is caught and handled
                     Assert.Throws(
@@ -624,9 +623,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType);
                         });
                     break;
-              }
-              case EncodingType.Binary:
-              {
+                }
+                case EncodingType.Binary:
+                {
                     // check such matrix cannot be initialized when decoding from Binary format
                     // the exception is thrown before trying to construct the Matrix
                     Assert.Throws(
@@ -635,7 +634,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType);
                         });
                     break;
-              }
+                }
             }
             Dispose(decoder);
         }

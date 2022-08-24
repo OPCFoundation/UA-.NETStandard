@@ -2620,24 +2620,16 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType
         /// </summary>
-        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null, bool asCollection = false)
+        public Array ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
                 /*One dimensional Array parameters are always encoded by wrapping the elements in a container element 
                  * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
                  * The name of the element in the array shall be the type name.*/
-                if (asCollection)
-                {
-                    // TODO
-                    return ReadArrayElements(fieldName, builtInType, encodeableTypeId);
-                }
-                else
-                {
-                    return ReadArrayElements(fieldName, builtInType, encodeableTypeId);
-                }
+                return ReadArrayElements(fieldName, builtInType, encodeableTypeId);
             }
-            // read matrix.
+            // read matrix/array.
             else if (valueRank > ValueRanks.OneDimension)
             {
                 Array elements = null;
@@ -2661,7 +2653,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadDecodingError, "The Matrix contains invalid elements");
                 }
 
-                Matrix matrix = null;
+                Matrix matrix;
                 if (dimensions != null && dimensions.Count > 0)
                 {
                     matrix = new Matrix(elements, builtInType, dimensions.ToArray());
@@ -2671,14 +2663,7 @@ namespace Opc.Ua
                     matrix = new Matrix(elements, builtInType);
                 }
 
-                if (asCollection)
-                {
-                    return matrix.ToArray();
-                }
-                else
-                {
-                    return matrix;
-                }
+                return matrix.ToArray();
             }
 
             throw new ServiceResultException(StatusCodes.BadDecodingError,

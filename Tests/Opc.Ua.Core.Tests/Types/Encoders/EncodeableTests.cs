@@ -124,6 +124,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("EncodableTypes")]
         public void ActivateEncodableTypeMatrix(
             EncodingType encoderType,
+            bool encodeAsMatrix,
             Type systemType
             )
         {
@@ -132,8 +133,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             SetMatrixDimensions(dimensions);
             int elementsCount = ElementsFromDimension(dimensions);
             Array array = Array.CreateInstance(systemType, elementsCount);
-
-
 
             ExpandedNodeId dataTypeId = NodeId.Null;
             for (int i = 0; i < array.Length; i++)
@@ -153,7 +152,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var encoderStream = new MemoryStream();
             IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType);
-            encoder.WriteArray(objectName, matrix, matrix.TypeInfo.ValueRank, builtInType);
+            if (encodeAsMatrix)
+            {
+                encoder.WriteArray(objectName, matrix, matrix.TypeInfo.ValueRank, builtInType);
+            }
+            else
+            {
+                encoder.WriteArray(objectName, matrix.ToArray(), matrix.TypeInfo.ValueRank, builtInType);
+            }
             Dispose(encoder);
 
             var buffer = encoderStream.ToArray();
@@ -165,16 +171,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             var decoderStream = new MemoryStream(buffer);
             IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType);
-            object result = decoder.ReadArray(objectName, matrix.TypeInfo.ValueRank, BuiltInType.Variant, dataTypeId);
+            Array result = decoder.ReadArray(objectName, matrix.TypeInfo.ValueRank, BuiltInType.Variant, dataTypeId);
             Dispose(decoder);
 
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
             object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, matrix);
 
-            string encodeInfo = $"Encoder: {encoderType} Type: Matrix of {systemType}. Expected is diferent from result.";
+            string encodeInfo = $"Encoder: {encoderType} Type: Matrix of {systemType}. Expected is different from result.";
 
-            Assert.AreEqual(expected, result, encodeInfo);
+            // note: Array.Equals just compares the references, so check the matrix
+            var resultMatrix = new Matrix(result, BuiltInType.Variant);
+
+            Assert.AreEqual(matrix, resultMatrix, encodeInfo);
             Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
         }
         #endregion

@@ -1322,7 +1322,7 @@ namespace Opc.Ua
             PushStructure(fieldName);
 
             var typeId = value.TypeId;
-                     
+
             if (encodeable != null)
             {
                 switch (value.Encoding)
@@ -2344,15 +2344,11 @@ namespace Opc.Ua
                 else if (typeInfo.ValueRank >= ValueRanks.OneDimension)
                 {
                     int valueRank = typeInfo.ValueRank;
-                    Matrix matrix = value as Matrix;
-                    if (matrix != null)
+                    if (UseReversibleEncoding && value is Matrix matrix)
                     {
-                        if (UseReversibleEncoding)
-                        {
-                            // linearize the matrix
-                            value = matrix.Elements;
-                            valueRank = ValueRanks.OneDimension;
-                        }
+                        // linearize the matrix
+                        value = matrix.Elements;
+                        valueRank = ValueRanks.OneDimension;
                     }
                     WriteArray(null, value, valueRank, typeInfo.BuiltInType);
                 }
@@ -2476,12 +2472,23 @@ namespace Opc.Ua
             else if (valueRank > ValueRanks.OneDimension)
             {
                 Matrix matrix = array as Matrix;
+                if (matrix == null)
+                {
+                    var multiArray = array as Array;
+                    if (multiArray != null && multiArray.Rank == valueRank)
+                    {
+                        matrix = new Matrix(multiArray, builtInType);
+                    }
+                }
+
                 if (matrix != null)
                 {
                     int index = 0;
                     WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
                     return;
                 }
+
+                // field is omitted
             }
         }
 
@@ -2560,18 +2567,6 @@ namespace Opc.Ua
                 m_nestingLevel--;
             }
         }
-
-        /// <summary>
-        /// Write multi dimensional array in Variant.
-        /// </summary>
-        private void WriteVariantMatrix(string fieldName, Matrix value)
-        {
-            PushStructure(fieldName);
-            WriteVariant("Matrix", new Variant(value.Elements, new TypeInfo(value.TypeInfo.BuiltInType, ValueRanks.OneDimension)));
-            WriteInt32Array("Dimensions", value.Dimensions);
-            PopStructure();
-        }
-
         #endregion
     }
 }

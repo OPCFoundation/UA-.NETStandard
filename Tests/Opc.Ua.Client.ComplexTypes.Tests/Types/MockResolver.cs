@@ -195,7 +195,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         {
                             if (((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition)
                             {
-                                if (Utils.Equals(structureDefinition.BaseDataType, node))
+                                if (Utils.IsEqual(structureDefinition.BaseDataType, node))
                                 {
                                     return true;
                                 }

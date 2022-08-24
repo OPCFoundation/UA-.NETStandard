@@ -2629,10 +2629,7 @@ namespace Opc.Ua
             m_elements = Utils.FlattenArray(value);
             m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
 
-#if DEBUG
-            TypeInfo sanityCheck = TypeInfo.Construct(m_elements);
-            System.Diagnostics.Debug.Assert(sanityCheck.BuiltInType == builtInType || (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte));
-#endif
+            Utils.SanityCheckArrayElements(m_elements, builtInType);
         }
 
         /// <summary>
@@ -2666,13 +2663,7 @@ namespace Opc.Ua
 
             m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
 
-#if DEBUG
-            TypeInfo sanityCheck = TypeInfo.Construct(m_elements);
-            System.Diagnostics.Debug.Assert(sanityCheck.BuiltInType == builtInType ||
-                (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
-                (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||
-                (builtInType == BuiltInType.Variant));
-#endif
+            Utils.SanityCheckArrayElements(m_elements, builtInType);
         }
         #endregion
 

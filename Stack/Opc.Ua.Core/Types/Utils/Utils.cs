@@ -1475,6 +1475,24 @@ namespace Opc.Ua
             return flatArray;
         }
 
+
+        /// <summary>
+        /// Debug.Assert if the elements are assigned a valid BuiltInType.
+        /// </summary>
+        /// <param name="elements">An array of elements to sanity check.</param>
+        /// <param name="builtInType">The builtInType used for the elements.</param>
+        [Conditional("DEBUG")]
+        internal static void SanityCheckArrayElements(Array elements, BuiltInType builtInType)
+        {
+#if DEBUG
+            TypeInfo sanityCheck = TypeInfo.Construct(elements);
+            Debug.Assert(sanityCheck.BuiltInType == builtInType ||
+                    (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
+                    (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||
+                    (builtInType == BuiltInType.Variant));
+#endif
+        }
+
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
@@ -2245,10 +2263,32 @@ namespace Opc.Ua
                     return false;
                 }
 
-                // compare each element.
-                for (int ii = 0; ii < array1.Length; ii++)
+                // compare the array dimension
+                if (array1.Rank != array2.Rank)
                 {
-                    bool result = Utils.IsEqual(array1.GetValue(ii), array2.GetValue(ii));
+                    return false;
+                }
+
+                // compare each rank.
+                for (int ii = 0; ii < array1.Rank; ii++)
+                {
+                    if (array1.GetLowerBound(ii) != array2.GetLowerBound(ii) ||
+                        array1.GetUpperBound(ii) != array2.GetUpperBound(ii))
+                    {
+                        return false;
+                    }
+                }
+
+                IEnumerator enumerator1 = array1.GetEnumerator();
+                IEnumerator enumerator2 = array2.GetEnumerator();
+
+                // compare each element.
+                while (enumerator1.MoveNext())
+                {
+                    // length is already checked
+                    enumerator2.MoveNext();
+
+                    bool result = Utils.IsEqual(enumerator1.Current, enumerator2.Current);
 
                     if (!result)
                     {
@@ -3167,6 +3207,6 @@ namespace Opc.Ua
         {
             return s_isRunningOnMonoValue.Value;
         }
-        #endregion 
+        #endregion
     }
 }

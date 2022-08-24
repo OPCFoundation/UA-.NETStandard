@@ -689,7 +689,7 @@ namespace Opc.Ua.Client.ComplexTypes
             NodeId dataTypeId = TypeInfo.GetDataTypeId(elementType);
             BuiltInType builtInType = TypeInfo.GetBuiltInType(dataTypeId);
 
-            object decodedValue;
+            Array decodedArray;
             if ((builtInType == BuiltInType.Null || builtInType == BuiltInType.ExtensionObject) &&
                 typeof(IEncodeable).IsAssignableFrom(elementType))
             {
@@ -699,20 +699,20 @@ namespace Opc.Ua.Client.ComplexTypes
                     dimensions = decoder.ReadInt32Array(name);
                 }
 
-                decodedValue = decoder.ReadEncodeableArray(name, elementType);
+                decodedArray = decoder.ReadEncodeableArray(name, elementType);
 
                 // convert flat array
                 if (valueRank >= ValueRanks.TwoDimensions)
                 {
-                    var matrix = new Matrix(decodedValue as Array, BuiltInType.ExtensionObject, dimensions.ToArray());
-                    decodedValue = matrix.ToArray();
+                    var matrix = new Matrix(decodedArray, BuiltInType.ExtensionObject, dimensions.ToArray());
+                    decodedArray = matrix.ToArray();
                 }
             }
             else
             {
-                decodedValue = decoder.ReadArray(name, valueRank, builtInType, null, true);
+                decodedArray = decoder.ReadArray(name, valueRank, builtInType, null);
             }
-            property.SetValue(this, decodedValue);
+            property.SetValue(this, decodedArray);
         }
 
         /// <summary>

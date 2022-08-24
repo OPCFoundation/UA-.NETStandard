@@ -1007,8 +1007,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private Type GetFieldType(StructureField field)
         {
-            Type collectionType = null;
-
             if (field.ValueRank != ValueRanks.Scalar &&
                 field.ValueRank < ValueRanks.OneDimension)
             {
@@ -1028,37 +1026,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 return null;
             }
-
-            if (field.DataType.NamespaceIndex == 0)
-            {
-                if (field.ValueRank == ValueRanks.OneDimension)
-                {
-                    if (fieldType == typeof(Byte[]))
-                    {
-                        collectionType = typeof(ByteStringCollection);
-                    }
-                    else if (fieldType == typeof(Single))
-                    {
-                        collectionType = typeof(FloatCollection);
-                    }
-                    else
-                    {
-                        var assemblyQualifiedName = typeof(StatusCode).Assembly;
-                        String collectionClassName = "Opc.Ua." + fieldType.Name + "Collection, " + assemblyQualifiedName;
-                        collectionType = Type.GetType(collectionClassName);
-                    }
-                }
-            }
-            else if (field.ValueRank == ValueRanks.OneDimension)
-            {
-                String collectionClassName = (fieldType.Namespace != null) ? fieldType.Namespace + "." : "";
-                collectionClassName += fieldType.Name + "Collection, " + fieldType.Assembly;
-                collectionType = Type.GetType(collectionClassName);
-            }
-
             if (field.ValueRank == ValueRanks.OneDimension)
             {
-                fieldType = collectionType ?? fieldType.MakeArrayType();
+                fieldType = fieldType.MakeArrayType();
             }
             else if (field.ValueRank >= ValueRanks.TwoDimensions)
             {
@@ -1140,12 +1110,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-        #endregion Private Members
+#endregion Private Members
 
-        #region Private Fields
+#region Private Fields
         private IComplexTypeResolver m_complexTypeResolver;
         private IComplexTypeFactory m_complexTypeBuilderFactory;
         private static readonly string[] m_supportedEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultXml, BrowseNames.DefaultJson };
-        #endregion Private Fields
+#endregion Private Fields
     }
 }//namespace
