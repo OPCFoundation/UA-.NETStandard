@@ -35,6 +35,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Opc.Ua;
@@ -48,11 +49,12 @@ namespace Quickstarts.ConsoleReferenceClient
     /// </summary>
     public class ClientSamples
     {
-
-        public ClientSamples(TextWriter output, Action<IList, IList> validateResponse, bool verbose = false)
+        const int kMaxSearchDepth = 128;
+        public ClientSamples(TextWriter output, Action<IList, IList> validateResponse, ManualResetEvent quitEvent, bool verbose = false)
         {
             m_output = output;
             m_validateResponse = validateResponse;
+            m_quitEvent = quitEvent;
             m_verbose = verbose;
         }
 
@@ -395,9 +397,17 @@ namespace Quickstarts.ConsoleReferenceClient
                 nodeDictionary[rootNode.NodeId] = rootNode;
             }
 
-            while (nodesToBrowse.Count > 0)
+            int searchDepth = 0;
+            while (nodesToBrowse.Count > 0 && searchDepth < kMaxSearchDepth)
             {
-                Utils.LogInfo("Find {0} references after {1}ms", nodesToBrowse.Count, stopwatch.ElapsedMilliseconds);
+                if (m_quitEvent.WaitOne(0))
+                {
+                    m_output.WriteLine("Browse aborted.");
+                    break;
+                }
+
+                searchDepth++;
+                Utils.LogInfo("{0}: Find {1} references after {2}ms", searchDepth, nodesToBrowse.Count, stopwatch.ElapsedMilliseconds);
                 var response = uaClient.Session.NodeCache.FindReferences(
                     nodesToBrowse,
                     references,
@@ -492,11 +502,13 @@ namespace Quickstarts.ConsoleReferenceClient
             ResponseHeader response = null;
             var referenceDescriptions = new Dictionary<ExpandedNodeId, ReferenceDescription>();
 
+            int searchDepth = 0;
             uint maxNodesPerBrowse = 0;
-            while (browseDescriptionCollection.Any())
+            while (browseDescriptionCollection.Any() && searchDepth < kMaxSearchDepth)
             {
-                Utils.LogInfo("Browse {0} nodes after {1}ms",
-                    browseDescriptionCollection.Count, stopWatch.ElapsedMilliseconds);
+                searchDepth++;
+                Utils.LogInfo("{0}: Browse {1} nodes after {2}ms",
+                    searchDepth, browseDescriptionCollection.Count, stopWatch.ElapsedMilliseconds);
 
                 BrowseResultCollection allBrowseResults = new BrowseResultCollection();
                 bool repeatBrowse;
@@ -504,6 +516,12 @@ namespace Quickstarts.ConsoleReferenceClient
                 DiagnosticInfoCollection diagnosticsInfoCollection;
                 do
                 {
+                    if (m_quitEvent.WaitOne(0))
+                    {
+                        m_output.WriteLine("Browse aborted.");
+                        break;
+                    }
+
                     var browseCollection = (maxNodesPerBrowse == 0) ?
                         browseDescriptionCollection :
                         browseDescriptionCollection.Take((int)maxNodesPerBrowse).ToArray();
@@ -549,6 +567,11 @@ namespace Quickstarts.ConsoleReferenceClient
                 var continuationPoints = PrepareBrowseNext(browseResultCollection);
                 while (continuationPoints.Any())
                 {
+                    if (m_quitEvent.WaitOne(0))
+                    {
+                        m_output.WriteLine("Browse aborted.");
+                    }
+
                     Utils.LogInfo("BrowseNext {0} continuation points.", continuationPoints.Count);
                     response = uaClient.Session.BrowseNext(null, false, continuationPoints,
                         out var browseNextResultCollection, out diagnosticsInfoCollection);
@@ -749,6 +772,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
         private Action<IList, IList> m_validateResponse;
         private TextWriter m_output;
+        private ManualResetEvent m_quitEvent;
         private bool m_verbose;
     }
 }

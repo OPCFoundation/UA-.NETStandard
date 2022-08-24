@@ -218,7 +218,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             // enable subscription transfer
                             uaClient.Session.TransferSubscriptionsOnReconnect = true;
 
-                            var samples = new ClientSamples(output, ClientBase.ValidateResponse, verbose);
+                            var samples = new ClientSamples(output, ClientBase.ValidateResponse, quitEvent, verbose);
                             if (loadTypes)
                             {
                                 await samples.LoadTypeSystem(uaClient.Session).ConfigureAwait(false);
