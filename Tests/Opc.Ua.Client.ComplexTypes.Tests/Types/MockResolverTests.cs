@@ -83,12 +83,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
             uint nodeId = 100;
 
-            var structure = new StructureDefinition()
-            {
+            var structure = new StructureDefinition() {
                 BaseDataType = DataTypeIds.Structure
             };
-            var field = new StructureField()
-            {
+            var field = new StructureField() {
                 Name = "Make",
                 Description = new LocalizedText("The make"),
                 DataType = DataTypeIds.String,
@@ -98,8 +96,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 IsOptional = false
             };
             structure.Fields.Add(field);
-            field = new StructureField()
-            {
+            field = new StructureField() {
                 Name = "Model",
                 Description = new LocalizedText("The model"),
                 DataType = DataTypeIds.String,
@@ -109,8 +106,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 IsOptional = false
             };
             structure.Fields.Add(field);
-            field = new StructureField()
-            {
+            field = new StructureField() {
                 Name = "Engine",
                 Description = new LocalizedText("The engine"),
                 DataType = DataTypeIds.String,
@@ -120,8 +116,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 IsOptional = false
             };
             structure.Fields.Add(field);
-            field = new StructureField()
-            {
+            field = new StructureField() {
                 Name = "NoOfPassengers",
                 Description = new LocalizedText("The number of passengers"),
                 DataType = DataTypeIds.UInt32,
@@ -132,8 +127,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             structure.Fields.Add(field);
 
-            var dataTypeNode = new DataTypeNode()
-            {
+            var dataTypeNode = new DataTypeNode() {
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
                 BrowseName = new QualifiedName("CarType", nameSpaceIndex),
@@ -143,8 +137,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
 
             // binary encoding
-            var description = new ReferenceDescription()
-            {
+            var description = new ReferenceDescription() {
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
                 BrowseName = BrowseNames.DefaultBinary,
@@ -155,8 +148,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var encoding = new Node(description);
 
             // add reference to encoding
-            var reference = new ReferenceNode()
-            {
+            var reference = new ReferenceNode() {
                 ReferenceTypeId = ReferenceTypeIds.HasEncoding,
                 IsInverse = false,
                 TargetId = description.NodeId
@@ -189,7 +181,113 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             encoder.WriteEncodeable("Car", car, carType);
             Dispose(encoder);
             var buffer = encoderStream.ToArray();
-            string jsonFormatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+            _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+        }
+
+        /// <summary>
+        /// Test the functionality to create a custom complex type.
+        /// </summary>
+        [Test]
+        public async Task CreateMockArrayTypeAsync()
+        {
+            var mockResolver = new MockResolver();
+
+            var nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
+            uint nodeId = 100;
+
+            var structure = new StructureDefinition() {
+                BaseDataType = DataTypeIds.Structure
+            };
+            var field = new StructureField() {
+                Name = "ArrayOfInteger",
+                Description = new LocalizedText("Array of Integer"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.OneDimension,
+                ArrayDimensions = Array.Empty<UInt32>(),
+                MaxStringLength = 0,
+                IsOptional = false
+            };
+            structure.Fields.Add(field);
+
+            field = new StructureField() {
+                Name = "Array2DOfInteger",
+                Description = new LocalizedText("2D Array of Integer"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.TwoDimensions,
+                ArrayDimensions = Array.Empty<UInt32>(),
+                MaxStringLength = 0,
+                IsOptional = false
+            };
+            structure.Fields.Add(field);
+
+            field = new StructureField() {
+                Name = "Array3DOfInteger",
+                Description = new LocalizedText("3D Array of Integer"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = 3,
+                ArrayDimensions = Array.Empty<UInt32>(),
+                MaxStringLength = 0,
+                IsOptional = false
+            };
+            structure.Fields.Add(field);
+
+            var dataTypeNode = new DataTypeNode() {
+                NodeId = new NodeId(nodeId++, nameSpaceIndex),
+                NodeClass = NodeClass.DataType,
+                BrowseName = new QualifiedName("ArrayTypes", nameSpaceIndex),
+                DisplayName = new LocalizedText("ArrayTypes"),
+                IsAbstract = false,
+                DataTypeDefinition = new ExtensionObject(structure)
+            };
+
+            // binary encoding
+            var description = new ReferenceDescription() {
+                NodeId = new NodeId(nodeId++, nameSpaceIndex),
+                ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
+                BrowseName = BrowseNames.DefaultBinary,
+                DisplayName = new LocalizedText(BrowseNames.DefaultBinary),
+                IsForward = true,
+                NodeClass = NodeClass.Object
+            };
+            var encoding = new Node(description);
+
+            // add reference to encoding
+            var reference = new ReferenceNode() {
+                ReferenceTypeId = ReferenceTypeIds.HasEncoding,
+                IsInverse = false,
+                TargetId = description.NodeId
+            };
+
+            mockResolver.DataTypeNodes[encoding.NodeId] = encoding;
+
+            // add type
+            dataTypeNode.References.Add(reference);
+            mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
+
+            var cts = new ComplexTypeSystem(mockResolver);
+            var arraysTypes = await cts.LoadType(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
+
+            BaseComplexType arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes);
+
+            TestContext.Out.WriteLine(arrays.ToString());
+
+            arrays["ArrayOfInteger"] = new Int32[] { 1, 4, 8, 12, 22 };
+            arrays["Array2DOfInteger"] = new Int32[,] {
+                { 11, 12, 13, 14, 15 }, { 21, 22, 23, 24, 25 }, { 31, 32, 33, 34, 35 } };
+            arrays["Array3DOfInteger"] = new Int32[,,] {
+                { { 11, 12, 13, 14, 15 }, { 21, 22, 23, 24, 25 }, { 31, 32, 33, 34, 35 } },
+                { { 41, 42, 43, 44, 45 }, { 51, 52, 53, 54, 55 }, { 61, 62, 63, 64, 65 } } };
+
+            TestContext.Out.WriteLine(arrays.ToString());
+
+            var encoderStream = new MemoryStream();
+            ServiceMessageContext encoderContext = new ServiceMessageContext();
+            encoderContext.Factory = mockResolver.Factory;
+            IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes);
+            encoder.WriteEncodeable("Arrays", arrays, arraysTypes);
+            Dispose(encoder);
+            var buffer = encoderStream.ToArray();
+            _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
         }
         #endregion
 

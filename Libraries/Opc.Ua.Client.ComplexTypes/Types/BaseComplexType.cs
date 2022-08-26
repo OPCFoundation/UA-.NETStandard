@@ -290,10 +290,60 @@ namespace Opc.Ua.Client.ComplexTypes
             int valueRank)
         {
             AddSeparator(body);
-            if (valueRank >= 0 &&
-                value is IEnumerable enumerable)
+            if (valueRank >= 0 && value is Array array)
             {
-                // TODO: handle multidimensional arrays
+                var rank = array.Rank;
+                var dimensions = new int[rank];
+                var mods = new int[rank];
+                for (int ii = 0; ii < rank; ii++)
+                {
+                    dimensions[ii] = array.GetLength(ii);
+                }
+
+                for (int ii = rank - 1; ii >= 0; ii--)
+                {
+                    mods[ii] = dimensions[ii];
+                    if (ii < rank - 1)
+                    {
+                        mods[ii] *= mods[ii + 1];
+                    }
+                }
+
+                int count = 0;
+                foreach (var item in array)
+                {
+                    bool needSeparator = true;
+                    for (int dc = 0; dc < rank; dc++)
+                    {
+                        if ((count % mods[dc]) == 0)
+                        {
+                            body.Append('[');
+                            needSeparator = false;
+                        }
+                    }
+                    if (needSeparator)
+                    {
+                        body.Append(',');
+                    }
+                    AppendPropertyValue(formatProvider, body, item);
+                    count++;
+                    needSeparator = false;
+                    for (int dc = 0; dc < rank; dc++)
+                    {
+                        if ((count % mods[dc]) == 0)
+                        {
+                            body.Append(']');
+                            needSeparator = true;
+                        }
+                    }
+                    if (needSeparator && count < array.Length)
+                    {
+                        body.Append(',');
+                    }
+                }
+            }
+            else if (valueRank >= 0 && value is IEnumerable enumerable)
+            {
                 bool first = true;
                 body.Append('[');
                 foreach (var item in enumerable)
