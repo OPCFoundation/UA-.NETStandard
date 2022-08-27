@@ -375,9 +375,12 @@ namespace Opc.Ua
                 // check for errors that may be suppressed.
                 if (ContainsUnsuppressibleSC(se.Result))
                 {
-                    SaveCertificate(certificate);
                     Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
                         certificate, se.Result.StatusCode);
+
+                    // save the chain in rejected store to allow to add certs to a trusted or issuer store
+                    SaveCertificates(chain);
+
                     LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
                 }
@@ -440,11 +443,12 @@ namespace Opc.Ua
                 // throw if rejected.
                 if (!accept)
                 {
-                    // write the invalid certificate to rejected store if specified.
+                    // write the invalid certificate chain to rejected store if specified.
                     Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
                         certificate, serviceResult != null ? serviceResult.StatusCode.ToString() : "Unknown Error");
 
-                    SaveCertificate(certificate);
+                    // save the chain in rejected store to allow to add cert to a trusted or issuer store
+                    SaveCertificates(chain);
 
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
                 }
@@ -497,28 +501,45 @@ namespace Opc.Ua
         /// </summary>
         private void SaveCertificate(X509Certificate2 certificate)
         {
+            SaveCertificates(new X509Certificate2Collection { certificate });
+        }
+
+        /// <summary>
+        /// Saves the certificate chain in the rejected certificate store.
+        /// </summary>
+        private void SaveCertificates(X509Certificate2Collection certificateChain)
+        {
             lock (m_lock)
             {
                 if (m_rejectedCertificateStore != null)
                 {
-                    Utils.LogTrace("Writing rejected certificate to: {0}", m_rejectedCertificateStore);
+                    Utils.LogTrace("Writing rejected certificate chain to: {0}", m_rejectedCertificateStore);
                     try
                     {
                         ICertificateStore store = m_rejectedCertificateStore.OpenStore();
                         try
                         {
-                            store.Delete(certificate.Thumbprint);
-                            // save only public key
-                            if (certificate.HasPrivateKey)
+                            bool leafCertificate = true;
+                            foreach (var certificate in certificateChain)
                             {
-                                using (var cert = new X509Certificate2(certificate.RawData))
+                                if (!leafCertificate)
                                 {
-                                    store.Add(cert);
+                                    Utils.LogCertificate("Saved issuer certificate: ", certificate);
                                 }
-                            }
-                            else
-                            {
-                                store.Add(certificate);
+                                leafCertificate = false;
+                                store.Delete(certificate.Thumbprint);
+                                // save only public key
+                                if (certificate.HasPrivateKey)
+                                {
+                                    using (var cert = new X509Certificate2(certificate.RawData))
+                                    {
+                                        store.Add(cert);
+                                    }
+                                }
+                                else
+                                {
+                                    store.Add(certificate);
+                                }
                             }
                         }
                         finally
@@ -814,9 +835,6 @@ namespace Opc.Ua
                             {
                                 CertificateValidationOptions options = certificateStore.ValidationOptions;
 
-                                // already checked revocation for file based stores. windows based stores always suppress.
-                                options |= CertificateValidationOptions.SuppressRevocationStatusUnknown;
-
                                 if (checkRecovationStatus)
                                 {
                                     StatusCode status = await store.IsRevoked(issuer, certificate).ConfigureAwait(false);
@@ -830,7 +848,8 @@ namespace Opc.Ua
                                                 status.Code = StatusCodes.BadCertificateIssuerRevocationUnknown;
                                             }
 
-                                            if (m_rejectUnknownRevocationStatus)
+                                            if (m_rejectUnknownRevocationStatus &&
+                                                (options & CertificateValidationOptions.SuppressRevocationStatusUnknown) == 0)
                                             {
                                                 serviceResult = new ServiceResultException(status);
                                             }
@@ -845,6 +864,9 @@ namespace Opc.Ua
                                         }
                                     }
                                 }
+
+                                // already checked revocation for file based stores. windows based stores always suppress.
+                                options |= CertificateValidationOptions.SuppressRevocationStatusUnknown;
 
                                 return (new CertificateIdentifier(issuer, options), serviceResult);
                             }
