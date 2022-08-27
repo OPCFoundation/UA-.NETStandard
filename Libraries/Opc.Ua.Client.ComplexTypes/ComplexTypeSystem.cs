@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Xml;
@@ -641,7 +640,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                         }
                                         foreach (var id in missingTypeIdsFromWorkList)
                                         {
-                                            if (!structTypesToDoList.Where(n=>n.NodeId == id).Any())
+                                            if (!structTypesToDoList.Where(n => n.NodeId == id).Any())
                                             {
                                                 structTypesToDoList.Add(m_complexTypeResolver.Find(id));
                                             }
@@ -803,10 +802,9 @@ namespace Opc.Ua.Client.ComplexTypes
         private void AddEnumTypes(
             IComplexTypeBuilder complexTypeBuilder,
             Dictionary<XmlQualifiedName, NodeId> typeDictionary,
-            IList<Opc.Ua.Schema.Binary.TypeDescription> enumList,
+            IList<Schema.Binary.TypeDescription> enumList,
             IList<INode> allEnumerationTypes,
-            IList<INode> enumerationTypes
-            )
+            IList<INode> enumerationTypes)
         {
             foreach (var item in enumList)
             {
@@ -1084,7 +1082,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             foreach (var item in dictionary.TypeDictionary.Items)
             {
-                if (item is Opc.Ua.Schema.Binary.StructuredType structuredObject)
+                if (item is Schema.Binary.StructuredType structuredObject)
                 {
                     var dependentFields = structuredObject.Field.Where(f => f.TypeName.Namespace == dictionary.TypeDictionary.TargetNamespace);
                     if (!dependentFields.Any())
@@ -1096,11 +1094,11 @@ namespace Opc.Ua.Client.ComplexTypes
                         structureList.Add(structuredObject);
                     }
                 }
-                else if (item is Opc.Ua.Schema.Binary.EnumeratedType)
+                else if (item is Schema.Binary.EnumeratedType)
                 {
                     enumList.Add(item);
                 }
-                else if (item is Opc.Ua.Schema.Binary.OpaqueType)
+                else if (item is Schema.Binary.OpaqueType)
                 {
                     // TODO: Opaque types not supported yet
                 }
@@ -1110,12 +1108,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-#endregion Private Members
+        #endregion Private Members
 
-#region Private Fields
+        #region Private Fields
         private IComplexTypeResolver m_complexTypeResolver;
         private IComplexTypeFactory m_complexTypeBuilderFactory;
         private static readonly string[] m_supportedEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultXml, BrowseNames.DefaultJson };
-#endregion Private Fields
+        #endregion Private Fields
     }
 }//namespace

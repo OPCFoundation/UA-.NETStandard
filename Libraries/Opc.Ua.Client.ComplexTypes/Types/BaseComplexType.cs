@@ -396,13 +396,14 @@ namespace Opc.Ua.Client.ComplexTypes
             )
         {
             int valueRank = property.ValueRank;
+            BuiltInType builtInType = property.BuiltInType;
             if (valueRank < 0)
             {
-                EncodeProperty(encoder, name, property.PropertyInfo);
+                EncodeProperty(encoder, name, property.PropertyInfo, builtInType);
             }
             else
             {
-                EncodePropertyArray(encoder, name, property.PropertyInfo, valueRank);
+                EncodePropertyArray(encoder, name, property.PropertyInfo, builtInType, valueRank);
             }
         }
 
@@ -419,134 +420,56 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Encode a scalar property based on the property type.
         /// </summary>
-        private void EncodeProperty(IEncoder encoder, string name, PropertyInfo property)
+        private void EncodeProperty(IEncoder encoder, string name, PropertyInfo property, BuiltInType builtInType)
         {
-            // TODO: use built in type for faster access
             var propertyType = property.PropertyType;
-            if (propertyType == typeof(Boolean))
+            switch (builtInType)
             {
-                encoder.WriteBoolean(name, (Boolean)property.GetValue(this));
-            }
-            else if (propertyType == typeof(SByte))
-            {
-                encoder.WriteSByte(name, (SByte)property.GetValue(this));
-            }
-            else if (propertyType == typeof(Byte))
-            {
-                encoder.WriteByte(name, (Byte)property.GetValue(this));
-            }
-            else if (propertyType == typeof(Int16))
-            {
-                encoder.WriteInt16(name, (Int16)property.GetValue(this));
-            }
-            else if (propertyType == typeof(UInt16))
-            {
-                encoder.WriteUInt16(name, (UInt16)property.GetValue(this));
-            }
-            else if (propertyType.IsEnum)
-            {
-                encoder.WriteEnumerated(name, (Enum)property.GetValue(this));
-            }
-            else if (propertyType == typeof(Int32))
-            {
-                encoder.WriteInt32(name, (Int32)property.GetValue(this));
-            }
-            else if (propertyType == typeof(UInt32))
-            {
-                encoder.WriteUInt32(name, (UInt32)property.GetValue(this));
-            }
-            else if (propertyType == typeof(Int64))
-            {
-                encoder.WriteInt64(name, (Int64)property.GetValue(this));
-            }
-            else if (propertyType == typeof(UInt64))
-            {
-                encoder.WriteUInt64(name, (UInt64)property.GetValue(this));
-            }
-            else if (propertyType == typeof(Single))
-            {
-                encoder.WriteFloat(name, (Single)property.GetValue(this));
-            }
-            else if (propertyType == typeof(Double))
-            {
-                encoder.WriteDouble(name, (Double)property.GetValue(this));
-            }
-            else if (propertyType == typeof(String))
-            {
-                encoder.WriteString(name, (String)property.GetValue(this));
-            }
-            else if (propertyType == typeof(DateTime))
-            {
-                encoder.WriteDateTime(name, (DateTime)property.GetValue(this));
-            }
-            else if (propertyType == typeof(Uuid))
-            {
-                encoder.WriteGuid(name, (Uuid)property.GetValue(this));
-            }
-            else if (propertyType == typeof(Byte[]))
-            {
-                encoder.WriteByteString(name, (Byte[])property.GetValue(this));
-            }
-            else if (propertyType == typeof(XmlElement))
-            {
-                encoder.WriteXmlElement(name, (XmlElement)property.GetValue(this));
-            }
-            else if (propertyType == typeof(NodeId))
-            {
-                encoder.WriteNodeId(name, (NodeId)property.GetValue(this));
-            }
-            else if (propertyType == typeof(ExpandedNodeId))
-            {
-                encoder.WriteExpandedNodeId(name, (ExpandedNodeId)property.GetValue(this));
-            }
-            else if (propertyType == typeof(StatusCode))
-            {
-                encoder.WriteStatusCode(name, (StatusCode)property.GetValue(this));
-            }
-            else if (propertyType == typeof(DiagnosticInfo))
-            {
-                encoder.WriteDiagnosticInfo(name, (DiagnosticInfo)property.GetValue(this));
-            }
-            else if (propertyType == typeof(QualifiedName))
-            {
-                encoder.WriteQualifiedName(name, (QualifiedName)property.GetValue(this));
-            }
-            else if (propertyType == typeof(LocalizedText))
-            {
-                encoder.WriteLocalizedText(name, (LocalizedText)property.GetValue(this));
-            }
-            else if (propertyType == typeof(DataValue))
-            {
-                encoder.WriteDataValue(name, (DataValue)property.GetValue(this));
-            }
-            else if (propertyType == typeof(Variant))
-            {
-                encoder.WriteVariant(name, (Variant)property.GetValue(this));
-            }
-            else if (propertyType == typeof(ExtensionObject))
-            {
-                encoder.WriteExtensionObject(name, (ExtensionObject)property.GetValue(this));
-            }
-            else if (typeof(IEncodeable).IsAssignableFrom(propertyType))
-            {
-                encoder.WriteEncodeable(name, (IEncodeable)property.GetValue(this), propertyType);
-            }
-            else
-            {
-                throw new ServiceResultException(StatusCodes.BadNotSupported,
-                    $"Unknown type {propertyType} to encode.");
+                case BuiltInType.Boolean: encoder.WriteBoolean(name, (Boolean)property.GetValue(this)); break;
+                case BuiltInType.SByte: encoder.WriteSByte(name, (SByte)property.GetValue(this)); break;
+                case BuiltInType.Byte: encoder.WriteByte(name, (Byte)property.GetValue(this)); break;
+                case BuiltInType.Int16: encoder.WriteInt16(name, (Int16)property.GetValue(this)); break;
+                case BuiltInType.UInt16: encoder.WriteUInt16(name, (UInt16)property.GetValue(this)); break;
+                case BuiltInType.Enumeration: encoder.WriteEnumerated(name, (Enum)property.GetValue(this)); break;
+                case BuiltInType.Int32: encoder.WriteInt32(name, (Int32)property.GetValue(this)); break;
+                case BuiltInType.UInt32: encoder.WriteUInt32(name, (UInt32)property.GetValue(this)); break;
+                case BuiltInType.Int64: encoder.WriteInt64(name, (Int64)property.GetValue(this)); break;
+                case BuiltInType.UInt64: encoder.WriteUInt64(name, (UInt64)property.GetValue(this)); break;
+                case BuiltInType.Float: encoder.WriteFloat(name, (Single)property.GetValue(this)); break;
+                case BuiltInType.Double: encoder.WriteDouble(name, (Double)property.GetValue(this)); break;
+                case BuiltInType.String: encoder.WriteString(name, (String)property.GetValue(this)); break;
+                case BuiltInType.DateTime: encoder.WriteDateTime(name, (DateTime)property.GetValue(this)); break;
+                case BuiltInType.Guid: encoder.WriteGuid(name, (Uuid)property.GetValue(this)); break;
+                case BuiltInType.ByteString: encoder.WriteByteString(name, (Byte[])property.GetValue(this)); break;
+                case BuiltInType.XmlElement: encoder.WriteXmlElement(name, (XmlElement)property.GetValue(this)); break;
+                case BuiltInType.NodeId: encoder.WriteNodeId(name, (NodeId)property.GetValue(this)); break;
+                case BuiltInType.ExpandedNodeId: encoder.WriteExpandedNodeId(name, (ExpandedNodeId)property.GetValue(this)); break;
+                case BuiltInType.StatusCode: encoder.WriteStatusCode(name, (StatusCode)property.GetValue(this)); break;
+                case BuiltInType.DiagnosticInfo: encoder.WriteDiagnosticInfo(name, (DiagnosticInfo)property.GetValue(this)); break;
+                case BuiltInType.QualifiedName: encoder.WriteQualifiedName(name, (QualifiedName)property.GetValue(this)); break;
+                case BuiltInType.LocalizedText: encoder.WriteLocalizedText(name, (LocalizedText)property.GetValue(this)); break;
+                case BuiltInType.DataValue: encoder.WriteDataValue(name, (DataValue)property.GetValue(this)); break;
+                case BuiltInType.Variant: encoder.WriteVariant(name, (Variant)property.GetValue(this)); break;
+                case BuiltInType.ExtensionObject:
+                    if (typeof(IEncodeable).IsAssignableFrom(propertyType))
+                    {
+                        encoder.WriteEncodeable(name, (IEncodeable)property.GetValue(this), propertyType);
+                        break;
+                    }
+                    encoder.WriteExtensionObject(name, (ExtensionObject)property.GetValue(this));
+                    break;
+                default:
+                    throw new ServiceResultException(StatusCodes.BadNotSupported,
+                        $"Unknown type {propertyType} to encode.");
             }
         }
 
         /// <summary>
         /// Encode an array property based on the base property type.
         /// </summary>
-        private void EncodePropertyArray(IEncoder encoder, string name, PropertyInfo property, int valueRank)
+        private void EncodePropertyArray(IEncoder encoder, string name, PropertyInfo property, BuiltInType builtInType, int valueRank)
         {
             Type elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
-            NodeId dataTypeId = TypeInfo.GetDataTypeId(elementType);
-            BuiltInType builtInType = TypeInfo.GetBuiltInType(dataTypeId);
-
             Array values = property.GetValue(this) as Array;
             if ((builtInType == BuiltInType.Null || builtInType == BuiltInType.ExtensionObject) &&
                 typeof(IEncodeable).IsAssignableFrom(elementType))
@@ -597,11 +520,11 @@ namespace Opc.Ua.Client.ComplexTypes
             int valueRank = property.ValueRank;
             if (valueRank == ValueRanks.Scalar)
             {
-                DecodeProperty(decoder, name, property.PropertyInfo);
+                DecodeProperty(decoder, name, property.PropertyInfo, property.BuiltInType);
             }
             else if (valueRank >= ValueRanks.OneDimension)
             {
-                DecodePropertyArray(decoder, name, property.PropertyInfo, valueRank);
+                DecodePropertyArray(decoder, name, property.PropertyInfo, property.BuiltInType, valueRank);
             }
             else
             {
@@ -612,133 +535,55 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Decode a scalar property based on the property type.
         /// </summary>
-        private void DecodeProperty(IDecoder decoder, string name, PropertyInfo property)
+        private void DecodeProperty(IDecoder decoder, string name, PropertyInfo property, BuiltInType builtInType)
         {
             var propertyType = property.PropertyType;
-            if (propertyType == typeof(Boolean))
+            switch (builtInType)
             {
-                property.SetValue(this, decoder.ReadBoolean(name));
-            }
-            else if (propertyType == typeof(SByte))
-            {
-                property.SetValue(this, decoder.ReadSByte(name));
-            }
-            else if (propertyType == typeof(Byte))
-            {
-                property.SetValue(this, decoder.ReadByte(name));
-            }
-            else if (propertyType == typeof(Int16))
-            {
-                property.SetValue(this, decoder.ReadInt16(name));
-            }
-            else if (propertyType == typeof(UInt16))
-            {
-                property.SetValue(this, decoder.ReadUInt16(name));
-            }
-            else if (propertyType.IsEnum)
-            {
-                property.SetValue(this, decoder.ReadEnumerated(name, propertyType));
-            }
-            else if (propertyType == typeof(Int32))
-            {
-                property.SetValue(this, decoder.ReadInt32(name));
-            }
-            else if (propertyType == typeof(UInt32))
-            {
-                property.SetValue(this, decoder.ReadUInt32(name));
-            }
-            else if (propertyType == typeof(Int64))
-            {
-                property.SetValue(this, decoder.ReadInt64(name));
-            }
-            else if (propertyType == typeof(UInt64))
-            {
-                property.SetValue(this, decoder.ReadUInt64(name));
-            }
-            else if (propertyType == typeof(Single))
-            {
-                property.SetValue(this, decoder.ReadFloat(name));
-            }
-            else if (propertyType == typeof(Double))
-            {
-                property.SetValue(this, decoder.ReadDouble(name));
-            }
-            else if (propertyType == typeof(String))
-            {
-                property.SetValue(this, decoder.ReadString(name));
-            }
-            else if (propertyType == typeof(DateTime))
-            {
-                property.SetValue(this, decoder.ReadDateTime(name));
-            }
-            else if (propertyType == typeof(Uuid))
-            {
-                property.SetValue(this, decoder.ReadGuid(name));
-            }
-            else if (propertyType == typeof(Byte[]))
-            {
-                property.SetValue(this, decoder.ReadByteString(name));
-            }
-            else if (propertyType == typeof(XmlElement))
-            {
-                property.SetValue(this, decoder.ReadXmlElement(name));
-            }
-            else if (propertyType == typeof(NodeId))
-            {
-                property.SetValue(this, decoder.ReadNodeId(name));
-            }
-            else if (propertyType == typeof(ExpandedNodeId))
-            {
-                property.SetValue(this, decoder.ReadExpandedNodeId(name));
-            }
-            else if (propertyType == typeof(StatusCode))
-            {
-                property.SetValue(this, decoder.ReadStatusCode(name));
-            }
-            else if (propertyType == typeof(DiagnosticInfo))
-            {
-                property.SetValue(this, decoder.ReadDiagnosticInfo(name));
-            }
-            else if (propertyType == typeof(QualifiedName))
-            {
-                property.SetValue(this, decoder.ReadQualifiedName(name));
-            }
-            else if (propertyType == typeof(LocalizedText))
-            {
-                property.SetValue(this, decoder.ReadLocalizedText(name));
-            }
-            else if (propertyType == typeof(DataValue))
-            {
-                property.SetValue(this, decoder.ReadDataValue(name));
-            }
-            else if (propertyType == typeof(Variant))
-            {
-                property.SetValue(this, decoder.ReadVariant(name));
-            }
-            else if (propertyType == typeof(ExtensionObject))
-            {
-                property.SetValue(this, decoder.ReadExtensionObject(name));
-            }
-            else if (typeof(IEncodeable).IsAssignableFrom(propertyType))
-            {
-                property.SetValue(this, decoder.ReadEncodeable(name, propertyType));
-            }
-            else
-            {
-                throw new ServiceResultException(StatusCodes.BadNotSupported,
-                    $"Unknown type {propertyType} to decode.");
+                case BuiltInType.Boolean: property.SetValue(this, decoder.ReadBoolean(name)); break;
+                case BuiltInType.SByte: property.SetValue(this, decoder.ReadSByte(name)); break;
+                case BuiltInType.Byte: property.SetValue(this, decoder.ReadByte(name)); break;
+                case BuiltInType.Int16: property.SetValue(this, decoder.ReadInt16(name)); break;
+                case BuiltInType.UInt16: property.SetValue(this, decoder.ReadUInt16(name)); break;
+                case BuiltInType.Enumeration: property.SetValue(this, decoder.ReadEnumerated(name, propertyType)); break;
+                case BuiltInType.Int32: property.SetValue(this, decoder.ReadInt32(name)); break;
+                case BuiltInType.UInt32: property.SetValue(this, decoder.ReadUInt32(name)); break;
+                case BuiltInType.Int64: property.SetValue(this, decoder.ReadInt64(name)); break;
+                case BuiltInType.UInt64: property.SetValue(this, decoder.ReadUInt64(name)); break;
+                case BuiltInType.Float: property.SetValue(this, decoder.ReadFloat(name)); break;
+                case BuiltInType.Double: property.SetValue(this, decoder.ReadDouble(name)); break;
+                case BuiltInType.String: property.SetValue(this, decoder.ReadString(name)); break;
+                case BuiltInType.DateTime: property.SetValue(this, decoder.ReadDateTime(name)); break;
+                case BuiltInType.Guid: property.SetValue(this, decoder.ReadGuid(name)); break;
+                case BuiltInType.ByteString: property.SetValue(this, decoder.ReadByteString(name)); break;
+                case BuiltInType.XmlElement: property.SetValue(this, decoder.ReadXmlElement(name)); break;
+                case BuiltInType.NodeId: property.SetValue(this, decoder.ReadNodeId(name)); break;
+                case BuiltInType.ExpandedNodeId: property.SetValue(this, decoder.ReadExpandedNodeId(name)); break;
+                case BuiltInType.StatusCode: property.SetValue(this, decoder.ReadStatusCode(name)); break;
+                case BuiltInType.QualifiedName: property.SetValue(this, decoder.ReadQualifiedName(name)); break;
+                case BuiltInType.LocalizedText: property.SetValue(this, decoder.ReadLocalizedText(name)); break;
+                case BuiltInType.DataValue: property.SetValue(this, decoder.ReadDataValue(name)); break;
+                case BuiltInType.Variant: property.SetValue(this, decoder.ReadVariant(name)); break;
+                case BuiltInType.DiagnosticInfo: property.SetValue(this, decoder.ReadDiagnosticInfo(name)); break;
+                case BuiltInType.ExtensionObject:
+                    if (typeof(IEncodeable).IsAssignableFrom(propertyType))
+                    {
+                        property.SetValue(this, decoder.ReadEncodeable(name, propertyType));
+                    }
+                    property.SetValue(this, decoder.ReadExtensionObject(name));
+                    break;
+                default:
+                    throw new ServiceResultException(StatusCodes.BadNotSupported,
+                        $"Unknown type {propertyType} to decode.");
             }
         }
 
         /// <summary>
         /// Decode an array property based on the base property type.
         /// </summary>
-        private void DecodePropertyArray(IDecoder decoder, string name, PropertyInfo property, int valueRank)
+        private void DecodePropertyArray(IDecoder decoder, string name, PropertyInfo property, BuiltInType builtInType, int valueRank)
         {
             Type elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
-            NodeId dataTypeId = TypeInfo.GetDataTypeId(elementType);
-            BuiltInType builtInType = TypeInfo.GetBuiltInType(dataTypeId);
-
             Array decodedArray;
             if ((builtInType == BuiltInType.Null || builtInType == BuiltInType.ExtensionObject) &&
                 typeof(IEncodeable).IsAssignableFrom(elementType))
