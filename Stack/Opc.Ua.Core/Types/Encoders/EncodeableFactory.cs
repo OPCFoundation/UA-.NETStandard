@@ -345,9 +345,9 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        foreach (var field in systemTypes[ii].GetFields())
+                        foreach (var field in systemTypes[ii].GetFields(BindingFlags.Static | BindingFlags.Public))
                         {
-                            if (field.Name.EndsWith(jsonEncodingSuffix, false, CultureInfo.InvariantCulture))
+                            if (field.Name.EndsWith(jsonEncodingSuffix, StringComparison.Ordinal))
                             {
                                 try
                                 {
@@ -380,6 +380,9 @@ namespace Opc.Ua
 
                         AddEncodeableType(systemTypes[ii]);
                     }
+
+                    // only needed while adding assembly types
+                    m_unboundTypeIds.Clear();
                 }
             }
         }

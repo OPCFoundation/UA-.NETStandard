@@ -37,8 +37,7 @@ using Opc.Ua.Core.Tests.Types.Encoders;
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
     /// <summary>
-    /// Main purpose of this test is to verify the
-    /// system.emit functionality on a target platform.
+    /// Build custom types with a DataTypeDefinition.
     /// </summary>
     [TestFixture, Category("ComplexTypes")]
     [SetCulture("en-us"), SetUICulture("en-us")]

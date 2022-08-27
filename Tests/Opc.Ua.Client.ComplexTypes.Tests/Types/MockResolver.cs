@@ -41,8 +41,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
     {
         #region Constructors
         /// <summary>
-        /// Initializes the type resolver with a session
-        /// to load the custom type information.
+        /// The mock resolver emulates data type definitions
+        /// which are stored in the server address space.
         /// </summary>
         public MockResolver()
         {
@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             encodingId = ExpandedNodeId.Null;
             dataTypeNode = null;
 
-#if MIST
+#if TODO
             var references = m_session.NodeCache.FindReferences(
                 nodeId,
                 ReferenceTypeIds.HasDescription,
