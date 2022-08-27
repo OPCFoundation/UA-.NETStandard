@@ -397,13 +397,18 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             int valueRank = property.ValueRank;
             BuiltInType builtInType = property.BuiltInType;
-            if (valueRank < 0)
+            if (valueRank == ValueRanks.Scalar)
             {
                 EncodeProperty(encoder, name, property.PropertyInfo, builtInType);
             }
-            else
+            else if (valueRank >= ValueRanks.OneDimension)
             {
                 EncodePropertyArray(encoder, name, property.PropertyInfo, builtInType, valueRank);
+            }
+            else
+            {
+                throw ServiceResultException.Create(StatusCodes.BadEncodingError,
+                    "Cannot encode a property with unsupported ValueRank {0}.", valueRank);
             }
         }
 
@@ -423,6 +428,11 @@ namespace Opc.Ua.Client.ComplexTypes
         private void EncodeProperty(IEncoder encoder, string name, PropertyInfo property, BuiltInType builtInType)
         {
             var propertyType = property.PropertyType;
+            if (propertyType.IsEnum)
+            {
+                encoder.WriteEnumerated(name, (Enum)property.GetValue(this));
+                return;
+            }
             switch (builtInType)
             {
                 case BuiltInType.Boolean: encoder.WriteBoolean(name, (Boolean)property.GetValue(this)); break;
@@ -450,17 +460,15 @@ namespace Opc.Ua.Client.ComplexTypes
                 case BuiltInType.LocalizedText: encoder.WriteLocalizedText(name, (LocalizedText)property.GetValue(this)); break;
                 case BuiltInType.DataValue: encoder.WriteDataValue(name, (DataValue)property.GetValue(this)); break;
                 case BuiltInType.Variant: encoder.WriteVariant(name, (Variant)property.GetValue(this)); break;
-                case BuiltInType.ExtensionObject:
+                case BuiltInType.ExtensionObject: encoder.WriteExtensionObject(name, (ExtensionObject)property.GetValue(this)); break;
+                default:
                     if (typeof(IEncodeable).IsAssignableFrom(propertyType))
                     {
                         encoder.WriteEncodeable(name, (IEncodeable)property.GetValue(this), propertyType);
                         break;
                     }
-                    encoder.WriteExtensionObject(name, (ExtensionObject)property.GetValue(this));
-                    break;
-                default:
-                    throw new ServiceResultException(StatusCodes.BadNotSupported,
-                        $"Unknown type {propertyType} to encode.");
+                    throw ServiceResultException.Create(StatusCodes.BadEncodingError,
+                        "Cannot encode unknown type {0}.", propertyType.Name);
             }
         }
 
@@ -471,7 +479,11 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             Type elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
             Array values = property.GetValue(this) as Array;
-            if ((builtInType == BuiltInType.Null || builtInType == BuiltInType.ExtensionObject) &&
+            if (elementType.IsEnum)
+            {
+                encoder.WriteEnumeratedArray(name, (Array)property.GetValue(this), elementType);
+            }
+            else if ((builtInType == BuiltInType.Null || builtInType == BuiltInType.ExtensionObject) &&
                 typeof(IEncodeable).IsAssignableFrom(elementType))
             {
                 if (valueRank >= ValueRanks.TwoDimensions)
@@ -528,7 +540,8 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             else
             {
-                throw new NotSupportedException();
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                    "Cannot decode a property with unsupported ValueRank {0}.", valueRank);
             }
         }
 
@@ -538,6 +551,11 @@ namespace Opc.Ua.Client.ComplexTypes
         private void DecodeProperty(IDecoder decoder, string name, PropertyInfo property, BuiltInType builtInType)
         {
             var propertyType = property.PropertyType;
+            if (propertyType.IsEnum)
+            {
+                property.SetValue(this, decoder.ReadEnumerated(name, propertyType));
+                return;
+            }
             switch (builtInType)
             {
                 case BuiltInType.Boolean: property.SetValue(this, decoder.ReadBoolean(name)); break;
@@ -569,12 +587,18 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (typeof(IEncodeable).IsAssignableFrom(propertyType))
                     {
                         property.SetValue(this, decoder.ReadEncodeable(name, propertyType));
+                        break;
                     }
                     property.SetValue(this, decoder.ReadExtensionObject(name));
                     break;
                 default:
-                    throw new ServiceResultException(StatusCodes.BadNotSupported,
-                        $"Unknown type {propertyType} to decode.");
+                    if (typeof(IEncodeable).IsAssignableFrom(propertyType))
+                    {
+                        property.SetValue(this, decoder.ReadEncodeable(name, propertyType));
+                        break;
+                    }
+                    throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                        "Cannot decode unknown type {0}.", propertyType.Name);
             }
         }
 
@@ -585,7 +609,11 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             Type elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
             Array decodedArray;
-            if ((builtInType == BuiltInType.Null || builtInType == BuiltInType.ExtensionObject) &&
+            if (elementType.IsEnum)
+            {
+                decodedArray = decoder.ReadEnumeratedArray(name, elementType);
+            }
+            else if ((builtInType == BuiltInType.Null || builtInType == BuiltInType.ExtensionObject) &&
                 typeof(IEncodeable).IsAssignableFrom(elementType))
             {
                 Int32Collection dimensions = null;

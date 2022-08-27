@@ -347,7 +347,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, randomData);
 
             Assert.AreEqual(expected, result, encodeInfo);
-            Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+            Assert.IsTrue(Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
         }
 
         /// <summary>
@@ -362,7 +362,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
-            int matrixDimension = RandomSource.NextInt32(8) + 2;
+            // reduce array dimension for arrays with large values
+            int maxRand = 6;
+            if (builtInType == BuiltInType.XmlElement || builtInType == BuiltInType.ExtensionObject)
+            {
+                maxRand = 2;
+            }
+
+            int matrixDimension = RandomSource.NextInt32(maxRand) + 2;
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elements = ElementsFromDimension(dimensions);
@@ -439,7 +446,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, matrix);
 
             Assert.AreEqual(expected, result, encodeInfo);
-            Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+            Assert.IsTrue(Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
         }
 
 
