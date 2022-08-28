@@ -1918,10 +1918,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                      "Decoded Field name: {0} values: encoded {1} - decoded {2}", field.FieldMetaData.Name, field.Value.Value, dataSetPayload[field.FieldMetaData.Name]);
                                                 break;
                                             case FieldTypeEncodingMask.RawData:
-                                                if (field.FieldMetaData.Name == "BoolToggleMatrix")
-                                                {
-
-                                                }
                                                 decodedFieldValue = DecodeFieldData(jsonDecoder, field.FieldMetaData, field.FieldMetaData.Name);
                                                 Assert.IsNotNull(decodedFieldValue, "Decoded Field: {0} value should not be null", field.FieldMetaData.Name);
                                                 // ExtendedNodeId namespaceIndex workaround issue
