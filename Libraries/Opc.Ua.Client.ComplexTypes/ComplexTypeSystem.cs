@@ -1015,6 +1015,7 @@ namespace Opc.Ua.Client.ComplexTypes
             Type fieldType = field.DataType.NamespaceIndex == 0 ?
                 TypeInfo.GetSystemType(field.DataType, m_complexTypeResolver.Factory) :
                 GetSystemType(field.DataType);
+
             if (fieldType == null)
             {
                 var superType = GetBuiltInSuperType(field.DataType);
@@ -1025,6 +1026,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 return null;
             }
+
             if (field.ValueRank == ValueRanks.OneDimension)
             {
                 fieldType = fieldType.MakeArrayType();
@@ -1101,11 +1103,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 else if (item is Schema.Binary.OpaqueType)
                 {
-                    // TODO: Opaque types not supported yet
+                    // no need to handle Opaque types
                 }
                 else
                 {
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError, $"Unexpected Type in binary schema: {item.GetType().Name}.");
+                    throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
+                        "Unexpected Type in binary schema: {0}.", item.GetType().Name);
                 }
             }
         }

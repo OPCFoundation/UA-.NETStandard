@@ -2383,10 +2383,13 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an array with the specified valueRank and the specified BuiltInType
-        /// </summary>
-        public Array ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
+        /// <inheritdoc/>
+        public Array ReadArray(
+            string fieldName,
+            int valueRank,
+            BuiltInType builtInType,
+            Type systemType = null,
+            ExpandedNodeId encodeableTypeId = null)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -2403,15 +2406,17 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         return ReadUInt16Array(fieldName).ToArray();
                     case BuiltInType.Enumeration:
-                        if (encodeableTypeId != null)
+                    {
+                        if (encodeableTypeId != null && systemType == null)
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEnumeratedArray(fieldName, systemType);
-                            }
+                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
                         }
-                        goto case BuiltInType.Int32;
+                        if (systemType?.IsEnum == true)
+                        {
+                            return ReadEnumeratedArray(fieldName, systemType);
+                        }
+                    }
+                    goto case BuiltInType.Int32;
                     case BuiltInType.Int32:
                         return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.UInt32:
@@ -2448,13 +2453,13 @@ namespace Opc.Ua
                         return ReadDataValueArray(fieldName).ToArray();
                     case BuiltInType.Variant:
                     {
-                        if (encodeableTypeId != null)
+                        if (encodeableTypeId != null && systemType == null)
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                            }
+                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                        }
+                        if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                        {
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
                         return ReadVariantArray(fieldName).ToArray();
                     }
@@ -2464,13 +2469,13 @@ namespace Opc.Ua
                         return ReadDiagnosticInfoArray(fieldName).ToArray();
                     default:
                     {
-                        if (encodeableTypeId != null)
+                        if (encodeableTypeId != null && systemType == null)
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                            }
+                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                        }
+                        if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                        {
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
 
                         throw new ServiceResultException(
@@ -2488,7 +2493,7 @@ namespace Opc.Ua
                 }
                 List<object> elements = new List<object>();
                 List<int> dimensions = new List<int>();
-                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, 0, encodeableTypeId);
+                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, 0, systemType, encodeableTypeId);
 
                 Matrix matrix = null;
                 switch (builtInType)
@@ -2564,22 +2569,24 @@ namespace Opc.Ua
                         matrix = new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
                         break;
                     case BuiltInType.Variant:
-                        if (encodeableTypeId != null)
+                    {
+                        if (encodeableTypeId != null && systemType == null)
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
+                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                        }
+                        if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                        {
+                            Array newElements = Array.CreateInstance(systemType, elements.Count);
+                            for (int i = 0; i < elements.Count; i++)
                             {
-                                Array newElements = Array.CreateInstance(systemType, elements.Count);
-                                for (int i = 0; i < elements.Count; i++)
-                                {
-                                    newElements.SetValue(Convert.ChangeType(elements[i], systemType), i);
-                                }
-                                matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
-                                break;
+                                newElements.SetValue(Convert.ChangeType(elements[i], systemType), i);
                             }
+                            matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
+                            break;
                         }
                         matrix = new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray());
                         break;
+                    }
                     case BuiltInType.ExtensionObject:
                         matrix = new Matrix(elements.Cast<ExtensionObject>().ToArray(), builtInType, dimensions.ToArray());
                         break;
@@ -2587,25 +2594,27 @@ namespace Opc.Ua
                         matrix = new Matrix(elements.Cast<DiagnosticInfo>().ToArray(), builtInType, dimensions.ToArray());
                         break;
                     default:
-                        if (encodeableTypeId != null)
+                    {
+                        if (encodeableTypeId != null && systemType == null)
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
+                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                        }
+                        if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                        {
+                            Array newElements = Array.CreateInstance(systemType, elements.Count);
+                            for (int i = 0; i < elements.Count; i++)
                             {
-                                Array newElements = Array.CreateInstance(systemType, elements.Count);
-                                for (int i = 0; i < elements.Count; i++)
-                                {
-                                    newElements.SetValue(Convert.ChangeType(elements[i], systemType), i);
-                                }
-                                matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
-                                break;
+                                newElements.SetValue(Convert.ChangeType(elements[i], systemType), i);
                             }
+                            matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
+                            break;
                         }
 
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
                             "Cannot decode unknown type in Array object with BuiltInType: {0}.",
                             builtInType);
+                    }
                 }
 
                 return matrix.ToArray();
@@ -2875,7 +2884,15 @@ namespace Opc.Ua
         /// <summary>
         /// Read the Matrix part (simple array or array of arrays)
         /// </summary>
-        private void ReadMatrixPart(string fieldName, List<object> currentArray, BuiltInType builtInType, ref List<object> elements, ref List<int> dimensions, int level, ExpandedNodeId encodeableTypeId = null)
+        private void ReadMatrixPart(
+            string fieldName,
+            List<object> currentArray,
+            BuiltInType builtInType,
+            ref List<object> elements,
+            ref List<int> dimensions,
+            int level,
+            Type systemType,
+            ExpandedNodeId encodeableTypeId)
         {
             // check the nesting level for avoiding a stack overflow.
             if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
@@ -2906,7 +2923,7 @@ namespace Opc.Ua
 
                             PushArray(fieldName, ii);
 
-                            ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, level + 1, encodeableTypeId);
+                            ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, level + 1, systemType, encodeableTypeId);
 
                             Pop();
                         }
@@ -2918,8 +2935,8 @@ namespace Opc.Ua
                     if (!hasInnerArray)
                     {
                         // read array from one dimension
-                        var part = ReadArray(null, ValueRanks.OneDimension, builtInType, encodeableTypeId) as System.Collections.IList;
-                        if (part != null && part.Count > 0)
+                        Array part = ReadArray(null, ValueRanks.OneDimension, builtInType, systemType, encodeableTypeId);
+                        if (part != null && part.Length > 0)
                         {
                             // add part elements to final list 
                             foreach (var item in part)

@@ -2617,17 +2617,15 @@ namespace Opc.Ua
             return Array.CreateInstance(enumType, 0);
         }
 
-        /// <summary>
-        /// Reads an array with the specified valueRank and the specified BuiltInType
-        /// </summary>
-        public Array ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
+        /// <inheritdoc/>
+        public Array ReadArray(string fieldName, int valueRank, BuiltInType builtInType, Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
                 /*One dimensional Array parameters are always encoded by wrapping the elements in a container element 
                  * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
                  * The name of the element in the array shall be the type name.*/
-                return ReadArrayElements(fieldName, builtInType, encodeableTypeId);
+                return ReadArrayElements(fieldName, builtInType, systemType, encodeableTypeId);
             }
             // read matrix/array.
             else if (valueRank > ValueRanks.OneDimension)
@@ -2641,7 +2639,7 @@ namespace Opc.Ua
                     // dimensions are written before elements when encoding multi dimensional array!! UA Specs
                     dimensions = ReadInt32Array("Dimensions");
 
-                    elements = ReadArrayElements("Elements", builtInType, encodeableTypeId);
+                    elements = ReadArrayElements("Elements", builtInType, systemType, encodeableTypeId);
 
                     PopNamespace();
 
@@ -2730,9 +2728,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="fieldName">provides the fieldName for the array</param>
         /// <param name="builtInType">provides the BuiltInType of the elements that are read</param>
+        /// <param name="systemType">The system type of the elements to read.</param>
         /// <param name="encodeableTypeId">provides the type id of the encodeable element</param>
-        /// <returns></returns>
-        private Array ReadArrayElements(string fieldName, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
+        private Array ReadArrayElements(string fieldName, BuiltInType builtInType, Type systemType, ExpandedNodeId encodeableTypeId)
         {
             // check the nesting level for avoiding a stack overflow.
             if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
@@ -2791,15 +2789,17 @@ namespace Opc.Ua
                         return null;
                     }
                     case BuiltInType.Enumeration:
-                        if (encodeableTypeId != null)
+                    {
+                        if (encodeableTypeId != null && systemType == null)
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEnumeratedArray(fieldName, systemType);
-                            }
+                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                        }
+                        if (systemType?.IsEnum == true)
+                        {
+                            return ReadEnumeratedArray(fieldName, systemType);
                         }
                         goto case BuiltInType.Int32;
+                    }
                     case BuiltInType.Int32:
                     {
                         Int32Collection collection = ReadInt32Array(fieldName);
@@ -2916,13 +2916,13 @@ namespace Opc.Ua
                     }
                     case BuiltInType.Variant:
                     {
-                        if (encodeableTypeId != null)
+                        if (encodeableTypeId != null && systemType == null)
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                            }
+                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                        }
+                        if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                        {
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
 
                         VariantCollection collection = ReadVariantArray(fieldName);
@@ -2931,13 +2931,13 @@ namespace Opc.Ua
                     }
                     default:
                     {
-                        if (encodeableTypeId != null)
+                        if (encodeableTypeId != null && systemType == null)
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                            }
+                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                        }
+                        if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                        {
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,

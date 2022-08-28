@@ -11,9 +11,7 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Xml;
 
@@ -1427,10 +1425,13 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an array with the specified valueRank and the specified BuiltInType
-        /// </summary>
-        public Array ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
+        /// <inheritdoc/>
+        public Array ReadArray(
+            string fieldName,
+            int valueRank,
+            BuiltInType builtInType,
+            Type systemType = null,
+            ExpandedNodeId encodeableTypeId = null)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -1447,15 +1448,17 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         return ReadUInt16Array(fieldName).ToArray();
                     case BuiltInType.Enumeration:
-                        if (encodeableTypeId != null)
+                    {
+                        if (encodeableTypeId != null && systemType == null)
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEnumeratedArray(fieldName, systemType);
-                            }
+                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
                         }
-                        goto case BuiltInType.Int32;
+                        if (systemType?.IsEnum == true)
+                        {
+                            return ReadEnumeratedArray(fieldName, systemType);
+                        }
+                    }
+                    goto case BuiltInType.Int32;
                     case BuiltInType.Int32:
                         return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.UInt32:
@@ -1491,28 +1494,30 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         return ReadDataValueArray(fieldName).ToArray();
                     case BuiltInType.Variant:
-                        if (encodeableTypeId != null)
+                    {
+                        if (encodeableTypeId != null && systemType == null)
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                            }
+                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                        }
+                        if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                        {
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
                         return ReadVariantArray(fieldName).ToArray();
+                    }
                     case BuiltInType.ExtensionObject:
                         return ReadExtensionObjectArray(fieldName).ToArray();
                     case BuiltInType.DiagnosticInfo:
                         return ReadDiagnosticInfoArray(fieldName).ToArray();
                     default:
                     {
-                        if (encodeableTypeId != null)
+                        if (encodeableTypeId != null && systemType == null)
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                            }
+                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                        }
+                        if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                        {
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
                         throw new ServiceResultException(
                             StatusCodes.BadDecodingError,
@@ -1564,17 +1569,17 @@ namespace Opc.Ua
 
                     // read the elements
                     Array elements = null;
-                    if (encodeableTypeId != null)
+                    if (encodeableTypeId != null && systemType == null)
                     {
-                        Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                        if (systemType != null)
+                        systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                    }
+                    if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                    {
+                        elements = Array.CreateInstance(systemType, length);
+                        for (int i = 0; i < length; i++)
                         {
-                            elements = Array.CreateInstance(systemType, length);
-                            for (int i = 0; i < length; i++)
-                            {
-                                IEncodeable element = ReadEncodeable(null, systemType, encodeableTypeId);
-                                elements.SetValue(Convert.ChangeType(element, systemType), i);
-                            }
+                            IEncodeable element = ReadEncodeable(null, systemType, encodeableTypeId);
+                            elements.SetValue(Convert.ChangeType(element, systemType), i);
                         }
                     }
 
@@ -1598,9 +1603,9 @@ namespace Opc.Ua
             }
             return null;
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Reads and returns an array of elements of the specified length and builtInType 
         /// </summary>
@@ -1683,7 +1688,6 @@ namespace Opc.Ua
                     {
                         values[ii] = ReadInt32(null);
                     }
-
                     array = values;
                     break;
                 }
@@ -2423,15 +2427,15 @@ namespace Opc.Ua
 
             return value;
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private Stream m_istrm;
         private BinaryReader m_reader;
         private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
-#endregion
+        #endregion
     }
 }

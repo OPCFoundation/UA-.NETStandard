@@ -107,7 +107,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             var decoderStream = new MemoryStream(buffer);
             IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType);
-            object result = decoder.ReadArray(objectName, ValueRanks.OneDimension, BuiltInType.Variant, dataTypeId);
+            object result = decoder.ReadArray(objectName, ValueRanks.OneDimension, BuiltInType.Variant, systemType, dataTypeId);
             Dispose(decoder);
 
             TestContext.Out.WriteLine("Result:");
@@ -171,7 +171,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             var decoderStream = new MemoryStream(buffer);
             IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType);
-            Array result = decoder.ReadArray(objectName, matrix.TypeInfo.ValueRank, BuiltInType.Variant, dataTypeId);
+            Array result = decoder.ReadArray(objectName, matrix.TypeInfo.ValueRank, BuiltInType.Variant, systemType, dataTypeId);
             Dispose(decoder);
 
             TestContext.Out.WriteLine("Result:");

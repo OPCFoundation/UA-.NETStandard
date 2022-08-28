@@ -328,8 +328,13 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType.
         /// </summary>
-        /// <returns>An array of the specified built in type.</returns>
+        /// <param name="fieldName">The array field name.</param>
+        /// <param name="valueRank">The value rank of the array.</param>
+        /// <param name="builtInType">The builtInType of the array elements.</param>
+        /// <param name="systemType">The system type of an encodeable or enum element of the array.</param>
+        /// <param name="encodeableTypeId">The type id of an encodeable or enum element of the array.</param>
+        /// <returns>An array of the specified builtInType, systemType or encodeableTypeId.</returns>
         Array ReadArray(string fieldName, int valueRank, BuiltInType builtInType,
-            ExpandedNodeId encodeableTypeId = null);
+            Type systemType = null, ExpandedNodeId encodeableTypeId = null);
     }
 }
