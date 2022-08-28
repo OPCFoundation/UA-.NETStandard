@@ -670,6 +670,86 @@ namespace Quickstarts.ConsoleReferenceClient
         }
         #endregion
 
+        #region Read Values
+        /// <summary>
+        /// Output all values as JSON.
+        /// </summary>
+        /// <param name="uaClient">The UAClient with a session to use.</param>
+        /// <param name="variableIds">The variables to output.</param>
+        public async Task ReadAllValuesAsync(
+            UAClient uaClient,
+            NodeIdCollection variableIds)
+        {
+            bool retrySingleRead = false;
+            do
+            {
+                DataValueCollection values;
+                IList<ServiceResult> errors;
+                try
+                {
+                    if (retrySingleRead)
+                    {
+                        values = new DataValueCollection();
+                        errors = new List<ServiceResult>();
+
+                        foreach (var variableId in variableIds)
+                        {
+                            try
+                            {
+                                m_output.WriteLine("Read {0}", variableId);
+                                var value = await uaClient.Session.ReadValueAsync(variableId).ConfigureAwait(false);
+                                values.Add(value);
+                                errors.Add(value.StatusCode);
+
+                                if (ServiceResult.IsNotBad(value.StatusCode))
+                                {
+                                    var valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, value.ToString(), value, true);
+                                    m_output.WriteLine(valueString);
+                                }
+                                else
+                                {
+                                    m_output.WriteLine("Error: {0}", value.StatusCode);
+                                }
+                            }
+                            catch (ServiceResultException sre)
+                            {
+                                m_output.WriteLine("Error: {0}", sre.Message);
+                                values.Add(new DataValue(sre.StatusCode));
+                                errors.Add(sre.Result);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        (values, errors) = await uaClient.Session.ReadValuesAsync(variableIds).ConfigureAwait(false);
+
+                        int ii = 0;
+                        foreach (var value in values)
+                        {
+                            if (ServiceResult.IsNotBad(errors[ii]))
+                            {
+                                var valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, variableIds[ii].ToString(), value, true);
+                                m_output.WriteLine(valueString);
+                            }
+                            else
+                            {
+                                m_output.WriteLine("Error: {0}", value.StatusCode);
+                            }
+                            ii++;
+                        }
+                    }
+
+                    retrySingleRead = false;
+                }
+                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+                {
+                    m_output.WriteLine("Retry to read the values due to error:", sre.Message);
+                    retrySingleRead = !retrySingleRead;
+                }
+            } while (retrySingleRead);
+        }
+        #endregion
+
         #region Helper Methods
         /// <summary>
         /// Create a prettified JSON string of a DataValue.

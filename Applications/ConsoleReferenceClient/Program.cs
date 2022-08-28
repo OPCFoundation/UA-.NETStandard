@@ -250,59 +250,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 // TODO: move to client samples
                                 if (jsonvalues && variableIds != null)
                                 {
-                                    bool retrySingleRead = false;
-                                    do
-                                    {
-                                        DataValueCollection values;
-                                        IList<ServiceResult> errors;
-                                        try
-                                        {
-                                            if (retrySingleRead)
-                                            {
-                                                values = new DataValueCollection();
-                                                errors = new List<ServiceResult>();
-
-                                                foreach (var variableId in variableIds)
-                                                {
-                                                    try
-                                                    {
-                                                        output.WriteLine("Read {0}", variableId);
-                                                        var value = await uaClient.Session.ReadValueAsync(variableId).ConfigureAwait(false);
-                                                        values.Add(value);
-                                                        errors.Add(value.StatusCode);
-                                                    }
-                                                    catch (ServiceResultException sre)
-                                                    {
-                                                        output.WriteLine("Error: {0}", sre.Message);
-                                                        values.Add(new DataValue(sre.StatusCode));
-                                                        errors.Add(sre.Result);
-                                                    }
-                                                }
-                                            }
-                                            else
-                                            {
-                                                (values, errors) = await uaClient.Session.ReadValuesAsync(variableIds).ConfigureAwait(false);
-                                            }
-
-                                            retrySingleRead = false;
-
-                                            int ii = 0;
-                                            foreach (var value in values)
-                                            {
-                                                if (ServiceResult.IsNotBad(errors[ii]))
-                                                {
-                                                    var valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, variableIds[ii].ToString(), value, true);
-                                                    output.WriteLine(valueString);
-                                                }
-                                                ii++;
-                                            }
-                                        }
-                                        catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
-                                        {
-                                            output.WriteLine("Retry to read the values due to error:", sre.Message);
-                                            retrySingleRead = true;
-                                        }
-                                    } while (retrySingleRead);
+                                    await samples.ReadAllValuesAsync(uaClient, variableIds);
                                 }
 
                                 quit = true;
