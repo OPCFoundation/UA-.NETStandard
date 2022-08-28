@@ -69,7 +69,6 @@ namespace Quickstarts.ConsoleReferenceClient
             bool autoAccept = false;
             string username = null;
             string userpassword = null;
-            string usercert = null;
             bool logConsole = false;
             bool appLog = false;
             bool renewCertificate = false;
@@ -88,7 +87,6 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
                 { "un|username=", "the name of the user identity for the connection", (string u) => username = u },
                 { "up|userpassword=", "the password of the user identity for the connection", (string u) => userpassword = u },
-                { "uc|usercert=", "the hash of the user certificate for the connection", (string u) => usercert = u },
                 { "c|console", "log to console", c => logConsole = c != null },
                 { "l|log", "log app output", c => appLog = c != null },
                 { "p|password=", "optional password for private key", (string p) => password = p },
@@ -162,23 +160,6 @@ namespace Quickstarts.ConsoleReferenceClient
                 // wait for timeout or Ctrl-C
                 var quitEvent = ConsoleUtils.CtrlCHandler();
 
-                // load a user certificate if thumbprint is specified
-                X509Certificate2 usercertificate = null;
-                if (!String.IsNullOrEmpty(usercert))
-                {
-#if TODO
-                    var certid = new CertificateIdentifier(config.SecurityConfiguration.UserIssuerCertificates) {
-                        Thumbprint = usercert
-                    };
-                    usercertificate = await certid.LoadPrivateKey(userpassword);
-
-                    using (var store = config.SecurityConfiguration.UserIssuerCertificates.OpenStore())
-                    {
-                        usercertificate = await store.LoadPrivateKey(usercert, null, userpassword).ConfigureAwait(false);
-                    }
-#endif
-                }
-
                 // connect to a server until application stops
                 bool quit = false;
                 DateTime start = DateTime.UtcNow;
@@ -204,10 +185,6 @@ namespace Quickstarts.ConsoleReferenceClient
                         if (!String.IsNullOrEmpty(username))
                         {
                             uaClient.UserIdentity = new UserIdentity(username, userpassword ?? string.Empty);
-                        }
-                        else if (usercertificate != null)
-                        {
-                            uaClient.UserIdentity = new UserIdentity(usercertificate);
                         }
 
                         bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), false);
@@ -247,7 +224,6 @@ namespace Quickstarts.ConsoleReferenceClient
                                         .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
                                 }
 
-                                // TODO: move to client samples
                                 if (jsonvalues && variableIds != null)
                                 {
                                     await samples.ReadAllValuesAsync(uaClient, variableIds);
