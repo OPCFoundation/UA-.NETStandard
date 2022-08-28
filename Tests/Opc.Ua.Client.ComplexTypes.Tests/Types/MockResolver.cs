@@ -131,34 +131,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             encodingId = ExpandedNodeId.Null;
             dataTypeNode = null;
 
-#if TODO
-            var references = m_session.NodeCache.FindReferences(
-                nodeId,
-                ReferenceTypeIds.HasDescription,
-                true,
-                false
-                );
+            // not implemented yet
 
-            if (references.Count == 1)
-            {
-                encodingId = references[0].NodeId;
-                references = m_session.NodeCache.FindReferences(
-                    encodingId,
-                    ReferenceTypeIds.HasEncoding,
-                    true,
-                    false
-                    );
-                encodingId = NormalizeExpandedNodeId(encodingId);
-
-                if (references.Count == 1)
-                {
-                    typeId = references[0].NodeId;
-                    dataTypeNode = m_session.NodeCache.Find(typeId) as DataTypeNode;
-                    typeId = NormalizeExpandedNodeId(typeId);
-                    return true;
-                }
-            }
-#endif
             return false;
         }
 
