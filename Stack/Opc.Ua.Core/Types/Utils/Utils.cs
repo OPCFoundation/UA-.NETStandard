@@ -38,17 +38,12 @@ namespace Opc.Ua
         /// <summary>
         /// The URI scheme for the HTTP protocol.
         /// </summary>
-        public const string UriSchemeHttp = "opc.http";
+        public const string UriSchemeHttp = "http";
 
         /// <summary>
         /// The URI scheme for the HTTPS protocol.
         /// </summary>
-        public const string UriSchemeHttps = "opc.https";
-
-        /// <summary>
-        /// The URI scheme for the HTTPS protocol, used before fixed in UA stack V1.4.370.
-        /// </summary>
-        public const string UriLegacySchemeHttps = "https";
+        public const string UriSchemeHttps = "https";
 
         /// <summary>
         /// The URI scheme for the UA TCP protocol.

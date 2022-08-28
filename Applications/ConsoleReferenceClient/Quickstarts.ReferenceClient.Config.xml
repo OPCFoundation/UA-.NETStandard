@@ -80,14 +80,14 @@
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
 
     <OperationLimits>
-      <MaxNodesPerRead>1000</MaxNodesPerRead>
-      <!--<MaxNodesPerHistoryReadData>1000</MaxNodesPerHistoryReadData>-->
+      <MaxNodesPerRead>2500</MaxNodesPerRead>
+      <MaxNodesPerHistoryReadData>1000</MaxNodesPerHistoryReadData>
       <MaxNodesPerHistoryReadEvents>1000</MaxNodesPerHistoryReadEvents>
-      <!--<MaxNodesPerWrite>2500</MaxNodesPerWrite>-->
+      <MaxNodesPerWrite>2500</MaxNodesPerWrite>
       <MaxNodesPerHistoryUpdateData>1000</MaxNodesPerHistoryUpdateData>
       <MaxNodesPerHistoryUpdateEvents>1000</MaxNodesPerHistoryUpdateEvents>
       <MaxNodesPerMethodCall>2500</MaxNodesPerMethodCall>
-      <MaxNodesPerBrowse>1000</MaxNodesPerBrowse>
+      <MaxNodesPerBrowse>2500</MaxNodesPerBrowse>
       <MaxNodesPerRegisterNodes>2500</MaxNodesPerRegisterNodes>
       <MaxNodesPerTranslateBrowsePathsToNodeIds>2500</MaxNodesPerTranslateBrowsePathsToNodeIds>
       <MaxNodesPerNodeManagement>2500</MaxNodesPerNodeManagement>
