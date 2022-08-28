@@ -47,7 +47,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The default constructor.
         /// </summary>
-        /// TODO [Obsolete("Use constructor without the session parameter. Do not keep loose session references.")]
         public DataDictionary(Session session)
         {
             Initialize();

@@ -2565,7 +2565,6 @@ namespace Opc.Ua
                         matrix = new Matrix(elements.Cast<DataValue>().ToArray(), builtInType, dimensions.ToArray());
                         break;
                     case BuiltInType.Enumeration:
-                        // TODO? enum type?
                         matrix = new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
                         break;
                     case BuiltInType.Variant:
