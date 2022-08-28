@@ -478,37 +478,11 @@ namespace Opc.Ua.Client.ComplexTypes
         private void EncodePropertyArray(IEncoder encoder, string name, PropertyInfo property, BuiltInType builtInType, int valueRank)
         {
             Type elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
-            Array values = property.GetValue(this) as Array;
             if (elementType.IsEnum)
             {
-                encoder.WriteEnumeratedArray(name, (Array)property.GetValue(this), elementType);
+                builtInType = BuiltInType.Enumeration;
             }
-            else if ((builtInType == BuiltInType.Null || builtInType == BuiltInType.ExtensionObject) &&
-                typeof(IEncodeable).IsAssignableFrom(elementType))
-            {
-                if (valueRank >= ValueRanks.TwoDimensions)
-                {
-                    var matrix = new Matrix(values, builtInType);
-                    encoder.WriteInt32Array(name, matrix.Dimensions);
-                    values = matrix.Elements;
-                }
-
-                if (!(property.GetValue(this) is IEncodeableCollection encodeables))
-                {
-                    var valueCollection = values as IEncodeable[];
-                    encodeables = IEncodeableCollection.ToIEncodeableCollection(valueCollection);
-                }
-
-                encoder.WriteEncodeableArray(name, encodeables, elementType);
-            }
-            else if (values == null)
-            {
-                encoder.WriteArray(name, property.GetValue(this), valueRank, builtInType);
-            }
-            else
-            {
-                encoder.WriteArray(name, values, valueRank, builtInType);
-            }
+            encoder.WriteArray(name, property.GetValue(this), valueRank, builtInType);
         }
 
         /// <summary>
@@ -611,25 +585,15 @@ namespace Opc.Ua.Client.ComplexTypes
             Array decodedArray;
             if (elementType.IsEnum)
             {
-                decodedArray = decoder.ReadEnumeratedArray(name, elementType);
+                builtInType = BuiltInType.Enumeration;
             }
-            else if ((builtInType == BuiltInType.Null || builtInType == BuiltInType.ExtensionObject) &&
+            if ((builtInType == BuiltInType.Null || builtInType == BuiltInType.ExtensionObject) &&
                 typeof(IEncodeable).IsAssignableFrom(elementType))
             {
-                Int32Collection dimensions = null;
-                if (valueRank >= ValueRanks.TwoDimensions)
-                {
-                    dimensions = decoder.ReadInt32Array(name);
-                }
-
-                decodedArray = decoder.ReadEncodeableArray(name, elementType);
-
-                // convert flat array
-                if (valueRank >= ValueRanks.TwoDimensions)
-                {
-                    var matrix = new Matrix(decodedArray, BuiltInType.ExtensionObject, dimensions.ToArray());
-                    decodedArray = matrix.ToArray();
-                }
+                // TODO: use systemType
+                var encodeable = (IEncodeable)Activator.CreateInstance(elementType);
+                var encodeableTypeId = encodeable?.TypeId;
+                decodedArray = decoder.ReadArray(name, valueRank, builtInType, encodeableTypeId);
             }
             else
             {

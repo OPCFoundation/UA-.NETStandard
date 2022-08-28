@@ -157,10 +157,9 @@ namespace Opc.Ua.Client.ComplexTypes
             };
 
             // only unambigious built in types get the info,
-            // IEncodeable and Enumeration types are handled by type property
+            // IEncodeable types are handled by type property as BuiltInType.Null 
             Int32 builtInType = (Int32)TypeInfo.GetBuiltInType(structureField.DataType);
-            if (builtInType > (Int32)BuiltInType.Null &&
-                builtInType <= (Int32)BuiltInType.DiagnosticInfo)
+            if (builtInType > (Int32)BuiltInType.Null)
             {
                 pi.Add(attributeType.GetProperty("BuiltInType"));
                 pv.Add(builtInType);

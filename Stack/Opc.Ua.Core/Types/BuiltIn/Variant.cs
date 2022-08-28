@@ -13,6 +13,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -2629,7 +2630,7 @@ namespace Opc.Ua
             m_elements = Utils.FlattenArray(value);
             m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
 
-            Utils.SanityCheckArrayElements(m_elements, builtInType);
+            SanityCheckArrayElements(m_elements, builtInType);
         }
 
         /// <summary>
@@ -2663,7 +2664,7 @@ namespace Opc.Ua
 
             m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
 
-            Utils.SanityCheckArrayElements(m_elements, builtInType);
+            SanityCheckArrayElements(m_elements, builtInType);
         }
         #endregion
 
@@ -2820,6 +2821,26 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             return new Matrix((Array)Utils.Clone(m_elements), m_typeInfo.BuiltInType, (int[])Utils.Clone(m_dimensions));
+        }
+        #endregion
+
+        #region Private Methods
+        /// <summary>
+        /// Debug.Assert if the elements are assigned a valid BuiltInType.
+        /// </summary>
+        /// <param name="elements">An array of elements to sanity check.</param>
+        /// <param name="builtInType">The builtInType used for the elements.</param>
+        [Conditional("DEBUG")]
+        private static void SanityCheckArrayElements(Array elements, BuiltInType builtInType)
+        {
+#if DEBUG
+            TypeInfo sanityCheck = TypeInfo.Construct(elements);
+            Debug.Assert(sanityCheck.BuiltInType == builtInType ||
+                    (sanityCheck.BuiltInType == BuiltInType.ExtensionObject && builtInType == BuiltInType.Null) ||
+                    (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
+                    (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||
+                    (builtInType == BuiltInType.Variant));
+#endif
         }
         #endregion
 

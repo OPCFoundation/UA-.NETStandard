@@ -1640,6 +1640,7 @@ namespace Opc.Ua
                         WriteXmlElementArray(null, array as IList<XmlElement> ?? (XmlElement[])array);
                         break;
                     case BuiltInType.Variant:
+                    {
                         // try to write IEncodeable Array
                         IEncodeable[] encodeableArray = array as IEncodeable[];
                         if (encodeableArray != null)
@@ -1649,8 +1650,8 @@ namespace Opc.Ua
                         }
                         WriteVariantArray(null, array as IList<Variant> ?? (Variant[])array);
                         break;
+                    }
                     case BuiltInType.Enumeration:
-                        // TODO: IntCollection?
                         int[] ints = array as int[];
                         if (ints == null)
                         {
@@ -1660,7 +1661,7 @@ namespace Opc.Ua
                                 ints = new int[enums.Length];
                                 for (int ii = 0; ii < enums.Length; ii++)
                                 {
-                                    ints[ii] = (int)(object)enums[ii];
+                                    ints[ii] = Convert.ToInt32(enums[ii], CultureInfo.InvariantCulture);
                                 }
                             }
                         }
@@ -1672,7 +1673,7 @@ namespace Opc.Ua
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
-                                "Unexpected type encountered while encoding an Enumenration Array");
+                                "Unexpected type encountered while encoding an Enumeration Array.");
                         }
                         break;
                     case BuiltInType.ExtensionObject:
@@ -1683,6 +1684,14 @@ namespace Opc.Ua
                         break;
                     default:
                     {
+                        // try to write IEncodeable Array
+                        IEncodeable[] encodeableArray = array as IEncodeable[];
+                        if (encodeableArray != null)
+                        {
+                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                            break;
+                        }
+
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding an Array with BuiltInType: {0}",
@@ -1718,7 +1727,6 @@ namespace Opc.Ua
                     case BuiltInType.Boolean:
                     {
                         bool[] values = (bool[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteBoolean(null, values[ii]);
@@ -1728,7 +1736,6 @@ namespace Opc.Ua
                     case BuiltInType.SByte:
                     {
                         sbyte[] values = (sbyte[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteSByte(null, values[ii]);
@@ -1738,7 +1745,6 @@ namespace Opc.Ua
                     case BuiltInType.Byte:
                     {
                         byte[] values = (byte[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteByte(null, values[ii]);
@@ -1748,7 +1754,6 @@ namespace Opc.Ua
                     case BuiltInType.Int16:
                     {
                         Int16[] values = (Int16[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteInt16(null, values[ii]);
@@ -1758,7 +1763,6 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                     {
                         UInt16[] values = (UInt16[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteUInt16(null, values[ii]);
@@ -1766,11 +1770,21 @@ namespace Opc.Ua
                         break;
                     }
                     case BuiltInType.Enumeration:
+                    {
+                        Enum[] values = matrix.Elements as Enum[];
+                        if (values != null)
+                        {
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteEnumerated(null, values[ii]);
+                            }
+                            break;
+                        }
+                        goto case BuiltInType.Int32;
+                    }
                     case BuiltInType.Int32:
                     {
-                        // TODO: convert enum values?
                         Int32[] values = (Int32[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteInt32(null, values[ii]);
@@ -1780,7 +1794,6 @@ namespace Opc.Ua
                     case BuiltInType.UInt32:
                     {
                         UInt32[] values = (UInt32[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteUInt32(null, values[ii]);
@@ -1790,7 +1803,6 @@ namespace Opc.Ua
                     case BuiltInType.Int64:
                     {
                         Int64[] values = (Int64[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteInt64(null, values[ii]);
@@ -1800,7 +1812,6 @@ namespace Opc.Ua
                     case BuiltInType.UInt64:
                     {
                         UInt64[] values = (UInt64[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteUInt64(null, values[ii]);
@@ -1810,7 +1821,6 @@ namespace Opc.Ua
                     case BuiltInType.Float:
                     {
                         float[] values = (float[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteFloat(null, values[ii]);
@@ -1820,7 +1830,6 @@ namespace Opc.Ua
                     case BuiltInType.Double:
                     {
                         double[] values = (double[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteDouble(null, values[ii]);
@@ -1830,7 +1839,6 @@ namespace Opc.Ua
                     case BuiltInType.String:
                     {
                         string[] values = (string[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteString(null, values[ii]);
@@ -1840,7 +1848,6 @@ namespace Opc.Ua
                     case BuiltInType.DateTime:
                     {
                         DateTime[] values = (DateTime[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteDateTime(null, values[ii]);
@@ -1850,7 +1857,6 @@ namespace Opc.Ua
                     case BuiltInType.Guid:
                     {
                         Uuid[] values = (Uuid[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteGuid(null, values[ii]);
@@ -1860,7 +1866,6 @@ namespace Opc.Ua
                     case BuiltInType.ByteString:
                     {
                         byte[][] values = (byte[][])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteByteString(null, values[ii]);
@@ -1870,7 +1875,6 @@ namespace Opc.Ua
                     case BuiltInType.XmlElement:
                     {
                         XmlElement[] values = (XmlElement[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteXmlElement(null, values[ii]);
@@ -1880,7 +1884,6 @@ namespace Opc.Ua
                     case BuiltInType.NodeId:
                     {
                         NodeId[] values = (NodeId[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteNodeId(null, values[ii]);
@@ -1890,7 +1893,6 @@ namespace Opc.Ua
                     case BuiltInType.ExpandedNodeId:
                     {
                         ExpandedNodeId[] values = (ExpandedNodeId[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteExpandedNodeId(null, values[ii]);
@@ -1900,7 +1902,6 @@ namespace Opc.Ua
                     case BuiltInType.StatusCode:
                     {
                         StatusCode[] values = (StatusCode[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteStatusCode(null, values[ii]);
@@ -1910,7 +1911,6 @@ namespace Opc.Ua
                     case BuiltInType.QualifiedName:
                     {
                         QualifiedName[] values = (QualifiedName[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteQualifiedName(null, values[ii]);
@@ -1920,7 +1920,6 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText:
                     {
                         LocalizedText[] values = (LocalizedText[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteLocalizedText(null, values[ii]);
@@ -1930,7 +1929,6 @@ namespace Opc.Ua
                     case BuiltInType.ExtensionObject:
                     {
                         ExtensionObject[] values = (ExtensionObject[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteExtensionObject(null, values[ii]);
@@ -1940,7 +1938,6 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                     {
                         DataValue[] values = (DataValue[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteDataValue(null, values[ii]);
@@ -1950,7 +1947,6 @@ namespace Opc.Ua
                     case BuiltInType.Variant:
                     {
                         Variant[] variants = matrix.Elements as Variant[];
-
                         if (variants != null)
                         {
                             for (int ii = 0; ii < variants.Length; ii++)
@@ -1972,7 +1968,6 @@ namespace Opc.Ua
                         }
 
                         object[] objects = matrix.Elements as object[];
-
                         if (objects != null)
                         {
                             for (int ii = 0; ii < objects.Length; ii++)
@@ -1988,7 +1983,6 @@ namespace Opc.Ua
                     case BuiltInType.DiagnosticInfo:
                     {
                         DiagnosticInfo[] values = (DiagnosticInfo[])matrix.Elements;
-                        // write contents.
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteDiagnosticInfo(null, values[ii]);
@@ -1997,6 +1991,16 @@ namespace Opc.Ua
                     }
                     default:
                     {
+                        // try to write IEncodeable Array
+                        IEncodeable[] encodeableArray = matrix.Elements as IEncodeable[];
+                        if (encodeableArray != null)
+                        {
+                            for (int ii = 0; ii < encodeableArray.Length; ii++)
+                            {
+                                WriteEncodeable(null, encodeableArray[ii], null);
+                            }
+                            break;
+                        }
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Matrix with BuiltInType: {0}",

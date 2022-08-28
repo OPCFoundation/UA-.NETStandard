@@ -2929,6 +2929,21 @@ namespace Opc.Ua
                         if (collection != null) return collection.ToArray();
                         return null;
                     }
+                    default:
+                    {
+                        if (encodeableTypeId != null)
+                        {
+                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                            if (systemType != null)
+                            {
+                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                            }
+                        }
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Cannot decode unknown type in Array object with BuiltInType: {0}.",
+                            builtInType);
+                    }
                 }
             }
             finally
@@ -2936,8 +2951,6 @@ namespace Opc.Ua
                 m_namespaces.Pop();
                 m_nestingLevel--;
             }
-
-            return null;
         }
 
         /// <summary>

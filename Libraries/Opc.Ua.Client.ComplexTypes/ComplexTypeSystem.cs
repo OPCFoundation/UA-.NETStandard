@@ -617,11 +617,12 @@ namespace Opc.Ua.Client.ComplexTypes
                                     out ExpandedNodeId binaryEncodingId, out ExpandedNodeId xmlEncodingId);
                                 try
                                 {
+                                    ExpandedNodeId typeId = NormalizeExpandedNodeId(structType.NodeId);
                                     newType = AddStructuredType(
                                         complexTypeBuilder,
                                         structureDefinition,
                                         dataTypeNode.BrowseName,
-                                        structType.NodeId,
+                                        typeId,
                                         binaryEncodingId,
                                         xmlEncodingId,
                                         out ExpandedNodeIdCollection missingTypeIds
@@ -723,8 +724,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         return null;
                     }
-                    if (!(field.ValueRank == -1 ||
-                        field.ValueRank >= 1))
+                    if (!(field.ValueRank == ValueRanks.Scalar ||
+                        field.ValueRank >= ValueRanks.OneDimension))
                     {
                         return null;
                     }

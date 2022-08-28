@@ -400,7 +400,14 @@ namespace Opc.Ua
                 case DataTypes.TimeString: return BuiltInType.String;
             }
 
-            return (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
+            BuiltInType builtInType = (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
+
+            if (builtInType > BuiltInType.DiagnosticInfo && builtInType != BuiltInType.Enumeration)
+            {
+                return BuiltInType.Null;
+            }
+
+            return builtInType;
         }
 
         /// <summary>

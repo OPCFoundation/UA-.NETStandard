@@ -2464,6 +2464,15 @@ namespace Opc.Ua
                         return ReadDiagnosticInfoArray(fieldName).ToArray();
                     default:
                     {
+                        if (encodeableTypeId != null)
+                        {
+                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                            if (systemType != null)
+                            {
+                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                            }
+                        }
+
                         throw new ServiceResultException(
                             StatusCodes.BadDecodingError,
                             Utils.Format("Cannot decode unknown type in Array object with BuiltInType: {0}.", builtInType));
@@ -2577,6 +2586,26 @@ namespace Opc.Ua
                     case BuiltInType.DiagnosticInfo:
                         matrix = new Matrix(elements.Cast<DiagnosticInfo>().ToArray(), builtInType, dimensions.ToArray());
                         break;
+                    default:
+                        if (encodeableTypeId != null)
+                        {
+                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                            if (systemType != null)
+                            {
+                                Array newElements = Array.CreateInstance(systemType, elements.Count);
+                                for (int i = 0; i < elements.Count; i++)
+                                {
+                                    newElements.SetValue(Convert.ChangeType(elements[i], systemType), i);
+                                }
+                                matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
+                                break;
+                            }
+                        }
+
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Cannot decode unknown type in Array object with BuiltInType: {0}.",
+                            builtInType);
                 }
 
                 return matrix.ToArray();

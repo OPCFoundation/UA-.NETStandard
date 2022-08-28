@@ -2434,7 +2434,6 @@ namespace Opc.Ua
                         WriteEnumeratedArray(fieldName, enumArray, enumArray.GetType().GetElementType());
                         return;
                     }
-
                     case BuiltInType.Variant:
                     {
                         Variant[] variants = array as Variant[];
@@ -2466,6 +2465,20 @@ namespace Opc.Ua
                             "Unexpected type encountered while encoding an array of Variants: {0}",
                             array.GetType());
                     }
+                    default:
+                    {
+                        // try to write IEncodeable Array
+                        IEncodeable[] encodeableArray = array as IEncodeable[];
+                        if (encodeableArray != null)
+                        {
+                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                            return;
+                        }
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected BuiltInType encountered while encoding an array: {0}",
+                            builtInType);
+                    }
                 }
             }
             // write matrix.
@@ -2478,6 +2491,13 @@ namespace Opc.Ua
                     if (multiArray != null && multiArray.Rank == valueRank)
                     {
                         matrix = new Matrix(multiArray, builtInType);
+                    }
+                    else
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected array type encountered while encoding array: {0}",
+                            array.GetType().Name);
                     }
                 }
 

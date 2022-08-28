@@ -1506,6 +1506,14 @@ namespace Opc.Ua
                         return ReadDiagnosticInfoArray(fieldName).ToArray();
                     default:
                     {
+                        if (encodeableTypeId != null)
+                        {
+                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                            if (systemType != null)
+                            {
+                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                            }
+                        }
                         throw new ServiceResultException(
                             StatusCodes.BadDecodingError,
                             Utils.Format("Cannot decode unknown type in Array object with BuiltInType: {0}.", builtInType));
@@ -1553,6 +1561,7 @@ namespace Opc.Ua
                             length
                             );
                     }
+
                     // read the elements
                     Array elements = null;
                     if (encodeableTypeId != null)
@@ -1568,6 +1577,7 @@ namespace Opc.Ua
                             }
                         }
                     }
+
                     if (elements == null)
                     {
                         elements = ReadArrayElements(length, builtInType);
@@ -1575,22 +1585,22 @@ namespace Opc.Ua
 
                     if (elements == null)
                     {
-                        throw new ServiceResultException(
-                               StatusCodes.BadDecodingError,
-                               Utils.Format("Unexpected null Array for multidimensional matrix with {0} elements.", length));
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Unexpected null Array for multidimensional matrix with {0} elements.", length);
                     }
 
                     return new Matrix(elements, builtInType, dimensions.ToArray()).ToArray();
                 }
-                throw new ServiceResultException(
-                               StatusCodes.BadDecodingError,
-                               "Unexpected null or empty Dimensions for multidimensional matrix.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Unexpected null or empty Dimensions for multidimensional matrix.");
             }
             return null;
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Reads and returns an array of elements of the specified length and builtInType 
         /// </summary>
@@ -2413,15 +2423,15 @@ namespace Opc.Ua
 
             return value;
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private Stream m_istrm;
         private BinaryReader m_reader;
         private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
-        #endregion
+#endregion
     }
 }
