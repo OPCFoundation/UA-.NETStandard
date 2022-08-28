@@ -38,12 +38,17 @@ namespace Opc.Ua
         /// <summary>
         /// The URI scheme for the HTTP protocol.
         /// </summary>
-        public const string UriSchemeHttp = "http";
+        public const string UriSchemeHttp = "opc.http";
 
         /// <summary>
         /// The URI scheme for the HTTPS protocol.
         /// </summary>
-        public const string UriSchemeHttps = "https";
+        public const string UriSchemeHttps = "opc.https";
+
+        /// <summary>
+        /// The URI scheme for the HTTPS protocol, used before fixed in UA stack V1.4.370.
+        /// </summary>
+        public const string UriLegacySchemeHttps = "https";
 
         /// <summary>
         /// The URI scheme for the UA TCP protocol.
@@ -1473,24 +1478,6 @@ namespace Opc.Ua
             }
 
             return flatArray;
-        }
-
-
-        /// <summary>
-        /// Debug.Assert if the elements are assigned a valid BuiltInType.
-        /// </summary>
-        /// <param name="elements">An array of elements to sanity check.</param>
-        /// <param name="builtInType">The builtInType used for the elements.</param>
-        [Conditional("DEBUG")]
-        internal static void SanityCheckArrayElements(Array elements, BuiltInType builtInType)
-        {
-#if DEBUG
-            TypeInfo sanityCheck = TypeInfo.Construct(elements);
-            Debug.Assert(sanityCheck.BuiltInType == builtInType ||
-                    (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
-                    (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||
-                    (builtInType == BuiltInType.Variant));
-#endif
         }
 
         /// <summary>
