@@ -34,7 +34,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Exception is thrown if the data type is not found.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "RCS1194:Implement exception constructors.")]
     [Serializable]
     public class DataTypeNotFoundException : Exception
     {
@@ -79,7 +78,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// DataType is not supported due to structure or value rank.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "RCS1194:Implement exception constructors.")]
     [Serializable]
     public class DataTypeNotSupportedException : Exception
     {

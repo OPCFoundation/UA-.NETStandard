@@ -166,13 +166,15 @@ namespace Opc.Ua.Client.ComplexTypes
             bool addRootNode = false,
             bool filterUATypes = true)
         {
-            var stopwatch = new Stopwatch();
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection {
                 dataType
             };
 
+#if DEBUG
+            var stopwatch = new Stopwatch();
             stopwatch.Start();
+#endif
 
             if (addRootNode)
             {
@@ -210,8 +212,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 nodesToBrowse = nextNodesToBrowse;
             }
 
+#if DEBUG
             stopwatch.Stop();
             Utils.LogInfo("LoadDataTypes returns {0} nodes in {1}ms", result.Count, stopwatch.ElapsedMilliseconds);
+#endif
 
             return result;
         }

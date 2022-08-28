@@ -590,14 +590,11 @@ namespace Opc.Ua.Client.ComplexTypes
             if ((builtInType == BuiltInType.Null || builtInType == BuiltInType.ExtensionObject) &&
                 typeof(IEncodeable).IsAssignableFrom(elementType))
             {
-                // TODO: use systemType
-                var encodeable = (IEncodeable)Activator.CreateInstance(elementType);
-                var encodeableTypeId = encodeable?.TypeId;
-                decodedArray = decoder.ReadArray(name, valueRank, builtInType, encodeableTypeId);
+                decodedArray = decoder.ReadArray(name, valueRank, builtInType, elementType);
             }
             else
             {
-                decodedArray = decoder.ReadArray(name, valueRank, builtInType, null);
+                decodedArray = decoder.ReadArray(name, valueRank, builtInType);
             }
             property.SetValue(this, decodedArray);
         }
