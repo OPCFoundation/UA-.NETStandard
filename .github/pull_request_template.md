@@ -25,7 +25,7 @@ _Put an `x` in the boxes that apply. You can also fill these out after creating 
 - [ ] I have signed the [CLA](https://opcfoundation.org/license/cla/ContributorLicenseAgreementv1.0.pdf).
 - [ ] I ran tests locally with my changes, all passed.
 - [ ] I fixed all failing tests in the CI pipelines. 
-- [ ] I fixed all introduced issues with CodeQL and LGTM.
+- [ ] I fixed all introduced issues with CodeQL and Github Code scanning.
 - [ ] I have added tests that prove my fix is effective or that my feature works and increased code coverage.
 - [ ] I have added necessary documentation (if appropriate).
 - [ ] Any dependent changes have been merged and published in downstream modules.
