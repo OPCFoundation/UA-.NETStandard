@@ -63,6 +63,7 @@ namespace Opc.Ua.Client.ComplexTypes
             PropertyInfo = propertyInfo;
             FieldAttribute = fieldAttribute;
             DataAttribute = dataAttribute;
+            OptionalFieldMask = 0;
         }
 
         /// <summary>
@@ -104,6 +105,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Optional mask for the field in the property.
         /// </summary>
-        public UInt32 OptionalFieldMask;
+        public uint OptionalFieldMask { get; set; }
     }
 }//namespace

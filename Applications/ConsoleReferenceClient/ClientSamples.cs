@@ -499,7 +499,6 @@ namespace Quickstarts.ConsoleReferenceClient
                 browseTemplate);
 
             // Browse
-            ResponseHeader response = null;
             var referenceDescriptions = new Dictionary<ExpandedNodeId, ReferenceDescription>();
 
             int searchDepth = 0;
@@ -528,7 +527,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     repeatBrowse = false;
                     try
                     {
-                        response = uaClient.Session.Browse(null, null,
+                        _ = uaClient.Session.Browse(null, null,
                             kMaxReferencesPerNode, browseCollection,
                             out browseResultCollection, out diagnosticsInfoCollection);
                         ClientBase.ValidateResponse(browseResultCollection, browseCollection);
@@ -573,7 +572,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
 
                     Utils.LogInfo("BrowseNext {0} continuation points.", continuationPoints.Count);
-                    response = uaClient.Session.BrowseNext(null, false, continuationPoints,
+                    _ = uaClient.Session.BrowseNext(null, false, continuationPoints,
                         out var browseNextResultCollection, out diagnosticsInfoCollection);
                     ClientBase.ValidateResponse(browseNextResultCollection, continuationPoints);
                     ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, continuationPoints);
@@ -670,7 +669,7 @@ namespace Quickstarts.ConsoleReferenceClient
         }
         #endregion
 
-        #region Read Values
+        #region Read Values and output as JSON sample
         /// <summary>
         /// Output all values as JSON.
         /// </summary>
@@ -784,7 +783,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 catch (Exception ex)
                 {
 
-                    stringWriter.WriteLine("Failed to format the JSON output:", ex.Message);
+                    stringWriter.WriteLine("Failed to format the JSON output: {0}", ex.Message);
                     stringWriter.WriteLine(textbuffer);
                     throw;
                 }
@@ -851,8 +850,8 @@ namespace Quickstarts.ConsoleReferenceClient
         #endregion
 
         private Action<IList, IList> m_validateResponse;
-        private TextWriter m_output;
-        private ManualResetEvent m_quitEvent;
-        private bool m_verbose;
+        private readonly TextWriter m_output;
+        private readonly ManualResetEvent m_quitEvent;
+        private readonly bool m_verbose;
     }
 }
