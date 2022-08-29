@@ -702,7 +702,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                                 if (ServiceResult.IsNotBad(value.StatusCode))
                                 {
-                                    var valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, value.ToString(), value, true);
+                                    var valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, variableId.ToString(), value, true);
                                     m_output.WriteLine(valueString);
                                 }
                                 else
