@@ -17,6 +17,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Linq;
 using System.Threading;
+using System.Globalization;
 
 namespace Opc.Ua
 {
@@ -41,6 +42,7 @@ namespace Opc.Ua
         public EncodeableFactory()
         {
             m_encodeableTypes = new Dictionary<ExpandedNodeId, System.Type>();
+            m_unboundTypeIds = new Dictionary<string, ExpandedNodeId>();
             AddEncodeableTypes(this.GetType().GetTypeInfo().Assembly);
 
 #if DEBUG
@@ -54,6 +56,7 @@ namespace Opc.Ua
         public EncodeableFactory(bool shared)
         {
             m_encodeableTypes = new Dictionary<ExpandedNodeId, System.Type>();
+            m_unboundTypeIds = new Dictionary<string, ExpandedNodeId>();
             AddEncodeableTypes(Utils.DefaultOpcUaCoreAssemblyFullName);
 
 #if DEBUG
@@ -68,6 +71,7 @@ namespace Opc.Ua
         public EncodeableFactory(IEncodeableFactory factory)
         {
             m_encodeableTypes = new Dictionary<ExpandedNodeId, System.Type>();
+            m_unboundTypeIds = new Dictionary<string, ExpandedNodeId>();
 
 #if DEBUG
             m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
@@ -272,6 +276,11 @@ namespace Opc.Ua
 
                     m_encodeableTypes[nodeId] = systemType;
                 }
+
+                if (m_unboundTypeIds.TryGetValue(systemType.Name, out var jsonEncodingId))
+                {
+                    m_encodeableTypes[jsonEncodingId] = systemType;
+                }
             }
         }
 
@@ -326,6 +335,41 @@ namespace Opc.Ua
                 lock (m_lock)
                 {
                     System.Type[] systemTypes = assembly.GetExportedTypes();
+
+                    const string jsonEncodingSuffix = "_Encoding_DefaultJson";
+
+                    for (int ii = 0; ii < systemTypes.Length; ii++)
+                    {
+                        if (systemTypes[ii].Name != "ObjectIds")
+                        {
+                            continue;
+                        }
+
+                        foreach (var field in systemTypes[ii].GetFields())
+                        {
+                            if (field.Name.EndsWith(jsonEncodingSuffix, false, CultureInfo.InvariantCulture))
+                            {
+                                try
+                                {
+                                    var name = field.Name.Substring(0, field.Name.Length - jsonEncodingSuffix.Length);
+                                    var value = field.GetValue(null);
+
+                                    if (value is NodeId)
+                                    {
+                                        m_unboundTypeIds[name] = new ExpandedNodeId((NodeId)value);
+                                    }
+                                    else
+                                    {
+                                        m_unboundTypeIds[name] = (ExpandedNodeId)value;
+                                    }
+                                }
+                                catch (Exception)
+                                {
+                                    // ignore errors.
+                                }
+                            }
+                        }
+                    }
 
                     for (int ii = 0; ii < systemTypes.Length; ii++)
                     {
@@ -391,6 +435,7 @@ namespace Opc.Ua
         #region Private Fields
         private object m_lock = new object();
         private Dictionary<ExpandedNodeId, Type> m_encodeableTypes;
+        private Dictionary<string, ExpandedNodeId> m_unboundTypeIds;
         private static EncodeableFactory s_globalFactory = new EncodeableFactory();
 
 #if DEBUG
