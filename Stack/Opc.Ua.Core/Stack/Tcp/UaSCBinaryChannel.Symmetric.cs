@@ -886,7 +886,6 @@ namespace Opc.Ua.Bindings
         {
             switch (SecurityPolicyUri)
             {
-                default:
                 case SecurityPolicies.None:
                 {
                     break;
@@ -895,6 +894,7 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Basic128Rsa15:
+                case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
@@ -918,10 +918,10 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 #endif
-                case SecurityPolicies.ECC_nistP256:
                 //case SecurityPolicies.Aes128_Gcm256_RsaOaep:
+                default:
                 {
-                    break;
+                    throw new NotSupportedException(SecurityPolicyUri);
                 }
             }
         }
@@ -933,7 +933,6 @@ namespace Opc.Ua.Bindings
         {
             switch (SecurityPolicyUri)
             {
-                default:
                 case SecurityPolicies.None:
                 {
                     break;
@@ -942,6 +941,7 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Basic128Rsa15:
+                case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
@@ -965,10 +965,10 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 #endif
-                case SecurityPolicies.ECC_nistP256:
                 //case SecurityPolicies.Aes128_Gcm256_RsaOaep:
+                default:
                 {
-                    break;
+                    throw new NotSupportedException(SecurityPolicyUri);
                 }
             }
         }
