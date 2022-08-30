@@ -893,10 +893,11 @@ namespace Opc.Ua.Server
                 TranslationInfo message = new TranslationInfo(
                      "AuditUrlMismatchEvent",
                      "en-US",
-                     $"Session with ID:{session.Id} was cannot be created because endpoint URL does not match the Server’s HostNames.");
+                     $"Session with ID:{session.Id} was created but the endpoint URL does not match the domain names in the server certificate.");
 
                 InitializeAuditSessionEvent(systemContext, e, message, false, session, auditEntryId);
 
+                e.SetChildValue(systemContext, BrowseNames.ClientUserId, "System/CreateSession", false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Session/CreateSession", false);
 
                 // set AuditCreateSessionEventState fields
