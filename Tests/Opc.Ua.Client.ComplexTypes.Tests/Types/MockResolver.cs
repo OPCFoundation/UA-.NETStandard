@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Client.ComplexTypes.Tests
+namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
     /// <summary>
     /// Implements the mock complex type resolver for testing.
@@ -55,6 +55,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_dataTypeNodes = new Dictionary<NodeId, INode>();
             m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
             m_namespaceUris = new NamespaceTable();
+
+            m_namespaceUris.Append("urn:This:is:my:test:encoder");
+            m_namespaceUris.Append("urn:This:is:another:namespace");
+            m_namespaceUris.Append(Namespaces.OpcUaEncoderTests);
+            m_namespaceUris.Append(Namespaces.MockResolverUrl);
+
         }
         #endregion Constructors
 
