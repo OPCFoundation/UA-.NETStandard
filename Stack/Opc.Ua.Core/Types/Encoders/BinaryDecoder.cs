@@ -1582,6 +1582,17 @@ namespace Opc.Ua
                             "Unexpected null Array for multidimensional matrix with {0} elements.", length);
                     }
 
+                    if (builtInType == BuiltInType.Enumeration && systemType?.IsEnum == true)
+                    {
+                        var newElements = Array.CreateInstance(systemType, elements.Length);
+                        int ii = 0;
+                        foreach (var element in elements)
+                        {
+                            newElements.SetValue(Enum.ToObject(systemType, element), ii++);
+                        }
+                        elements = newElements;
+                    }
+
                     return new Matrix(elements, builtInType, dimensions.ToArray()).ToArray();
                 }
                 throw ServiceResultException.Create(

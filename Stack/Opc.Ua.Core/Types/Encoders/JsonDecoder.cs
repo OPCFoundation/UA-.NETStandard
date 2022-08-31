@@ -2412,8 +2412,8 @@ namespace Opc.Ua
                         {
                             return ReadEnumeratedArray(fieldName, systemType);
                         }
+                        goto case BuiltInType.Int32;
                     }
-                    goto case BuiltInType.Int32;
                     case BuiltInType.Int32:
                         return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.UInt32:
@@ -2450,11 +2450,7 @@ namespace Opc.Ua
                         return ReadDataValueArray(fieldName).ToArray();
                     case BuiltInType.Variant:
                     {
-                        if (encodeableTypeId != null && systemType == null)
-                        {
-                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                        }
-                        if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
@@ -2466,11 +2462,7 @@ namespace Opc.Ua
                         return ReadDiagnosticInfoArray(fieldName).ToArray();
                     default:
                     {
-                        if (encodeableTypeId != null && systemType == null)
-                        {
-                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                        }
-                        if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
@@ -2490,6 +2482,10 @@ namespace Opc.Ua
                 }
                 List<object> elements = new List<object>();
                 List<int> dimensions = new List<int>();
+                if (builtInType == BuiltInType.Enumeration || builtInType == BuiltInType.Variant || builtInType == BuiltInType.Null)
+                {
+                    DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
+                }
                 ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, 0, systemType, encodeableTypeId);
 
                 Matrix matrix = null;
@@ -2562,15 +2558,26 @@ namespace Opc.Ua
                         matrix = new Matrix(elements.Cast<DataValue>().ToArray(), builtInType, dimensions.ToArray());
                         break;
                     case BuiltInType.Enumeration:
-                        matrix = new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
+                    {
+                        if (systemType?.IsEnum == true)
+                        {
+                            var newElements = Array.CreateInstance(systemType, elements.Count);
+                            int ii = 0;
+                            foreach (var element in elements)
+                            {
+                                newElements.SetValue(Convert.ChangeType(element, systemType), ii++);
+                            }
+                            matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
+                        }
+                        else
+                        {
+                            matrix = new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
+                        }
                         break;
+                    }
                     case BuiltInType.Variant:
                     {
-                        if (encodeableTypeId != null && systemType == null)
-                        {
-                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                        }
-                        if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             Array newElements = Array.CreateInstance(systemType, elements.Count);
                             for (int i = 0; i < elements.Count; i++)
@@ -2591,11 +2598,7 @@ namespace Opc.Ua
                         break;
                     default:
                     {
-                        if (encodeableTypeId != null && systemType == null)
-                        {
-                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                        }
-                        if (typeof(IEncodeable).IsAssignableFrom(systemType))
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             Array newElements = Array.CreateInstance(systemType, elements.Count);
                             for (int i = 0; i < elements.Count; i++)

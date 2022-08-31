@@ -260,6 +260,28 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             structure.Fields.Add(field);
 
+            field = new StructureField() {
+                Name = "Array2DOfNamingRuleType",
+                Description = new LocalizedText("Array 2D of NamingRuleType"),
+                DataType = DataTypeIds.NamingRuleType,
+                ValueRank = ValueRanks.TwoDimensions,
+                ArrayDimensions = Array.Empty<UInt32>(),
+                MaxStringLength = 0,
+                IsOptional = false
+            };
+            structure.Fields.Add(field);
+
+            field = new StructureField() {
+                Name = "Array3DOfNamingRuleType",
+                Description = new LocalizedText("Array 3D of NamingRuleType"),
+                DataType = DataTypeIds.NamingRuleType,
+                ValueRank = 3,
+                ArrayDimensions = Array.Empty<UInt32>(),
+                MaxStringLength = 0,
+                IsOptional = false
+            };
+            structure.Fields.Add(field);
+
             var dataTypeNode = new DataTypeNode() {
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
@@ -310,6 +332,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 { { 11, 12, 13, 14, 15 }, { 21, 22, 23, 24, 25 }, { 31, 32, 33, 34, 35 } },
                 { { 41, 42, 43, 44, 45 }, { 51, 52, 53, 54, 55 }, { 61, 62, 63, 64, 65 } } };
             arrays["ArrayOfNamingRuleType"] = new NamingRuleType[] { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint };
+            arrays["Array2DOfNamingRuleType"] = new NamingRuleType[,]
+                {{ NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint },
+                { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Constraint }};
+            arrays["Array3DOfNamingRuleType"] = new NamingRuleType[,,] { {
+                { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Mandatory },
+                { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Mandatory }},
+                { { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint },
+                { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Constraint }}};
             //arrays["ArrayOfNamingRuleType"] = new Int32[] { 0,2,1 };
 
             TestContext.Out.WriteLine(arrays.ToString());
@@ -320,7 +350,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 NamespaceUris = mockResolver.NamespaceUris,
             };
 
-            IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes);
+            IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes, false);
             encoder.WriteEncodeable("Arrays", arrays, arraysTypes);
             Dispose(encoder);
             var buffer = encoderStream.ToArray();

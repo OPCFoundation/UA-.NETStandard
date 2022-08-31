@@ -2664,8 +2664,8 @@ namespace Opc.Ua
                 return matrix.ToArray();
             }
 
-            throw new ServiceResultException(StatusCodes.BadDecodingError,
-                string.Format("Invalid ValueRank {0} for Array", valueRank));
+            throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                "Invalid ValueRank {0} for Array", valueRank);
         }
         #endregion
 

@@ -2835,7 +2835,7 @@ namespace Opc.Ua
         {
 #if DEBUG
             TypeInfo sanityCheck = TypeInfo.Construct(elements);
-            Debug.Assert(sanityCheck.BuiltInType == builtInType ||
+            Debug.Assert(sanityCheck.BuiltInType == builtInType || builtInType == BuiltInType.Enumeration ||
                     (sanityCheck.BuiltInType == BuiltInType.ExtensionObject && builtInType == BuiltInType.Null) ||
                     (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
                     (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||
