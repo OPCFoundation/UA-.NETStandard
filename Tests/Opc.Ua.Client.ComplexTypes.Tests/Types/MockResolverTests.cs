@@ -170,6 +170,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             var cts = new ComplexTypeSystem(mockResolver);
             var carType = await cts.LoadType(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
+            Assert.NotNull(carType);
 
             BaseComplexType car = (BaseComplexType)Activator.CreateInstance(carType);
 
@@ -205,6 +206,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public async Task CreateMockArrayTypeAsync(EncodingType encodingType)
         {
             var mockResolver = new MockResolver();
+
+            // only enumerable types in the encodeable factory are stored as Enum in a structure.
+            AddEncodeableType(mockResolver.Factory, mockResolver.NamespaceUris, DataTypeIds.NamingRuleType, typeof(NamingRuleType));
 
             var nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
             uint nodeId = 100;
@@ -245,6 +249,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             structure.Fields.Add(field);
 
+            field = new StructureField() {
+                Name = "ArrayOfNamingRuleType",
+                Description = new LocalizedText("Array of NamingRuleType"),
+                DataType = DataTypeIds.NamingRuleType,
+                ValueRank = ValueRanks.OneDimension,
+                ArrayDimensions = Array.Empty<UInt32>(),
+                MaxStringLength = 0,
+                IsOptional = false
+            };
+            structure.Fields.Add(field);
+
             var dataTypeNode = new DataTypeNode() {
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
@@ -277,11 +292,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 dataTypeNode.References.Add(reference);
             }
 
-            // add type
+            // add types needed
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver);
             var arraysTypes = await cts.LoadType(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
+            Assert.NotNull(arraysTypes);
 
             BaseComplexType arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes);
 
@@ -293,6 +309,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             arrays["Array3DOfInteger"] = new Int32[,,] {
                 { { 11, 12, 13, 14, 15 }, { 21, 22, 23, 24, 25 }, { 31, 32, 33, 34, 35 } },
                 { { 41, 42, 43, 44, 45 }, { 51, 52, 53, 54, 55 }, { 61, 62, 63, 64, 65 } } };
+            arrays["ArrayOfNamingRuleType"] = new NamingRuleType[] { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint };
+            //arrays["ArrayOfNamingRuleType"] = new Int32[] { 0,2,1 };
 
             TestContext.Out.WriteLine(arrays.ToString());
 
@@ -314,6 +332,22 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         #endregion
 
         #region Private Methods
+        protected void AddEncodeableType(IEncodeableFactory factory, NamespaceTable namespaceUris, ExpandedNodeId typeId, Type enumType)
+        {
+            if (NodeId.IsNull(typeId) || enumType == null)
+            {
+                return;
+            }
+            var internalNodeId = NormalizeExpandedNodeId(typeId, namespaceUris);
+            TestContext.Out.WriteLine("Adding Type {0} as: {1}", enumType.FullName, internalNodeId);
+            factory.AddEncodeableType(internalNodeId, enumType);
+        }
+
+        private ExpandedNodeId NormalizeExpandedNodeId(ExpandedNodeId expandedNodeId, NamespaceTable namespaceUris)
+        {
+            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, namespaceUris);
+            return NodeId.ToExpandedNodeId(nodeId, namespaceUris);
+        }
         #endregion Private Methods
     }
 }
