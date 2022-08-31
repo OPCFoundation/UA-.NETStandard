@@ -2407,10 +2407,7 @@ namespace Opc.Ua
                         return ReadUInt16Array(fieldName).ToArray();
                     case BuiltInType.Enumeration:
                     {
-                        if (encodeableTypeId != null && systemType == null)
-                        {
-                            systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                        }
+                        DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
                         if (systemType?.IsEnum == true)
                         {
                             return ReadEnumeratedArray(fieldName, systemType);
@@ -2678,6 +2675,21 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Get the system type from the type factory if not specified by caller.
+        /// </summary>
+        /// <param name="systemType">The reference to the system type, or null</param>
+        /// <param name="encodeableTypeId">The encodeable type id of the system type.</param>
+        /// <returns>If the system type is assignable to <see cref="IEncodeable"/> </returns>
+        private bool DetermineIEncodeableSystemType(ref Type systemType, ExpandedNodeId encodeableTypeId)
+        {
+            if (encodeableTypeId != null && systemType == null)
+            {
+                systemType = Context.Factory.GetSystemType(encodeableTypeId);
+            }
+            return typeof(IEncodeable).IsAssignableFrom(systemType);
+        }
+
         /// <summary>
         /// Read the body of a Variant as a BuiltInType
         /// </summary>
