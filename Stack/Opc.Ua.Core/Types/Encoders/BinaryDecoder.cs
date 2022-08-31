@@ -1546,15 +1546,16 @@ namespace Opc.Ua
                         }
 
                         length *= dimensions[ii];
-                    }
-                    if (length > m_context.MaxArrayLength)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingLimitsExceeded,
-                            "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
-                            m_context.MaxArrayLength,
-                            length
-                            );
+
+                        if (length > m_context.MaxArrayLength)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingLimitsExceeded,
+                                "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
+                                m_context.MaxArrayLength,
+                                length
+                                );
+                        }
                     }
 
                     // read the elements
@@ -2245,6 +2246,16 @@ namespace Opc.Ua
                             }
 
                             matrixLength *= dimensionsArray[ii];
+
+                            if (matrixLength > m_context.MaxArrayLength)
+                            {
+                                throw ServiceResultException.Create(
+                                    StatusCodes.BadEncodingLimitsExceeded,
+                                    "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
+                                    m_context.MaxArrayLength,
+                                    matrixLength
+                                    );
+                            }
                         }
 
                         if (matrixLength != length)
