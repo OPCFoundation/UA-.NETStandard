@@ -555,7 +555,7 @@ namespace Alarms
                 }
             }
 
-            return Opc.Ua.StatusCodes.Good;
+            return StatusCodes.Good;
         }
 
         #endregion
@@ -714,8 +714,8 @@ namespace Alarms
             {
                 CallMethodRequest methodToCall = methodsToCall[ii];
 
-                bool refreshMethod = methodToCall.MethodId.Equals(Opc.Ua.MethodIds.ConditionType_ConditionRefresh) ||
-                    methodToCall.MethodId.Equals(Opc.Ua.MethodIds.ConditionType_ConditionRefresh2);
+                bool refreshMethod = methodToCall.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh) ||
+                    methodToCall.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh2);
 
                 if (refreshMethod)
                 {
@@ -731,13 +731,13 @@ namespace Alarms
                     }
                 }
 
-                bool ackMethod = methodToCall.MethodId.Equals(Opc.Ua.MethodIds.AcknowledgeableConditionType_Acknowledge);
-                bool confirmMethod = methodToCall.MethodId.Equals(Opc.Ua.MethodIds.AcknowledgeableConditionType_Confirm);
-                bool commentMethod = methodToCall.MethodId.Equals(Opc.Ua.MethodIds.ConditionType_AddComment);
+                bool ackMethod = methodToCall.MethodId.Equals(MethodIds.AcknowledgeableConditionType_Acknowledge);
+                bool confirmMethod = methodToCall.MethodId.Equals(MethodIds.AcknowledgeableConditionType_Confirm);
+                bool commentMethod = methodToCall.MethodId.Equals(MethodIds.ConditionType_AddComment);
                 bool ackConfirmMethod = ackMethod || confirmMethod || commentMethod;
 
                 // Need to try to capture any calls to ConditionType::Acknowledge
-                if (methodToCall.ObjectId.Equals(Opc.Ua.ObjectTypeIds.ConditionType) && (ackConfirmMethod))
+                if (methodToCall.ObjectId.Equals(ObjectTypeIds.ConditionType) && (ackConfirmMethod))
                 {
                     // Mantis Issue 6944 which is a duplicate of 5544 - result is Confirm should be Bad_NodeIdInvalid
                     // Override any other errors that may be there, even if this is 'Processed'
@@ -937,8 +937,8 @@ namespace Alarms
         private bool IsAckConfirm(NodeId methodId)
         {
             bool isAckConfirm = false;
-            if (methodId.Equals(Opc.Ua.MethodIds.AcknowledgeableConditionType_Acknowledge) ||
-                 methodId.Equals(Opc.Ua.MethodIds.AcknowledgeableConditionType_Confirm))
+            if (methodId.Equals(MethodIds.AcknowledgeableConditionType_Acknowledge) ||
+                 methodId.Equals(MethodIds.AcknowledgeableConditionType_Confirm))
             {
                 isAckConfirm = true;
 

@@ -246,6 +246,9 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.OperationLimits"/>
         IApplicationConfigurationBuilderServerOptions SetOperationLimits(OperationLimits operationLimits);
+
+        /// <inheritdoc cref="ServerConfiguration.AuditingEnabled"/>
+        IApplicationConfigurationBuilderServerOptions SetAuditingEnabled(bool auditingEnabled);
     }
 
     /// <summary>

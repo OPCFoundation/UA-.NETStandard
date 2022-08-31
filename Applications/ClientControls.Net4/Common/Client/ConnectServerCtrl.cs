@@ -411,7 +411,7 @@ namespace Opc.Ua.Client.Controls
         /// <param name="serverUrl">The URL of a server endpoint.</param>
         /// <param name="useSecurity">Whether to use security.</param>
         /// <returns>The new session object.</returns>
-        public async Task<Session> ConnectAsync(
+        public Task<Session> ConnectAsync(
             string serverUrl = null,
             bool useSecurity = false,
             uint sessionTimeout = 0
@@ -434,7 +434,9 @@ namespace Opc.Ua.Client.Controls
                 UseSecurityCK.Checked = useSecurity;
             }
 
-            return await Connect(serverUrl, useSecurity, sessionTimeout);
+            UpdateStatus(false, DateTime.Now, "Connecting [{0}]", serverUrl);
+
+            return Connect(serverUrl, useSecurity, sessionTimeout);
         }
 
         /// <summary>
@@ -599,7 +601,7 @@ namespace Opc.Ua.Client.Controls
 
             if (m_StatusUpateTimeLB != null)
             {
-                m_StatusUpateTimeLB.Text = time.ToLocalTime().ToString("hh:mm:ss");
+                m_StatusUpateTimeLB.Text = time.ToLocalTime().ToString("T");
                 m_StatusUpateTimeLB.ForeColor = (error) ? Color.Red : Color.Empty;
             }
         }
@@ -666,11 +668,11 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Handles a click on the connect button.
         /// </summary>
-        private async void Server_ConnectMI_Click(object sender, EventArgs e)
+        private void Server_ConnectMI_Click(object sender, EventArgs e)
         {
             try
             {
-                await ConnectAsync();
+                ConnectAsync().GetAwaiter().GetResult();
             }
             catch (ServiceResultException sre)
             {
@@ -680,6 +682,11 @@ namespace Opc.Ua.Client.Controls
                     {
                         DisableDomainCheck = true;
                     };
+                }
+                else
+                {
+                    // update status.
+                    UpdateStatus(true, DateTime.Now, "Connection failed! [{0}]", sre.Message);
                 }
             }
             catch (Exception exception)

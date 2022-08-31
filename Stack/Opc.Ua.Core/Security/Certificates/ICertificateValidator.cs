@@ -23,5 +23,11 @@ namespace Opc.Ua
         /// Validates a certificate.
         /// </summary>
         void Validate(X509Certificate2 certificate);
+
+        /// <summary>
+        /// Validates a certificate chain.
+        /// </summary>
+        void Validate(X509Certificate2Collection certificateChain);
+
     }
 }

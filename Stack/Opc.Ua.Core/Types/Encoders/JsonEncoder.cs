@@ -1301,6 +1301,7 @@ namespace Opc.Ua
             }
 
             var encodeable = value.Body as IEncodeable;
+
             if (!UseReversibleEncoding && encodeable != null)
             {
                 // non reversible encoding, only the content of the Body field is encoded
@@ -1320,14 +1321,27 @@ namespace Opc.Ua
 
             PushStructure(fieldName);
 
+            var typeId = value.TypeId;
+                     
+            if (encodeable != null)
+            {
+                switch (value.Encoding)
+                {
+                    case ExtensionObjectEncoding.Binary: { typeId = encodeable.BinaryEncodingId; break; }
+                    case ExtensionObjectEncoding.Xml: { typeId = encodeable.XmlEncodingId; break; }
+                    default: { typeId = encodeable.TypeId; break; }
+                }
+            }
+
+            var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
+
             if (UseReversibleEncoding)
             {
-                var nodeId = ExpandedNodeId.ToNodeId(value.TypeId, Context.NamespaceUris);
-                WriteNodeId("TypeId", nodeId);
+                WriteNodeId("TypeId", localTypeId);
             }
             else
             {
-                WriteExpandedNodeId("TypeId", value.TypeId);
+                WriteExpandedNodeId("TypeId", typeId);
             }
 
             if (encodeable != null)

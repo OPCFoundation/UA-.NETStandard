@@ -20,7 +20,6 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -50,6 +49,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class HttpsTransportChannel : ITransportChannel
     {
+        // limit the number of concurrent service requests on the server
+        private const int kMaxConnectionsPerServer = 64;
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -114,8 +116,13 @@ namespace Opc.Ua.Bindings
 
                 // auto validate server cert, if supported
                 // if unsupported, the TLS server cert must be trusted by a root CA
-                var handler = new HttpClientHandler();
-                handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+                var handler = new HttpClientHandler
+                {
+                    ClientCertificateOptions = ClientCertificateOption.Manual,
+                    MaxConnectionsPerServer = kMaxConnectionsPerServer,
+                    AllowAutoRedirect = false,
+                    MaxRequestContentBufferSize = m_quotas.MaxMessageSize,
+                };
 
                 // send client certificate for servers that require TLS client authentication
                 if (m_settings.ClientCertificate != null)
@@ -141,16 +148,35 @@ namespace Opc.Ua.Bindings
                         try
                         {
                             serverCertificateCustomValidationCallback =
-                                (httpRequestMessage, cert, chain, policyErrors) => {
+                                (httpRequestMessage, cert, chain, policyErrors) =>
+                                {
                                     try
                                     {
-                                        m_quotas.CertificateValidator?.Validate(cert);
+                                        var validationChain = new X509Certificate2Collection();
+                                        if (chain != null && chain.ChainElements != null)
+                                        {
+                                            int i = 0;
+                                            Utils.LogInfo(Utils.TraceMasks.Security, "{0} Validate server chain:", nameof(HttpsTransportChannel));
+                                            foreach (var element in chain.ChainElements)
+                                            {
+                                                Utils.LogCertificate(Utils.TraceMasks.Security, "{0}: ", element.Certificate, i);
+                                                validationChain.Add(element.Certificate);
+                                                i++;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            Utils.LogCertificate(Utils.TraceMasks.Security, "{0} Validate Server Certificate: ", cert, nameof(HttpsTransportChannel));
+                                            validationChain.Add(cert);
+                                        }
+
+                                        m_quotas.CertificateValidator?.Validate(validationChain);
+
                                         return true;
                                     }
                                     catch (Exception ex)
                                     {
-                                        Utils.LogError(ex, "HTTPS: Exception:");
-                                        Utils.LogCertificate(LogLevel.Error, "HTTPS: Failed to validate server cert: ", cert);
+                                        Utils.LogError(ex, "{0} Failed to validate certificate.", nameof(HttpsTransportChannel));
                                     }
                                     return false;
                                 };
@@ -220,7 +246,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, null);
-                Task.Run(async () => {
+                Task.Run(async () =>
+                {
                     try
                     {
                         var ct = new CancellationTokenSource(m_operationTimeout).Token;
@@ -351,14 +378,23 @@ namespace Opc.Ua.Bindings
                     content.Headers.Add(Profiles.HttpsSecurityPolicyHeader, EndpointDescription.SecurityPolicyUri);
                 }
 
-                var result = await m_client.PostAsync(m_url, content, ct).ConfigureAwait(false);
-                result.EnsureSuccessStatusCode();
+                if (ct == default)
+                {
+                    ct = new CancellationTokenSource(m_operationTimeout).Token;
+                }
+                HttpResponseMessage response = await m_client.PostAsync(m_url, content, ct).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
 #if NET6_0_OR_GREATER
-                Stream responseContent = await result.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                Stream responseContent = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
 #else
-                Stream responseContent = await result.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                Stream responseContent = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
 #endif
                 return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
+            }
+            catch (TaskCanceledException tce)
+            {
+                Utils.LogError(tce, "Send request cancelled.");
+                throw ServiceResultException.Create(StatusCodes.BadRequestTimeout, "Https request was cancelled.");
             }
             catch (Exception ex)
             {
@@ -380,13 +416,15 @@ namespace Opc.Ua.Bindings
             m_operationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas {
+            m_quotas = new ChannelQuotas
+            {
                 MaxBufferSize = m_settings.Configuration.MaxBufferSize,
                 MaxMessageSize = m_settings.Configuration.MaxMessageSize,
                 ChannelLifetime = m_settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime,
 
-                MessageContext = new ServiceMessageContext {
+                MessageContext = new ServiceMessageContext
+                {
                     MaxArrayLength = m_settings.Configuration.MaxArrayLength,
                     MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
                     MaxMessageSize = m_settings.Configuration.MaxMessageSize,

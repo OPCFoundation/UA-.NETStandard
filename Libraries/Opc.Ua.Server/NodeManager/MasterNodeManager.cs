@@ -1200,7 +1200,7 @@ namespace Opc.Ua.Server
         private void PrepareValidationCache<T>(List<T> nodesCollection,
             out Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes)
         {
-            List<NodeId> uniqueNodes = new List<NodeId>();
+            HashSet<NodeId> uniqueNodes = new HashSet<NodeId>();
             for (int i = 0; i < nodesCollection.Count; i++)
             {
                 Type listType = typeof(T);
