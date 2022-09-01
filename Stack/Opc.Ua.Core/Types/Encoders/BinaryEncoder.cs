@@ -1577,67 +1577,67 @@ namespace Opc.Ua
                 switch (builtInType)
                 {
                     case BuiltInType.Boolean:
-                        WriteBooleanArray(null, array as IList<bool> ?? (bool[])array);
+                        WriteBooleanArray(null, (bool[])array);
                         break;
                     case BuiltInType.SByte:
-                        WriteSByteArray(null, array as IList<sbyte> ?? (sbyte[])array);
+                        WriteSByteArray(null, (sbyte[])array);
                         break;
                     case BuiltInType.Byte:
-                        WriteByteArray(null, array as IList<byte> ?? (byte[])array);
+                        WriteByteArray(null, (byte[])array);
                         break;
                     case BuiltInType.Int16:
-                        WriteInt16Array(null, array as IList<short> ?? (short[])array);
+                        WriteInt16Array(null, (short[])array);
                         break;
                     case BuiltInType.UInt16:
-                        WriteUInt16Array(null, array as IList<ushort> ?? (ushort[])array);
+                        WriteUInt16Array(null, (ushort[])array);
                         break;
                     case BuiltInType.Int32:
-                        WriteInt32Array(null, array as IList<int> ?? (int[])array);
+                        WriteInt32Array(null, (int[])array);
                         break;
                     case BuiltInType.UInt32:
-                        WriteUInt32Array(null, array as IList<uint> ?? (uint[])array);
+                        WriteUInt32Array(null, (uint[])array);
                         break;
                     case BuiltInType.Int64:
-                        WriteInt64Array(null, array as IList<long> ?? (long[])array);
+                        WriteInt64Array(null, (long[])array);
                         break;
                     case BuiltInType.UInt64:
-                        WriteUInt64Array(null, array as IList<ulong> ?? (ulong[])array);
+                        WriteUInt64Array(null, (ulong[])array);
                         break;
                     case BuiltInType.Float:
-                        WriteFloatArray(null, array as IList<float> ?? (float[])array);
+                        WriteFloatArray(null, (float[])array);
                         break;
                     case BuiltInType.Double:
-                        WriteDoubleArray(null, array as IList<double> ?? (double[])array);
+                        WriteDoubleArray(null, (double[])array);
                         break;
                     case BuiltInType.DateTime:
-                        WriteDateTimeArray(null, array as IList<DateTime> ?? (DateTime[])array);
+                        WriteDateTimeArray(null, (DateTime[])array);
                         break;
                     case BuiltInType.Guid:
-                        WriteGuidArray(null, array as IList<Uuid> ?? (Uuid[])array);
+                        WriteGuidArray(null, (Uuid[])array);
                         break;
                     case BuiltInType.String:
-                        WriteStringArray(null, array as IList<string> ?? (string[])array);
+                        WriteStringArray(null, (string[])array);
                         break;
                     case BuiltInType.ByteString:
-                        WriteByteStringArray(null, array as IList<byte[]> ?? (byte[][])array);
+                        WriteByteStringArray(null, (byte[][])array);
                         break;
                     case BuiltInType.QualifiedName:
-                        WriteQualifiedNameArray(null, array as IList<QualifiedName> ?? (QualifiedName[])array);
+                        WriteQualifiedNameArray(null, (QualifiedName[])array);
                         break;
                     case BuiltInType.LocalizedText:
-                        WriteLocalizedTextArray(null, array as IList<LocalizedText> ?? (LocalizedText[])array);
+                        WriteLocalizedTextArray(null, (LocalizedText[])array);
                         break;
                     case BuiltInType.NodeId:
-                        WriteNodeIdArray(null, array as IList<NodeId> ?? (NodeId[])array);
+                        WriteNodeIdArray(null, (NodeId[])array);
                         break;
                     case BuiltInType.ExpandedNodeId:
-                        WriteExpandedNodeIdArray(null, array as IList<ExpandedNodeId> ?? (ExpandedNodeId[])array);
+                        WriteExpandedNodeIdArray(null, (ExpandedNodeId[])array);
                         break;
                     case BuiltInType.StatusCode:
-                        WriteStatusCodeArray(null, array as IList<StatusCode> ?? (StatusCode[])array);
+                        WriteStatusCodeArray(null, (StatusCode[])array);
                         break;
                     case BuiltInType.XmlElement:
-                        WriteXmlElementArray(null, array as IList<XmlElement> ?? (XmlElement[])array);
+                        WriteXmlElementArray(null, (XmlElement[])array);
                         break;
                     case BuiltInType.Variant:
                     {
@@ -1648,7 +1648,7 @@ namespace Opc.Ua
                             WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                             return;
                         }
-                        WriteVariantArray(null, array as IList<Variant> ?? (Variant[])array);
+                        WriteVariantArray(null, (Variant[])array);
                         break;
                     }
                     case BuiltInType.Enumeration:
@@ -1677,10 +1677,10 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ExtensionObject:
-                        WriteExtensionObjectArray(null, array as IList<ExtensionObject> ?? (ExtensionObject[])array);
+                        WriteExtensionObjectArray(null, (ExtensionObject[])array);
                         break;
                     case BuiltInType.DiagnosticInfo:
-                        WriteDiagnosticInfoArray(null, array as IList<DiagnosticInfo> ?? (DiagnosticInfo[])array);
+                        WriteDiagnosticInfoArray(null, (DiagnosticInfo[])array);
                         break;
                     default:
                     {

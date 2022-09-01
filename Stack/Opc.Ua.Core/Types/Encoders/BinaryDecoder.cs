@@ -1546,15 +1546,16 @@ namespace Opc.Ua
                         }
 
                         length *= dimensions[ii];
-                    }
-                    if (length > m_context.MaxArrayLength)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingLimitsExceeded,
-                            "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
-                            m_context.MaxArrayLength,
-                            length
-                            );
+
+                        if (length > m_context.MaxArrayLength)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingLimitsExceeded,
+                                "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
+                                m_context.MaxArrayLength,
+                                length
+                                );
+                        }
                     }
 
                     // read the elements
@@ -1579,6 +1580,17 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
                             "Unexpected null Array for multidimensional matrix with {0} elements.", length);
+                    }
+
+                    if (builtInType == BuiltInType.Enumeration && systemType?.IsEnum == true)
+                    {
+                        var newElements = Array.CreateInstance(systemType, elements.Length);
+                        int ii = 0;
+                        foreach (var element in elements)
+                        {
+                            newElements.SetValue(Enum.ToObject(systemType, element), ii++);
+                        }
+                        elements = newElements;
                     }
 
                     return new Matrix(elements, builtInType, dimensions.ToArray()).ToArray();
@@ -2245,6 +2257,16 @@ namespace Opc.Ua
                             }
 
                             matrixLength *= dimensionsArray[ii];
+
+                            if (matrixLength > m_context.MaxArrayLength)
+                            {
+                                throw ServiceResultException.Create(
+                                    StatusCodes.BadEncodingLimitsExceeded,
+                                    "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
+                                    m_context.MaxArrayLength,
+                                    matrixLength
+                                    );
+                            }
                         }
 
                         if (matrixLength != length)

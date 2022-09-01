@@ -383,7 +383,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return;
             }
 
-            body.AppendFormat("{0}", value);
+            body.AppendFormat(formatProvider, "{0}", value);
         }
 
         /// <summary>
@@ -430,8 +430,7 @@ namespace Opc.Ua.Client.ComplexTypes
             var propertyType = property.PropertyType;
             if (propertyType.IsEnum)
             {
-                encoder.WriteEnumerated(name, (Enum)property.GetValue(this));
-                return;
+                builtInType = BuiltInType.Enumeration;
             }
             switch (builtInType)
             {
@@ -527,8 +526,7 @@ namespace Opc.Ua.Client.ComplexTypes
             var propertyType = property.PropertyType;
             if (propertyType.IsEnum)
             {
-                property.SetValue(this, decoder.ReadEnumerated(name, propertyType));
-                return;
+                builtInType = BuiltInType.Enumeration;
             }
             switch (builtInType)
             {
@@ -582,20 +580,11 @@ namespace Opc.Ua.Client.ComplexTypes
         private void DecodePropertyArray(IDecoder decoder, string name, PropertyInfo property, BuiltInType builtInType, int valueRank)
         {
             Type elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
-            Array decodedArray;
             if (elementType.IsEnum)
             {
                 builtInType = BuiltInType.Enumeration;
             }
-            if ((builtInType == BuiltInType.Null || builtInType == BuiltInType.ExtensionObject) &&
-                typeof(IEncodeable).IsAssignableFrom(elementType))
-            {
-                decodedArray = decoder.ReadArray(name, valueRank, builtInType, elementType);
-            }
-            else
-            {
-                decodedArray = decoder.ReadArray(name, valueRank, builtInType);
-            }
+            Array decodedArray = decoder.ReadArray(name, valueRank, builtInType, elementType);
             property.SetValue(this, decodedArray);
         }
 

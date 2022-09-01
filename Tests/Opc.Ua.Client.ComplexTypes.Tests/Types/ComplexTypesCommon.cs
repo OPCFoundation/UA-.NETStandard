@@ -59,6 +59,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// The URI for the OpcUaEncoderTests namespace (.NET code namespace is 'Opc.Ua.Client.ComplexTypes.Tests.Types.Encoders').
         /// </summary>
         public const string OpcUaEncoderTests = "http://opcfoundation.org/UA/OpcUaEncoderTests/";
+
+        /// <summary>
+        /// The mock resolver namespace.
+        /// </summary>
+        public const string MockResolverUrl = "http://opcfoundation.org/MockResolver";
     }
 
     /// <summary>
@@ -289,11 +294,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             encoder.WriteExtensionObject("ExtensionObject", expected);
             Dispose(encoder);
             var buffer = encoderStream.ToArray();
-            string jsonFormatted;
+            string formatted;
             switch (encoderType)
             {
                 case EncodingType.Json:
-                    jsonFormatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    formatted = PrettifyAndValidateJson(buffer);
+                    break;
+                case EncodingType.Xml:
+                    formatted = PrettifyAndValidateXml(buffer);
                     break;
             }
             var decoderStream = new MemoryStream(buffer);

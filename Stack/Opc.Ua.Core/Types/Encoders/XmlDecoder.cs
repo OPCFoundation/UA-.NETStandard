@@ -2664,8 +2664,8 @@ namespace Opc.Ua
                 return matrix.ToArray();
             }
 
-            throw new ServiceResultException(StatusCodes.BadDecodingError,
-                string.Format("Invalid ValueRank {0} for Array", valueRank));
+            throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                "Invalid ValueRank {0} for Array", valueRank);
         }
         #endregion
 
@@ -2789,18 +2789,27 @@ namespace Opc.Ua
                         return null;
                     }
                     case BuiltInType.Enumeration:
-                    {
-                        DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
-                        if (systemType?.IsEnum == true)
-                        {
-                            return ReadEnumeratedArray(fieldName, systemType);
-                        }
-                        goto case BuiltInType.Int32;
-                    }
                     case BuiltInType.Int32:
                     {
                         Int32Collection collection = ReadInt32Array(fieldName);
-                        if (collection != null) return collection.ToArray();
+                        if (collection != null)
+                        {
+                            if (builtInType == BuiltInType.Enumeration)
+                            {
+                                DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
+                                if (systemType?.IsEnum == true)
+                                {
+                                    Array array = Array.CreateInstance(systemType, collection.Count);
+                                    int ii = 0;
+                                    foreach (var item in collection)
+                                    {
+                                        array.SetValue(Enum.ToObject(systemType, item), ii++);
+                                    }
+                                    return array;
+                                }
+                            }
+                            return collection.ToArray();
+                        }
                         return null;
                     }
                     case BuiltInType.UInt32:

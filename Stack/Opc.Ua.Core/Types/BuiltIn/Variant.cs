@@ -2693,28 +2693,34 @@ namespace Opc.Ua
         /// </summary>
         public Array ToArray()
         {
-            Array array = Array.CreateInstance(m_elements.GetType().GetElementType(), m_dimensions);
-
-            int[] indexes = new int[m_dimensions.Length];
-
-            for (int ii = 0; ii < m_elements.Length; ii++)
+            try
             {
-                array.SetValue(m_elements.GetValue(ii), indexes);
+                Array array = Array.CreateInstance(m_elements.GetType().GetElementType(), m_dimensions);
 
-                for (int jj = indexes.Length - 1; jj >= 0; jj--)
+                int[] indexes = new int[m_dimensions.Length];
+
+                for (int ii = 0; ii < m_elements.Length; ii++)
                 {
-                    indexes[jj]++;
+                    array.SetValue(m_elements.GetValue(ii), indexes);
 
-                    if (indexes[jj] < m_dimensions[jj])
+                    for (int jj = indexes.Length - 1; jj >= 0; jj--)
                     {
-                        break;
+                        indexes[jj]++;
+
+                        if (indexes[jj] < m_dimensions[jj])
+                        {
+                            break;
+                        }
+
+                        indexes[jj] = 0;
                     }
-
-                    indexes[jj] = 0;
                 }
+                return array;
             }
-
-            return array;
+            catch (OutOfMemoryException oom)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, oom.Message);
+            }
         }
         #endregion
 
@@ -2835,7 +2841,7 @@ namespace Opc.Ua
         {
 #if DEBUG
             TypeInfo sanityCheck = TypeInfo.Construct(elements);
-            Debug.Assert(sanityCheck.BuiltInType == builtInType ||
+            Debug.Assert(sanityCheck.BuiltInType == builtInType || builtInType == BuiltInType.Enumeration ||
                     (sanityCheck.BuiltInType == BuiltInType.ExtensionObject && builtInType == BuiltInType.Null) ||
                     (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
                     (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||

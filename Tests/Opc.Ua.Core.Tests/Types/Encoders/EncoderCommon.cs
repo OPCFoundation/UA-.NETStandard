@@ -175,11 +175,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             encoder.WriteDataValue("DataValue", expected);
             Dispose(encoder);
             var buffer = encoderStream.ToArray();
-            string jsonFormatted;
+            string formatted;
             switch (encoderType)
             {
                 case EncodingType.Json:
-                    jsonFormatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    formatted = PrettifyAndValidateJson(buffer);
+                    break;
+                case EncodingType.Xml:
+                    formatted = PrettifyAndValidateXml(buffer);
                     break;
             }
             var decoderStream = new MemoryStream(buffer);
@@ -217,7 +220,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             switch (encoderType)
             {
                 case EncodingType.Json:
-                    formatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    formatted = PrettifyAndValidateJson(buffer);
+                    break;
+                case EncodingType.Xml:
+                    formatted = PrettifyAndValidateXml(buffer);
                     break;
                 default:
                     formatted = Encoding.UTF8.GetString(buffer);
@@ -288,6 +294,51 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
+        /// Format and validate a XML document string.
+        /// </summary>
+        protected string PrettifyAndValidateXml(byte[] xml)
+        {
+            try
+            {
+                using (var reader = new MemoryStream(xml))
+                using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
+                {
+                    XmlDocument document = new XmlDocument();
+                    document.Load(xmlReader);
+
+                    var settings = new XmlWriterSettings {
+                        OmitXmlDeclaration = true,
+                        Indent = true,
+                        NewLineOnAttributes = true
+                    };
+
+                    var stringBuilder = new StringBuilder();
+                    using (var xmlWriter = XmlWriter.Create(stringBuilder, settings))
+                    {
+                        document.Save(xmlWriter);
+                    }
+                    string formattedXml = stringBuilder.ToString();
+                    TestContext.Out.WriteLine(formattedXml);
+                    return formattedXml;
+                }
+            }
+            catch (Exception ex)
+            {
+                TestContext.Out.WriteLine(xml);
+                Assert.Fail("Invalid xml data: " + ex.Message);
+            }
+            return Encoding.UTF8.GetString(xml);
+        }
+
+        /// <summary>
+        /// Format and validate a JSON string.
+        /// </summary>
+        protected string PrettifyAndValidateJson(byte[] json)
+        {
+            return PrettifyAndValidateJson(Encoding.UTF8.GetString(json));
+        }
+
+        /// <summary>
         /// Format and validate a JSON string.
         /// </summary>
         protected string PrettifyAndValidateJson(string json)
@@ -299,6 +350,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     var jsonReader = new JsonTextReader(stringReader);
                     var jsonWriter = new JsonTextWriter(stringWriter) {
+                        FloatFormatHandling = FloatFormatHandling.String,
                         Formatting = Newtonsoft.Json.Formatting.Indented,
                         Culture = System.Globalization.CultureInfo.InvariantCulture
                     };

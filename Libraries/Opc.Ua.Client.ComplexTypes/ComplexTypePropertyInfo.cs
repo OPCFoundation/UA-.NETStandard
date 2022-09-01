@@ -39,17 +39,17 @@ namespace Opc.Ua.Client.ComplexTypes
     public class ComplexTypePropertyInfo
     {
         /// <inheritdoc cref="System.Reflection.PropertyInfo"/>
-        public readonly PropertyInfo PropertyInfo;
+        public PropertyInfo PropertyInfo { get; }
 
         /// <summary>
         /// The structure field attributes of the complex type.
         /// </summary>
-        public readonly StructureFieldAttribute FieldAttribute;
+        public StructureFieldAttribute FieldAttribute { get; }
 
         /// <summary>
         /// The data attributes of the complex type.
         /// </summary>
-        public readonly DataMemberAttribute DataAttribute;
+        public DataMemberAttribute DataAttribute { get; }
 
         /// <summary>
         /// Create the infos for the complex type.
