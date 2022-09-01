@@ -173,7 +173,8 @@ namespace Opc.Ua
                     m_encodeableTypes[nodeId] = systemType;
                 }
 
-                if (unboundTypeIds?.TryGetValue(systemType.Name, out var jsonEncodingId) == true)
+                if (unboundTypeIds != null &&
+                    unboundTypeIds.TryGetValue(systemType.Name, out var jsonEncodingId))
                 {
                     m_encodeableTypes[jsonEncodingId] = systemType;
                 }
