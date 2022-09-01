@@ -419,6 +419,12 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderSecurityOptions SetRejectUnknownRevocationStatus(bool rejectUnknownRevocationStatus);
 
         /// <summary>
+        /// Use the validated certificates for fast Validation.
+        /// </summary>
+        /// <param name="useValidatedCertificates"><see langword="true"/> to use the validated certificates.</param>
+        IApplicationConfigurationBuilderSecurityOptions SetUseValidatedCertificates(bool useValidatedCertificates);
+
+        /// <summary>
         /// Whether to suppress errors which are caused by clients and servers which provide
         /// zero nonce values or nonce with insufficient entropy.
         /// Suppressing this error is a security risk and may allow an attacker to decrypt user tokens.
