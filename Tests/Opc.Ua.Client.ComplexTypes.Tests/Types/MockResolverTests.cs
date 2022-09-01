@@ -332,6 +332,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 { { 11, 12, 13, 14, 15 }, { 21, 22, 23, 24, 25 }, { 31, 32, 33, 34, 35 } },
                 { { 41, 42, 43, 44, 45 }, { 51, 52, 53, 54, 55 }, { 61, 62, 63, 64, 65 } } };
             arrays["ArrayOfNamingRuleType"] = new NamingRuleType[] { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint };
+            // note: an assignement of the Int32[] to an enum type is a supported cast,
+            // but the Encode/Decode test would fail because the int/Enum compare different
+            // arrays["ArrayOfNamingRuleType"] = new Int32[] { 0,2,1 };
             arrays["Array2DOfNamingRuleType"] = new NamingRuleType[,]
                 {{ NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint },
                 { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Constraint }};
@@ -340,7 +343,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Mandatory }},
                 { { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint },
                 { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Constraint }}};
-            //arrays["ArrayOfNamingRuleType"] = new Int32[] { 0,2,1 };
 
             TestContext.Out.WriteLine(arrays.ToString());
 
