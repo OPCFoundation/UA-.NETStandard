@@ -1682,6 +1682,9 @@ namespace Opc.Ua
                     case BuiltInType.DiagnosticInfo:
                         WriteDiagnosticInfoArray(null, (DiagnosticInfo[])array);
                         break;
+                    case BuiltInType.DataValue:
+                        WriteDataValueArray(null, (DataValue[])array);
+                        break;
                     default:
                     {
                         // try to write IEncodeable Array
@@ -1691,7 +1694,12 @@ namespace Opc.Ua
                             WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                             break;
                         }
-
+                        if (array == null)
+                        {
+                            // write zero dimension
+                            WriteInt32(null, -1);
+                            return;
+                        }
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding an Array with BuiltInType: {0}",

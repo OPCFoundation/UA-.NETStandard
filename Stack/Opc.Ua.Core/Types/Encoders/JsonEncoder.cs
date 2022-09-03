@@ -2474,6 +2474,11 @@ namespace Opc.Ua
                             WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                             return;
                         }
+                        if (array == null)
+                        {
+                            WriteSimpleField(fieldName, null, false);
+                            return;
+                        }
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected BuiltInType encountered while encoding an array: {0}",

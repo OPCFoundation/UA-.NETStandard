@@ -30,11 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.ConstrainedExecution;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Core.Tests.Types.Encoders;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -50,6 +49,71 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary;
 
         public readonly string[] DefaultEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultJson, BrowseNames.DefaultXml };
+
+        #region TestDataSource
+        public enum TestRanks
+        {
+            Scalar = ValueRanks.Scalar,
+            One = ValueRanks.OneDimension,
+            Two = ValueRanks.TwoDimensions,
+            Five = 5,
+        }
+
+        public class TestType : IFormattable
+        {
+            public TestType(BuiltInType builtInType)
+            {
+                Name = Enum.GetName(typeof(BuiltInType), builtInType);
+                TypeId = new NodeId((uint)builtInType);
+            }
+
+            public TestType(string name, NodeId typeId)
+            {
+                Name = name;
+                TypeId = typeId;
+            }
+
+            public string Name { get; }
+            public NodeId TypeId { get; }
+
+            public string ToString(string format, IFormatProvider formatProvider)
+            {
+                return Name;
+            }
+        }
+
+        public class TestTypeCollection : List<TestType>
+        {
+            public TestTypeCollection() { }
+            public TestTypeCollection(IEnumerable<TestType> collection) : base(collection) { }
+            public TestTypeCollection(int capacity) : base(capacity) { }
+            public static TestTypeCollection ToTestTypeCollection(TestType[] values)
+            {
+                return values != null ? new TestTypeCollection(values) : new TestTypeCollection();
+            }
+
+            public void Add(BuiltInType builtInType)
+            {
+                Add(new TestType(builtInType));
+            }
+
+            public void Add(string name, NodeId typeId)
+            {
+                Add(new TestType(name, typeId));
+            }
+        }
+
+        [DatapointSource]
+        public static TestType[] TypeSource = new TestTypeCollection(
+            ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
+            .Where(b => b > BuiltInType.Null && b <= BuiltInType.DiagnosticInfo)
+            .Select(b => new TestType(b))) {
+            { nameof(DataTypeIds.BuildInfo), DataTypeIds.BuildInfo },
+            { nameof(DataTypeIds.Duration), DataTypeIds.Duration },
+            { nameof(DataTypeIds.BaseDataType), DataTypeIds.BaseDataType },
+            { nameof(DataTypeIds.Structure), DataTypeIds.Structure },
+        }.ToArray();
+        #endregion
 
         #region Test Setup
         [OneTimeSetUp]
@@ -361,9 +425,211 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // test encoder/decoder
             EncodeDecodeComplexType(encoderContext, encodingType, StructureType.Structure, dataTypeNode.NodeId, arrays);
         }
+
+        /// <summary>
+        /// Create a complex type with a single scalar or array type, with default and random values .
+        /// </summary>
+        [Theory]
+        public async Task CreateMockSingleTypeAsync(EncodingType encodingType, TestType typeDescription, bool randomValues, TestRanks testRank)
+        {
+            SetRepeatedRandomSeed();
+
+            var mockResolver = new MockResolver();
+
+            // only enumerable types in the encodeable factory are stored as Enum in a structure.
+            AddEncodeableType(mockResolver.Factory, mockResolver.NamespaceUris, DataTypeIds.NamingRuleType, typeof(NamingRuleType));
+
+            var nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
+            uint nodeId = 100;
+
+            var structure = new StructureDefinition() {
+                BaseDataType = DataTypeIds.Structure
+            };
+
+            var valueRank = (int)testRank;
+            var typeName = typeDescription.Name;
+            var arrayPrefix = Enum.GetName(typeof(TestRanks), valueRank);
+            var seperator = valueRank > 0 ? "Of" : string.Empty;
+            var field = new StructureField() {
+                Name = arrayPrefix + seperator + typeName,
+                Description = new LocalizedText(arrayPrefix + " " + seperator + " " + typeName),
+                DataType = typeDescription.TypeId,
+                ValueRank = (int)valueRank,
+                ArrayDimensions = Array.Empty<UInt32>(),
+                MaxStringLength = 0,
+                IsOptional = false
+            };
+            structure.Fields.Add(field);
+
+            var dataTypeNode = new DataTypeNode() {
+                NodeId = new NodeId(nodeId++, nameSpaceIndex),
+                NodeClass = NodeClass.DataType,
+                BrowseName = new QualifiedName(field.Name + "TestType", nameSpaceIndex),
+                DisplayName = new LocalizedText(field.Description + " Test Type"),
+                IsAbstract = false,
+                DataTypeDefinition = new ExtensionObject(structure)
+            };
+
+            foreach (var encodingName in DefaultEncodings)
+            {
+                // encoding
+                var description = new ReferenceDescription() {
+                    NodeId = new NodeId(nodeId++, nameSpaceIndex),
+                    ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
+                    BrowseName = encodingName,
+                    DisplayName = new LocalizedText("MockType_" + encodingName),
+                    IsForward = true,
+                    NodeClass = NodeClass.Object
+                };
+                var encoding = new Node(description);
+
+                // add reference to encoding
+                var reference = new ReferenceNode() {
+                    ReferenceTypeId = ReferenceTypeIds.HasEncoding,
+                    IsInverse = false,
+                    TargetId = description.NodeId
+                };
+                mockResolver.DataTypeNodes[encoding.NodeId] = encoding;
+                dataTypeNode.References.Add(reference);
+            }
+
+            // add types needed
+            mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
+
+            var cts = new ComplexTypeSystem(mockResolver);
+            var arraysTypes = await cts.LoadType(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
+            Assert.NotNull(arraysTypes);
+
+            BaseComplexType testType = (BaseComplexType)Activator.CreateInstance(arraysTypes);
+            Assert.NotNull(testType);
+
+            TestContext.Out.WriteLine(testType.ToString());
+
+            object value;
+            Type valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.Factory);
+            BuiltInType builtInType = TypeInfo.GetBuiltInType(field.DataType);
+            if (valueRank == ValueRanks.Scalar)
+            {
+                if (builtInType > 0)
+                {
+                    if (randomValues)
+                    {
+                        value = DataGenerator.GetRandom(builtInType);
+                    }
+                    else
+                    {
+                        value = TypeInfo.GetDefaultValue(builtInType);
+                    }
+                }
+                else
+                {
+                    value = Activator.CreateInstance(valueType);
+                }
+            }
+            else
+            {
+                int[] dimensions = new int[valueRank];
+                if (builtInType > 0)
+                {
+                    if (randomValues)
+                    {
+                        for (int ii = 0; ii < dimensions.Length; ii++)
+                        {
+                            dimensions[ii] = (DataGenerator.GetRandom<Int32>(false) & 3) + 1;
+                        }
+                        Array array = TypeInfo.CreateArray(builtInType, dimensions);
+                        int[] indices = new int[valueRank];
+                        for (int ii = 0; ii < array.Length; ii++)
+                        {
+                            array.SetValue(DataGenerator.GetRandom(builtInType), indices);
+                            Iterate(dimensions, indices);
+                        }
+                        value = array;
+                    }
+                    else
+                    {
+                        value = TypeInfo.CreateArray(builtInType, dimensions);
+                    }
+                }
+                else
+                {
+                    Array array = Array.CreateInstance(valueType, dimensions);
+
+                    if (randomValues)
+                    {
+                        int[] indices = new int[valueRank];
+                        for (int ii = 0; ii < array.Length; ii++)
+                        {
+                            array.SetValue(GetRandom(field.DataType), indices);
+                            Iterate(dimensions, indices);
+                        }
+                    }
+
+                    value = array;
+                }
+            }
+            testType[field.Name] = value;
+
+            TestContext.Out.WriteLine(testType.ToString());
+
+            var encoderStream = new MemoryStream();
+            ServiceMessageContext encoderContext = new ServiceMessageContext {
+                Factory = mockResolver.Factory,
+                NamespaceUris = mockResolver.NamespaceUris,
+            };
+
+            IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes, false);
+            encoder.WriteEncodeable("TestType", testType, arraysTypes);
+            Dispose(encoder);
+            var buffer = encoderStream.ToArray();
+            _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+
+            // test encoder/decoder
+            EncodeDecodeComplexType(encoderContext, encodingType, StructureType.Structure, dataTypeNode.NodeId, testType);
+        }
         #endregion
 
         #region Private Methods
+        private object GetRandom(NodeId valueType)
+        {
+            BuiltInType builtInType = TypeInfo.GetBuiltInType(valueType);
+            if (builtInType != BuiltInType.Null)
+            {
+                return DataGenerator.GetRandom(builtInType);
+            }
+            if (valueType == DataTypeIds.BuildInfo)
+            {
+                var buildInfo = new BuildInfo() {
+                    BuildDate = DataGenerator.GetRandomDateTime(),
+                    BuildNumber = "1.4." + DataGenerator.GetRandomByte().ToString(),
+                    ManufacturerName = "OPC Foundation",
+                    ProductName = "Complex Type Client",
+                    ProductUri = "http://opcfoundation.org/ComplexTypeClient",
+                };
+                return buildInfo;
+            }
+            else
+            {
+                Assert.Fail("Unexpected ValueType {0}", valueType);
+            }
+            return null;
+        }
+
+        private void Iterate(int[] dimensions, int[] indices)
+        {
+            int i = 0;
+            while (i < dimensions.Length)
+            {
+                indices[i]++;
+                if (indices[i] < dimensions[i])
+                {
+                    break;
+                }
+                indices[i] = 0;
+                i++;
+            }
+        }
+
         protected void AddEncodeableType(IEncodeableFactory factory, NamespaceTable namespaceUris, ExpandedNodeId typeId, Type enumType)
         {
             if (NodeId.IsNull(typeId) || enumType == null)

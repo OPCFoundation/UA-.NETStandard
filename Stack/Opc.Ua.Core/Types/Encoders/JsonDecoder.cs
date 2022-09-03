@@ -2488,6 +2488,19 @@ namespace Opc.Ua
                 }
                 ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, 0, systemType, encodeableTypeId);
 
+                if (dimensions.Count == 0)
+                {
+                    // for an empty element create the empty dimension array 
+                    dimensions = new int[valueRank].ToList();
+                }
+                else if (dimensions.Count != valueRank)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "The ValueRank {0} of the decoded array doesn't match the desired ValueRank {1}.",
+                        dimensions.Count, valueRank);
+                }
+
                 Matrix matrix = null;
                 switch (builtInType)
                 {

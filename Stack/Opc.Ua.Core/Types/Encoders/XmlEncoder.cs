@@ -2149,9 +2149,9 @@ namespace Opc.Ua
             }
         }
 
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Writes an DataValue array to the stream.
         /// </summary>
@@ -2229,9 +2229,9 @@ namespace Opc.Ua
                 m_writer.WriteEndElement();
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private StringBuilder m_destination;
         private XmlWriter m_writer;
         private Stack<string> m_namespaces;
@@ -2240,6 +2240,6 @@ namespace Opc.Ua
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
-#endregion
+        #endregion
     }
 }
