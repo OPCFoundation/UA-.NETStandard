@@ -1530,7 +1530,10 @@ namespace Opc.Ua
                                 m_context.MaxArrayLength);
                         }
 
-                        length *= dimensions[ii];
+                        checked
+                        {
+                            length *= dimensions[ii];
+                        }
                     }
                     if (length > m_context.MaxArrayLength)
                     {
@@ -2218,7 +2221,10 @@ namespace Opc.Ua
                                     Utils.Format("ArrayDimensions [{0}] = {1} is greater than length {2}.", ii, dimensionsArray[ii], length));
                             }
 
-                            matrixLength *= dimensionsArray[ii];
+                            checked
+                            {
+                                matrixLength *= dimensionsArray[ii];
+                            }
                         }
 
                         if (matrixLength != length)

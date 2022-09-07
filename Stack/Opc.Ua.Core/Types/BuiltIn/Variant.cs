@@ -2647,14 +2647,17 @@ namespace Opc.Ua
 
             if (dimensions != null && dimensions.Length > 0)
             {
-                ulong length = 1;
+                int length = 1;
 
                 for (int ii = 0; ii < dimensions.Length; ii++)
                 {
-                    length *= (ulong)dimensions[ii];
+                    checked
+                    {
+                        length *= dimensions[ii];
+                    }
                 }
 
-                if ((length > int.MaxValue) || (length != (ulong)elements.Length))
+                if (length != elements.Length)
                 {
                     throw new ArgumentException("The number of elements in the array does not match the dimensions.");
                 }

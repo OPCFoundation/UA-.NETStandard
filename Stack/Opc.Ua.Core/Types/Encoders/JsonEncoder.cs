@@ -2484,7 +2484,7 @@ namespace Opc.Ua
             ref int index,
             TypeInfo typeInfo)
         {
-            ulong sizeFromDimensions = 1;
+            int sizeFromDimensions = 1;
             // check if matrix is well formed
             for (int ii = 0; ii < matrix.Dimensions.Length; ii++)
             {
@@ -2495,10 +2495,12 @@ namespace Opc.Ua
                             "Maximum MaxArrayLength of {0} was exceeded while in matrix dimensions",
                             m_context.MaxArrayLength);
                 }
-
-                sizeFromDimensions *= (ulong)matrix.Dimensions[ii];
+                checked
+                {
+                    sizeFromDimensions *= matrix.Dimensions[ii];
+                }
             }
-            if (sizeFromDimensions != (ulong)matrix.Elements.Length)
+            if (sizeFromDimensions != matrix.Elements.Length)
             {
                 throw new ArgumentException("The number of elements in the matrix does not match the dimensions.");
             }
