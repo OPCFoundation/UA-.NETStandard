@@ -1510,30 +1510,37 @@ namespace Opc.Ua
                 {
                     int length = 1;
 
-                    for (int ii = 0; ii < dimensions.Count; ii++)
+                    try
                     {
-                        if (dimensions[ii] <= 0)
+                        for (int ii = 0; ii < dimensions.Count; ii++)
                         {
-                            /* The number of values is 0 if one or more dimension is less than or equal to 0.*/
-                            Utils.LogTrace("ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.", ii, dimensions[ii]);
-                            dimensions[ii] = 0;
-                            length = 0;
-                            break;
-                        }
-                        else if (dimensions[ii] > m_context.MaxArrayLength)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingLimitsExceeded,
-                                "ArrayDimensions [{0}] = {1} is greater than MaxArrayLength {2}.",
-                                ii,
-                                dimensions[ii],
-                                m_context.MaxArrayLength);
-                        }
+                            if (dimensions[ii] <= 0)
+                            {
+                                /* The number of values is 0 if one or more dimension is less than or equal to 0.*/
+                                Utils.LogTrace("ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.", ii, dimensions[ii]);
+                                dimensions[ii] = 0;
+                                length = 0;
+                                break;
+                            }
+                            else if (dimensions[ii] > m_context.MaxArrayLength)
+                            {
+                                throw ServiceResultException.Create(
+                                    StatusCodes.BadEncodingLimitsExceeded,
+                                    "ArrayDimensions [{0}] = {1} is greater than MaxArrayLength {2}.",
+                                    ii,
+                                    dimensions[ii],
+                                    m_context.MaxArrayLength);
+                            }
 
-                        checked
-                        {
-                            length *= dimensions[ii];
+                            checked
+                            {
+                                length *= dimensions[ii];
+                            }
                         }
+                    }
+                    catch (OverflowException)
+                    {
+                        throw new ArgumentException("The dimensions of the matrix are invalid and overflow when used to calculate the size.");
                     }
                     if (length > m_context.MaxArrayLength)
                     {

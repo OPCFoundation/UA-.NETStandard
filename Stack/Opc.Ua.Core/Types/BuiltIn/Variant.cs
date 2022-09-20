@@ -2649,12 +2649,19 @@ namespace Opc.Ua
             {
                 int length = 1;
 
-                for (int ii = 0; ii < dimensions.Length; ii++)
+                try
                 {
-                    checked
+                    for (int ii = 0; ii < dimensions.Length; ii++)
                     {
-                        length *= dimensions[ii];
+                        checked
+                        {
+                            length *= dimensions[ii];
+                        }
                     }
+                }
+                catch (OverflowException)
+                {
+                    throw new ArgumentException("The dimensions of the matrix are invalid and overflow when used to calculate the size.");
                 }
 
                 if (length != elements.Length)

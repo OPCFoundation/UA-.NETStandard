@@ -497,7 +497,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     // check such matrix cannot be initialized when decoding from Json format
                     // the exception is thrown while trying to construct the Matrix 
                     Assert.Throws(
-                        typeof(OverflowException),
+                        typeof(ArgumentException),
                         () => {
                             decoder.ReadDataValue("DataValue");
                         });
@@ -581,7 +581,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     // check such matrix cannot be initialized when decoding from Json format
                     // the exception is thrown while trying to construct the Matrix 
                     Assert.Throws(
-                        typeof(OverflowException),
+                        typeof(ArgumentException),
                         () => {
                             decoder.ReadDataValue("DataValue");
                         });
@@ -695,7 +695,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     // check such matrix cannot be initialized when decoding from Xml format
                     // the exception is thrown while trying to construct the Matrix but is caught and handled
                     Assert.Throws(
-                        typeof(OverflowException),
+                        typeof(ArgumentException),
                         () => {
                             decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType);
                         });
