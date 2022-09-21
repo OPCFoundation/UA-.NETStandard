@@ -74,7 +74,7 @@ namespace Quickstarts
         /// <summary>
         /// Gets the client session.
         /// </summary>
-        public ISession Session => m_session;
+        public Session Session => m_session;
 
         /// <summary>
         /// The session keepalive interval to be used in ms.
@@ -127,7 +127,7 @@ namespace Quickstarts
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
                     // Create the session
-                    ISession session = await Opc.Ua.Client.Session.Create(
+                    var session = await Opc.Ua.Client.Session.Create(
                         m_configuration,
                         endpoint,
                         false,
@@ -196,7 +196,7 @@ namespace Quickstarts
         /// <summary>
         /// Handles a keep alive event from a session and triggers a reconnect if necessary.
         /// </summary>
-        private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             try
             {
@@ -255,7 +255,7 @@ namespace Quickstarts
                 // if session recovered, Session property is null
                 if (m_reconnectHandler.Session != null)
                 {
-                    m_session = m_reconnectHandler.Session;
+                    m_session = m_reconnectHandler.Session as Session;
                 }
 
                 m_reconnectHandler.Dispose();
@@ -304,7 +304,7 @@ namespace Quickstarts
         private object m_lock = new object();
         private ApplicationConfiguration m_configuration;        
         private SessionReconnectHandler m_reconnectHandler;
-        private ISession m_session;
+        private Session m_session;
         private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;
         #endregion
