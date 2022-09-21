@@ -242,9 +242,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Replace the Event Id of a branch, usually due to an Acknowledgement
+        /// Replace the Event Id of a branch, usually due to an Acknowledgment
         /// </summary>
-        /// <param name="originalEventId">Event Id prior to the Acknowledgement</param>
+        /// <param name="originalEventId">Event Id prior to the Acknowledgment</param>
         /// <param name="alarm">Branch, containing the updated EventId to be stored</param>
         protected void ReplaceBranchEvent(byte[] originalEventId, ConditionState alarm)
         {
@@ -485,13 +485,14 @@ namespace Opc.Ua
                     ServiceResult.IsGood(error),
                     DateTime.UtcNow);
 
-                e.SourceName.Value = "Attribute/Call";
+                e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                e.SetChildValue(context, BrowseNames.SourceName, "Method/AddComment", false);
 
-                e.MethodId = new PropertyState<NodeId>(e);
-                e.MethodId.Value = method.NodeId;
+                e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                e.SetChildValue(context, BrowseNames.InputArguments, new object[] { eventId, comment }, false);
 
-                e.InputArguments = new PropertyState<object[]>(e);
-                e.InputArguments.Value = new object[] { eventId, comment };
+                e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
+                e.SetChildValue(context, BrowseNames.Comment, comment, false);
 
                 ReportEvent(context, e);
             }
@@ -585,7 +586,7 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                AuditConditionCommentEventState e = new AuditConditionCommentEventState(null);
+                AuditConditionEnableEventState e = new AuditConditionEnableEventState(null);
 
                 TranslationInfo info = new TranslationInfo(
                     "AuditConditionEnable",
@@ -599,11 +600,10 @@ namespace Opc.Ua
                     new LocalizedText(info),
                     ServiceResult.IsGood(error),
                     DateTime.UtcNow);
-
-                e.SourceName.Value = "Attribute/Call";
-
-                e.MethodId = new PropertyState<NodeId>(e);
-                e.MethodId.Value = method.NodeId;
+                
+                e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                e.SetChildValue(context, BrowseNames.SourceName, "Method/Enable", false);
+                e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
 
                 ReportEvent(context, e);
             }
@@ -660,10 +660,9 @@ namespace Opc.Ua
                     ServiceResult.IsGood(error),
                     DateTime.UtcNow);
 
-                e.SourceName.Value = "Attribute/Call";
-
-                e.MethodId = new PropertyState<NodeId>(e);
-                e.MethodId.Value = method.NodeId;
+                e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                e.SetChildValue(context, BrowseNames.SourceName, "Method/Disable", false);
+                e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
 
                 ReportEvent(context, e);
             }
@@ -770,7 +769,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Used to recieve notifications when a condition is enabled or disabled.
+    /// Used to receive notifications when a condition is enabled or disabled.
     /// </summary>
     /// <param name="context">The current system context.</param>
     /// <param name="condition">The condition that raised the event.</param>
@@ -781,7 +780,7 @@ namespace Opc.Ua
         bool enabling);
 
     /// <summary>
-    /// Used to recieve notifications when a comment is added.
+    /// Used to receive notifications when a comment is added.
     /// </summary>
     /// <param name="context">The current system context.</param>
     /// <param name="condition">The condition that raised the event.</param>

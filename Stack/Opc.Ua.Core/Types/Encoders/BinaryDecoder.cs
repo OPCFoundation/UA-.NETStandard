@@ -1520,7 +1520,26 @@ namespace Opc.Ua
                             length = 0;
                             break;
                         }
+                        else if (dimensions[ii] > m_context.MaxArrayLength)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingLimitsExceeded,
+                                "ArrayDimensions [{0}] = {1} is greater than MaxArrayLength {2}.",
+                                ii,
+                                dimensions[ii],
+                                m_context.MaxArrayLength);
+                        }
+
                         length *= dimensions[ii];
+                    }
+                    if (length > m_context.MaxArrayLength)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
+                            m_context.MaxArrayLength,
+                            length
+                            );
                     }
                     // read the elements
                     Array elements = null;
@@ -2151,7 +2170,7 @@ namespace Opc.Ua
             if ((encodingByte & (byte)VariantArrayEncodingBits.Array) != 0)
             {
                 // read the array length.
-                int length = m_reader.ReadInt32();
+                int length = ReadArrayLength();
 
                 if (length < 0)
                 {
@@ -2191,6 +2210,12 @@ namespace Opc.Ua
                                 throw new ServiceResultException(
                                     StatusCodes.BadDecodingError,
                                     Utils.Format("ArrayDimensions [{0}] is zero in Variant object.", ii));
+                            }
+                            else if (dimensionsArray[ii] > length && length > 0)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadDecodingError,
+                                    Utils.Format("ArrayDimensions [{0}] = {1} is greater than length {2}.", ii, dimensionsArray[ii], length));
                             }
 
                             matrixLength *= dimensionsArray[ii];

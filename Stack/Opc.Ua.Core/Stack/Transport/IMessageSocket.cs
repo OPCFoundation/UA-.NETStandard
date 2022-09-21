@@ -136,6 +136,15 @@ namespace Opc.Ua.Bindings
         int Handle { get; }
 
         /// <summary>
+        /// Gets the local endpoint.
+        /// </summary>
+        /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
+        /// See the Remarks section for more information.</exception>
+        /// <exception cref="System.ObjectDisposedException">The Socket has been closed.</exception>
+        /// <returns>The System.Net.EndPoint that the Socket is using for communications.</returns>
+        System.Net.EndPoint LocalEndpoint { get; }
+
+        /// <summary>
         /// Returns the features implemented by the message socket.
         /// </summary>
         TransportChannelFeatures MessageSocketFeatures { get; }

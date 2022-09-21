@@ -557,6 +557,10 @@ namespace Opc.Ua
                 // append process and timestamp.
                 message.AppendFormat(CultureInfo.InvariantCulture, "{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
                 message.Append(formatter(state, exception));
+                if (exception != null)
+                {
+                    message.Append(TraceExceptionMessage(exception, String.Empty, null));
+                }
             }
             catch (Exception)
             {
@@ -623,7 +627,7 @@ namespace Opc.Ua
         public static bool IsPathRooted(string path)
         {
             // allow for local file locations
-            return Path.IsPathRooted(path) || path[0] == '.';
+            return Path.IsPathRooted(path) || (path.Length >= 2 && path[0] == '.' && path[1] != '.');
         }
 
         /// <summary>

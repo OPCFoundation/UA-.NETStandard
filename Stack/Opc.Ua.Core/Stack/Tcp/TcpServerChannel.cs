@@ -95,7 +95,9 @@ namespace Opc.Ua.Bindings
             public IMessageSocket Socket;
         }
 
-        /// <remarks/>
+        /// <summary>
+        /// Begin a reverse connect.
+        /// </summary>
         public IAsyncResult BeginReverseConnect(uint channelId, Uri endpointUrl, AsyncCallback callback, object callbackData, int timeout)
         {
             ChannelId = channelId;
@@ -114,7 +116,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// 
+        /// End the reverse connect.
         /// </summary>
         public void EndReverseConnect(IAsyncResult result)
         {
@@ -415,10 +417,14 @@ namespace Opc.Ua.Bindings
                 }
 
                 // update the max chunk count.
+                MaxResponseChunkCount = CalculateChunkCount(MaxResponseMessageSize, SendBufferSize);
+
                 if (maxChunkCount > 0 && maxChunkCount < MaxResponseChunkCount)
                 {
                     MaxResponseChunkCount = (int)maxChunkCount;
                 }
+
+                MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, ReceiveBufferSize);
 
                 // send acknowledge.
                 byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "ProcessHelloMessage");
@@ -499,9 +505,16 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                const string errorSecurityChecksFailed = "Could not verify security on OpenSecureChannel request.";
                 ServiceResultException innerException = e.InnerException as ServiceResultException;
 
-                // If the certificate structre, signature and trust list checks pass,
+                // report the audit event for open secure channel
+                ReportAuditOpenSecureChannelEvent?.Invoke(this, null, clientCertificate, e);
+
+                // report the audit event for open certificate error
+                ReportAuditCertificateEvent?.Invoke(clientCertificate, e);
+
+                // If the certificate structure, signature and trust list checks pass,
                 // return the other specific validation errors instead of BadSecurityChecksFailed
                 if (innerException != null)
                 {
@@ -512,7 +525,7 @@ namespace Opc.Ua.Bindings
                         innerException.StatusCode == StatusCodes.BadCertificatePolicyCheckFailed ||
                         (innerException.InnerResult != null && innerException.InnerResult.StatusCode == StatusCodes.BadCertificateUntrusted))
                     {
-                        ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
+                        ForceChannelFault(StatusCodes.BadSecurityChecksFailed, errorSecurityChecksFailed);
                         return false;
                     }
                     else if (innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
@@ -530,12 +543,12 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                ForceChannelFault(StatusCodes.BadSecurityChecksFailed, "Could not verify security on OpenSecureChannel request.");
+                ForceChannelFault(StatusCodes.BadSecurityChecksFailed, errorSecurityChecksFailed);
                 return false;
             }
 
             BufferCollection chunksToProcess = null;
-
+            OpenSecureChannelRequest request = null;
             try
             {
                 bool firstCall = ClientCertificate == null;
@@ -553,20 +566,13 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody);
+                    SaveIntermediateChunk(requestId, messageBody, true);
                     return false;
                 }
-
-                // create a new token.
-                ChannelToken token = CreateToken();
-
-                token.TokenId = GetNewTokenId();
-                token.ServerNonce = CreateNonce();
-
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
-                OpenSecureChannelRequest request = (OpenSecureChannelRequest)BinaryDecoder.DecodeMessage(
+                request = (OpenSecureChannelRequest)BinaryDecoder.DecodeMessage(
                     new ArraySegmentStream(chunksToProcess),
                     typeof(OpenSecureChannelRequest),
                     Quotas.MessageContext);
@@ -582,6 +588,11 @@ namespace Opc.Ua.Bindings
                     ReviseSecurityMode(firstCall, request.SecurityMode);
                 }
 
+                // create a new token.
+                ChannelToken token = CreateToken();
+
+                token.TokenId = GetNewTokenId();
+                token.ServerNonce = CreateNonce();
                 // check the client nonce.
                 token.ClientNonce = request.ClientNonce;
 
@@ -688,10 +699,19 @@ namespace Opc.Ua.Bindings
                 // notify any monitors.
                 NotifyMonitors(ServiceResult.Good, false);
 
+                if (requestType == SecurityTokenRequestType.Issue)
+                {
+                    // always report the audit event for open secure channel with RequestType = Issue
+                    ReportAuditOpenSecureChannelEvent?.Invoke(this, request, ClientCertificate, null);
+                }
+
                 return false;
             }
             catch (Exception e)
             {
+                // report the audit event for open secure channel
+                ReportAuditOpenSecureChannelEvent?.Invoke(this, request, ClientCertificate, e);
+
                 SendServiceFault(requestId, ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error processing OpenSecureChannel request."));
                 CompleteReverseHello(e);
                 return false;
@@ -791,11 +811,14 @@ namespace Opc.Ua.Bindings
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessCloseSecureChannelRequest"))
                 {
-                    throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
+                    throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid, "Could not verify security on CloseSecureChannel request.");
                 }
             }
             catch (Exception e)
             {
+                // report the audit event for close secure channel
+                ReportAuditCloseSecureChannelEvent?.Invoke(this, e);
+
                 throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, e, "Could not verify security on CloseSecureChannel request.");
             }
 
@@ -806,12 +829,12 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody);
+                    SaveIntermediateChunk(requestId, messageBody, true);
                     return false;
                 }
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 CloseSecureChannelRequest request = BinaryDecoder.DecodeMessage(
                     new ArraySegmentStream(chunksToProcess),
@@ -825,10 +848,16 @@ namespace Opc.Ua.Bindings
 
                 // send the response.
                 // SendCloseSecureChannelResponse(requestId, token, request);
+
+                // report the audit event for close secure channel
+                ReportAuditCloseSecureChannelEvent?.Invoke(this, null);
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error processing OpenSecureChannel request.");
+                // report the audit event for close secure channel
+                ReportAuditCloseSecureChannelEvent?.Invoke(this, e);
+
+                Utils.LogError(e, "Unexpected error processing CloseSecureChannel request.");
             }
             finally
             {
@@ -899,21 +928,21 @@ namespace Opc.Ua.Bindings
                 if (TcpMessageType.IsAbort(messageType))
                 {
                     Utils.LogWarning(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessRequestMessage RequestId {1} was aborted.", ChannelId, requestId);
-                    chunksToProcess = GetSavedChunks(requestId, messageBody);
+                    chunksToProcess = GetSavedChunks(requestId, messageBody, true);
                     return true;
                 }
 
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody);
+                    SaveIntermediateChunk(requestId, messageBody, true);
                     return true;
                 }
 
                 // Utils.LogTrace("ChannelId {0}: ProcessRequestMessage RequestId {1}", ChannelId, requestId);
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 // decode the request.
                 IServiceRequest request = BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) as IServiceRequest;
@@ -952,6 +981,15 @@ namespace Opc.Ua.Bindings
                     chunksToProcess.Release(BufferManager, "ProcessRequestMessage");
                 }
             }
+        }
+
+        /// <summary>
+        /// Closes the channel in case the message limits have been exceeded
+        /// </summary>
+        protected override void DoMessageLimitsExceeded()
+        {
+            base.DoMessageLimitsExceeded();
+            ChannelClosed();
         }
         #endregion
 

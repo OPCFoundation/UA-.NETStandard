@@ -49,6 +49,9 @@ namespace Opc.Ua
                 {
                     m_sourceNode = new PropertyState<NodeId>(this);
                     m_sourceNode.Value = source.NodeId;
+                    m_sourceNode.RolePermissions = source.RolePermissions;
+                    m_sourceNode.UserRolePermissions = source.UserRolePermissions;
+                    m_sourceNode.NodeId = source.NodeId;
                 }
 
                 if (!QualifiedName.IsNull(source.BrowseName))

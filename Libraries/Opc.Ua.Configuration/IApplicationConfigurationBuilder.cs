@@ -246,6 +246,9 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.OperationLimits"/>
         IApplicationConfigurationBuilderServerOptions SetOperationLimits(OperationLimits operationLimits);
+
+        /// <inheritdoc cref="ServerConfiguration.AuditingEnabled"/>
+        IApplicationConfigurationBuilderServerOptions SetAuditingEnabled(bool auditingEnabled);
     }
 
     /// <summary>
@@ -282,6 +285,9 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ClientConfiguration.ReverseConnect"/>
         IApplicationConfigurationBuilderClientOptions SetReverseConnect(ReverseConnectClientConfiguration reverseConnect);
+
+        /// <inheritdoc cref="ClientConfiguration.OperationLimits"/>
+        IApplicationConfigurationBuilderClientOptions SetClientOperationLimits(OperationLimits operationLimits);
     }
 
     /// <summary>

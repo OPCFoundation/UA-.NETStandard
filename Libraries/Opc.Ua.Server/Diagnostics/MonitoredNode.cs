@@ -217,28 +217,37 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < eventMonitoredItems.Count; ii++)
             {
+
                 IEventMonitoredItem monitoredItem = eventMonitoredItems[ii];
-                BaseEventState baseEventState = e as BaseEventState;
 
-                if (baseEventState != null)
+                #region  Filter out audit events in case the Server_Auditing values is false or the channel is not encrypted
+
+                if (e is AuditEventState)
                 {
-                    ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
-                        baseEventState?.EventType?.Value, PermissionType.ReceiveEvents);
-
-                    if (ServiceResult.IsBad(validationResult))
+                    // check Server.Auditing flag and skip if false
+                    if (!NodeManager.Server.Auditing)
                     {
-                        // skip event reporting for EventType without permissions
                         continue;
                     }
-
-                    validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
-                        baseEventState?.SourceNode?.Value, PermissionType.ReceiveEvents);
-
-                    if (ServiceResult.IsBad(validationResult))
+                    else
                     {
-                        // skip event reporting for SourceNode without permissions
-                        continue;
+                        // check if channel is not encrypted and skip if so
+                        if (monitoredItem?.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
+                            monitoredItem?.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport)
+                        {
+                            continue;
+                        }
                     }
+                }
+                #endregion
+
+                // validate if the monitored item has the required role permissions to receive the event
+                ServiceResult validationResult = NodeManager.ValidateEventRolePermissions(monitoredItem, e);
+
+                if (ServiceResult.IsBad(validationResult))
+                {
+                    // skip event reporting for EventType without permissions
+                    continue;
                 }
 
                 lock (NodeManager.Lock)
@@ -247,7 +256,7 @@ namespace Opc.Ua.Server
                     monitoredItem?.QueueEvent(e);
                 }
             }
-        }
+        }        
 
         /// <summary>
         /// Called when the state of a Node changes.

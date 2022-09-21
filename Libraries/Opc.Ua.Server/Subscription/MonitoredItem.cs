@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua.Server
@@ -194,6 +195,7 @@ namespace Opc.Ua.Server
             m_readyToTrigger = false;
             m_sourceSamplingInterval = 0;
             m_samplingError = ServiceResult.Good;
+            m_resendData = false;
         }
         #endregion
 
@@ -238,7 +240,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // check if not ready to publish.
+                // check if not ready to publish in case it doesn't ResendData
                 if (!m_readyToPublish)
                 {
                     ServerUtils.EventLog.MonitoredItemReady(m_id, "FALSE");
@@ -261,7 +263,7 @@ namespace Opc.Ua.Server
 
                 if (m_sourceSamplingInterval == 0)
                 {
-                    // re-queue if too little time has passed since the last publish.
+                    // re-queue if too little time has passed since the last publish, in case it doesn't ResendData
                     long now = HiResClock.TickCount64;
 
                     if (m_nextSamplingTime > now)
@@ -299,6 +301,31 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     m_readyToTrigger = value;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool IsResendData
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_resendData;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public void SetupResendDataTrigger()
+        {
+            lock (m_lock)
+            {
+                if (m_monitoringMode == MonitoringMode.Reporting &&
+                    (m_typeMask & MonitoredItemTypeMask.DataChange) != 0)
+                {
+                    m_resendData = true;
                 }
             }
         }
@@ -881,7 +908,6 @@ namespace Opc.Ua.Server
             m_lastValue = value;
             m_lastError = error;
             m_readyToPublish = true;
-
             ServerUtils.EventLog.QueueValue(m_id, m_lastValue.WrappedValue, m_lastValue.StatusCode);
         }
 
@@ -919,7 +945,7 @@ namespace Opc.Ua.Server
 
                     if (text != null)
                     {
-                        value = m_server.ResourceManager.Translate(Session.PreferredLocales, text);
+                        value = m_server.ResourceManager.Translate(Session?.PreferredLocales, text);
                     }
 
                     // add value.
@@ -990,7 +1016,7 @@ namespace Opc.Ua.Server
                 }
 
                 // construct the context to use for the event filter.
-                FilterContext context = new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session.PreferredLocales);
+                FilterContext context = new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session?.PreferredLocales);
 
                 // event filter must be specified.
                 EventFilter filter = m_filterToUse as EventFilter;
@@ -1181,7 +1207,7 @@ namespace Opc.Ua.Server
                             }
                         }
 
-                        notifications.Enqueue((EventFieldList)m_events[ii]);
+                        notifications.Enqueue(m_events[ii]);
                     }
 
                     m_events.Clear();
@@ -1225,34 +1251,39 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                // only publish if reporting.
                 if (!IsReadyToPublish)
                 {
-                    return false;
-                }
-
-                // pull any unprocessed data.
-                if (m_calculator != null)
-                {
-                    if (m_calculator.HasEndTimePassed(DateTime.UtcNow))
+                    if (!m_resendData)
                     {
-                        DataValue processedValue = m_calculator.GetProcessedValue(false);
-
-                        while (processedValue != null)
-                        {
-                            AddValueToQueue(processedValue, null);
-                        }
-
-                        processedValue = m_calculator.GetProcessedValue(true);
-                        AddValueToQueue(processedValue, null);
+                        return false;
                     }
                 }
+                else
+                {
+                    // pull any unprocessed data.
+                    if (m_calculator != null)
+                    {
+                        if (m_calculator.HasEndTimePassed(DateTime.UtcNow))
+                        {
+                            DataValue processedValue = m_calculator.GetProcessedValue(false);
 
-                // go to the next sampling interval.
-                IncrementSampleTime();
+                            while (processedValue != null)
+                            {
+                                AddValueToQueue(processedValue, null);
+                            }
+
+                            processedValue = m_calculator.GetProcessedValue(true);
+                            AddValueToQueue(processedValue, null);
+                        }
+                    }
+
+                    IncrementSampleTime();
+                }
+
+                m_readyToPublish = false;
 
                 // check if queueing enabled.
-                if (m_queue != null)
+                if (m_queue != null && (!m_resendData || m_queue.ItemsInQueue != 0))
                 {
                     DataValue value = null;
                     ServiceResult error = null;
@@ -1260,10 +1291,15 @@ namespace Opc.Ua.Server
                     while (m_queue.Publish(out value, out error))
                     {
                         Publish(context, notifications, diagnostics, value, error);
+                        if (m_resendData)
+                        {
+                            m_readyToPublish = m_queue.ItemsInQueue > 0;
+                            break;
+                        }
                     }
                 }
 
-                // publish last value if no queuing.
+                // publish last value if no queuing or no items are queued
                 else
                 {
                     ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
@@ -1272,8 +1308,8 @@ namespace Opc.Ua.Server
 
                 // reset state variables.
                 m_overflow = false;
-                m_readyToPublish = false;
                 m_readyToTrigger = false;
+                m_resendData = false;
                 m_triggered = false;
 
                 return false;
@@ -1780,6 +1816,7 @@ namespace Opc.Ua.Server
         {
             m_subscription?.QueueOverflowHandler();
         }
+
         #endregion
 
         #region Private Members
@@ -1822,6 +1859,7 @@ namespace Opc.Ua.Server
         private ServiceResult m_samplingError;
         private IAggregateCalculator m_calculator;
         private bool m_triggered;
+        private bool m_resendData;
         #endregion
     }
 }

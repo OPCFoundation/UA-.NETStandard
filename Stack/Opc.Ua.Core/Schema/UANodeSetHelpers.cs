@@ -384,7 +384,7 @@ namespace Opc.Ua.Export
             {
                 for (int ii = 0; ii < NamespaceUris.Length; ii++)
                 {
-                    namespaceUris.Append(NamespaceUris[ii]);
+                    namespaceUris.GetIndexOrAppend(NamespaceUris[ii]);
                 }
             }
 
@@ -392,11 +392,9 @@ namespace Opc.Ua.Export
 
             if (ServerUris != null)
             {
-                serverUris.Append(context.ServerUris.GetString(0));
-
                 for (int ii = 0; ii < ServerUris.Length; ii++)
                 {
-                    serverUris.Append(ServerUris[ii]);
+                    serverUris.GetIndexOrAppend(ServerUris[ii]);
                 }
             }
 
@@ -424,7 +422,7 @@ namespace Opc.Ua.Export
             {
                 for (int ii = 0; ii < NamespaceUris.Length; ii++)
                 {
-                    namespaceUris.Append(NamespaceUris[ii]);
+                    namespaceUris.GetIndexOrAppend(NamespaceUris[ii]);
                 }
             }
 
@@ -432,11 +430,9 @@ namespace Opc.Ua.Export
 
             if (ServerUris != null)
             {
-                serverUris.Append(context.ServerUris.GetString(0));
-
                 for (int ii = 0; ii < ServerUris.Length; ii++)
                 {
-                    serverUris.Append(ServerUris[ii]);
+                    serverUris.GetIndexOrAppend(ServerUris[ii]);
                 }
             }
 

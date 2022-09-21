@@ -220,7 +220,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns the endpoints that match the base addresss and endpoint url.
+        /// Returns the endpoints that match the base address and endpoint url.
         /// </summary>
         protected EndpointDescriptionCollection GetEndpointDescriptions(
             string endpointUrl,
@@ -265,6 +265,35 @@ namespace Opc.Ua.Server
 
             return endpoints;
         }
+
+        #region Report Audit Events
+        /// <inheritdoc/>
+        public override void ReportAuditOpenSecureChannelEvent(
+            string globalChannelId,
+            EndpointDescription endpointDescription,
+            OpenSecureChannelRequest request,
+            X509Certificate2 clientCertificate,
+            Exception exception)
+        {
+            ServerInternal?.ReportAuditOpenSecureChannelEvent(globalChannelId, endpointDescription, request, clientCertificate, exception);
+        }
+
+        /// <inheritdoc/>
+        public override void ReportAuditCloseSecureChannelEvent(
+            string globalChannelId,
+            Exception exception)
+        {
+            ServerInternal?.ReportAuditCloseSecureChannelEvent(globalChannelId, exception);
+        }
+
+        /// <inheritdoc/>
+        public override void ReportAuditCertificateEvent(
+            X509Certificate2 clientCertificate,
+            Exception exception)
+        {
+            ServerInternal?.ReportAuditCertificateEvent(clientCertificate, exception);
+        }
+        #endregion Report Audit Events
 
         /// <summary>
         /// Invokes the CreateSession service.
@@ -319,7 +348,7 @@ namespace Opc.Ua.Server
             maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
             OperationContext context = ValidateRequest(requestHeader, RequestType.CreateSession);
-
+            Session session = null;
             try
             {
                 // check the server uri.
@@ -331,7 +360,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                bool requireEncryption = ServerBase.RequireEncryption(context.ChannelContext.EndpointDescription);
+                bool requireEncryption = ServerBase.RequireEncryption(context?.ChannelContext?.EndpointDescription);
 
                 if (!requireEncryption && clientCertificate != null)
                 {
@@ -357,9 +386,13 @@ namespace Opc.Ua.Server
                                 !String.IsNullOrEmpty(clientDescription.ApplicationUri) &&
                                 certificateApplicationUri != clientDescription.ApplicationUri)
                             {
+                                // report the AuditCertificateDataMismatch event for invalid uri
+                                ServerInternal?.ReportAuditCertificateDataMismatchEvent(parsedClientCertificate, null, clientDescription.ApplicationUri, StatusCodes.BadCertificateUriInvalid);
+
                                 throw ServiceResultException.Create(
                                     StatusCodes.BadCertificateUriInvalid,
-                                    "The URI specified in the ApplicationDescription does not match the URI in the Certificate.");
+                                    "The URI specified in the ApplicationDescription {0} does not match the URI in the Certificate: {1}.",
+                                    clientDescription.ApplicationUri, certificateApplicationUri);
                             }
 
                             CertificateValidator.Validate(clientCertificateChain);
@@ -367,6 +400,9 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
+                        // report audit event for client certificate
+                        ReportAuditCertificateEvent(parsedClientCertificate, e);
+
                         OnApplicationCertificateError(clientCertificate, new ServiceResult(e));
                     }
                 }
@@ -387,7 +423,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create the session.
-                Session session = ServerInternal.SessionManager.CreateSession(
+                session = ServerInternal.SessionManager.CreateSession(
                     context,
                     requireEncryption ? InstanceCertificate : null,
                     sessionName,
@@ -401,6 +437,24 @@ namespace Opc.Ua.Server
                     out authenticationToken,
                     out serverNonce,
                     out revisedSessionTimeout);
+
+                if (endpointUrl != null)
+                {
+                    try
+                    {
+                        // check the endpointurl
+                        ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint() {
+                            EndpointUrl = new Uri(endpointUrl)
+                        };
+
+                        CertificateValidator.ValidateDomains(InstanceCertificate, configuredEndpoint, true);
+                    }
+                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
+                    {
+                        Utils.LogWarning("Server - Client connects with an endpointUrl [{0}] which does not match Server hostnames.", endpointUrl);
+                        ServerInternal.ReportAuditUrlMismatchEvent(context?.AuditEntryId, session, revisedSessionTimeout, endpointUrl);
+                    }
+                }
 
                 lock (m_lock)
                 {
@@ -451,12 +505,22 @@ namespace Opc.Ua.Server
                 }
 
                 Utils.LogInfo("Server - SESSION CREATED. SessionId={0}", sessionId);
+                // report audit for successful create session
+                ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout);
 
                 return CreateResponse(requestHeader, StatusCodes.Good);
             }
             catch (ServiceResultException e)
             {
                 Utils.LogError("Server - SESSION CREATE failed. {0}", e.Message);
+
+                // report the failed AuditCreateSessionEvent
+                ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout, e);
+
+                if (session != null)
+                {
+                    ServerInternal.SessionManager.CloseSession(session.Id);
+                }
 
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
@@ -509,13 +573,12 @@ namespace Opc.Ua.Server
             diagnosticInfos = null;
 
             OperationContext context = ValidateRequest(requestHeader, RequestType.ActivateSession);
+            // validate client's software certificates.
+            List<SoftwareCertificate> softwareCertificates = new List<SoftwareCertificate>();
 
             try
             {
-                // validate client's software certificates.
-                List<SoftwareCertificate> softwareCertificates = new List<SoftwareCertificate>();
-
-                if (context.SecurityPolicyUri != SecurityPolicies.None)
+                if (context?.SecurityPolicyUri != SecurityPolicies.None)
                 {
                     bool diagnosticsExist = false;
 
@@ -588,11 +651,19 @@ namespace Opc.Ua.Server
 
                 Utils.LogInfo("Server - SESSION ACTIVATED.");
 
+                // report the audit event for session activate
+                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                ServerInternal.ReportAuditActivateSessionEvent(context?.AuditEntryId, session, softwareCertificates);
+
                 return CreateResponse(requestHeader, StatusCodes.Good);
             }
             catch (ServiceResultException e)
             {
                 Utils.LogInfo("Server - SESSION ACTIVATE failed. {0}", e.Message);
+
+                // report the audit event for failed session activate
+                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                ServerInternal.ReportAuditActivateSessionEvent(context?.AuditEntryId, session, softwareCertificates, e);
 
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
@@ -694,7 +765,13 @@ namespace Opc.Ua.Server
 
             try
             {
+                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
+
                 ServerInternal.CloseSession(context, context.Session.Id, deleteSubscriptions);
+
+                // report the audit event for close session                
+                ServerInternal.ReportAuditCloseSessionEvent(context.AuditEntryId, session, "Session/CloseSession");
+
                 return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
@@ -738,6 +815,7 @@ namespace Opc.Ua.Server
             try
             {
                 m_serverInternal.RequestManager.CancelRequests(requestHandle, out cancelCount);
+
                 return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
@@ -991,6 +1069,11 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(browsePaths, OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
 
+                foreach (BrowsePath bp in browsePaths)
+                {
+                    ValidateOperationLimits(bp.RelativePath.Elements.Count, OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
+                }
+
                 m_serverInternal.NodeManager.TranslateBrowsePathsToNodeIds(
                     context,
                     browsePaths,
@@ -1067,6 +1150,8 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                ServerInternal.ReportAuditEvent(context, "Read", e);
+
                 throw TranslateException(context, e);
             }
             finally
@@ -1132,6 +1217,8 @@ namespace Opc.Ua.Server
                         ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
                     }
                 }
+
+                ServerInternal.ReportAuditEvent(context, "HistoryRead", e);
 
                 throw TranslateException(context, e);
             }
@@ -1531,7 +1618,7 @@ namespace Opc.Ua.Server
                     out results,
                     out diagnosticInfos);
 
-                // request completed asychrnously.
+                // request completed asynchronously.
                 if (notificationMessage != null)
                 {
                     OnRequestComplete(context);
@@ -2683,7 +2770,6 @@ namespace Opc.Ua.Server
             }
         }
 
-
         /// <summary>
         /// Called before the server starts.
         /// </summary>
@@ -3036,6 +3122,12 @@ namespace Opc.Ua.Server
                     ServerInternal.Status.Value.State = ServerState.Shutdown;
                     ServerInternal.Status.Variable.State.Value = ServerState.Shutdown;
                     ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+
+                    foreach (Session session in currentessions)
+                    {
+                        // raise close session audit event
+                        ServerInternal.ReportAuditCloseSessionEvent(null, session, "Session/Terminated");
+                    }
 
                     for (int timeTillShutdown = Configuration.ServerConfiguration.ShutdownDelay; timeTillShutdown > 0; timeTillShutdown--)
                     {

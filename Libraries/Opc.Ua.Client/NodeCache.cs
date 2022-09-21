@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace Opc.Ua.Client
@@ -101,6 +102,81 @@ namespace Opc.Ua.Client
                 // m_nodes[nodeId] = null;
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Finds a set of nodes in the nodeset,
+        /// fetches missing nodes from server.
+        /// </summary>
+        /// <param name="nodeIds">The node identifier collection.</param>
+        public IList<INode> Find(IList<ExpandedNodeId> nodeIds)
+        {
+            // check for null.
+            if (nodeIds == null || nodeIds.Count == 0)
+            {
+                return new List<INode>();
+            }
+
+            int count = nodeIds.Count;
+            IList<INode> nodes = new List<INode>(count);
+            var fetchNodeIds = new ExpandedNodeIdCollection();
+
+            int ii;
+            for (ii = 0; ii < count; ii++)
+            {
+                // check if node already exists.
+                INode node = m_nodes.Find(nodeIds[ii]);
+
+                // do not return temporary nodes created after a Browse().
+                if (node != null &&
+                    node?.GetType() != typeof(Node))
+                {
+                    nodes.Add(node);
+                }
+                else
+                {
+                    nodes.Add(null);
+                    fetchNodeIds.Add(nodeIds[ii]);
+                }
+            }
+
+            if (fetchNodeIds.Count == 0)
+            {
+                return nodes;
+            }
+
+            // fetch missing nodes from server.
+            IList<Node> fetchedNodes;
+            try
+            {
+                fetchedNodes = FetchNodes(fetchNodeIds);
+            }
+            catch (Exception e)
+            {
+                Utils.LogError("Could not fetch nodes from server: Reason='{1}'.", e.Message);
+                // m_nodes[nodeId] = null;
+                return nodes;
+            }
+
+            ii = 0;
+            foreach (Node fetchedNode in fetchedNodes)
+            {
+                while (ii < count && nodes[ii] != null)
+                {
+                    ii++;
+                }
+                if (ii < count && nodes[ii] == null)
+                {
+                    nodes[ii++] = fetchedNode;
+                }
+                else
+                {
+                    Utils.LogError("Inconsistency fetching nodes from server. Not all nodes could be assigned.");
+                    break;
+                }
+            }
+
+            return nodes;
         }
 
         /// <inheritdoc/>
@@ -571,6 +647,57 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public IList<Node> FetchNodes(IList<ExpandedNodeId> nodeIds)
+        {
+            int count = nodeIds.Count;
+            NodeIdCollection localIds = new NodeIdCollection(
+                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris)));
+
+            // fetch nodes and references from server.
+            m_session.ReadNodes(localIds, out IList<Node> sourceNodes, out IList<ServiceResult> readErrors);
+            m_session.FetchReferences(localIds, out IList<ReferenceDescriptionCollection> referenceCollectionList, out IList<ServiceResult> fetchErrors);
+
+            int ii = 0;
+            for (ii = 0; ii < count; ii++)
+            {
+                if (ServiceResult.IsBad(readErrors[ii]))
+                {
+                    continue;
+                }
+
+                if (!ServiceResult.IsBad(fetchErrors[ii]))
+                {
+                    // fetch references from server.
+                    ReferenceDescriptionCollection references = referenceCollectionList[ii];
+
+                    foreach (ReferenceDescription reference in references)
+                    {
+                        // create a placeholder for the node if it does not already exist.
+                        if (!m_nodes.Exists(reference.NodeId))
+                        {
+                            // transform absolute identifiers.
+                            if (reference.NodeId != null && reference.NodeId.IsAbsolute)
+                            {
+                                reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
+                            }
+
+                            Node target = new Node(reference);
+                            m_nodes.Attach(target);
+                        }
+
+                        // add the reference.
+                        sourceNodes[ii].ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
+                    }
+                }
+
+                // add to cache.
+                m_nodes.Attach(sourceNodes[ii]);
+            }
+
+            return sourceNodes;
+        }
+
+        /// <inheritdoc/>
         public void FetchSuperTypes(ExpandedNodeId nodeId)
         {
             // find the target node,
@@ -621,10 +748,54 @@ namespace Opc.Ua.Client
                 includeSubtypes,
                 m_typeTree);
 
-            foreach (IReference reference in references)
-            {
-                INode target = Find(reference.TargetId);
+            var targetIds = new ExpandedNodeIdCollection(
+                references.Select(reference => reference.TargetId));
 
+            IList<INode> result = Find(targetIds);
+
+            foreach (INode target in result)
+            {
+                if (target != null)
+                {
+                    targets.Add(target);
+                }
+            }
+            return targets;
+        }
+
+        /// <inheritdoc/>
+        public IList<INode> FindReferences(
+            IList<ExpandedNodeId> nodeIds,
+            IList<NodeId> referenceTypeIds,
+            bool isInverse,
+            bool includeSubtypes)
+        {
+            ExpandedNodeIdCollection targetIds = new ExpandedNodeIdCollection();
+            IList<INode> sources = Find(nodeIds);
+            foreach (INode source in sources)
+            {
+                if (!(source is Node node))
+                {
+                    continue;
+                }
+
+                foreach (var referenceTypeId in referenceTypeIds)
+                {
+                    IList<IReference> references = node.ReferenceTable.Find(
+                        referenceTypeId,
+                        isInverse,
+                        includeSubtypes,
+                        m_typeTree);
+
+                    targetIds.AddRange(
+                        references.Select(reference => reference.TargetId));
+                }
+            }
+
+            IList<INode> targets = new List<INode>();
+            IList<INode> result = Find(targetIds);
+            foreach (INode target in result)
+            {
                 if (target != null)
                 {
                     targets.Add(target);

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -47,7 +46,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initialize the trustlist with default values.
         /// </summary>
-        public TrustList(Opc.Ua.TrustListState node, string trustedListPath, string issuerListPath, SecureAccess readAccess, SecureAccess writeAccess)
+        public TrustList(
+            TrustListState node,
+            string trustedListPath,
+            string issuerListPath,
+            SecureAccess readAccess,
+            SecureAccess writeAccess)
         {
             m_node = node;
             m_trustedStorePath = trustedListPath;
@@ -410,6 +414,10 @@ namespace Opc.Ua.Server
 
             restartRequired = false;
 
+            // report the TrustListUpdatedAuditEvent
+            object[] inputParameters = new object[] { fileHandle };
+            m_node.ReportTrustListUpdatedAuditEvent(context, objectId, "Method/CloseAndUpdate", method.NodeId, inputParameters, result.StatusCode);
+
             return result;
         }
 
@@ -422,44 +430,51 @@ namespace Opc.Ua.Server
         {
             HasSecureWriteAccess(context);
 
+            ServiceResult result = StatusCodes.Good;
             lock (m_lock)
             {
 
                 if (m_sessionId != null)
                 {
-                    return StatusCodes.BadInvalidState;
+                    result = StatusCodes.BadInvalidState;
                 }
-
-                if (certificate == null)
+                else if (certificate == null)
                 {
-                    return StatusCodes.BadInvalidArgument;
+                    result = StatusCodes.BadInvalidArgument;
                 }
-
-                X509Certificate2 cert = null;
-                try
+                else
                 {
-                    cert = new X509Certificate2(certificate);
-                }
-                catch
-                {
-                    // note: a previous version of the sample code accepted also CRL,
-                    // but the behaviour was not as specified and removed
-                    // https://mantis.opcfoundation.org/view.php?id=6342
-                    return StatusCodes.BadCertificateInvalid;
-                }
-
-                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(isTrustedCertificate ? m_trustedStorePath : m_issuerStorePath))
-                {
-                    if (cert != null)
+                    X509Certificate2 cert = null;
+                    try
                     {
-                        store.Add(cert).GetAwaiter().GetResult();
+                        cert = new X509Certificate2(certificate);
                     }
-                }
+                    catch
+                    {
+                        // note: a previous version of the sample code accepted also CRL,
+                        // but the behaviour was not as specified and removed
+                        // https://mantis.opcfoundation.org/view.php?id=6342
+                        result = StatusCodes.BadCertificateInvalid;
+                    }
 
-                m_node.LastUpdateTime.Value = DateTime.UtcNow;
+                    using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(isTrustedCertificate ? m_trustedStorePath : m_issuerStorePath))
+                    {
+                        if (cert != null)
+                        {
+                            store.Add(cert).GetAwaiter().GetResult();
+                        }
+                    }
+
+                    m_node.LastUpdateTime.Value = DateTime.UtcNow;
+                }
             }
 
-            return ServiceResult.Good;
+            // report the TrustListUpdatedAuditEvent
+            object[] inputParameters = new object[] { certificate, isTrustedCertificate };
+            m_node.ReportTrustListUpdatedAuditEvent(context, objectId, "Method/AddCertificate", method.NodeId, inputParameters, result.StatusCode);
+
+            return result;
+
         }
 
         private ServiceResult RemoveCertificate(
@@ -470,63 +485,72 @@ namespace Opc.Ua.Server
             bool isTrustedCertificate)
         {
             HasSecureWriteAccess(context);
-
+            ServiceResult result = StatusCodes.Good;
             lock (m_lock)
             {
 
                 if (m_sessionId != null)
                 {
-                    return StatusCodes.BadInvalidState;
+                    result = StatusCodes.BadInvalidState;
                 }
-
-                if (String.IsNullOrEmpty(thumbprint))
+                else if (String.IsNullOrEmpty(thumbprint))
                 {
-                    return StatusCodes.BadInvalidArgument;
+                    result = StatusCodes.BadInvalidArgument;
                 }
-
-                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(isTrustedCertificate ? m_trustedStorePath : m_issuerStorePath))
+                else
                 {
-                    var certCollection = store.FindByThumbprint(thumbprint).GetAwaiter().GetResult();
-
-                    if (certCollection.Count == 0)
+                    using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(isTrustedCertificate ? m_trustedStorePath : m_issuerStorePath))
                     {
-                        return StatusCodes.BadInvalidArgument;
-                    }
+                        var certCollection = store.FindByThumbprint(thumbprint).GetAwaiter().GetResult();
 
-                    // delete all CRLs signed by cert
-                    var crlsToDelete = new X509CRLCollection();
-                    foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
-                    {
-                        foreach (var cert in certCollection)
+                        if (certCollection.Count == 0)
                         {
-                            if (X509Utils.CompareDistinguishedName(cert.Subject, crl.Issuer) &&
-                                crl.VerifySignature(cert, false))
+                            result = StatusCodes.BadInvalidArgument;
+                        }
+                        else
+                        {
+                            // delete all CRLs signed by cert
+                            var crlsToDelete = new X509CRLCollection();
+                            foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
                             {
-                                crlsToDelete.Add(crl);
-                                break;
+                                foreach (var cert in certCollection)
+                                {
+                                    if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
+                                        crl.VerifySignature(cert, false))
+                                    {
+                                        crlsToDelete.Add(crl);
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!store.Delete(thumbprint).GetAwaiter().GetResult())
+                            {
+                                result = StatusCodes.BadInvalidArgument;
+                            }
+                            else
+                            {
+                                foreach (var crl in crlsToDelete)
+                                {
+                                    if (!store.DeleteCRL(crl).GetAwaiter().GetResult())
+                                    {
+                                        // intentionally ignore errors, try best effort
+                                        Utils.LogError("RemoveCertificate: Failed to delete CRL {0}.", crl.ToString());
+                                    }
+                                }
                             }
                         }
                     }
 
-                    if (!store.Delete(thumbprint).GetAwaiter().GetResult())
-                    {
-                        return StatusCodes.BadInvalidArgument;
-                    }
-
-                    foreach (var crl in crlsToDelete)
-                    {
-                        if (!store.DeleteCRL(crl).GetAwaiter().GetResult())
-                        {
-                            // intentionally ignore errors, try best effort
-                            Utils.LogError("RemoveCertificate: Failed to delete CRL {0}.", crl.ToString());
-                        }
-                    }
+                    m_node.LastUpdateTime.Value = DateTime.UtcNow;
                 }
-
-                m_node.LastUpdateTime.Value = DateTime.UtcNow;
             }
 
-            return ServiceResult.Good;
+            // report the TrustListUpdatedAuditEvent
+            object[] inputParameters = new object[] { thumbprint };
+            m_node.ReportTrustListUpdatedAuditEvent(context, objectId, "Method/RemoveCertificate", method.NodeId, inputParameters, result.StatusCode);
+
+            return result;
         }
 
         private Stream EncodeTrustListData(

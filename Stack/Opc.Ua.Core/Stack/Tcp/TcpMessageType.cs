@@ -174,7 +174,7 @@ namespace Opc.Ua.Bindings
         public const int MinBodySize = 1;
 
         /// <summary>
-        /// The minimum send or receive buffer size.
+        /// The maximum send or receive buffer size.
         /// </summary>
         public const int MaxBufferSize = 8192 * 18;
 
@@ -239,9 +239,14 @@ namespace Opc.Ua.Bindings
         public const int DefaultMaxBufferSize = 65535;
 
         /// <summary>
+        /// The default maximum chunk count for Request and Response messages.
+        /// </summary>
+        public const int DefaultMaxChunkCount = 16;
+
+        /// <summary>
         /// The default maximum message size.
         /// </summary>
-        public const int DefaultMaxMessageSize = 16 * 65535;
+        public const int DefaultMaxMessageSize = DefaultMaxChunkCount * DefaultMaxBufferSize;
 
         /// <summary>
         /// How long a connection will remain in the server after it goes into a faulted state.
