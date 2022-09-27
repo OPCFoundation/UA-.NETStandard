@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             Assert.AreEqual(expected.Encoding, result.Encoding, encodeInfo);
             //TODO: investigate why AreEqual cannot compare ExtensionObject and Body
             //Assert.AreEqual(expected.Body, result.Body, encodeInfo);
-            Assert.IsTrue(Utils.IsEqual(expected.Body, result.Body), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+            Assert.IsTrue(Utils.IsEqual(expected.Body, result.Body), $"Opc.Ua.Utils.IsEqual failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected.Body}!={result.Body}.");
         }
 
         /// <summary>

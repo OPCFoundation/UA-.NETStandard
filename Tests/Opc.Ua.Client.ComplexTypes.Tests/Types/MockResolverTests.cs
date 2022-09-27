@@ -518,7 +518,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     }
                     else
                     {
-                        value = TypeInfo.GetDefaultValue(builtInType);
+                        switch (builtInType)
+                        {
+                            case BuiltInType.DataValue: value = new DataValue(); break;
+                            case BuiltInType.DiagnosticInfo: value = new DiagnosticInfo(); break;
+                            default:
+                                value = TypeInfo.GetDefaultValue(builtInType);
+                                break;
+                        }
                     }
                 }
                 else
