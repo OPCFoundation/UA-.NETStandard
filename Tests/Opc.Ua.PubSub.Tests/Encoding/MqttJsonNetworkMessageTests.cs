@@ -1359,6 +1359,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] bytes = jsonNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
+            PrettifyAndValidateJson(bytes);
+
             JsonNetworkMessage uaNetworkMessageDecoded = new JsonNetworkMessage();
             uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, null);
 
@@ -1380,6 +1382,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private void CompareEncodeDecode(JsonNetworkMessage jsonNetworkMessage, IList<DataSetReaderDataType> dataSetReaders)
         {
             byte[] bytes = jsonNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
+
+            PrettifyAndValidateJson(bytes);
 
             JsonNetworkMessage uaNetworkMessageDecoded = new JsonNetworkMessage();
             uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, dataSetReaders);
@@ -2179,7 +2183,44 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             return null;
         }
-        #endregion
 
+        /// <summary>
+        /// Format and validate a JSON string.
+        /// </summary>
+        private string PrettifyAndValidateJson(byte[] json)
+        {
+            return PrettifyAndValidateJson(System.Text.Encoding.UTF8.GetString(json));
+        }
+
+        /// <summary>
+        /// Format and validate a JSON string.
+        /// </summary>
+        private string PrettifyAndValidateJson(string json)
+        {
+            try
+            {
+                using (var stringWriter = new StringWriter())
+                using (var stringReader = new StringReader(json))
+                {
+                    var jsonReader = new JsonTextReader(stringReader);
+                    var jsonWriter = new JsonTextWriter(stringWriter) {
+                        FloatFormatHandling = FloatFormatHandling.String,
+                        Formatting = Newtonsoft.Json.Formatting.Indented,
+                        Culture = System.Globalization.CultureInfo.InvariantCulture
+                    };
+                    jsonWriter.WriteToken(jsonReader);
+                    string formattedJson = stringWriter.ToString();
+                    TestContext.Out.WriteLine(formattedJson);
+                    return formattedJson;
+                }
+            }
+            catch (Exception ex)
+            {
+                TestContext.Out.WriteLine(json);
+                Assert.Fail("Invalid json data: " + ex.Message);
+            }
+            return json;
+        }
+        #endregion
     }
 }

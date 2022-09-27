@@ -2493,7 +2493,7 @@ namespace Opc.Ua
                     // for an empty element create the empty dimension array 
                     dimensions = new int[valueRank].ToList();
                 }
-                else if (dimensions.Count != valueRank)
+                else if (dimensions.Count < ValueRanks.TwoDimensions)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,

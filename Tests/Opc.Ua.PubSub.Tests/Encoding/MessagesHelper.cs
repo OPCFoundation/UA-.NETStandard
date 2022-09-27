@@ -2644,7 +2644,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataValue boolToggleMatrix = new DataValue(new Variant(new Matrix(new bool[] { true, false, true, false, true, false, true, false,
                                                                                            true, false, true, false, true, false, true, false,
                                                                                            true, false, true, false, true, false, true, false},
-                                                                                           BuiltInType.Boolean, 2, 3, 4).ToArray()));
+                                                                                           BuiltInType.Boolean, 2, 3, 4)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggleMatrix", namespaceIndexAllTypes), Attributes.Value, boolToggleMatrix);
             DataValue byteValueMatrix = new DataValue(new Variant(new Matrix(new byte[] { 127, 128, 101, 102 }, BuiltInType.Byte, 2, 2, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteMatrix", namespaceIndexAllTypes), Attributes.Value, byteValueMatrix);
