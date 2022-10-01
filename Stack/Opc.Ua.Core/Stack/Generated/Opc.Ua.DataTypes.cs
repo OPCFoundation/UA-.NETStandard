@@ -4178,8 +4178,8 @@ namespace Opc.Ua
         CheckRevocationStatusOnline = 32,
 
         /// <remarks />
-        [EnumMember(Value = "CheckRevocationStatusOffine_64")]
-        CheckRevocationStatusOffine = 64,
+        [EnumMember(Value = "CheckRevocationStatusOffline_64")]
+        CheckRevocationStatusOffline = 64,
     }
     #endif
     #endregion

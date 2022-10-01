@@ -35,7 +35,13 @@
   targetNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
   elementFormDefault="qualified"
 >
-  <xs:element name="Boolean" nillable="true" type="xs:boolean" />
+  <xs:annotation>
+    <xs:appinfo>
+      <tns:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.02" PublicationDate="2022-10-01T00:00:00Z" />
+    </xs:appinfo>
+  </xs:annotation>
+  
+  <xs:element name="Boolean" type="xs:boolean" />
 
   <xs:complexType name="ListOfBoolean">
     <xs:sequence>
@@ -44,7 +50,7 @@
   </xs:complexType>
   <xs:element name="ListOfBoolean" type="tns:ListOfBoolean" nillable="true"></xs:element>
 
-  <xs:element name="SByte" nillable="true" type="xs:byte" />
+  <xs:element name="SByte" type="xs:byte" />
 
   <xs:complexType name="ListOfSByte">
     <xs:sequence>
@@ -53,7 +59,7 @@
   </xs:complexType>
   <xs:element name="ListOfSByte" type="tns:ListOfSByte" nillable="true"></xs:element>
 
-  <xs:element name="Byte" nillable="true" type="xs:unsignedByte" />
+  <xs:element name="Byte" type="xs:unsignedByte" />
 
   <xs:complexType name="ListOfByte">
     <xs:sequence>
@@ -62,7 +68,7 @@
   </xs:complexType>
   <xs:element name="ListOfByte" type="tns:ListOfByte" nillable="true"></xs:element>
 
-  <xs:element name="Int16" nillable="true" type="xs:short" />
+  <xs:element name="Int16" type="xs:short" />
 
   <xs:complexType name="ListOfInt16">
     <xs:sequence>
@@ -71,7 +77,7 @@
   </xs:complexType>
   <xs:element name="ListOfInt16" type="tns:ListOfInt16" nillable="true"></xs:element>
 
-  <xs:element name="UInt16" nillable="true" type="xs:unsignedShort" />
+  <xs:element name="UInt16" type="xs:unsignedShort" />
 
   <xs:complexType name="ListOfUInt16">
     <xs:sequence>
@@ -80,7 +86,7 @@
   </xs:complexType>
   <xs:element name="ListOfUInt16" type="tns:ListOfUInt16" nillable="true"></xs:element>
 
-  <xs:element name="Int32" nillable="true" type="xs:int" />
+  <xs:element name="Int32" type="xs:int" />
 
   <xs:complexType name="ListOfInt32">
     <xs:sequence>
@@ -89,7 +95,7 @@
   </xs:complexType>
   <xs:element name="ListOfInt32" type="tns:ListOfInt32" nillable="true"></xs:element>
 
-  <xs:element name="UInt32" nillable="true" type="xs:unsignedInt" />
+  <xs:element name="UInt32" type="xs:unsignedInt" />
 
   <xs:complexType name="ListOfUInt32">
     <xs:sequence>
@@ -98,7 +104,7 @@
   </xs:complexType>
   <xs:element name="ListOfUInt32" type="tns:ListOfUInt32" nillable="true"></xs:element>
 
-  <xs:element name="Int64" nillable="true" type="xs:long" />
+  <xs:element name="Int64" type="xs:long" />
 
   <xs:complexType name="ListOfInt64">
     <xs:sequence>
@@ -107,7 +113,7 @@
   </xs:complexType>
   <xs:element name="ListOfInt64" type="tns:ListOfInt64" nillable="true"></xs:element>
 
-  <xs:element name="UInt64" nillable="true" type="xs:unsignedLong" />
+  <xs:element name="UInt64" type="xs:unsignedLong" />
 
   <xs:complexType name="ListOfUInt64">
     <xs:sequence>
@@ -116,7 +122,7 @@
   </xs:complexType>
   <xs:element name="ListOfUInt64" type="tns:ListOfUInt64" nillable="true"></xs:element>
 
-  <xs:element name="Float" nillable="true" type="xs:float" />
+  <xs:element name="Float" type="xs:float" />
 
   <xs:complexType name="ListOfFloat">
     <xs:sequence>
@@ -125,7 +131,7 @@
   </xs:complexType>
   <xs:element name="ListOfFloat" type="tns:ListOfFloat" nillable="true"></xs:element>
 
-  <xs:element name="Double" nillable="true" type="xs:double" />
+  <xs:element name="Double" type="xs:double" />
 
   <xs:complexType name="ListOfDouble">
     <xs:sequence>
@@ -231,7 +237,7 @@
       <xs:element name="Code" type="xs:unsignedInt" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
-  <xs:element name="StatusCode" type="tns:StatusCode" nillable="true"></xs:element>
+  <xs:element name="StatusCode" type="tns:StatusCode"></xs:element>
 
   <xs:complexType name="ListOfStatusCode">
     <xs:sequence>
