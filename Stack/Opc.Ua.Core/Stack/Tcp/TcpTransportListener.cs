@@ -260,6 +260,9 @@ namespace Opc.Ua.Bindings
                 if (m_callback != null)
                 {
                     channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+                    channel.SetReportOpenSecureChannellAuditCalback(new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
+                    channel.SetReportCloseSecureChannellAuditCalback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
+                    channel.SetReportCertificateAuditCalback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
                 }
             }
             catch (Exception e)
@@ -498,6 +501,9 @@ namespace Opc.Ua.Bindings
                             if (m_callback != null)
                             {
                                 channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+                                channel.SetReportOpenSecureChannellAuditCalback(new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
+                                channel.SetReportCloseSecureChannellAuditCalback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
+                                channel.SetReportCertificateAuditCalback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
                             }
 
                             // get channel id
@@ -561,6 +567,60 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 Utils.LogError(e, "TCPLISTENER - Unexpected error processing request.");
+            }
+        }
+
+        /// <summary>
+        /// Callback for reporting the open secure channel audit event
+        /// </summary>
+        private void OnReportAuditOpenSecureChannelEvent(TcpServerChannel channel, OpenSecureChannelRequest request, X509Certificate2 clientCertificate, Exception exception)
+        {
+            try
+            {
+                if (m_callback != null)
+                {
+                    m_callback.ReportAuditOpenSecureChannelEvent(channel.GlobalChannelId, channel.EndpointDescription, request, clientCertificate, exception);
+                }
+            }
+            catch (Exception e)
+            {
+                Utils.LogError(e, "TCPLISTENER - Unexpected error sending OpenSecureChannel Audit event.");
+            }
+        }
+
+        /// <summary>
+        /// Callback for reporting the close secure channel audit event
+        /// </summary>
+        private void OnReportAuditCloseSecureChannelEvent(TcpServerChannel channel, Exception exception)
+        {
+            try
+            {
+                if (m_callback != null)
+                {
+                    m_callback.ReportAuditCloseSecureChannelEvent(channel.GlobalChannelId, exception);
+                }
+            }
+            catch (Exception e)
+            {
+                Utils.LogError(e, "TCPLISTENER - Unexpected error sending CloseSecureChannel Audit event.");
+            }
+        }
+
+        /// <summary>
+        /// Callback for reporting the certificate audit events
+        /// </summary>
+        private void OnReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
+        {
+            try
+            {
+                if (m_callback != null)
+                {
+                    m_callback.ReportAuditCertificateEvent(clientCertificate, exception);
+                }
+            }
+            catch (Exception e)
+            {
+                Utils.LogError(e, "TCPLISTENER - Unexpected error sending Certificate Audit event.");
             }
         }
 

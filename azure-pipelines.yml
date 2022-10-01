@@ -40,7 +40,7 @@ stages:
   - template: .azurepipelines/ci.yml
     parameters:
       buildoption: '-p:NoHttps=true'
-      agents: '@{ linux = "ubuntu-18.04" }'
+      agents: '@{ linux = "ubuntu-22.04" }'
 - stage: solutions
   dependsOn: []
   displayName: 'Build Solutions'
@@ -78,7 +78,7 @@ stages:
     parameters:
       configuration: Release
       framework: net6.0
-      agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"; mac = "macOS-11"}'
+      agents: '@{ windows = "windows-2022"; linux="ubuntu-22.04"; mac = "macOS-12"}'
       jobnamesuffix: net60
 - stage: testreleasepr
   dependsOn: []

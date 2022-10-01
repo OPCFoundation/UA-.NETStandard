@@ -119,7 +119,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 lastTickCount = tickCount;
                 counts++;
             }
-            Assert.LessOrEqual(1000, counts);
+            if (!disabled)
+            {
+                Assert.LessOrEqual(1000, counts);
+            }
             stopWatch.Stop();
             long elapsed = lastTickCount - firstTickCount;
             TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, stopWatch.ElapsedMilliseconds * 1000 / counts);
@@ -159,7 +162,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 lastTickCount = tickCount;
                 counts++;
             }
-            Assert.LessOrEqual(1000, counts);
+            if (!disabled)
+            {
+                Assert.LessOrEqual(1000, counts);
+            }
             stopWatch.Stop();
             long elapsed = (lastTickCount - firstTickCount) / TimeSpan.TicksPerMillisecond;
             TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, stopWatch.ElapsedMilliseconds * 1000 / counts);

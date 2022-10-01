@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
@@ -125,6 +126,36 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region IAuditEventCallback Members
+        /// <inheritdoc/>
+        public void ReportAuditOpenSecureChannelEvent(
+            string globalChannelId,
+            EndpointDescription endpointDescription,
+            OpenSecureChannelRequest request,
+            X509Certificate2 clientCertificate,
+            Exception exception)
+        {
+            // trigger the reporting of AuditOpenSecureChannelEventType
+            ServerForContext?.ReportAuditOpenSecureChannelEvent(globalChannelId, endpointDescription, request, clientCertificate, exception);
+        }
+
+        /// <inheritdoc/>
+        public void ReportAuditCloseSecureChannelEvent(
+            string globalChannelId,
+            Exception exception)
+        {
+            // trigger the reporting of close AuditChannelEventType
+            ServerForContext?.ReportAuditCloseSecureChannelEvent(globalChannelId, exception);
+        }
+
+        /// <inheritdoc/>
+        public void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
+        {
+            // trigger the reporting of OpenSecureChannelAuditEvent
+            ServerForContext?.ReportAuditCertificateEvent(clientCertificate, exception);
+        }
+        #endregion
+
         #region Public Methods
         /// <summary>
         /// Dispatches an incoming binary encoded request.
@@ -235,7 +266,7 @@ namespace Opc.Ua
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
-        /// <param name="ar">The ar.</param>
+        /// <param name="ar">The async result.</param>
         public virtual InvokeServiceResponseMessage EndInvokeService(IAsyncResult ar)
         {
             try
@@ -243,7 +274,7 @@ namespace Opc.Ua
                 // wait for the response.
                 IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(ar, false);
 
-                // encode the repsonse.
+                // encode the response.
                 InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
                 outgoing.InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, MessageContext);
                 return outgoing;
@@ -388,7 +419,7 @@ namespace Opc.Ua
             if (sre != null)
             {
                 result = new ServiceResult(sre);
-                Utils.LogWarning("SERVER - Service Fault Occured. Reason={0}", result.StatusCode);
+                Utils.LogWarning("SERVER - Service Fault Occurred. Reason={0}", result.StatusCode);
                 if (sre.StatusCode == StatusCodes.BadUnexpectedError)
                 {
                     Utils.LogWarning(Utils.TraceMasks.StackTrace, sre, sre.ToString());
@@ -511,7 +542,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region ServiceDefinition Classe
+        #region ServiceDefinition Class
         /// <summary>
         /// Stores the definition of a service supported by the server.
         /// </summary>
@@ -835,7 +866,7 @@ namespace Opc.Ua
                 // report completion.
                 OperationCompleted();
             }
-            #endregion
+            #endregion     
 
             #region Private Fields
             private EndpointBase m_endpoint;

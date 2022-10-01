@@ -2970,7 +2970,6 @@ namespace Opc.Ua.Sample
                     {
                         monitoredItems[ii].SetupResendDataTrigger();
                     }
-
                     errors[ii] = StatusCodes.Good;
                 }
             }
@@ -2989,9 +2988,8 @@ namespace Opc.Ua.Sample
             IList<IMonitoredItem> monitoredItems
             )
         {
-            // does nothing.
+            // overridden by the sub-class.
         }
-
 
         /// <summary>
         /// Changes the monitoring mode for a set of monitored items.

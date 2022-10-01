@@ -570,10 +570,11 @@ namespace Opc.Ua
                         ServiceResult.IsGood(error),
                         DateTime.UtcNow);
 
-                    e.SourceName.Value = "Attribute/Call";
+                    e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                    e.SetChildValue(context, BrowseNames.SourceName, "Method/OneShotShelve", false);
 
-                    e.MethodId = new PropertyState<NodeId>(e);
-                    e.MethodId.Value = method.NodeId;
+                    e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                    e.SetChildValue(context, BrowseNames.ShelvingTime, null, false);
 
                     ReportEvent(context, e);
                 }
@@ -654,13 +655,13 @@ namespace Opc.Ua
                         ServiceResult.IsGood(error),
                         DateTime.UtcNow);
 
-                    e.SourceName.Value = "Attribute/Call";
+                    e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                    e.SetChildValue(context, BrowseNames.SourceName, "Method/TimedShelve", false);
 
-                    e.MethodId = new PropertyState<NodeId>(e);
-                    e.MethodId.Value = method.NodeId;
+                    e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                    e.SetChildValue(context, BrowseNames.InputArguments, new object[] { shelvingTime }, false);
 
-                    e.InputArguments = new PropertyState<object[]>(e);
-                    e.InputArguments.Value = new object[] { shelvingTime };
+                    e.SetChildValue(context, BrowseNames.ShelvingTime, shelvingTime, false);
 
                     ReportEvent(context, e);
                 }
@@ -737,10 +738,11 @@ namespace Opc.Ua
                         ServiceResult.IsGood(error),
                         DateTime.UtcNow);
 
-                    e.SourceName.Value = "Attribute/Call";
+                    e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                    e.SetChildValue(context, BrowseNames.SourceName, "Method/UnShelve", false);
 
-                    e.MethodId = new PropertyState<NodeId>(e);
-                    e.MethodId.Value = method.NodeId;
+                    e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                    e.SetChildValue(context, BrowseNames.ShelvingTime, null, false);
 
                     ReportEvent(context, e);
                 }
@@ -805,7 +807,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Used to recieve notifications when a alarm is shelved or unshelved.
+    /// Used to receive notifications when a alarm is shelved or unshelved.
     /// </summary>
     /// <param name="context">The current system context.</param>
     /// <param name="alarm">The alarm that raised the event.</param>
@@ -820,7 +822,7 @@ namespace Opc.Ua
         double shelvingTime);
 
     /// <summary>
-    /// Used to recieve notifications when the timed shelve period elapses for an alarm.
+    /// Used to receive notifications when the timed shelve period elapses for an alarm.
     /// </summary>
     /// <param name="context">The current system context.</param>
     /// <param name="alarm">The alarm that raised the event.</param>

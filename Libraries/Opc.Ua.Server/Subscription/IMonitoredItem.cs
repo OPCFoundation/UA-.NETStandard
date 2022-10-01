@@ -97,7 +97,12 @@ namespace Opc.Ua.Server
         bool IsReadyToTrigger { get; set; }
 
         /// <summary>
-        /// Setup the resend data trigger by setting the monitor item in ResendData state
+        /// Gets a value indicating whether the monitored item is resending data.
+        /// </summary>
+        bool IsResendData { get; }
+
+        /// <summary>
+        /// Set the resend data trigger flag.
         /// </summary>
         void SetupResendDataTrigger();
 

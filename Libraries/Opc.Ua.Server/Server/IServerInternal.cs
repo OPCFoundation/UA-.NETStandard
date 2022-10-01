@@ -28,12 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.ObjectModel;
 using System.Collections.Generic;
-using System.Text;
-using System.Runtime.Serialization;
-using System.Security.Principal;
-using System.Security.Cryptography.X509Certificates;
 
 #pragma warning disable 0618
 
@@ -42,7 +37,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The interface that a server exposes to objects that it contains.
     /// </summary>
-    public interface IServerInternal
+    public interface IServerInternal : IAuditEventServer
     {
         /// <summary>
         /// The endpoint addresses used by the server.
@@ -90,7 +85,7 @@ namespace Opc.Ua.Server
         /// This object is thread safe.
         /// </remarks>
         TypeTable TypeTree { get; }
-        
+
         /// <summary>
         /// The master node manager for the server.
         /// </summary>
@@ -126,7 +121,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The request manager.</value>
         RequestManager RequestManager { get; }
-        
+
         /// <summary>
         /// A manager for aggregate calculators supported by the server.
         /// </summary>
@@ -143,7 +138,7 @@ namespace Opc.Ua.Server
         /// The manager for active subscriptions.
         /// </summary>
         ISubscriptionManager SubscriptionManager { get; }
-        
+
         /// <summary>
         /// Whether the server is currently running.
         /// </summary>
@@ -192,7 +187,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The server diagnostics.</value>
         ServerDiagnosticsSummaryDataType ServerDiagnostics { get; }
-        
+
         /// <summary>
         /// Whether the server is collecting diagnostics.
         /// </summary>
@@ -240,6 +235,5 @@ namespace Opc.Ua.Server
         /// <param name="subscriptionId">The subscription identifier.</param>
         /// <param name="monitoredItemId">The monitored item identifier.</param>
         void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId);
-
     }
 }

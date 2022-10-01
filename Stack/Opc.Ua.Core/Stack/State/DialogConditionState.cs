@@ -189,14 +189,14 @@ namespace Opc.Ua
                         ServiceResult.IsGood(error),
                         DateTime.UtcNow);
 
-                    e.SourceName.Value = "Attribute/Call";
+                    e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                    e.SetChildValue(context, BrowseNames.SourceName, "Method/Respond", false);
 
-                    e.MethodId = new PropertyState<NodeId>(e);
-                    e.MethodId.Value = method.NodeId;
+                    e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                    e.SetChildValue(context, BrowseNames.InputArguments, new object[] { selectedResponse }, false);
 
-                    e.InputArguments = new PropertyState<object[]>(e);
-                    e.InputArguments.Value = new object[] { selectedResponse };
-
+                    e.SetChildValue(context, BrowseNames.SelectedResponse, selectedResponse.ToString(), false);
+                    
                     ReportEvent(context, e);
                 }
             }

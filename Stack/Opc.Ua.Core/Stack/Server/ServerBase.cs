@@ -152,6 +152,36 @@ namespace Opc.Ua
         {
             m_requestQueue.ScheduleIncomingRequest(request);
         }
+
+        #region IAuditEventCallback Members
+        /// <inheritdoc/>
+        public virtual void ReportAuditOpenSecureChannelEvent(
+            string globalChannelId,
+            EndpointDescription endpointDescription,
+            OpenSecureChannelRequest request,
+            X509Certificate2 clientCertificate,
+            Exception exception)
+        {
+            // raise an audit open secure channel event.            
+        }
+
+        /// <inheritdoc/>
+        public virtual void ReportAuditCloseSecureChannelEvent(
+            string globalChannelId,
+            Exception exception)
+        {
+            // raise an audit close secure channel event.    
+        }
+
+        /// <inheritdoc/>
+        public virtual void ReportAuditCertificateEvent(
+            X509Certificate2 clientCertificate,
+            Exception exception)
+        {
+            // raise the audit certificate
+        }
+        #endregion
+
         #endregion
 
         #region Public Methods
@@ -211,7 +241,7 @@ namespace Opc.Ua
             // do any pre-startup processing
             OnServerStarting(configuration);
 
-            // intialize the request queue from the configuration.
+            // initialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
 
             // create the binding factory.
@@ -274,7 +304,7 @@ namespace Opc.Ua
             // do any pre-startup processing
             OnServerStarting(configuration);
 
-            // intialize the request queue from the configuration.
+            // initialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
 
             // create the listener factory.
@@ -720,16 +750,21 @@ namespace Opc.Ua
         /// <param name="description">The description.</param>
         public static bool RequireEncryption(EndpointDescription description)
         {
-            bool requireEncryption = description.SecurityPolicyUri != SecurityPolicies.None;
+            bool requireEncryption = false;
 
-            if (!requireEncryption)
+            if (description != null)
             {
-                foreach (UserTokenPolicy userTokenPolicy in description.UserIdentityTokens)
+                requireEncryption = description.SecurityPolicyUri != SecurityPolicies.None;
+
+                if (!requireEncryption)
                 {
-                    if (userTokenPolicy.SecurityPolicyUri != SecurityPolicies.None)
+                    foreach (UserTokenPolicy userTokenPolicy in description.UserIdentityTokens)
                     {
-                        requireEncryption = true;
-                        break;
+                        if (userTokenPolicy.SecurityPolicyUri != SecurityPolicies.None)
+                        {
+                            requireEncryption = true;
+                            break;
+                        }
                     }
                 }
             }
