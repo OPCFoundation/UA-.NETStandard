@@ -1700,16 +1700,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            // find the dictionary for the description.
-            Browser browser = new Browser(this);
-
-            browser.BrowseDirection = BrowseDirection.Inverse;
-            browser.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            browser.IncludeSubtypes = false;
-            browser.NodeClassMask = 0;
-
-            ReferenceDescriptionCollection references = browser.Browse(descriptionId);
-
+            IList<INode> references = this.NodeCache.FindReferences(descriptionId, ReferenceTypeIds.HasComponent, true, false);
             if (references.Count == 0)
             {
                 throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Description does not refer to a valid data dictionary.");
@@ -1762,25 +1753,56 @@ namespace Opc.Ua.Client
                 dataTypeSystem = ObjectIds.OPCBinarySchema_TypeSystem;
             }
             else
-            if (!Utils.Equals(dataTypeSystem, ObjectIds.OPCBinarySchema_TypeSystem) &&
-                !Utils.Equals(dataTypeSystem, ObjectIds.XmlSchema_TypeSystem))
+            if (!Utils.IsEqual(dataTypeSystem, ObjectIds.OPCBinarySchema_TypeSystem) &&
+                !Utils.IsEqual(dataTypeSystem, ObjectIds.XmlSchema_TypeSystem))
             {
                 throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, $"{nameof(dataTypeSystem)} does not refer to a valid data dictionary.");
             }
 
             // find the dictionary for the description.
-            Browser browser = new Browser(this);
-
-            browser.BrowseDirection = BrowseDirection.Forward;
-            browser.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            browser.IncludeSubtypes = false;
-            browser.NodeClassMask = 0;
-
-            ReferenceDescriptionCollection references = browser.Browse(dataTypeSystem);
+            IList<INode> references = this.NodeCache.FindReferences(dataTypeSystem, ReferenceTypeIds.HasComponent, false, false);
 
             if (references.Count == 0)
             {
                 throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Type system does not contain a valid data dictionary.");
+            }
+
+            // batch read all encodings and namespaces
+            var referenceNodeIds = references.Select(r => r.NodeId).ToList();
+
+            // find namespace properties
+            var namespaceNodes = this.NodeCache.FindReferences(referenceNodeIds, new NodeIdCollection { ReferenceTypeIds.HasProperty }, false, false)
+                .Where(n => n.BrowseName == BrowseNames.NamespaceUri).ToList();
+            var namespaceNodeIds = namespaceNodes.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, this.NamespaceUris)).ToList();
+
+            // read all schema definitions
+            var referenceExpandedNodeIds = references
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, this.NamespaceUris))
+                .Where(n => n.NamespaceIndex != 0).ToList();
+            IDictionary<NodeId, byte[]> schemas = await DataDictionary.ReadDictionaries(this, referenceExpandedNodeIds).ConfigureAwait(false);
+
+            // read namespace property values
+            var namespaces = new Dictionary<NodeId, string>();
+            ReadValues(namespaceNodeIds, Enumerable.Repeat(typeof(string), namespaceNodeIds.Count).ToList(), out var nameSpaceValues, out var errors);
+
+            // build the namespace dictionary
+            for (int ii = 0; ii < nameSpaceValues.Count; ii++)
+            {
+                if (StatusCode.IsNotBad(errors[ii].StatusCode))
+                {
+                    namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
+                }
+            }
+
+            // build the namespace/schema import dictionary
+            var imports = new Dictionary<string, byte[]>();
+            foreach (var r in references)
+            {
+                NodeId nodeId = ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris);
+                if (schemas.TryGetValue(nodeId, out var schema))
+                {
+                    imports[namespaces[nodeId]] = schema;
+                }
             }
 
             // read all type dictionaries in the type system
@@ -1794,7 +1816,14 @@ namespace Opc.Ua.Client
                     try
                     {
                         dictionaryToLoad = new DataDictionary(this);
-                        await dictionaryToLoad.Load(r).ConfigureAwait(false);
+                        if (schemas.TryGetValue(dictionaryId, out var schema))
+                        {
+                            await dictionaryToLoad.Load(dictionaryId, dictionaryId.ToString(), schema, imports).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await dictionaryToLoad.Load(dictionaryId, dictionaryId.ToString()).ConfigureAwait(false);
+                        }
                         m_dictionaries[dictionaryId] = dictionaryToLoad;
                     }
                     catch (Exception ex)
@@ -1827,18 +1856,23 @@ namespace Opc.Ua.Client
             out IList<ServiceResult> errors,
             bool optionalAttributes = false)
         {
+            if (nodeIds.Count == 0)
+            {
+                nodeCollection = new NodeCollection();
+                errors = new List<ServiceResult>();
+                return;
+            }
+
             if (nodeClass == NodeClass.Unspecified)
             {
                 ReadNodes(nodeIds, out nodeCollection, out errors, optionalAttributes);
                 return;
             }
 
-            nodeCollection = new NodeCollection(nodeIds.Count);
-            errors = new ServiceResult[nodeIds.Count].ToList();
-
             // determine attributes to read for nodeclass
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIds.Count].ToList();
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(nodeIds.Count);
             var attributesToRead = new ReadValueIdCollection();
+            nodeCollection = new NodeCollection(nodeIds.Count);
 
             CreateNodeClassAttributesReadNodesRequest(
                 nodeIds, nodeClass,
@@ -1856,6 +1890,7 @@ namespace Opc.Ua.Client
             ClientBase.ValidateResponse(values, attributesToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
+            errors = new ServiceResult[nodeIds.Count].ToList();
             ProcessAttributesReadNodesResponse(
                 responseHeader,
                 attributesToRead, attributesPerNodeId,
@@ -1880,10 +1915,10 @@ namespace Opc.Ua.Client
         {
             int count = nodeIds.Count;
             nodeCollection = new NodeCollection(count);
+            errors = new List<ServiceResult>(count);
 
             if (count == 0)
             {
-                errors = new List<ServiceResult>();
                 return;
             }
 
@@ -1922,8 +1957,7 @@ namespace Opc.Ua.Client
             }
 
             // second determine attributes to read per nodeclass
-            errors = new ServiceResult[count].ToList();
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[count].ToList();
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(count);
             var attributesToRead = new ReadValueIdCollection();
 
             CreateAttributesReadNodesRequest(
@@ -1933,22 +1967,25 @@ namespace Opc.Ua.Client
                 nodeCollection, errors,
                 optionalAttributes);
 
-            responseHeader = Read(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                attributesToRead,
-                out DataValueCollection values,
-                out diagnosticInfos);
+            if (attributesToRead.Count > 0)
+            {
+                responseHeader = Read(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    attributesToRead,
+                    out DataValueCollection values,
+                    out diagnosticInfos);
 
-            ClientBase.ValidateResponse(values, attributesToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
+                ClientBase.ValidateResponse(values, attributesToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
-            ProcessAttributesReadNodesResponse(
-                responseHeader,
-                attributesToRead, attributesPerNodeId,
-                values, diagnosticInfos,
-                nodeCollection, errors);
+                ProcessAttributesReadNodesResponse(
+                    responseHeader,
+                    attributesToRead, attributesPerNodeId,
+                    values, diagnosticInfos,
+                    nodeCollection, errors);
+            }
         }
 
         /// <summary>
@@ -4297,7 +4334,7 @@ namespace Opc.Ua.Client
                 }
 
                 nodeCollection.Add(node);
-                attributesPerNodeId[ii] = attributes;
+                attributesPerNodeId.Add(attributes);
             }
         }
 
@@ -4324,7 +4361,8 @@ namespace Opc.Ua.Client
                 if (!DataValue.IsGood(nodeClassValues[ii]))
                 {
                     nodeCollection.Add(node);
-                    errors[ii] = new ServiceResult(nodeClassValues[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable);
+                    errors.Add(new ServiceResult(nodeClassValues[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable));
+                    attributesPerNodeId.Add(null);
                     continue;
                 }
 
@@ -4334,8 +4372,9 @@ namespace Opc.Ua.Client
                 if (nodeClass == null)
                 {
                     nodeCollection.Add(node);
-                    errors[ii] = ServiceResult.Create(StatusCodes.BadUnexpectedError,
-                        "Node does not have a valid value for NodeClass: {0}.", nodeClassValues[ii].Value);
+                    errors.Add(ServiceResult.Create(StatusCodes.BadUnexpectedError,
+                        "Node does not have a valid value for NodeClass: {0}.", nodeClassValues[ii].Value));
+                    attributesPerNodeId.Add(null);
                     continue;
                 }
 
@@ -4352,8 +4391,8 @@ namespace Opc.Ua.Client
                 }
 
                 nodeCollection.Add(node);
-                errors[ii] = ServiceResult.Good;
-                attributesPerNodeId[ii] = attributes;
+                errors.Add(ServiceResult.Good);
+                attributesPerNodeId.Add(attributes);
             }
         }
 

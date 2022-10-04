@@ -103,9 +103,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             HiResClock.Disabled = disabled;
             Assert.AreEqual(disabled, HiResClock.Disabled);
             Stopwatch stopWatch = new Stopwatch();
-            stopWatch.Start();
             long lastTickCount = HiResClock.TickCount64;
             long firstTickCount = lastTickCount;
+            stopWatch.Start();
             int counts = 0;
             while (stopWatch.ElapsedMilliseconds <= HiResClockTestDuration)
             {
@@ -119,9 +119,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 lastTickCount = tickCount;
                 counts++;
             }
-            if (!disabled)
+            if (counts < 500)
             {
-                Assert.LessOrEqual(1000, counts);
+                Assert.Inconclusive("Polling tick count unsuccessful, maybe CPU is overloaded.");
             }
             stopWatch.Stop();
             long elapsed = lastTickCount - firstTickCount;

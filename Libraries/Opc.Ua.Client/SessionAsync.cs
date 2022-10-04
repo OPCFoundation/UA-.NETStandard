@@ -137,8 +137,7 @@ namespace Opc.Ua.Client
             var nodeCollection = new NodeCollection(nodeIds.Count);
 
             // determine attributes to read for nodeclass
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIds.Count].ToList();
-            var serviceResults = new ServiceResult[nodeIds.Count].ToList();
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(nodeIds.Count);
             var attributesToRead = new ReadValueIdCollection();
 
             CreateNodeClassAttributesReadNodesRequest(
@@ -160,6 +159,7 @@ namespace Opc.Ua.Client
             ClientBase.ValidateResponse(values, attributesToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
+            var serviceResults = new ServiceResult[nodeIds.Count].ToList();
             ProcessAttributesReadNodesResponse(
                 readResponse.ResponseHeader,
                 attributesToRead, attributesPerNodeId,
@@ -212,8 +212,8 @@ namespace Opc.Ua.Client
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
             // second determine attributes to read per nodeclass
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIds.Count].ToList();
-            var serviceResults = new ServiceResult[nodeIds.Count].ToList();
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(nodeIds.Count);
+            var serviceResults = new List<ServiceResult>(nodeIds.Count);
             var attributesToRead = new ReadValueIdCollection();
 
             CreateAttributesReadNodesRequest(
@@ -222,23 +222,26 @@ namespace Opc.Ua.Client
                 attributesToRead, attributesPerNodeId, nodeCollection, serviceResults,
                 optionalAttributes);
 
-            readResponse = await ReadAsync(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                attributesToRead, ct).ConfigureAwait(false);
+            if (attributesToRead.Count > 0)
+            {
+                readResponse = await ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    attributesToRead, ct).ConfigureAwait(false);
 
-            DataValueCollection values = readResponse.Results;
-            diagnosticInfos = readResponse.DiagnosticInfos;
+                DataValueCollection values = readResponse.Results;
+                diagnosticInfos = readResponse.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(values, attributesToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
+                ClientBase.ValidateResponse(values, attributesToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
-            ProcessAttributesReadNodesResponse(
-                readResponse.ResponseHeader,
-                attributesToRead, attributesPerNodeId,
-                values, diagnosticInfos,
-                nodeCollection, serviceResults);
+                ProcessAttributesReadNodesResponse(
+                    readResponse.ResponseHeader,
+                    attributesToRead, attributesPerNodeId,
+                    values, diagnosticInfos,
+                    nodeCollection, serviceResults);
+            }
 
             return (nodeCollection, serviceResults);
         }

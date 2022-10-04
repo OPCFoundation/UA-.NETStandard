@@ -40,7 +40,7 @@ jobs:
       arguments: '--framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.framework }}
-    timeoutInMinutes: 20
+    timeoutInMinutes: 45
     inputs:
       command: test
       projects: 'UA Core Library.sln'
