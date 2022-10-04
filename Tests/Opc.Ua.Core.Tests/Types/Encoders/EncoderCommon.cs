@@ -50,8 +50,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [SetCulture("en-us")]
     public class EncoderCommon
     {
+        protected const int kArrayRepeats = 3;
         protected const int kRandomStart = 4840;
         protected const int kRandomRepeats = 100;
+        protected const int kMaxArrayLength = 1024 * 64;
         protected const string kApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
@@ -63,7 +65,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            Context = new ServiceMessageContext();
+            Context = new ServiceMessageContext() {
+                MaxArrayLength = kMaxArrayLength
+            };
             NameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
             NameSpaceUris.GetIndexOrAppend(kApplicationUri);
@@ -171,11 +175,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             encoder.WriteDataValue("DataValue", expected);
             Dispose(encoder);
             var buffer = encoderStream.ToArray();
-            string jsonFormatted;
+            string formatted;
             switch (encoderType)
             {
                 case EncodingType.Json:
-                    jsonFormatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    formatted = PrettifyAndValidateJson(buffer);
+                    break;
+                case EncodingType.Xml:
+                    formatted = PrettifyAndValidateXml(buffer);
                     break;
             }
             var decoderStream = new MemoryStream(buffer);
@@ -213,7 +220,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             switch (encoderType)
             {
                 case EncodingType.Json:
-                    formatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    formatted = PrettifyAndValidateJson(buffer);
+                    break;
+                case EncodingType.Xml:
+                    formatted = PrettifyAndValidateXml(buffer);
                     break;
                 default:
                     formatted = Encoding.UTF8.GetString(buffer);
@@ -284,6 +294,51 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
+        /// Format and validate a XML document string.
+        /// </summary>
+        protected string PrettifyAndValidateXml(byte[] xml)
+        {
+            try
+            {
+                using (var reader = new MemoryStream(xml))
+                using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
+                {
+                    XmlDocument document = new XmlDocument();
+                    document.Load(xmlReader);
+
+                    var settings = new XmlWriterSettings {
+                        OmitXmlDeclaration = true,
+                        Indent = true,
+                        NewLineOnAttributes = true
+                    };
+
+                    var stringBuilder = new StringBuilder();
+                    using (var xmlWriter = XmlWriter.Create(stringBuilder, settings))
+                    {
+                        document.Save(xmlWriter);
+                    }
+                    string formattedXml = stringBuilder.ToString();
+                    TestContext.Out.WriteLine(formattedXml);
+                    return formattedXml;
+                }
+            }
+            catch (Exception ex)
+            {
+                TestContext.Out.WriteLine(xml);
+                Assert.Fail("Invalid xml data: " + ex.Message);
+            }
+            return Encoding.UTF8.GetString(xml);
+        }
+
+        /// <summary>
+        /// Format and validate a JSON string.
+        /// </summary>
+        protected string PrettifyAndValidateJson(byte[] json)
+        {
+            return PrettifyAndValidateJson(Encoding.UTF8.GetString(json));
+        }
+
+        /// <summary>
         /// Format and validate a JSON string.
         /// </summary>
         protected string PrettifyAndValidateJson(string json)
@@ -295,6 +350,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     var jsonReader = new JsonTextReader(stringReader);
                     var jsonWriter = new JsonTextWriter(stringWriter) {
+                        FloatFormatHandling = FloatFormatHandling.String,
                         Formatting = Newtonsoft.Json.Formatting.Indented,
                         Culture = System.Globalization.CultureInfo.InvariantCulture
                     };
@@ -513,10 +569,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             if (builtInType == BuiltInType.Variant)
             {
                 // decoder result will be an Int32
-                var matrix = value as Matrix;
-                if (matrix?.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+                if (value is Matrix enumMatrix)
                 {
-                    return new Matrix(matrix.Elements, BuiltInType.Int32, matrix.Dimensions);
+                    if (enumMatrix?.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+                    {
+                        return new Matrix(enumMatrix.Elements, BuiltInType.Int32, enumMatrix.Dimensions).ToArray();
+                    }
                 }
             }
             if (encoderType == EncodingType.Binary)
@@ -547,6 +605,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     }
                 }
             }
+
+            if (value is Matrix matrix)
+            {
+                return matrix.ToArray();
+            }
+
             return value;
         }
 
@@ -616,12 +680,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         /// <summary>
         /// Sets random array dimensions between 2 and 10.
+        /// Number of total elements is limited by <see cref="kMaxArrayLength"/>
         /// </summary>
         protected void SetMatrixDimensions(int[] dimensions)
         {
+            int totalElements = 1;
             for (int i = 0; i < dimensions.Length; i++)
             {
                 dimensions[i] = RandomSource.NextInt32(8) + 2;
+                totalElements *= dimensions[i];
+            }
+            while (totalElements > kMaxArrayLength)
+            {
+                int random = RandomSource.NextInt32(dimensions.Length - 1);
+                if (dimensions[random] > 1)
+                {
+                    dimensions[random]--;
+                }
+                totalElements = 1;
+                for (int i = 0; i < dimensions.Length; i++)
+                {
+                    totalElements *= dimensions[i];
+                }
             }
         }
 

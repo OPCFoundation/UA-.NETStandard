@@ -37,7 +37,15 @@ namespace Opc.Ua.Schema.Xml
         /// <summary>
         /// Intializes the object with a file table.
         /// </summary>
-        public XmlSchemaValidator(Dictionary<string, string> fileTable) : base(fileTable)
+        public XmlSchemaValidator(IDictionary<string, string> fileTable) : base(fileTable)
+        {
+            SetResourcePaths(WellKnownDictionaries);
+        }
+
+        /// <summary>
+        /// Intializes the object with a import table.
+        /// </summary>
+        public XmlSchemaValidator(IDictionary<string, byte[]> importTable) : base(importTable)
         {
             SetResourcePaths(WellKnownDictionaries);
         }

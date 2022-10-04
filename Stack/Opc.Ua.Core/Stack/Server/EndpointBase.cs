@@ -13,8 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-// TODO remove dependency on TcpServerChannel
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {

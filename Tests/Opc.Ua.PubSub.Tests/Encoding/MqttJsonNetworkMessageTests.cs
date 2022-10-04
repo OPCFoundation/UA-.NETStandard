@@ -1120,7 +1120,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSeconds={2}, deviation[{3}] = {4} has maximum deviation", metaDataUpdateTime, maxDeviation, publishTimeInSeconds, faultIndex, faultDeviation);
         }
-                
+
         [Test(Description = "Validate missing or wrong DataSetMetaData fields definition")]
         public void ValidateMissingDataSetMetaDataDefinitions(
             [Values("1", null)] string messageId,
@@ -1149,14 +1149,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             jsonNetworkMessage.DataSetWriterId = MessagesHelper.ConvertToNullable<UInt16>(dataSetWriterId);
 
             jsonNetworkMessage.DataSetMetaData.Name = metaDataName;
-            jsonNetworkMessage.DataSetMetaData.Description = metaDataDescription!=null ? new LocalizedText(metaDataDescription) : metaDataDescription;
+            jsonNetworkMessage.DataSetMetaData.Description = metaDataDescription != null ? new LocalizedText(metaDataDescription) : metaDataDescription;
             jsonNetworkMessage.DataSetMetaData.DataSetClassId = hasMetaDataDataSetClassId ? new Uuid(Guid.NewGuid()) : Uuid.Empty;
-            jsonNetworkMessage.DataSetMetaData.ConfigurationVersion = hasMetaDataConfigurationVersion ?  new ConfigurationVersionDataType() { MajorVersion = 1, MinorVersion = 1 }: new ConfigurationVersionDataType();
+            jsonNetworkMessage.DataSetMetaData.ConfigurationVersion = hasMetaDataConfigurationVersion ? new ConfigurationVersionDataType() { MajorVersion = 1, MinorVersion = 1 } : new ConfigurationVersionDataType();
             if (!hasMetaDataFields)
             {
                 jsonNetworkMessage.DataSetMetaData.Fields = null;
             }
-            
+
             MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
             if (failOptions != MetaDataFailOptions.Ok)
             {
@@ -1242,9 +1242,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 jsonNetworkMessage.DataSetClassId = dataSetClassId;
 
                 NetworkMessageFailOptions failOptions = (NetworkMessageFailOptions)VerifyDataEncoding(jsonNetworkMessage);
-                if(failOptions != NetworkMessageFailOptions.Ok)
+                if (failOptions != NetworkMessageFailOptions.Ok)
                 {
-                    switch(failOptions)
+                    switch (failOptions)
                     {
                         case NetworkMessageFailOptions.MessageId:
                             Assert.AreEqual(failOptions, NetworkMessageFailOptions.MessageId, "ValidateMissingNetworkMessageFields should fail due to missing MessageId reason.");
@@ -1346,7 +1346,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             }
         }
-        
+
         #region Private methods
 
         /// <summary>
@@ -1358,6 +1358,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsTrue(jsonNetworkMessage.IsMetaDataMessage, "The received message is not a metadata message");
 
             byte[] bytes = jsonNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
+
+            PrettifyAndValidateJson(bytes);
 
             JsonNetworkMessage uaNetworkMessageDecoded = new JsonNetworkMessage();
             uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, null);
@@ -1380,6 +1382,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private void CompareEncodeDecode(JsonNetworkMessage jsonNetworkMessage, IList<DataSetReaderDataType> dataSetReaders)
         {
             byte[] bytes = jsonNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
+
+            PrettifyAndValidateJson(bytes);
 
             JsonNetworkMessage uaNetworkMessageDecoded = new JsonNetworkMessage();
             uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, dataSetReaders);
@@ -1821,7 +1825,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             StatusCode statusValue = StatusCodes.Good;
             FieldTypeEncodingMask fieldTypeEncoding = FieldTypeEncodingMask.Reserved;
             Dictionary<string, object> dataSetPayload = null;
-            
+
             object token = null;
             //object token1 = null;
 
@@ -1851,7 +1855,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 int index = 0;
                 foreach (var uaDataSetMessage in jsonNetworkMessage.DataSetMessages)
                 {
-                    var jsonDataSetMessage = (JsonDataSetMessage) uaDataSetMessage;
+                    var jsonDataSetMessage = (JsonDataSetMessage)uaDataSetMessage;
                     if (jsonDataSetMessage.FieldContentMask == DataSetFieldContentMask.None)
                     {
                         fieldTypeEncoding = FieldTypeEncodingMask.Variant;
@@ -1909,7 +1913,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                                     if (jsonDecoder.ReadField(field.FieldMetaData.Name, out token))
                                     {
-                                        switch(fieldTypeEncoding)
+                                        switch (fieldTypeEncoding)
                                         {
                                             case FieldTypeEncodingMask.Variant:
                                                 decodedFieldValue = jsonDecoder.ReadVariant(field.FieldMetaData.Name);
@@ -1935,6 +1939,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     StringBuilder stringBuilder = new StringBuilder();
                                                     ExpandedNodeId.Format(stringBuilder, expandedNodeId.Identifier, expandedNodeId.IdType, namespaceIndex, string.Empty, expandedNodeId.ServerIndex);
                                                     decodedFieldValue = new ExpandedNodeId(stringBuilder.ToString());
+                                                }
+                                                // by convention array decoders always return the Array type
+                                                if (decodedFieldValue is Array value && field.FieldMetaData.ValueRank >= ValueRanks.TwoDimensions)
+                                                {
+                                                    decodedFieldValue = new Matrix(value, (BuiltInType)field.FieldMetaData.BuiltInType);
                                                 }
                                                 Assert.IsTrue(Utils.IsEqual(field.Value.Value, decodedFieldValue),
                                                          "Decoded Field name: {0} values: encoded {1} - decoded {2}", field.FieldMetaData.Name, field.Value.Value, dataSetPayload[field.FieldMetaData.Name]);
@@ -2020,7 +2029,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                 }
                                                 break;
                                         }
-                                    }                                     
+                                    }
                                 }
                             }
                         }
@@ -2064,7 +2073,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             return DataSetMessageFailOptions.Ok;
         }
-                
+
         /// <summary>
         /// Decode field data
         /// </summary>
@@ -2174,7 +2183,44 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             return null;
         }
-        #endregion
 
+        /// <summary>
+        /// Format and validate a JSON string.
+        /// </summary>
+        private string PrettifyAndValidateJson(byte[] json)
+        {
+            return PrettifyAndValidateJson(System.Text.Encoding.UTF8.GetString(json));
+        }
+
+        /// <summary>
+        /// Format and validate a JSON string.
+        /// </summary>
+        private string PrettifyAndValidateJson(string json)
+        {
+            try
+            {
+                using (var stringWriter = new StringWriter())
+                using (var stringReader = new StringReader(json))
+                {
+                    var jsonReader = new JsonTextReader(stringReader);
+                    var jsonWriter = new JsonTextWriter(stringWriter) {
+                        FloatFormatHandling = FloatFormatHandling.String,
+                        Formatting = Newtonsoft.Json.Formatting.Indented,
+                        Culture = System.Globalization.CultureInfo.InvariantCulture
+                    };
+                    jsonWriter.WriteToken(jsonReader);
+                    string formattedJson = stringWriter.ToString();
+                    TestContext.Out.WriteLine(formattedJson);
+                    return formattedJson;
+                }
+            }
+            catch (Exception ex)
+            {
+                TestContext.Out.WriteLine(json);
+                Assert.Fail("Invalid json data: " + ex.Message);
+            }
+            return json;
+        }
+        #endregion
     }
 }

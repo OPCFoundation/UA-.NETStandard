@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -271,6 +270,9 @@ namespace Quickstarts.ReferenceServer
             {
                 args.Identity = this.VerifyIssuedToken(issuedToken);
 
+                // set AuthenticatedUser role for accepted identity token
+                args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
+
                 return;
             }
 
@@ -399,7 +401,7 @@ namespace Quickstarts.ReferenceServer
             {
                 if (issuedToken.IssuedTokenType == IssuedTokenType.JWT)
                 {
-                    Utils.LogDebug (Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
+                    Utils.LogDebug(Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
                     return this.TokenValidator.ValidateToken(issuedToken);
                 }
                 else
@@ -430,7 +432,6 @@ namespace Quickstarts.ReferenceServer
                     new LocalizedText(info)));
             }
         }
-
         #endregion
 
         #region Private Fields

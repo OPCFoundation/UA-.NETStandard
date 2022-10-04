@@ -878,7 +878,7 @@ namespace Opc.Ua.Export
 
             if (sd != null)
             {
-                if (sd.StructureType == StructureType.Union || sd.StructureType == (StructureType)4) // StructureType.UnionWithSubtypedValues)
+                if (sd.StructureType == StructureType.Union || sd.StructureType == StructureType.UnionWithSubtypedValues)
                 {
                     definition.IsUnion = true;
                 }
@@ -901,8 +901,8 @@ namespace Opc.Ua.Export
                             output.IsOptional = field.IsOptional;
                             output.AllowSubTypes = false;
                         }
-                        else if (sd.StructureType == (StructureType)3 || // StructureType.StructureWithSubtypedValues ||
-                                 sd.StructureType == (StructureType)4)   // StructureType.UnionWithSubtypedValues)
+                        else if (sd.StructureType == StructureType.StructureWithSubtypedValues ||
+                                 sd.StructureType == StructureType.UnionWithSubtypedValues)
                         {
                             output.IsOptional = false;
                             output.AllowSubTypes = field.IsOptional;
@@ -1026,11 +1026,11 @@ namespace Opc.Ua.Export
                                 {
                                     if (source.IsUnion)
                                     {
-                                        sd.StructureType = (StructureType)4; // StructureType.UnionWithSubtypedValues;
+                                        sd.StructureType = StructureType.UnionWithSubtypedValues;
                                     }
                                     else
                                     {
-                                        sd.StructureType = (StructureType)3; // StructureType.StructureWithSubtypedValues;
+                                        sd.StructureType = StructureType.StructureWithSubtypedValues;
                                     }
                                 }
                             }
@@ -1056,8 +1056,8 @@ namespace Opc.Ua.Export
                             {
                                 output.IsOptional = false;
                             }
-                            else if (sd.StructureType == (StructureType)3 || //StructureType.StructureWithSubtypedValues ||
-                                    sd.StructureType == (StructureType)4)   //StructureType.UnionWithSubtypedValues)
+                            else if (sd.StructureType == StructureType.StructureWithSubtypedValues ||
+                                    sd.StructureType == StructureType.UnionWithSubtypedValues)
                             {
                                 output.IsOptional = field.AllowSubTypes;
                             }
