@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -46,6 +46,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ValueRank = -1;
             MaxStringLength = 0;
             IsOptional = false;
+            BuiltInType = 0;
         }
         #endregion Constructors
 
@@ -64,6 +65,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// If the field is optional.
         /// </summary>
         public bool IsOptional { get; set; }
+
+        /// <summary>
+        /// The datatype of a field as BuiltInType.
+        /// </summary>
+        public Int32 BuiltInType { get; set; }
         #endregion Public Properties
     }
 }//namespace

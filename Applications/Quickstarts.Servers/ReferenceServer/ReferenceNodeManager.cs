@@ -783,7 +783,7 @@ namespace Quickstarts.ReferenceServer
                         new RolePermissionType()
                         {
                             RoleId = ObjectIds.WellKnownRole_Anonymous,
-                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                            Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.ReadRolePermissions | PermissionType.Write)
                         },
                     };
                     variables.Add(rpAnonymous);
@@ -796,7 +796,7 @@ namespace Quickstarts.ReferenceServer
                         new RolePermissionType()
                         {
                             RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
-                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                            Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.ReadRolePermissions | PermissionType.Write)
                         },
                     };
                     variables.Add(rpAuthenticatedUser);
@@ -810,7 +810,7 @@ namespace Quickstarts.ReferenceServer
                         new RolePermissionType()
                         {
                             RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
-                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                            Permissions = (uint)(PermissionType.Browse | PermissionType.Read| PermissionType.ReadRolePermissions | PermissionType.Write)
                         },
                     };
                     variables.Add(rpSecurityAdminUser);
@@ -824,7 +824,7 @@ namespace Quickstarts.ReferenceServer
                         new RolePermissionType()
                         {
                             RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
-                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                            Permissions = (uint)(PermissionType.Browse | PermissionType.Read| PermissionType.ReadRolePermissions | PermissionType.Write)
                         },
                     };
                     variables.Add(rpConfigAdminUser);
