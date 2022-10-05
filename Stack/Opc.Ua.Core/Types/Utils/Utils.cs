@@ -1491,14 +1491,14 @@ namespace Opc.Ua
             {
                 for (int ii = buffer.Length - 1; ii >= 0; ii--)
                 {
-                    builder.AppendFormat("{0:X2}", buffer[ii]);
+                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
                 }
             }
             else
             {
                 for (int ii = 0; ii < buffer.Length; ii++)
                 {
-                    builder.AppendFormat("{0:X2}", buffer[ii]);
+                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
                 }
             }
 
@@ -2155,6 +2155,28 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Checks if two DateTime values are equal.
+        /// </summary>
+        public static bool IsEqual(DateTime time1, DateTime time2)
+        {
+            var utcTime1 = Utils.ToOpcUaUniversalTime(time1);
+            var utcTime2 = Utils.ToOpcUaUniversalTime(time2);
+
+            // values smaller than Timebase can not be binary encoded and are considered equal
+            if (utcTime1 <= TimeBase && utcTime2 <= TimeBase)
+            {
+                return true;
+            }
+
+            if (utcTime1 >= DateTime.MaxValue && utcTime2 >= DateTime.MaxValue)
+            {
+                return true;
+            }
+
+            return utcTime1.CompareTo(utcTime2) == 0;
+        }
+
+        /// <summary>
         /// Checks if two values are equal.
         /// </summary>
         public static bool IsEqual(object value1, object value2)
@@ -2189,9 +2211,9 @@ namespace Opc.Ua
             }
 
             // check for DateTime objects
-            if (value1 is DateTime time)
+            if (value1 is DateTime time1)
             {
-                return (Utils.ToOpcUaUniversalTime(time).CompareTo(Utils.ToOpcUaUniversalTime((DateTime)value2))) == 0;
+                return Utils.IsEqual(time1, (DateTime)value2);
             }
 
             // check for compareable objects.
@@ -2245,10 +2267,32 @@ namespace Opc.Ua
                     return false;
                 }
 
-                // compare each element.
-                for (int ii = 0; ii < array1.Length; ii++)
+                // compare the array dimension
+                if (array1.Rank != array2.Rank)
                 {
-                    bool result = Utils.IsEqual(array1.GetValue(ii), array2.GetValue(ii));
+                    return false;
+                }
+
+                // compare each rank.
+                for (int ii = 0; ii < array1.Rank; ii++)
+                {
+                    if (array1.GetLowerBound(ii) != array2.GetLowerBound(ii) ||
+                        array1.GetUpperBound(ii) != array2.GetUpperBound(ii))
+                    {
+                        return false;
+                    }
+                }
+
+                IEnumerator enumerator1 = array1.GetEnumerator();
+                IEnumerator enumerator2 = array2.GetEnumerator();
+
+                // compare each element.
+                while (enumerator1.MoveNext())
+                {
+                    // length is already checked
+                    enumerator2.MoveNext();
+
+                    bool result = Utils.IsEqual(enumerator1.Current, enumerator2.Current);
 
                     if (!result)
                     {
@@ -3222,6 +3266,6 @@ namespace Opc.Ua
         {
             return s_isRunningOnMonoValue.Value;
         }
-        #endregion 
+        #endregion
     }
 }

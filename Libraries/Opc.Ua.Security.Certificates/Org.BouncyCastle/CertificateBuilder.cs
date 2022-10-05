@@ -388,7 +388,6 @@ namespace Opc.Ua.Security.Certificates
             {
                 cg.AddExtension(extension.Oid.Value, extension.Critical, Asn1Object.FromByteArray(extension.RawData));
             }
-
         }
 
         /// <summary>

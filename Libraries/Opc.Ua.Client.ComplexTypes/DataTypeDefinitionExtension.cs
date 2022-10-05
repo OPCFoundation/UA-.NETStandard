@@ -214,17 +214,14 @@ namespace Opc.Ua.Client.ComplexTypes
                         }
                         dataTypeFieldPosition++;
                     }
-                    else
+                    else if (field.SwitchField != null)
                     {
-                        if (field.SwitchField != null)
+                        dataTypeField.IsOptional = true;
+                        byte value;
+                        if (!switchFieldBits.TryGetValue(field.SwitchField, out value))
                         {
-                            dataTypeField.IsOptional = true;
-                            byte value;
-                            if (!switchFieldBits.TryGetValue(field.SwitchField, out value))
-                            {
-                                throw new DataTypeNotSupportedException(
-                                    $"The switch field for {field.SwitchField} does not exist.");
-                            }
+                            throw new DataTypeNotSupportedException(
+                                $"The switch field for {field.SwitchField} does not exist.");
                         }
                     }
                     structureDefinition.Fields.Add(dataTypeField);
@@ -270,8 +267,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 var internalField = typeof(DataTypeIds).GetField(typeName.Name);
                 if (internalField == null)
                 {
-                    throw new DataTypeNotFoundException(
-                        $"The type {typeName.Name} was not found in the internal type factory.");
+                    // The type was not found in the internal type factory.
+                    return NodeId.Null;
                 }
                 return (NodeId)internalField.GetValue(typeName.Name);
             }
@@ -279,9 +276,8 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))
                 {
-                    throw new DataTypeNotFoundException(
-                        typeName.Name,
-                        $"The type {typeName.Name} in namespace {typeName.Namespace} was not found.");
+                    // The type was not found in the namespace
+                    return NodeId.Null;
                 }
                 return referenceId;
             }

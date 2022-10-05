@@ -147,8 +147,8 @@ namespace Opc.Ua.Bindings
             m_maxRequestMessageSize = quotas.MaxMessageSize;
             m_maxResponseMessageSize = quotas.MaxMessageSize;
 
-            m_maxRequestChunkCount = CalculateChunkCount(m_maxRequestMessageSize, m_sendBufferSize);
-            m_maxResponseChunkCount = CalculateChunkCount(m_maxResponseMessageSize, m_receiveBufferSize);
+            m_maxRequestChunkCount = CalculateChunkCount(m_maxRequestMessageSize, TcpMessageLimits.MinBufferSize);
+            m_maxResponseChunkCount = CalculateChunkCount(m_maxResponseMessageSize, TcpMessageLimits.MinBufferSize);
 
             CalculateSymmetricKeySizes();
         }

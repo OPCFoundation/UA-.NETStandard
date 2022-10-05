@@ -41,15 +41,29 @@
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
-  
+
+    <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. 
+       only nano and embedded profiles are allowed to use sha1 signed certificates. -->
+    <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
+    <RejectUnknownRevocationStatus>true</RejectUnknownRevocationStatus>
+    <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
+    <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
+    <SendCertificateChain>true</SendCertificateChain>
+
+    <!-- Where the User trust list is stored-->
+    <TrustedUserCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC Foundation/pki/trustedUser</StorePath>
+    </TrustedUserCertificates>
+
   </SecurityConfiguration>
   
   <TransportConfigurations></TransportConfigurations>
   
   <TransportQuotas>
     <OperationTimeout>120000</OperationTimeout>
-    <MaxStringLength>1048576</MaxStringLength>
-    <MaxByteStringLength>1048576</MaxByteStringLength>
+    <MaxStringLength>4194304</MaxStringLength>
+    <MaxByteStringLength>4194304</MaxByteStringLength>
     <MaxArrayLength>65535</MaxArrayLength>
     <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
@@ -66,6 +80,22 @@
     </WellKnownDiscoveryUrls>
     <DiscoveryServers></DiscoveryServers>
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
+
+    <OperationLimits>
+      <MaxNodesPerRead>2500</MaxNodesPerRead>
+      <MaxNodesPerHistoryReadData>1000</MaxNodesPerHistoryReadData>
+      <MaxNodesPerHistoryReadEvents>1000</MaxNodesPerHistoryReadEvents>
+      <MaxNodesPerWrite>2500</MaxNodesPerWrite>
+      <MaxNodesPerHistoryUpdateData>1000</MaxNodesPerHistoryUpdateData>
+      <MaxNodesPerHistoryUpdateEvents>1000</MaxNodesPerHistoryUpdateEvents>
+      <MaxNodesPerMethodCall>2500</MaxNodesPerMethodCall>
+      <MaxNodesPerBrowse>2500</MaxNodesPerBrowse>
+      <MaxNodesPerRegisterNodes>2500</MaxNodesPerRegisterNodes>
+      <MaxNodesPerTranslateBrowsePathsToNodeIds>2500</MaxNodesPerTranslateBrowsePathsToNodeIds>
+      <MaxNodesPerNodeManagement>2500</MaxNodesPerNodeManagement>
+      <MaxMonitoredItemsPerCall>2500</MaxMonitoredItemsPerCall>
+    </OperationLimits>
+
   </ClientConfiguration>
 
   <Extensions>

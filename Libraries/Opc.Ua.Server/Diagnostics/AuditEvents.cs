@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="e">The event.</param>
-        void ReportAuditEvent(ISystemContext context, IFilterTarget e);
+        void ReportAuditEvent(ISystemContext context, AuditEventState e);
     }
 
     /// <summary>
@@ -893,10 +893,11 @@ namespace Opc.Ua.Server
                 TranslationInfo message = new TranslationInfo(
                      "AuditUrlMismatchEvent",
                      "en-US",
-                     $"Session with ID:{session.Id} was cannot be created because endpoint URL does not match the Server’s HostNames.");
+                     $"Session with ID:{session.Id} was created but the endpoint URL does not match the domain names in the server certificate.");
 
                 InitializeAuditSessionEvent(systemContext, e, message, false, session, auditEntryId);
 
+                e.SetChildValue(systemContext, BrowseNames.ClientUserId, "System/CreateSession", false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Session/CreateSession", false);
 
                 // set AuditCreateSessionEventState fields
@@ -1410,6 +1411,57 @@ namespace Opc.Ua.Server
                 Utils.LogError(ex, "Error while reporting AuditDeleteNodesEvent event.");
             }
         }
+
+        /// <summary>
+        /// Reports an TrustListUpdatedAudit event.
+        /// </summary>
+        /// <param name="node">The trustlist node.</param>
+        /// <param name="systemContext">The current system context</param>
+        /// <param name="objectId">The object id where the truest list update methods was called</param>
+        /// <param name="sourceName">The source name string</param>
+        /// <param name="methodId">The id of the method that was called</param>
+        /// <param name="inputParameters">The input parameters of the called method</param>
+        /// <param name="statusCode">The status code resulted when the TrustList was updated </param>
+        public static void ReportTrustListUpdatedAuditEvent(
+            this TrustListState node,
+            ISystemContext systemContext,
+            NodeId objectId,
+            string sourceName,
+            NodeId methodId,
+            object[] inputParameters,
+            StatusCode statusCode)
+        {
+            try
+            {
+                TrustListUpdatedAuditEventState e = new TrustListUpdatedAuditEventState(null);
+
+                TranslationInfo message = new TranslationInfo(
+                   "TrustListUpdatedAuditEvent",
+                   "en-US",
+                   $"TrustListUpdatedAuditEvent result is: {statusCode.ToString(null, CultureInfo.InvariantCulture)}");
+
+                e.Initialize(
+                   systemContext,
+                   null,
+                   EventSeverity.Min,
+                   new LocalizedText(message),
+                   StatusCode.IsGood(statusCode),
+                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+
+                e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
+                e.SetChildValue(systemContext, BrowseNames.SourceName, sourceName, false);
+                e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
+
+                e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
+                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputParameters, false);
+
+                node?.ReportEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Error while reporting ReportTrustListUpdatedAuditEvent event.");
+            }
+        }
         #endregion Report Audit Events
 
         #region Private helpers
@@ -1456,7 +1508,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes a session audit event.
         /// </summary>
-        private static void InitializeAuditSessionEvent(ISystemContext systemContext, AuditEventState e, TranslationInfo message, bool status, Session session, string auditEntryId)
+        private static void InitializeAuditSessionEvent(
+            ISystemContext systemContext,
+            AuditEventState e,
+            TranslationInfo message,
+            bool status,
+            Session session,
+            string auditEntryId)
         {
             e.Initialize(
                 systemContext,

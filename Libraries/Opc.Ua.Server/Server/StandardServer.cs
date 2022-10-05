@@ -447,12 +447,20 @@ namespace Opc.Ua.Server
 
                 if (endpointUrl != null)
                 {
-                    // check the endpointurl
-                    ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint() {
-                        EndpointUrl = new Uri(endpointUrl)
-                    };
+                    try
+                    {
+                        // check the endpointurl
+                        ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint() {
+                            EndpointUrl = new Uri(endpointUrl)
+                        };
 
-                    CertificateValidator.ValidateDomains(instanceCertificate, configuredEndpoint);
+                        CertificateValidator.ValidateDomains(instanceCertificate, configuredEndpoint, true);
+                    }
+                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
+                    {
+                        Utils.LogWarning("Server - Client connects with an endpointUrl [{0}] which does not match Server hostnames.", endpointUrl);
+                        ServerInternal.ReportAuditUrlMismatchEvent(context?.AuditEntryId, session, revisedSessionTimeout, endpointUrl);
+                    }
                 }
 
                 lock (m_lock)
@@ -504,16 +512,8 @@ namespace Opc.Ua.Server
             {
                 Utils.LogError("Server - SESSION CREATE failed. {0}", e.Message);
 
-                if (e.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
-                {
-                    // report the AuditUrlMismatchEvent
-                    ServerInternal.ReportAuditUrlMismatchEvent(context?.AuditEntryId, session, revisedSessionTimeout, endpointUrl);
-                }
-                else
-                {
-                    // report the failed AuditCreateSessionEvent
-                    ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout, e);
-                }
+                // report the failed AuditCreateSessionEvent
+                ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout, e);
 
                 if (session != null)
                 {
