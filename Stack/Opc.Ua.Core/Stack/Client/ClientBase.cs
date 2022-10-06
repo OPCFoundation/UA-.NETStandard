@@ -612,7 +612,7 @@ namespace Opc.Ua
     /// <summary>
 	/// The client side interface with a UA server.
 	/// </summary>
-    public partial class SessionClient: ISessionClientBase
+    public partial class SessionClient : ISessionClient
     {
         #region IDisposable Implementation
         /// <summary>

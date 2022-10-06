@@ -19,7 +19,7 @@ namespace Opc.Ua
     /// <summary>
     /// The client side interface for a UA server.
     /// </summary>
-    public interface ISessionClientBase : ISessionClient, IClientBase
+    public interface ISessionClient : ISessionClientMethods, IClientBase
     {
         #region Public Properties
         /// <summary>

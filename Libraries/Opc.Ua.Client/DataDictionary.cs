@@ -225,7 +225,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads the contents of multiple data dictionaries.
         /// </summary>
-        public static async Task<IDictionary<NodeId, byte[]>> ReadDictionaries(Session session, IList<NodeId> dictionaryIds)
+        public static async Task<IDictionary<NodeId, byte[]>> ReadDictionaries(ISessionClientMethods session, IList<NodeId> dictionaryIds)
         {
             ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
             foreach (var nodeId in dictionaryIds)

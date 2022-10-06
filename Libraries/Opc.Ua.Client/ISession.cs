@@ -59,7 +59,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public interface ISession : ISessionClientBase, IDisposable
+    public interface ISession : ISessionClient, IDisposable
     {
         #region Events
         /// <summary>
@@ -556,7 +556,6 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Close Methods
-
         /// <summary>
         /// Disconnects from the server and frees any network resources with the specified timeout.
         /// </summary>

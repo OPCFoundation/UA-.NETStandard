@@ -899,15 +899,15 @@ namespace Opc.Ua
 #endif
     #endregion
 
-    #region ISessionClient Interface
+    #region ISessionClientMethods Interface
     /// <summary>
-    /// The client side interface for a UA server.
+    /// The client side interface methods for a UA server.
     /// </summary>
     /// <remarks>
-    /// TODO: ISessionClient should be generated in ModelCompiler.
+    /// TODO: ISessionClientMethods should be generated in ModelCompiler.
     /// </remarks>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public interface ISessionClient
+    public interface ISessionClientMethods
     {
         #region CreateSession Methods
 #if (!OPCUA_EXCLUDE_CreateSession)
