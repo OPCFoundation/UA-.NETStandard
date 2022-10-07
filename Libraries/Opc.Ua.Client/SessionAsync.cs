@@ -396,6 +396,123 @@ namespace Opc.Ua.Client
             return (values, errors);
         }
         #endregion
+
+        #region Close Async Methods
+        /// <summary>
+        /// Disconnects from the server and frees any network resources.
+        /// </summary>
+        public Task<StatusCode> CloseAsync(CancellationToken ct = default)
+        {
+            return CloseAsync(m_keepAliveInterval, true, ct);
+        }
+
+        /// <summary>
+        /// Close the session with the server and optionally closes the channel.
+        /// </summary>
+        /// <param name="closeChannel"></param>
+        /// <param name="ct">The cancellation token.</param>
+        public Task<StatusCode> CloseAsync(bool closeChannel, CancellationToken ct = default)
+        {
+            return CloseAsync(m_keepAliveInterval, closeChannel, ct);
+        }
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        public Task<StatusCode> CloseAsync(int timeout, CancellationToken ct = default)
+            => CloseAsync(timeout, true, ct);
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        public virtual async Task<StatusCode> CloseAsync(int timeout, bool closeChannel, CancellationToken ct = default)
+        {
+            // check if already called.
+            if (Disposed)
+            {
+                return StatusCodes.Good;
+            }
+
+            StatusCode result = StatusCodes.Good;
+
+            // stop the keep alive timer.
+            Utils.SilentDispose(m_keepAliveTimer);
+            m_keepAliveTimer = null;
+
+            // check if currectly connected.
+            bool connected = Connected;
+
+            // halt all background threads.
+            if (connected)
+            {
+                if (m_SessionClosing != null)
+                {
+                    try
+                    {
+                        m_SessionClosing(this, null);
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError(e, "Session: Unexpected eror raising SessionClosing event.");
+                    }
+                }
+            }
+
+            // close the session with the server.
+            if (connected && !KeepAliveStopped)
+            {
+                int existingTimeout = this.OperationTimeout;
+
+                try
+                {
+                    // close the session and delete all subscriptions if specified.
+                    this.OperationTimeout = timeout;
+                    var response = await base.CloseSessionAsync(null, m_deleteSubscriptionsOnClose, ct).ConfigureAwait(false);
+                    this.OperationTimeout = existingTimeout;
+
+                    if (closeChannel)
+                    {
+                        CloseChannel();
+                    }
+
+                    // raised notification indicating the session is closed.
+                    SessionCreated(null, null);
+                }
+                catch (Exception e)
+                {
+                    // dont throw errors on disconnect, but return them
+                    // so the caller can log the error.
+                    if (e is ServiceResultException)
+                    {
+                        result = ((ServiceResultException)e).StatusCode;
+                    }
+                    else
+                    {
+                        result = StatusCodes.Bad;
+                    }
+
+                    Utils.LogError("Session close error: " + result);
+                }
+            }
+
+            // clean up.
+            if (closeChannel)
+            {
+                Dispose();
+            }
+
+            return result;
+        }
+
+        /// <inheritdoc/>
+        [Obsolete("Call CloseAsync instead. Service Call doesn't clean up Session.")]
+#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
+        public override Task<CloseSessionResponse> CloseSessionAsync(
+#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
+            RequestHeader requestHeader,
+            bool deleteSubscriptions,
+            CancellationToken ct) => base.CloseSessionAsync(requestHeader, deleteSubscriptions, ct);
+        #endregion
     }
 }
 #endif

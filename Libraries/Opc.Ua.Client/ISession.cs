@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -560,6 +559,36 @@ namespace Opc.Ua.Client
         /// Disconnects from the server and frees any network resources with the specified timeout.
         /// </summary>
         StatusCode Close(int timeout);
+
+        /// <summary>
+        /// Close the session with the server and optionally closes the channel.
+        /// </summary>
+        StatusCode Close(bool closeChannel);
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        StatusCode Close(int timeout, bool closeChannel);
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the default timeout.
+        /// </summary>
+        Task<StatusCode> CloseAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// Close the session with the server and optionally closes the channel.
+        /// </summary>
+        Task<StatusCode> CloseAsync(bool closeChannel, CancellationToken ct = default);
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        Task<StatusCode> CloseAsync(int timeout, CancellationToken ct = default);
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        Task<StatusCode> CloseAsync(int timeout, bool closeChannel, CancellationToken ct = default);
         #endregion
 
         #region Subscription Methods

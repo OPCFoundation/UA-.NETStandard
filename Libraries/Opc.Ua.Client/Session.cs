@@ -3249,7 +3249,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Disconnects from the server and frees any network resources with the specified timeout.
         /// </summary>
-        public virtual StatusCode Close(int timeout)
+        public StatusCode Close(int timeout)
             => Close(timeout, true);
 
         /// <summary>
@@ -3333,6 +3333,14 @@ namespace Opc.Ua.Client
 
             return result;
         }
+
+        /// <inheritdoc/>
+        [Obsolete("Call Close instead. Service Call doesn't clean up Session.")]
+#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
+        public override ResponseHeader CloseSession(
+#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
+            RequestHeader requestHeader,
+            bool deleteSubscriptions) => base.CloseSession(requestHeader, deleteSubscriptions);
         #endregion
 
         #region Subscription Methods
