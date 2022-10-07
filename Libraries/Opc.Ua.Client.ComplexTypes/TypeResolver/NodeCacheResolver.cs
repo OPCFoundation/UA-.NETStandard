@@ -46,12 +46,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the type resolver with a session
         /// to load the custom type information.
         /// </summary>
-        public NodeCacheResolver(Session session)
+        public NodeCacheResolver(ISession session)
         {
             Initialize(session);
         }
 
-        private void Initialize(Session session)
+        private void Initialize(ISession session)
         {
             m_session = session;
         }
@@ -267,7 +267,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion Private Methods
 
         #region Private Fields
-        private Session m_session;
+        private ISession m_session;
         #endregion Private Fields
     }//namespace
 }

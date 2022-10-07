@@ -523,7 +523,7 @@ namespace Opc.Ua.Client.Tests
             requestHeader.TimeoutHint = MaxTimeout;
 
             // Session
-            Session session;
+            ISession session;
             if (securityPolicy != null)
             {
                 session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
@@ -855,7 +855,7 @@ namespace Opc.Ua.Client.Tests
         [NonParallelizable]
         public async Task TransferSubscriptionNative(bool sendInitialData)
         {
-            Session transferSession = null;
+            ISession transferSession = null;
             try
             {
                 var requestHeader = new RequestHeader {

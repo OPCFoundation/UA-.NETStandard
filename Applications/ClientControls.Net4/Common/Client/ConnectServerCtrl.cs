@@ -609,7 +609,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Handles a keep alive event from a session.
         /// </summary>
-        private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (this.InvokeRequired)
             {
@@ -717,7 +717,7 @@ namespace Opc.Ua.Client.Controls
                 // only apply session if reconnect was required
                 if (m_reconnectHandler.Session != null)
                 {
-                    m_session = m_reconnectHandler.Session;
+                    m_session = m_reconnectHandler.Session as Session;
                 }
 
                 m_reconnectHandler.Dispose();

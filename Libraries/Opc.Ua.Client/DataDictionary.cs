@@ -47,7 +47,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public DataDictionary(Session session)
+        public DataDictionary(ISession session)
         {
             Initialize();
             m_session = session;
@@ -225,7 +225,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads the contents of multiple data dictionaries.
         /// </summary>
-        public static async Task<IDictionary<NodeId, byte[]>> ReadDictionaries(Session session, IList<NodeId> dictionaryIds)
+        public static async Task<IDictionary<NodeId, byte[]>> ReadDictionaries(ISessionClientMethods session, IList<NodeId> dictionaryIds)
         {
             ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
             foreach (var nodeId in dictionaryIds)
@@ -380,7 +380,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Members
-        private Session m_session;
+        private ISession m_session;
         private SchemaValidator m_validator;
         #endregion
     }

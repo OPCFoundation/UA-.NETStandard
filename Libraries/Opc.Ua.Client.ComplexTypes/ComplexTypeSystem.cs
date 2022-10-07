@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Initializes the type system with a session to load the custom types.
         /// </summary>
-        public ComplexTypeSystem(Session session)
+        public ComplexTypeSystem(ISession session)
         {
             Initialize(new NodeCacheResolver(session), new ComplexTypeBuilderFactory());
         }
@@ -73,7 +73,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// and a customized type builder factory
         /// </summary>
         public ComplexTypeSystem(
-            Session session,
+            ISession session,
             IComplexTypeFactory complexTypeBuilderFactory)
         {
             Initialize(new NodeCacheResolver(session), complexTypeBuilderFactory);
