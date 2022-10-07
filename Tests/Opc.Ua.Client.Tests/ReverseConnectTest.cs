@@ -185,7 +185,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-            var session = await ClientFixture.SessionFactory.Create(config, connection, endpoint, false, false, "Reverse Connect Client",
+            var session = await Client.Session.Create(config, connection, endpoint, false, false, "Reverse Connect Client",
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
             Assert.NotNull(session);
 
@@ -224,7 +224,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-            var session = await ClientFixture.SessionFactory.Create(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
+            var session = await Client.Session.Create(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
                 
             Assert.NotNull(session);

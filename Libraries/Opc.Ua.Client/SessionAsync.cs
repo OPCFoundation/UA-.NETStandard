@@ -43,7 +43,7 @@ namespace Opc.Ua.Client
     /// </summary>
     public partial class Session : SessionClientBatched, ISession, IDisposable
     {
-#region Subscription Async Methods
+        #region Subscription Async Methods
         /// <summary>
         /// Removes a subscription from the session.
         /// </summary>
@@ -102,9 +102,9 @@ namespace Opc.Ua.Client
 
             return removed;
         }
-#endregion
+        #endregion
 
-#region ReadNode Async Methods
+        #region ReadNode Async Methods
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.
         /// </summary>
@@ -395,7 +395,7 @@ namespace Opc.Ua.Client
 
             return (values, errors);
         }
-#endregion
+        #endregion
     }
 }
 #endif

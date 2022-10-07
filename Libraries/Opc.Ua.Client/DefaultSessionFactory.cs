@@ -41,7 +41,7 @@ namespace Opc.Ua.Client
     {
         #region Public Methods
         /// <inheritdoc/>
-        public async Task<ISession> Create(
+        public async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -55,7 +55,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<ISession> Create(
+        public async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -71,7 +71,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<ISession> Create(
+        public async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -89,7 +89,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<ISession> Create(
+        public async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
             ConfiguredEndpoint endpoint,
@@ -105,7 +105,7 @@ namespace Opc.Ua.Client
 
             if (reverseConnectManager == null)
             {
-                return await Create(configuration, endpoint, updateBeforeConnect,
+                return await CreateAsync(configuration, endpoint, updateBeforeConnect,
                     checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales).ConfigureAwait(false);
             }
 
@@ -128,7 +128,7 @@ namespace Opc.Ua.Client
                 }
             } while (connection == null);
 
-            return await Create(
+            return await CreateAsync(
                 configuration,
                 connection,
                 endpoint,
@@ -141,7 +141,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public Task<ISession> Recreate(ISession sessionTemplate)
+        public Task<ISession> RecreateAsync(ISession sessionTemplate)
         {
             if (!(sessionTemplate is Session template))
             {
@@ -152,7 +152,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public Task<ISession> Recreate(ISession sessionTemplate, ITransportWaitingConnection connection)
+        public Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection)
         {
             if (!(sessionTemplate is Session template))
             {

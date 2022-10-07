@@ -202,7 +202,7 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            var session = await SessionFactory.Create(
+            var session = await SessionFactory.CreateAsync(
                 Config, endpoint, false, false,
                 Config.ApplicationName, SessionTimeout, userIdentity, null).ConfigureAwait(false);
 

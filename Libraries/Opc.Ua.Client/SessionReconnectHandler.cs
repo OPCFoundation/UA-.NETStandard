@@ -255,11 +255,11 @@ namespace Opc.Ua.Client
                             m_session.Endpoint.Server.ApplicationUri
                         ).ConfigureAwait(false);
 
-                    session = await m_session.SessionFactory.Recreate(m_session, connection).ConfigureAwait(false);
+                    session = await m_session.SessionFactory.RecreateAsync(m_session, connection).ConfigureAwait(false);
                 }
                 else
                 {
-                    session = await m_session.SessionFactory.Recreate(m_session).ConfigureAwait(false);
+                    session = await m_session.SessionFactory.RecreateAsync(m_session).ConfigureAwait(false);
                 }
                 m_session.Close();
                 m_session = session;

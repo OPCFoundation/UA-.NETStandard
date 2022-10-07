@@ -50,7 +50,7 @@ namespace Opc.Ua.Client
         /// <param name="identity">The identity.</param>
         /// <param name="preferredLocales">The user identity to associate with the session.</param>
         /// <returns>The new session object</returns>
-        Task<ISession> Create(
+        Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -71,7 +71,7 @@ namespace Opc.Ua.Client
         /// <param name="identity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> Create(
+        Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -94,7 +94,7 @@ namespace Opc.Ua.Client
         /// <param name="identity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> Create(
+        Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -119,7 +119,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> Create(
+        Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
             ConfiguredEndpoint endpoint,
@@ -136,7 +136,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="template">The ISession object to use as template</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> Recreate(ISession template);
+        Task<ISession> RecreateAsync(ISession template);
 
         /// <summary>
         /// Recreates a session based on a specified template.
@@ -144,7 +144,7 @@ namespace Opc.Ua.Client
         /// <param name="template">The ISession object to use as template</param>
         /// <param name="connection">The waiting reverse connection.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> Recreate(ISession template, ITransportWaitingConnection connection);
+        Task<ISession> RecreateAsync(ISession template, ITransportWaitingConnection connection);
         #endregion
     }
 }

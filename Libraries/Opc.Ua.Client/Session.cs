@@ -108,6 +108,7 @@ namespace Opc.Ua.Client
         {
             Initialize(channel, template.m_configuration, template.ConfiguredEndpoint, template.m_instanceCertificate);
 
+            m_sessionFactory = template.m_sessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
             m_deleteSubscriptionsOnClose = template.m_deleteSubscriptionsOnClose;
             m_transferSubscriptionsOnReconnect = template.m_transferSubscriptionsOnReconnect;
@@ -507,8 +508,14 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Public Properties
-        /// <inheritdoc/>
-        public ISessionFactory SessionFactory { get => m_sessionFactory; }
+        /// <summary>
+        /// A session factory that was used to create the session.
+        /// </summary>
+        public ISessionFactory SessionFactory
+        {
+            get => m_sessionFactory;
+            set => m_sessionFactory = value;
+        }
 
         /// <summary>
         /// Gets the endpoint used to connect to the server.
@@ -3244,10 +3251,11 @@ namespace Opc.Ua.Client
         /// </summary>
         public virtual StatusCode Close(int timeout)
             => Close(timeout, true);
+
         /// <summary>
         /// Disconnects from the server and frees any network resources with the specified timeout.
         /// </summary>
-        public virtual StatusCode Close(int timeout, bool closeChannel = true)
+        public virtual StatusCode Close(int timeout, bool closeChannel)
         {
             // check if already called.
             if (Disposed)

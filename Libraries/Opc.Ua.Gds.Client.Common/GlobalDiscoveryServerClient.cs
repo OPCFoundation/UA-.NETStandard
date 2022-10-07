@@ -282,7 +282,7 @@ namespace Opc.Ua.Gds.Client
                 Session = null;
             }
 
-            Session = await m_sessionFactory.Create(
+            Session = await m_sessionFactory.CreateAsync(
                 Configuration,
                 endpoint,
                 false,

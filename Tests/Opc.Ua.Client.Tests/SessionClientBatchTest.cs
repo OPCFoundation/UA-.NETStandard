@@ -79,7 +79,6 @@ namespace Opc.Ua.Client.Tests
                     MaxNodesPerTranslateBrowsePathsToNodeIds = kOperationLimit,
                     MaxNodesPerWrite = kOperationLimit
                 };
-            
             }
         }
 
