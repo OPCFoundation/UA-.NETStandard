@@ -62,7 +62,7 @@ namespace Opc.Ua.Client
             out EndpointDescriptionCollection serverEndpoints,
             out SignedSoftwareCertificateCollection serverSoftwareCertificates,
             out SignatureData serverSignature,
-            out uint maxRequestMessageSize) => CreateSession(
+            out uint maxRequestMessageSize) => base.CreateSession(
                 requestHeader, clientDescription, serverUri,
                 endpointUrl, sessionName, clientNonce,
                 clientCertificate, requestedSessionTimeout, maxResponseMessageSize,
@@ -82,7 +82,7 @@ namespace Opc.Ua.Client
             byte[] clientCertificate,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
-            CancellationToken ct) => CreateSessionAsync(
+            CancellationToken ct) => base.CreateSessionAsync(
                 requestHeader, clientDescription, serverUri,
                 endpointUrl, sessionName, clientNonce,
                 clientCertificate, requestedSessionTimeout, maxResponseMessageSize, ct);
