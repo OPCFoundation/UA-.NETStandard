@@ -46,7 +46,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public partial class Session : SessionClientBatched, ISession, IDisposable
+    public partial class Session : SessionClientBatched, ISession, ISessionInternal, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -3333,14 +3333,6 @@ namespace Opc.Ua.Client
 
             return result;
         }
-
-        /// <inheritdoc/>
-        [Obsolete("Call Close instead. Service Call doesn't clean up Session.")]
-#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
-        public override ResponseHeader CloseSession(
-#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
-            RequestHeader requestHeader,
-            bool deleteSubscriptions) => base.CloseSession(requestHeader, deleteSubscriptions);
         #endregion
 
         #region Subscription Methods

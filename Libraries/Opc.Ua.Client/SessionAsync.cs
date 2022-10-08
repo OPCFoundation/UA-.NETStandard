@@ -503,15 +503,6 @@ namespace Opc.Ua.Client
 
             return result;
         }
-
-        /// <inheritdoc/>
-        [Obsolete("Call CloseAsync instead. Service Call doesn't clean up Session.")]
-#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
-        public override Task<CloseSessionResponse> CloseSessionAsync(
-#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
-            RequestHeader requestHeader,
-            bool deleteSubscriptions,
-            CancellationToken ct) => base.CloseSessionAsync(requestHeader, deleteSubscriptions, ct);
         #endregion
     }
 }

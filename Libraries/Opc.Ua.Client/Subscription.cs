@@ -826,7 +826,8 @@ namespace Opc.Ua.Client
                 }
 
                 // remove the subscription from disconnected session
-                if (m_session?.RemoveTransferredSubscription(this) != true)
+                var sessionInternal = m_session as ISessionInternal;
+                if (sessionInternal?.RemoveTransferredSubscription(this) != true)
                 {
                     Utils.LogError("SubscriptionId {0}: Failed to remove transferred subscription from owner SessionId={1}.", Id, m_session?.SessionId);
                     return false;
