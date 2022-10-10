@@ -46,7 +46,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public partial class Session : SessionClientBatched, ISession, ISessionInternal, IDisposable
+    public partial class Session : SessionClientBatched, ISession, IDisposable
     {
         #region Constructors
         /// <summary>

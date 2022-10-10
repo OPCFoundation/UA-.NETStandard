@@ -56,20 +56,6 @@ namespace Opc.Ua.Client
     public delegate void PublishErrorEventHandler(ISession session, PublishErrorEventArgs e);
 
     /// <summary>
-    /// Interfaces for session internal use.
-    /// </summary>
-    internal interface ISessionInternal
-    {
-        /// <summary>
-        /// Removes a transferred subscription from the session.
-        /// Called by the session to which the subscription
-        /// is transferred to obtain ownership. Internal.
-        /// </summary>
-        /// <param name="subscription">The subscription to remove.</param>
-        bool RemoveTransferredSubscription(Subscription subscription);
-    }
-
-    /// <summary>
     /// Manages a session with a server.
     /// </summary>
     public interface ISession : ISessionClient, IDisposable
@@ -632,6 +618,14 @@ namespace Opc.Ua.Client
         /// Transfers a list of Subscriptions from another session.
         /// </summary>
         bool TransferSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues);
+
+        /// <summary>
+        /// Removes a transferred subscription from the session.
+        /// Called by the session to which the subscription
+        /// is transferred to obtain ownership. Internal.
+        /// </summary>
+        /// <param name="subscription">The subscription to remove.</param>
+        bool RemoveTransferredSubscription(Subscription subscription);
 
 #if (CLIENT_ASYNC)
         /// <summary>
