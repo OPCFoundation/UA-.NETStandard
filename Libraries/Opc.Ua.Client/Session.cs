@@ -2463,7 +2463,7 @@ namespace Opc.Ua.Client
                 //first try to connect with client certificate NULL
                 try
                 {
-                    CreateSession(
+                    base.CreateSession(
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
@@ -2494,7 +2494,7 @@ namespace Opc.Ua.Client
 
             if (!successCreateSession)
             {
-                CreateSession(
+                base.CreateSession(
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
@@ -3249,7 +3249,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Disconnects from the server and frees any network resources with the specified timeout.
         /// </summary>
-        public virtual StatusCode Close(int timeout)
+        public StatusCode Close(int timeout)
             => Close(timeout, true);
 
         /// <summary>

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -404,21 +403,6 @@ namespace Opc.Ua.Client
         void ReadNodes(IList<NodeId> nodeIds, NodeClass nodeClass, out IList<Node> nodeCollection, out IList<ServiceResult> errors, bool optionalAttributes = false);
 
         /// <summary>
-        /// Reads the values for the node attributes and returns a node object collection.
-        /// </summary>
-        /// <remarks>
-        /// If the nodeclass for the nodes in nodeIdCollection is already known
-        /// and passed as nodeClass, reads only values of required attributes.
-        /// Otherwise NodeClass.Unspecified should be used.
-        /// </remarks>
-        /// <param name="nodeIds">The nodeId collection to read.</param>
-        /// <param name="nodeClass">The nodeClass of all nodes in the collection. Set to <c>NodeClass.Unspecified</c> if the nodeclass is unknown.</param>
-        /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
-        /// <param name="ct">The cancellation token.</param>
-        /// <returns>The node collection and associated errors.</returns>
-        Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(IList<NodeId> nodeIds, NodeClass nodeClass, bool optionalAttributes = false, CancellationToken ct = default);
-
-        /// <summary>
         /// Reads the value for a node.
         /// </summary>
         /// <param name="nodeId">The node Id.</param>
@@ -432,55 +416,12 @@ namespace Opc.Ua.Client
         object ReadValue(NodeId nodeId, Type expectedType);
 
         /// <summary>
-        /// Reads the value for a node.
-        /// </summary>
-        /// <param name="nodeId">The node Id.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
-        Task<DataValue> ReadValueAsync(NodeId nodeId, CancellationToken ct = default);
-
-        /// <summary>
         /// Reads the values for a node collection. Returns diagnostic errors.
         /// </summary>
         /// <param name="nodeIds">The node Id.</param>
         /// <param name="values">The data values read from the server.</param>
         /// <param name="errors">The errors reported by the server.</param>
         void ReadValues(IList<NodeId> nodeIds, out DataValueCollection values, out IList<ServiceResult> errors);
-
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
-        /// </summary>
-        /// <param name="nodeId">The nodeId.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
-        Task<Node> ReadNodeAsync(NodeId nodeId, CancellationToken ct = default);
-
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
-        /// </summary>
-        /// <remarks>
-        /// If the nodeclass is known, only the supported attribute values are read.
-        /// </remarks>
-        /// <param name="nodeId">The nodeId.</param>
-        /// <param name="nodeClass">The nodeclass of the node to read.</param>
-        /// <param name="optionalAttributes">Read optional attributes.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
-        Task<Node> ReadNodeAsync(NodeId nodeId, NodeClass nodeClass, bool optionalAttributes = true, CancellationToken ct = default);
-
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object collection.
-        /// Reads the nodeclass of the nodeIds, then reads
-        /// the values for the node attributes and returns a node collection.
-        /// </summary>
-        /// <param name="nodeIds">The nodeId collection.</param>
-        /// <param name="optionalAttributes">If optional attributes to read.</param>
-        /// <param name="ct">The cancellation token.</param>
-        Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(IList<NodeId> nodeIds, bool optionalAttributes = false, CancellationToken ct = default);
-
-        /// <summary>
-        /// Reads the values for a node collection. Returns diagnostic errors.
-        /// </summary>
-        /// <param name="nodeIds">The node Id.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
-        Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(IList<NodeId> nodeIds, CancellationToken ct = default);
 
         /// <summary>
         /// Fetches all references for the specified node.
@@ -553,6 +494,66 @@ namespace Opc.Ua.Client
         /// Reads the display name for a set of Nodes.
         /// </summary>
         void ReadDisplayName(IList<NodeId> nodeIds, out IList<string> displayNames, out IList<ServiceResult> errors);
+
+#if (CLIENT_ASYNC)
+        /// <summary>
+        /// Reads the values for the node attributes and returns a node object collection.
+        /// </summary>
+        /// <remarks>
+        /// If the nodeclass for the nodes in nodeIdCollection is already known
+        /// and passed as nodeClass, reads only values of required attributes.
+        /// Otherwise NodeClass.Unspecified should be used.
+        /// </remarks>
+        /// <param name="nodeIds">The nodeId collection to read.</param>
+        /// <param name="nodeClass">The nodeClass of all nodes in the collection. Set to <c>NodeClass.Unspecified</c> if the nodeclass is unknown.</param>
+        /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The node collection and associated errors.</returns>
+        Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(IList<NodeId> nodeIds, NodeClass nodeClass, bool optionalAttributes = false, CancellationToken ct = default);
+
+        /// <summary>
+        /// Reads the value for a node.
+        /// </summary>
+        /// <param name="nodeId">The node Id.</param>
+        /// <param name="ct">The cancellation token for the request.</param>
+        Task<DataValue> ReadValueAsync(NodeId nodeId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Reads the values for the node attributes and returns a node object.
+        /// </summary>
+        /// <param name="nodeId">The nodeId.</param>
+        /// <param name="ct">The cancellation token for the request.</param>
+        Task<Node> ReadNodeAsync(NodeId nodeId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Reads the values for the node attributes and returns a node object.
+        /// </summary>
+        /// <remarks>
+        /// If the nodeclass is known, only the supported attribute values are read.
+        /// </remarks>
+        /// <param name="nodeId">The nodeId.</param>
+        /// <param name="nodeClass">The nodeclass of the node to read.</param>
+        /// <param name="optionalAttributes">Read optional attributes.</param>
+        /// <param name="ct">The cancellation token for the request.</param>
+        Task<Node> ReadNodeAsync(NodeId nodeId, NodeClass nodeClass, bool optionalAttributes = true, CancellationToken ct = default);
+
+        /// <summary>
+        /// Reads the values for the node attributes and returns a node object collection.
+        /// Reads the nodeclass of the nodeIds, then reads
+        /// the values for the node attributes and returns a node collection.
+        /// </summary>
+        /// <param name="nodeIds">The nodeId collection.</param>
+        /// <param name="optionalAttributes">If optional attributes to read.</param>
+        /// <param name="ct">The cancellation token.</param>
+        Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(IList<NodeId> nodeIds, bool optionalAttributes = false, CancellationToken ct = default);
+
+        /// <summary>
+        /// Reads the values for a node collection. Returns diagnostic errors.
+        /// </summary>
+        /// <param name="nodeIds">The node Id.</param>
+        /// <param name="ct">The cancellation token for the request.</param>
+        Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(IList<NodeId> nodeIds, CancellationToken ct = default);
+#endif
         #endregion
 
         #region Close Methods
@@ -560,6 +561,38 @@ namespace Opc.Ua.Client
         /// Disconnects from the server and frees any network resources with the specified timeout.
         /// </summary>
         StatusCode Close(int timeout);
+
+        /// <summary>
+        /// Close the session with the server and optionally closes the channel.
+        /// </summary>
+        StatusCode Close(bool closeChannel);
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        StatusCode Close(int timeout, bool closeChannel);
+
+#if (CLIENT_ASYNC)
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the default timeout.
+        /// </summary>
+        Task<StatusCode> CloseAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// Close the session with the server and optionally closes the channel.
+        /// </summary>
+        Task<StatusCode> CloseAsync(bool closeChannel, CancellationToken ct = default);
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        Task<StatusCode> CloseAsync(int timeout, CancellationToken ct = default);
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        Task<StatusCode> CloseAsync(int timeout, bool closeChannel, CancellationToken ct = default);
+#endif
         #endregion
 
         #region Subscription Methods
@@ -582,6 +615,11 @@ namespace Opc.Ua.Client
         bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions);
 
         /// <summary>
+        /// Transfers a list of Subscriptions from another session.
+        /// </summary>
+        bool TransferSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues);
+
+        /// <summary>
         /// Removes a transferred subscription from the session.
         /// Called by the session to which the subscription
         /// is transferred to obtain ownership. Internal.
@@ -589,11 +627,7 @@ namespace Opc.Ua.Client
         /// <param name="subscription">The subscription to remove.</param>
         bool RemoveTransferredSubscription(Subscription subscription);
 
-        /// <summary>
-        /// Transfers a list of Subscriptions from another session.
-        /// </summary>
-        bool TransferSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues);
-
+#if (CLIENT_ASYNC)
         /// <summary>
         /// Removes a subscription from the session.
         /// </summary>
@@ -605,6 +639,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="subscriptions">The list of subscriptions to remove.</param>
         Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions);
+#endif
         #endregion
 
         #region Browse Methods
@@ -721,6 +756,6 @@ namespace Opc.Ua.Client
         /// Sends a republish request.
         /// </summary>
         bool Republish(uint subscriptionId, uint sequenceNumber);
-        #endregion      
+        #endregion
     }
 }
