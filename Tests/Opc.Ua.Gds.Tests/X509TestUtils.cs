@@ -129,7 +129,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.True(enhancedKeyUsage.Critical);
 
             // test for authority key
-            X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(signedCert);
+            var authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(signedCert);
             Assert.NotNull(authority);
             TestContext.Out.WriteLine($"Authority Key Identifier: {authority.Format(true)}");
             Assert.NotNull(authority.SerialNumber);
