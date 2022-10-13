@@ -1356,7 +1356,7 @@ namespace Opc.Ua
                     catch (Exception ex)
                     {
                         Utils.LogError(ex, "XmlDecoder: Error reading variant.");
-                        value = new Variant(StatusCodes.BadEncodingError);
+                        value = new Variant(StatusCodes.BadDecodingError);
                     }
                     EndField("Value");
                 }
@@ -2617,21 +2617,17 @@ namespace Opc.Ua
             return Array.CreateInstance(enumType, 0);
         }
 
-        /// <summary>
-        /// Reads an array with the specified valueRank and the specified BuiltInType
-        /// </summary>
-        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
+        /// <inheritdoc/>
+        public Array ReadArray(string fieldName, int valueRank, BuiltInType builtInType, Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
                 /*One dimensional Array parameters are always encoded by wrapping the elements in a container element 
                  * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
                  * The name of the element in the array shall be the type name.*/
-
-                return ReadArrayElements(fieldName, builtInType, encodeableTypeId);
+                return ReadArrayElements(fieldName, builtInType, systemType, encodeableTypeId);
             }
-
-            // write matrix.
+            // read matrix/array.
             else if (valueRank > ValueRanks.OneDimension)
             {
                 Array elements = null;
@@ -2643,7 +2639,7 @@ namespace Opc.Ua
                     // dimensions are written before elements when encoding multi dimensional array!! UA Specs
                     dimensions = ReadInt32Array("Dimensions");
 
-                    elements = ReadArrayElements("Elements", builtInType, encodeableTypeId);
+                    elements = ReadArrayElements("Elements", builtInType, systemType, encodeableTypeId);
 
                     PopNamespace();
 
@@ -2655,16 +2651,21 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadDecodingError, "The Matrix contains invalid elements");
                 }
 
+                Matrix matrix;
                 if (dimensions != null && dimensions.Count > 0)
                 {
-                    return new Matrix(elements, builtInType, dimensions.ToArray());
+                    matrix = new Matrix(elements, builtInType, dimensions.ToArray());
+                }
+                else
+                {
+                    matrix = new Matrix(elements, builtInType);
                 }
 
-                return new Matrix(elements, builtInType);
+                return matrix.ToArray();
             }
 
-            throw new ServiceResultException(StatusCodes.BadDecodingError,
-                string.Format("Invalid ValueRank {0} for Array", valueRank));
+            throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                "Invalid ValueRank {0} for Array", valueRank);
         }
         #endregion
 
@@ -2727,9 +2728,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="fieldName">provides the fieldName for the array</param>
         /// <param name="builtInType">provides the BuiltInType of the elements that are read</param>
+        /// <param name="systemType">The system type of the elements to read.</param>
         /// <param name="encodeableTypeId">provides the type id of the encodeable element</param>
-        /// <returns></returns>
-        private Array ReadArrayElements(string fieldName, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
+        private Array ReadArrayElements(string fieldName, BuiltInType builtInType, Type systemType, ExpandedNodeId encodeableTypeId)
         {
             // check the nesting level for avoiding a stack overflow.
             if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
@@ -2791,7 +2792,24 @@ namespace Opc.Ua
                     case BuiltInType.Int32:
                     {
                         Int32Collection collection = ReadInt32Array(fieldName);
-                        if (collection != null) return collection.ToArray();
+                        if (collection != null)
+                        {
+                            if (builtInType == BuiltInType.Enumeration)
+                            {
+                                DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
+                                if (systemType?.IsEnum == true)
+                                {
+                                    Array array = Array.CreateInstance(systemType, collection.Count);
+                                    int ii = 0;
+                                    foreach (var item in collection)
+                                    {
+                                        array.SetValue(Enum.ToObject(systemType, item), ii++);
+                                    }
+                                    return array;
+                                }
+                            }
+                            return collection.ToArray();
+                        }
                         return null;
                     }
                     case BuiltInType.UInt32:
@@ -2904,18 +2922,25 @@ namespace Opc.Ua
                     }
                     case BuiltInType.Variant:
                     {
-                        if (encodeableTypeId != null)
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                            }
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
 
                         VariantCollection collection = ReadVariantArray(fieldName);
                         if (collection != null) return collection.ToArray();
                         return null;
+                    }
+                    default:
+                    {
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
+                        {
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                        }
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Cannot decode unknown type in Array object with BuiltInType: {0}.",
+                            builtInType);
                     }
                 }
             }
@@ -2924,8 +2949,6 @@ namespace Opc.Ua
                 m_namespaces.Pop();
                 m_nestingLevel--;
             }
-
-            return null;
         }
 
         /// <summary>
@@ -3066,6 +3089,21 @@ namespace Opc.Ua
             }
 
             return (m_reader.LocalName == elementName && m_reader.NamespaceURI == m_namespaces.Peek());
+        }
+
+        /// <summary>
+        /// Get the system type from the type factory if not specified by caller.
+        /// </summary>
+        /// <param name="systemType">The reference to the system type, or null</param>
+        /// <param name="encodeableTypeId">The encodeable type id of the system type.</param>
+        /// <returns>If the system type is assignable to <see cref="IEncodeable"/> </returns>
+        private bool DetermineIEncodeableSystemType(ref Type systemType, ExpandedNodeId encodeableTypeId)
+        {
+            if (encodeableTypeId != null && systemType == null)
+            {
+                systemType = Context.Factory.GetSystemType(encodeableTypeId);
+            }
+            return typeof(IEncodeable).IsAssignableFrom(systemType);
         }
         #endregion
 

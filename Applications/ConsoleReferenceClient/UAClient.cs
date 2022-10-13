@@ -39,7 +39,7 @@ namespace Quickstarts
     /// <summary>
     /// OPC UA Client with examples of basic functionality.
     /// </summary>
-    class UAClient : IDisposable
+    public class UAClient : IDisposable
     {
         #region Constructors
         /// <summary>
@@ -92,6 +92,11 @@ namespace Quickstarts
         public uint SessionLifeTime { get; set; } = 30 * 1000;
 
         /// <summary>
+        /// The user identity to use to connect to the server.
+        /// </summary>
+        public IUserIdentity UserIdentity { get; set; } = new UserIdentity();
+
+        /// <summary>
         /// Auto accept untrusted certificates.
         /// </summary>
         public bool AutoAccept { get; set; } = false;
@@ -134,7 +139,7 @@ namespace Quickstarts
                         false,
                         m_configuration.ApplicationName,
                         SessionLifeTime,
-                        new UserIdentity(),
+                        UserIdentity,
                         null
                     );
 
@@ -147,7 +152,7 @@ namespace Quickstarts
                         m_session.KeepAliveInterval = KeepAliveInterval;
 
                         // set up keep alive callback.
-                        m_session.KeepAlive += new KeepAliveEventHandler(Session_KeepAlive);
+                        m_session.KeepAlive += Session_KeepAlive;
                     }
 
                     // Session created successfully.
@@ -174,6 +179,12 @@ namespace Quickstarts
                 if (m_session != null)
                 {
                     m_output.WriteLine("Disconnecting...");
+
+                    lock (m_lock)
+                    {
+                        m_session.KeepAlive -= Session_KeepAlive;
+                        m_reconnectHandler?.Dispose();
+                    }
 
                     m_session.Close();
                     m_session.Dispose();

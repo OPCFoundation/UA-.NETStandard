@@ -216,10 +216,10 @@ namespace Opc.Ua.Client
                         Utils.LogWarning("Reconnect failed. Reason={0}.", sre.Result);
 
                         // check if the server endpoint could not be reached.
-                        // TODO: reconnect stopped working for https
                         if (sre.StatusCode == StatusCodes.BadTcpInternalError ||
                             sre.StatusCode == StatusCodes.BadCommunicationError ||
                             sre.StatusCode == StatusCodes.BadNotConnected ||
+                            sre.StatusCode == StatusCodes.BadRequestTimeout ||
                             sre.StatusCode == StatusCodes.BadTimeout)
                         {
                             // check if reconnecting is still an option.

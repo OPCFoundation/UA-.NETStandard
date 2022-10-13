@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.Serialization;
@@ -142,21 +143,34 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             var attributeType = typeof(StructureFieldAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
-            CustomAttributeBuilder builder = new CustomAttributeBuilder(
-                ctorInfo,
-                Array.Empty<object>(),  // constructor arguments
-                new[]           // properties to assign
-                {
+            var pi = new List<PropertyInfo>()
+            {
                     attributeType.GetProperty("ValueRank"),
                     attributeType.GetProperty("MaxStringLength"),
                     attributeType.GetProperty("IsOptional")
-                },
-                new object[]    // values to assign
-                {
+            };
+
+            var pv = new List<object>() {
                     structureField.ValueRank,
                     structureField.MaxStringLength,
-                    structureField.IsOptional
-                });
+                    structureField.IsOptional,
+            };
+
+            // only unambigious built in types get the info,
+            // IEncodeable types are handled by type property as BuiltInType.Null 
+            Int32 builtInType = (Int32)TypeInfo.GetBuiltInType(structureField.DataType);
+            if (builtInType > (Int32)BuiltInType.Null)
+            {
+                pi.Add(attributeType.GetProperty("BuiltInType"));
+                pv.Add(builtInType);
+            }
+
+            CustomAttributeBuilder builder = new CustomAttributeBuilder(
+                ctorInfo,
+                Array.Empty<object>(),  // constructor arguments
+                pi.ToArray(),           // properties to assign
+                pv.ToArray()            // values to assign
+            );
             typeBuilder.SetCustomAttribute(builder);
         }
 

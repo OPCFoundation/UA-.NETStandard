@@ -191,7 +191,7 @@ namespace Opc.Ua
 
             if (actualType == null)
             {
-                throw new ServiceResultException(StatusCodes.BadEncodingError, Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
+                throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
             }
 
             // read the message.
@@ -2383,10 +2383,13 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an array with the specified valueRank and the specified BuiltInType
-        /// </summary>
-        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
+        /// <inheritdoc/>
+        public Array ReadArray(
+            string fieldName,
+            int valueRank,
+            BuiltInType builtInType,
+            Type systemType = null,
+            ExpandedNodeId encodeableTypeId = null)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -2402,6 +2405,15 @@ namespace Opc.Ua
                         return ReadInt16Array(fieldName).ToArray();
                     case BuiltInType.UInt16:
                         return ReadUInt16Array(fieldName).ToArray();
+                    case BuiltInType.Enumeration:
+                    {
+                        DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
+                        if (systemType?.IsEnum == true)
+                        {
+                            return ReadEnumeratedArray(fieldName, systemType);
+                        }
+                        goto case BuiltInType.Int32;
+                    }
                     case BuiltInType.Int32:
                         return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.UInt32:
@@ -2436,17 +2448,11 @@ namespace Opc.Ua
                         return ReadLocalizedTextArray(fieldName).ToArray();
                     case BuiltInType.DataValue:
                         return ReadDataValueArray(fieldName).ToArray();
-                    case BuiltInType.Enumeration:
-                        return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.Variant:
                     {
-                        if (encodeableTypeId != null)
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                            }
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
                         return ReadVariantArray(fieldName).ToArray();
                     }
@@ -2456,13 +2462,18 @@ namespace Opc.Ua
                         return ReadDiagnosticInfoArray(fieldName).ToArray();
                     default:
                     {
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
+                        {
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                        }
+
                         throw new ServiceResultException(
                             StatusCodes.BadDecodingError,
                             Utils.Format("Cannot decode unknown type in Array object with BuiltInType: {0}.", builtInType));
                     }
                 }
             }
-            else if (valueRank > ValueRanks.OneDimension)
+            else if (valueRank >= ValueRanks.TwoDimensions)
             {
                 List<object> array;
                 if (!ReadArrayField(fieldName, out array))
@@ -2471,76 +2482,154 @@ namespace Opc.Ua
                 }
                 List<object> elements = new List<object>();
                 List<int> dimensions = new List<int>();
-                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, 0, encodeableTypeId);
+                if (builtInType == BuiltInType.Enumeration || builtInType == BuiltInType.Variant || builtInType == BuiltInType.Null)
+                {
+                    DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
+                }
+                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, 0, systemType, encodeableTypeId);
 
+                if (dimensions.Count == 0)
+                {
+                    // for an empty element create the empty dimension array 
+                    dimensions = new int[valueRank].ToList();
+                }
+                else if (dimensions.Count < ValueRanks.TwoDimensions)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "The ValueRank {0} of the decoded array doesn't match the desired ValueRank {1}.",
+                        dimensions.Count, valueRank);
+                }
+
+                Matrix matrix = null;
                 switch (builtInType)
                 {
                     case BuiltInType.Boolean:
-                        return new Matrix(elements.Cast<bool>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<bool>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.SByte:
-                        return new Matrix(elements.Cast<sbyte>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<sbyte>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.Byte:
-                        return new Matrix(elements.Cast<byte>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<byte>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.Int16:
-                        return new Matrix(elements.Cast<Int16>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<Int16>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.UInt16:
-                        return new Matrix(elements.Cast<UInt16>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<UInt16>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.Int32:
-                        return new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.UInt32:
-                        return new Matrix(elements.Cast<UInt32>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<UInt32>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.Int64:
-                        return new Matrix(elements.Cast<Int64>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<Int64>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.UInt64:
-                        return new Matrix(elements.Cast<UInt64>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<UInt64>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.Float:
-                        return new Matrix(elements.Cast<float>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<float>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.Double:
-                        return new Matrix(elements.Cast<double>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<double>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.String:
-                        return new Matrix(elements.Cast<string>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<string>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.DateTime:
-                        return new Matrix(elements.Cast<DateTime>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<DateTime>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.Guid:
-                        return new Matrix(elements.Cast<Uuid>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<Uuid>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.ByteString:
-                        return new Matrix(elements.Cast<byte[]>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<byte[]>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.XmlElement:
-                        return new Matrix(elements.Cast<XmlElement>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<XmlElement>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.NodeId:
-                        return new Matrix(elements.Cast<NodeId>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<NodeId>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.ExpandedNodeId:
-                        return new Matrix(elements.Cast<ExpandedNodeId>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<ExpandedNodeId>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.StatusCode:
-                        return new Matrix(elements.Cast<StatusCode>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<StatusCode>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.QualifiedName:
-                        return new Matrix(elements.Cast<QualifiedName>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<QualifiedName>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.LocalizedText:
-                        return new Matrix(elements.Cast<LocalizedText>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<LocalizedText>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.DataValue:
-                        return new Matrix(elements.Cast<DataValue>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<DataValue>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.Enumeration:
-                        return new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
-                    case BuiltInType.Variant:
-                        if (encodeableTypeId != null)
+                    {
+                        if (systemType?.IsEnum == true)
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
+                            var newElements = Array.CreateInstance(systemType, elements.Count);
+                            int ii = 0;
+                            foreach (var element in elements)
                             {
-                                Array newElements = Array.CreateInstance(systemType, elements.Count);
-                                for (int i = 0; i < elements.Count; i++)
-                                {
-                                    newElements.SetValue(Convert.ChangeType(elements[i], systemType), i);
-                                }
-                                return new Matrix(newElements, builtInType, dimensions.ToArray());
+                                newElements.SetValue(Convert.ChangeType(element, systemType), ii++);
                             }
+                            matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
                         }
-                        return new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray());
+                        else
+                        {
+                            matrix = new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
+                        }
+                        break;
+                    }
+                    case BuiltInType.Variant:
+                    {
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
+                        {
+                            Array newElements = Array.CreateInstance(systemType, elements.Count);
+                            for (int i = 0; i < elements.Count; i++)
+                            {
+                                newElements.SetValue(Convert.ChangeType(elements[i], systemType), i);
+                            }
+                            matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
+                            break;
+                        }
+                        matrix = new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
+                    }
                     case BuiltInType.ExtensionObject:
-                        return new Matrix(elements.Cast<ExtensionObject>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<ExtensionObject>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
                     case BuiltInType.DiagnosticInfo:
-                        return new Matrix(elements.Cast<DiagnosticInfo>().ToArray(), builtInType, dimensions.ToArray());
+                        matrix = new Matrix(elements.Cast<DiagnosticInfo>().ToArray(), builtInType, dimensions.ToArray());
+                        break;
+                    default:
+                    {
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
+                        {
+                            Array newElements = Array.CreateInstance(systemType, elements.Count);
+                            for (int i = 0; i < elements.Count; i++)
+                            {
+                                newElements.SetValue(Convert.ChangeType(elements[i], systemType), i);
+                            }
+                            matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
+                            break;
+                        }
+
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Cannot decode unknown type in Array object with BuiltInType: {0}.",
+                            builtInType);
+                    }
                 }
+
+                return matrix.ToArray();
             }
             return null;
         }
@@ -2602,6 +2691,21 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Get the system type from the type factory if not specified by caller.
+        /// </summary>
+        /// <param name="systemType">The reference to the system type, or null</param>
+        /// <param name="encodeableTypeId">The encodeable type id of the system type.</param>
+        /// <returns>If the system type is assignable to <see cref="IEncodeable"/> </returns>
+        private bool DetermineIEncodeableSystemType(ref Type systemType, ExpandedNodeId encodeableTypeId)
+        {
+            if (encodeableTypeId != null && systemType == null)
+            {
+                systemType = Context.Factory.GetSystemType(encodeableTypeId);
+            }
+            return typeof(IEncodeable).IsAssignableFrom(systemType);
+        }
+
         /// <summary>
         /// Read the body of a Variant as a BuiltInType
         /// </summary>
@@ -2807,7 +2911,15 @@ namespace Opc.Ua
         /// <summary>
         /// Read the Matrix part (simple array or array of arrays)
         /// </summary>
-        private void ReadMatrixPart(string fieldName, List<object> currentArray, BuiltInType builtInType, ref List<object> elements, ref List<int> dimensions, int level, ExpandedNodeId encodeableTypeId = null)
+        private void ReadMatrixPart(
+            string fieldName,
+            List<object> currentArray,
+            BuiltInType builtInType,
+            ref List<object> elements,
+            ref List<int> dimensions,
+            int level,
+            Type systemType,
+            ExpandedNodeId encodeableTypeId)
         {
             // check the nesting level for avoiding a stack overflow.
             if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
@@ -2838,7 +2950,7 @@ namespace Opc.Ua
 
                             PushArray(fieldName, ii);
 
-                            ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, level + 1, encodeableTypeId);
+                            ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, level + 1, systemType, encodeableTypeId);
 
                             Pop();
                         }
@@ -2850,8 +2962,8 @@ namespace Opc.Ua
                     if (!hasInnerArray)
                     {
                         // read array from one dimension
-                        var part = ReadArray(null, ValueRanks.OneDimension, builtInType, encodeableTypeId) as System.Collections.IList;
-                        if (part != null && part.Count > 0)
+                        Array part = ReadArray(null, ValueRanks.OneDimension, builtInType, systemType, encodeableTypeId);
+                        if (part != null && part.Length > 0)
                         {
                             // add part elements to final list 
                             foreach (var item in part)

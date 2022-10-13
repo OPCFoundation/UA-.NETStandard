@@ -39,7 +39,15 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Intializes the object with a file table.
         /// </summary>
-        public BinarySchemaValidator(Dictionary<string, string> fileTable) : base(fileTable)
+        public BinarySchemaValidator(IDictionary<string, string> fileTable) : base(fileTable)
+        {
+            SetResourcePaths(WellKnownDictionaries);
+        }
+
+        /// <summary>
+        /// Intializes the object with a import table.
+        /// </summary>
+        public BinarySchemaValidator(IDictionary<string, byte[]> importTable) : base(importTable)
         {
             SetResourcePaths(WellKnownDictionaries);
         }
@@ -145,7 +153,7 @@ namespace Opc.Ua.Schema.Binary
             else
             {
                 // always import builtin types, unless wellknown library
-                if (!WellKnownDictionaries.Any(n => String.Equals(n[0], Dictionary.TargetNamespace)))
+                if (!WellKnownDictionaries.Any(n => string.Equals(n[0], Dictionary.TargetNamespace, StringComparison.Ordinal)))
                 {
                     ImportDirective directive = new ImportDirective { Namespace = Namespaces.OpcUa };
                     await Import(directive).ConfigureAwait(false);
@@ -340,6 +348,7 @@ namespace Opc.Ua.Schema.Binary
                 return false;
             }
 
+            bool insideParentheses = name[0] == '"';
             for (int ii = 1; ii < name.Length; ii++)
             {
                 if (Char.IsLetter(name[ii]) || Char.IsDigit(name[ii]))
@@ -347,7 +356,18 @@ namespace Opc.Ua.Schema.Binary
                     continue;
                 }
 
-                if (name[ii] == '.' || name[ii] == '-' || name[ii] == '_' || name[ii] == '"')
+                if (name[ii] == '"')
+                {
+                    insideParentheses = !insideParentheses;
+                    continue;
+                }
+
+                if (name[ii] == '.' || name[ii] == '-' || name[ii] == '_')
+                {
+                    continue;
+                }
+
+                if (name[ii] == ' ' && insideParentheses)
                 {
                     continue;
                 }
