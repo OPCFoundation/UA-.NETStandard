@@ -2484,30 +2484,10 @@ namespace Opc.Ua
             ref int index,
             TypeInfo typeInfo)
         {
-            int sizeFromDimensions = 1;
-            try
-            {
-                // check if matrix is well formed
-                for (int ii = 0; ii < matrix.Dimensions.Length; ii++)
-                {
-                    if (matrix.Dimensions[ii] > m_context.MaxArrayLength)
-                    {
-                        throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingLimitsExceeded,
-                                "Maximum MaxArrayLength of {0} was exceeded while in matrix dimensions",
-                                m_context.MaxArrayLength);
-                    }
-                    checked
-                    {
-                        sizeFromDimensions *= matrix.Dimensions[ii];
-                    }
-                }
-            }
-            catch (OverflowException)
-            {
-                throw new ArgumentException("The dimensions of the matrix are invalid and overflow when used to calculate the size.");
-            }
-            if (sizeFromDimensions != matrix.Elements.Length)
+            // check if matrix is well formed
+            (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(matrix.Dimensions, Context.MaxArrayLength);
+
+            if (!valid || (sizeFromDimensions != matrix.Elements.Length))
             {
                 throw new ArgumentException("The number of elements in the matrix does not match the dimensions.");
             }
