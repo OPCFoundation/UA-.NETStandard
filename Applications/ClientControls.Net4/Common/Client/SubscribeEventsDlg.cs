@@ -164,7 +164,7 @@ namespace Opc.Ua.Client.Controls
 
             if (m_subscription != null)
             {
-                m_session = subscription.Session;
+                m_session = subscription.Session as Session;
                 m_subscription.Handle = this;
             }
         }

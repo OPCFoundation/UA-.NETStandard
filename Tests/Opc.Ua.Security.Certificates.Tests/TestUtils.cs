@@ -32,6 +32,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
+using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Tests
 {
@@ -89,6 +92,15 @@ namespace Opc.Ua.Tests
                 return Directory.EnumerateFiles(assetsPath, searchPattern).ToArray();
             }
             return Array.Empty<string>();
+        }
+
+        public static void ValidateSelSignedBasicConstraints(X509Certificate2 certificate)
+        {
+            var basicConstraintsExtension = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate.Extensions);
+            Assert.NotNull(basicConstraintsExtension);
+            Assert.False(basicConstraintsExtension.CertificateAuthority);
+            Assert.True(basicConstraintsExtension.Critical);
+            Assert.False(basicConstraintsExtension.HasPathLengthConstraint);
         }
     }
     #endregion

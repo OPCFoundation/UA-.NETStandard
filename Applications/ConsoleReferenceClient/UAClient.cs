@@ -39,7 +39,7 @@ namespace Quickstarts
     /// <summary>
     /// OPC UA Client with examples of basic functionality.
     /// </summary>
-    class UAClient : IDisposable
+    public class UAClient : IDisposable
     {
         #region Constructors
         /// <summary>
@@ -92,6 +92,11 @@ namespace Quickstarts
         public uint SessionLifeTime { get; set; } = 30 * 1000;
 
         /// <summary>
+        /// The user identity to use to connect to the server.
+        /// </summary>
+        public IUserIdentity UserIdentity { get; set; } = new UserIdentity();
+
+        /// <summary>
         /// Auto accept untrusted certificates.
         /// </summary>
         public bool AutoAccept { get; set; } = false;
@@ -127,16 +132,16 @@ namespace Quickstarts
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
                     // Create the session
-                    Session session = await Session.Create(
+                    var session = await Opc.Ua.Client.Session.Create(
                         m_configuration,
                         endpoint,
                         false,
                         false,
                         m_configuration.ApplicationName,
                         SessionLifeTime,
-                        new UserIdentity(),
+                        UserIdentity,
                         null
-                    );
+                    ).ConfigureAwait(false);
 
                     // Assign the created session
                     if (session != null && session.Connected)
@@ -147,7 +152,7 @@ namespace Quickstarts
                         m_session.KeepAliveInterval = KeepAliveInterval;
 
                         // set up keep alive callback.
-                        m_session.KeepAlive += new KeepAliveEventHandler(Session_KeepAlive);
+                        m_session.KeepAlive += Session_KeepAlive;
                     }
 
                     // Session created successfully.
@@ -175,6 +180,12 @@ namespace Quickstarts
                 {
                     m_output.WriteLine("Disconnecting...");
 
+                    lock (m_lock)
+                    {
+                        m_session.KeepAlive -= Session_KeepAlive;
+                        m_reconnectHandler?.Dispose();
+                    }
+
                     m_session.Close();
                     m_session.Dispose();
                     m_session = null;
@@ -196,7 +207,7 @@ namespace Quickstarts
         /// <summary>
         /// Handles a keep alive event from a session and triggers a reconnect if necessary.
         /// </summary>
-        private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             try
             {
@@ -255,7 +266,7 @@ namespace Quickstarts
                 // if session recovered, Session property is null
                 if (m_reconnectHandler.Session != null)
                 {
-                    m_session = m_reconnectHandler.Session;
+                    m_session = m_reconnectHandler.Session as Session;
                 }
 
                 m_reconnectHandler.Dispose();
@@ -302,9 +313,9 @@ namespace Quickstarts
 
         #region Private Fields
         private object m_lock = new object();
-        private ApplicationConfiguration m_configuration;
-        private Session m_session;
+        private ApplicationConfiguration m_configuration;        
         private SessionReconnectHandler m_reconnectHandler;
+        private Session m_session;
         private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;
         #endregion

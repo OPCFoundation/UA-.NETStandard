@@ -41,7 +41,7 @@ namespace Opc.Ua.Client
     /// Manages a session with a server.
     /// Contains the async versions of the public session api.
     /// </summary>
-    public partial class Session : SessionClientBatched, IDisposable
+    public partial class Session : SessionClientBatched, ISession, IDisposable
     {
         #region Subscription Async Methods
         /// <summary>
@@ -137,8 +137,7 @@ namespace Opc.Ua.Client
             var nodeCollection = new NodeCollection(nodeIds.Count);
 
             // determine attributes to read for nodeclass
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIds.Count].ToList();
-            var serviceResults = new ServiceResult[nodeIds.Count].ToList();
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(nodeIds.Count);
             var attributesToRead = new ReadValueIdCollection();
 
             CreateNodeClassAttributesReadNodesRequest(
@@ -160,6 +159,7 @@ namespace Opc.Ua.Client
             ClientBase.ValidateResponse(values, attributesToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
+            var serviceResults = new ServiceResult[nodeIds.Count].ToList();
             ProcessAttributesReadNodesResponse(
                 readResponse.ResponseHeader,
                 attributesToRead, attributesPerNodeId,
@@ -212,8 +212,8 @@ namespace Opc.Ua.Client
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
             // second determine attributes to read per nodeclass
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIds.Count].ToList();
-            var serviceResults = new ServiceResult[nodeIds.Count].ToList();
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(nodeIds.Count);
+            var serviceResults = new List<ServiceResult>(nodeIds.Count);
             var attributesToRead = new ReadValueIdCollection();
 
             CreateAttributesReadNodesRequest(
@@ -222,23 +222,26 @@ namespace Opc.Ua.Client
                 attributesToRead, attributesPerNodeId, nodeCollection, serviceResults,
                 optionalAttributes);
 
-            readResponse = await ReadAsync(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                attributesToRead, ct).ConfigureAwait(false);
+            if (attributesToRead.Count > 0)
+            {
+                readResponse = await ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    attributesToRead, ct).ConfigureAwait(false);
 
-            DataValueCollection values = readResponse.Results;
-            diagnosticInfos = readResponse.DiagnosticInfos;
+                DataValueCollection values = readResponse.Results;
+                diagnosticInfos = readResponse.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(values, attributesToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
+                ClientBase.ValidateResponse(values, attributesToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
-            ProcessAttributesReadNodesResponse(
-                readResponse.ResponseHeader,
-                attributesToRead, attributesPerNodeId,
-                values, diagnosticInfos,
-                nodeCollection, serviceResults);
+                ProcessAttributesReadNodesResponse(
+                    readResponse.ResponseHeader,
+                    attributesToRead, attributesPerNodeId,
+                    values, diagnosticInfos,
+                    nodeCollection, serviceResults);
+            }
 
             return (nodeCollection, serviceResults);
         }
@@ -391,6 +394,114 @@ namespace Opc.Ua.Client
             }
 
             return (values, errors);
+        }
+        #endregion
+
+        #region Close Async Methods
+        /// <summary>
+        /// Disconnects from the server and frees any network resources.
+        /// </summary>
+        public Task<StatusCode> CloseAsync(CancellationToken ct = default)
+        {
+            return CloseAsync(m_keepAliveInterval, true, ct);
+        }
+
+        /// <summary>
+        /// Close the session with the server and optionally closes the channel.
+        /// </summary>
+        /// <param name="closeChannel"></param>
+        /// <param name="ct">The cancellation token.</param>
+        public Task<StatusCode> CloseAsync(bool closeChannel, CancellationToken ct = default)
+        {
+            return CloseAsync(m_keepAliveInterval, closeChannel, ct);
+        }
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        public Task<StatusCode> CloseAsync(int timeout, CancellationToken ct = default)
+            => CloseAsync(timeout, true, ct);
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        public virtual async Task<StatusCode> CloseAsync(int timeout, bool closeChannel, CancellationToken ct = default)
+        {
+            // check if already called.
+            if (Disposed)
+            {
+                return StatusCodes.Good;
+            }
+
+            StatusCode result = StatusCodes.Good;
+
+            // stop the keep alive timer.
+            Utils.SilentDispose(m_keepAliveTimer);
+            m_keepAliveTimer = null;
+
+            // check if currectly connected.
+            bool connected = Connected;
+
+            // halt all background threads.
+            if (connected)
+            {
+                if (m_SessionClosing != null)
+                {
+                    try
+                    {
+                        m_SessionClosing(this, null);
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError(e, "Session: Unexpected eror raising SessionClosing event.");
+                    }
+                }
+            }
+
+            // close the session with the server.
+            if (connected && !KeepAliveStopped)
+            {
+                int existingTimeout = this.OperationTimeout;
+
+                try
+                {
+                    // close the session and delete all subscriptions if specified.
+                    this.OperationTimeout = timeout;
+                    var response = await base.CloseSessionAsync(null, m_deleteSubscriptionsOnClose, ct).ConfigureAwait(false);
+                    this.OperationTimeout = existingTimeout;
+
+                    if (closeChannel)
+                    {
+                        CloseChannel();
+                    }
+
+                    // raised notification indicating the session is closed.
+                    SessionCreated(null, null);
+                }
+                catch (Exception e)
+                {
+                    // dont throw errors on disconnect, but return them
+                    // so the caller can log the error.
+                    if (e is ServiceResultException)
+                    {
+                        result = ((ServiceResultException)e).StatusCode;
+                    }
+                    else
+                    {
+                        result = StatusCodes.Bad;
+                    }
+
+                    Utils.LogError("Session close error: " + result);
+                }
+            }
+
+            // clean up.
+            if (closeChannel)
+            {
+                Dispose();
+            }
+
+            return result;
         }
         #endregion
     }

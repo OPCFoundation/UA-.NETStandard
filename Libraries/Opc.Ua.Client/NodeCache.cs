@@ -43,7 +43,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public NodeCache(Session session)
+        public NodeCache(ISession session)
         {
             if (session == null) throw new ArgumentNullException(nameof(session));
 
@@ -904,7 +904,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private Session m_session;
+        private ISession m_session;
         private TypeTable m_typeTree;
         private NodeTable m_nodes;
         private bool m_uaTypesLoaded;

@@ -1324,19 +1324,19 @@ namespace Opc.Ua.Gds.Server
             var certificateType = (typeof(Opc.Ua.ObjectTypeIds)).GetField(certificateGroup.Configuration.CertificateType).GetValue(null) as NodeId;
             certificateGroup.CertificateType = certificateType;
             certificateGroup.DefaultTrustList = null;
-            if (Utils.Equals(certificateType, Opc.Ua.ObjectTypeIds.HttpsCertificateType))
+            if (Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.HttpsCertificateType))
             {
                 certificateGroup.Id = m_defaultHttpsGroupId;
                 certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
             }
-            else if (Utils.Equals(certificateType, Opc.Ua.ObjectTypeIds.UserCredentialCertificateType))
+            else if (Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.UserCredentialCertificateType))
             {
                 certificateGroup.Id = m_defaultUserTokenGroupId;
                 certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
             }
-            else if (Utils.Equals(certificateType, Opc.Ua.ObjectTypeIds.ApplicationCertificateType) ||
-                Utils.Equals(certificateType, Opc.Ua.ObjectTypeIds.RsaMinApplicationCertificateType) ||
-                Utils.Equals(certificateType, Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            else if (Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.ApplicationCertificateType) ||
+                Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.RsaMinApplicationCertificateType) ||
+                Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
                 )
             {
                 certificateGroup.Id = m_defaultApplicationGroupId;

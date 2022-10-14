@@ -50,7 +50,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates new instance of a browser and attaches it to a session.
         /// </summary>
-        public Browser(Session session)
+        public Browser(ISession session)
         {
             Initialize();
             m_session = session;
@@ -99,7 +99,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The session that the browse is attached to.
         /// </summary>
-        public Session Session
+        public ISession Session
         {
             get { return m_session; }
 
@@ -281,8 +281,8 @@ namespace Opc.Ua.Client
                     out diagnosticInfos);
 
                 // ensure that the server returned valid results.
-                Session.ValidateResponse(results, nodesToBrowse);
-                Session.ValidateDiagnosticInfos(diagnosticInfos, nodesToBrowse);
+                ClientBase.ValidateResponse(results, nodesToBrowse);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, nodesToBrowse);
 
                 // check if valid.
                 if (StatusCode.IsBad(results[0].StatusCode))
@@ -371,8 +371,8 @@ namespace Opc.Ua.Client
                 out diagnosticInfos);
 
             // ensure that the server returned valid results.
-            Session.ValidateResponse(results, continuationPoints);
-            Session.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
+            ClientBase.ValidateResponse(results, continuationPoints);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
 
             // check if valid.
             if (StatusCode.IsBad(results[0].StatusCode))
@@ -389,7 +389,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private Session m_session;
+        private ISession m_session;
         private ViewDescription m_view;
         private uint m_maxReferencesReturned;
         private BrowseDirection m_browseDirection;

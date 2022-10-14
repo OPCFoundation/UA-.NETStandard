@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -29,7 +29,6 @@
 
 using System;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -66,7 +65,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public UInt32 SwitchField => m_switchField;
 
-        /// <summary cref="IStructureTypeInfo.StructureType" />
+        /// <inheritdoc/>
         public override StructureType StructureType => StructureType.Union;
 
         /// <summary>
@@ -82,7 +81,7 @@ namespace Opc.Ua.Client.ComplexTypes
             return clone;
         }
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(XmlNamespace);
@@ -97,19 +96,17 @@ namespace Opc.Ua.Client.ComplexTypes
             if (m_switchField != 0)
             {
                 int unionSelector = 1;
-                int valueRank = -1;
-                PropertyInfo unionProperty = null;
+                ComplexTypePropertyInfo unionProperty = null;
                 foreach (var property in GetPropertyEnumerator())
                 {
                     if (unionSelector == m_switchField)
                     {
-                        valueRank = property.ValueRank;
-                        unionProperty = property.PropertyInfo;
+                        unionProperty = property;
                         break;
                     }
                     unionSelector++;
                 }
-                EncodeProperty(encoder, fieldName, unionProperty, valueRank);
+                EncodeProperty(encoder, fieldName, unionProperty);
             }
             else if (!encoder.UseReversibleEncoding)
             {
@@ -119,7 +116,7 @@ namespace Opc.Ua.Client.ComplexTypes
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(XmlNamespace);
@@ -133,7 +130,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (--unionSelector == 0)
                     {
-                        DecodeProperty(decoder, "Value", property.PropertyInfo, property.ValueRank);
+                        DecodeProperty(decoder, "Value", property);
                         break;
                     }
                 }
@@ -141,7 +138,7 @@ namespace Opc.Ua.Client.ComplexTypes
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable equalValue)
         {
             if (Object.ReferenceEquals(this, equalValue))
@@ -185,15 +182,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion Public Properties
 
         #region IFormattable Members
-        /// <summary>
-        /// Returns the string representation of the complex type.
-        /// </summary>
-        /// <param name="format">(Unused). Leave this as null</param>
-        /// <param name="formatProvider">The provider of a mechanism for retrieving an object to control formatting.</param>
-        /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current embeded instance in the specified format.
-        /// </returns>
-        /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is not null</exception>
+        /// <inheritdoc/>
         public override string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -294,7 +283,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (SwitchField > 0)
                 {
-                    ComplexTypePropertyAttribute property;
+                    ComplexTypePropertyInfo property;
                     if (m_propertyDict.TryGetValue(name, out property))
                     {
                         if ((int)m_switchField == property.Order)
@@ -311,7 +300,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                ComplexTypePropertyAttribute property;
+                ComplexTypePropertyInfo property;
                 if (m_propertyDict.TryGetValue(name, out property))
                 {
                     property.SetValue(this, value);
