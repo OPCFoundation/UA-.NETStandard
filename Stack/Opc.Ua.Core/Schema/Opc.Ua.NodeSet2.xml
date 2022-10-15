@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -545,7 +545,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=56" BrowseName="HasHistoricalConfiguration">
     <DisplayName>HasHistoricalConfiguration</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.2.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.2.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=44</Reference>
     </References>
@@ -14635,7 +14635,7 @@
   </UAVariable>
   <UAObject NodeId="i=25565" BrowseName="SecurityKeyServerAdmin" SymbolicName="WellKnownRole_SecurityKeyServerAdmin">
     <DisplayName>SecurityKeyServerAdmin</DisplayName>
-    <Description>The role is allowed to manage SecurityGroups and PushTargets. This includes executing methods related to management of SecurityGroups and PushTargets on an SKS. It is intended to be a non-human Role.</Description>
+    <Description>This Role allows an administrator to manage SecurityGroups and PushTargets on a SKS. This includes executing methods related to management of SecurityGroups and PushTargets on an SKS.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=25566</Reference>
       <Reference ReferenceType="HasProperty">i=25567</Reference>
@@ -14893,269 +14893,11 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAObject NodeId="i=25584" BrowseName="SecurityKeyServer" SymbolicName="WellKnownRole_SecurityKeyServer">
-    <DisplayName>SecurityKeyServer</DisplayName>
-    <Description>This role is allowed to manage SecurityGroups and distribute keys. This includes executing methods related to PubSub security. It is intended to be a non-human Role.</Description>
-    <References>
-      <Reference ReferenceType="HasProperty">i=25585</Reference>
-      <Reference ReferenceType="HasProperty">i=25586</Reference>
-      <Reference ReferenceType="HasProperty">i=25587</Reference>
-      <Reference ReferenceType="HasProperty">i=25588</Reference>
-      <Reference ReferenceType="HasProperty">i=25589</Reference>
-      <Reference ReferenceType="HasProperty">i=25590</Reference>
-      <Reference ReferenceType="HasComponent">i=25591</Reference>
-      <Reference ReferenceType="HasComponent">i=25593</Reference>
-      <Reference ReferenceType="HasComponent">i=25595</Reference>
-      <Reference ReferenceType="HasComponent">i=25597</Reference>
-      <Reference ReferenceType="HasComponent">i=25599</Reference>
-      <Reference ReferenceType="HasComponent">i=25601</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">i=15606</Reference>
-      <Reference ReferenceType="HasTypeDefinition">i=15620</Reference>
-    </References>
-  </UAObject>
-  <UAVariable NodeId="i=25585" BrowseName="Identities" ParentNodeId="i=25584" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
-    <DisplayName>Identities</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=25584</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=25586" BrowseName="ApplicationsExclude" ParentNodeId="i=25584" DataType="Boolean">
-    <DisplayName>ApplicationsExclude</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=25584</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=25587" BrowseName="Applications" ParentNodeId="i=25584" DataType="String" ValueRank="1" ArrayDimensions="0">
-    <DisplayName>Applications</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=25584</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=25588" BrowseName="EndpointsExclude" ParentNodeId="i=25584" DataType="Boolean">
-    <DisplayName>EndpointsExclude</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=25584</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=25589" BrowseName="Endpoints" ParentNodeId="i=25584" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
-    <DisplayName>Endpoints</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=25584</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=25590" BrowseName="CustomConfiguration" ParentNodeId="i=25584" DataType="Boolean">
-    <DisplayName>CustomConfiguration</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=25584</Reference>
-    </References>
-  </UAVariable>
-  <UAMethod NodeId="i=25591" BrowseName="AddIdentity" ParentNodeId="i=25584" MethodDeclarationId="i=15624">
-    <DisplayName>AddIdentity</DisplayName>
-    <References>
-      <Reference ReferenceType="HasProperty">i=25592</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">i=25584</Reference>
-    </References>
-  </UAMethod>
-  <UAVariable NodeId="i=25592" BrowseName="InputArguments" ParentNodeId="i=25591" DataType="i=296" ValueRank="1" ArrayDimensions="1">
-    <DisplayName>InputArguments</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=25591</Reference>
-    </References>
-    <Value>
-      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=297</Identifier>
-          </TypeId>
-          <Body>
-            <Argument>
-              <Name>Rule</Name>
-              <DataType>
-                <Identifier>i=15634</Identifier>
-              </DataType>
-              <ValueRank>-1</ValueRank>
-              <ArrayDimensions />
-            </Argument>
-          </Body>
-        </ExtensionObject>
-      </ListOfExtensionObject>
-    </Value>
-  </UAVariable>
-  <UAMethod NodeId="i=25593" BrowseName="RemoveIdentity" ParentNodeId="i=25584" MethodDeclarationId="i=15626">
-    <DisplayName>RemoveIdentity</DisplayName>
-    <References>
-      <Reference ReferenceType="HasProperty">i=25594</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">i=25584</Reference>
-    </References>
-  </UAMethod>
-  <UAVariable NodeId="i=25594" BrowseName="InputArguments" ParentNodeId="i=25593" DataType="i=296" ValueRank="1" ArrayDimensions="1">
-    <DisplayName>InputArguments</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=25593</Reference>
-    </References>
-    <Value>
-      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=297</Identifier>
-          </TypeId>
-          <Body>
-            <Argument>
-              <Name>Rule</Name>
-              <DataType>
-                <Identifier>i=15634</Identifier>
-              </DataType>
-              <ValueRank>-1</ValueRank>
-              <ArrayDimensions />
-            </Argument>
-          </Body>
-        </ExtensionObject>
-      </ListOfExtensionObject>
-    </Value>
-  </UAVariable>
-  <UAMethod NodeId="i=25595" BrowseName="AddApplication" ParentNodeId="i=25584" MethodDeclarationId="i=16176">
-    <DisplayName>AddApplication</DisplayName>
-    <References>
-      <Reference ReferenceType="HasProperty">i=25596</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">i=25584</Reference>
-    </References>
-  </UAMethod>
-  <UAVariable NodeId="i=25596" BrowseName="InputArguments" ParentNodeId="i=25595" DataType="i=296" ValueRank="1" ArrayDimensions="1">
-    <DisplayName>InputArguments</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=25595</Reference>
-    </References>
-    <Value>
-      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=297</Identifier>
-          </TypeId>
-          <Body>
-            <Argument>
-              <Name>ApplicationUri</Name>
-              <DataType>
-                <Identifier>i=12</Identifier>
-              </DataType>
-              <ValueRank>-1</ValueRank>
-              <ArrayDimensions />
-            </Argument>
-          </Body>
-        </ExtensionObject>
-      </ListOfExtensionObject>
-    </Value>
-  </UAVariable>
-  <UAMethod NodeId="i=25597" BrowseName="RemoveApplication" ParentNodeId="i=25584" MethodDeclarationId="i=16178">
-    <DisplayName>RemoveApplication</DisplayName>
-    <References>
-      <Reference ReferenceType="HasProperty">i=25598</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">i=25584</Reference>
-    </References>
-  </UAMethod>
-  <UAVariable NodeId="i=25598" BrowseName="InputArguments" ParentNodeId="i=25597" DataType="i=296" ValueRank="1" ArrayDimensions="1">
-    <DisplayName>InputArguments</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=25597</Reference>
-    </References>
-    <Value>
-      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=297</Identifier>
-          </TypeId>
-          <Body>
-            <Argument>
-              <Name>ApplicationUri</Name>
-              <DataType>
-                <Identifier>i=12</Identifier>
-              </DataType>
-              <ValueRank>-1</ValueRank>
-              <ArrayDimensions />
-            </Argument>
-          </Body>
-        </ExtensionObject>
-      </ListOfExtensionObject>
-    </Value>
-  </UAVariable>
-  <UAMethod NodeId="i=25599" BrowseName="AddEndpoint" ParentNodeId="i=25584" MethodDeclarationId="i=16180">
-    <DisplayName>AddEndpoint</DisplayName>
-    <References>
-      <Reference ReferenceType="HasProperty">i=25600</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">i=25584</Reference>
-    </References>
-  </UAMethod>
-  <UAVariable NodeId="i=25600" BrowseName="InputArguments" ParentNodeId="i=25599" DataType="i=296" ValueRank="1" ArrayDimensions="1">
-    <DisplayName>InputArguments</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=25599</Reference>
-    </References>
-    <Value>
-      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=297</Identifier>
-          </TypeId>
-          <Body>
-            <Argument>
-              <Name>Endpoint</Name>
-              <DataType>
-                <Identifier>i=15528</Identifier>
-              </DataType>
-              <ValueRank>-1</ValueRank>
-              <ArrayDimensions />
-            </Argument>
-          </Body>
-        </ExtensionObject>
-      </ListOfExtensionObject>
-    </Value>
-  </UAVariable>
-  <UAMethod NodeId="i=25601" BrowseName="RemoveEndpoint" ParentNodeId="i=25584" MethodDeclarationId="i=16182">
-    <DisplayName>RemoveEndpoint</DisplayName>
-    <References>
-      <Reference ReferenceType="HasProperty">i=25602</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">i=25584</Reference>
-    </References>
-  </UAMethod>
-  <UAVariable NodeId="i=25602" BrowseName="InputArguments" ParentNodeId="i=25601" DataType="i=296" ValueRank="1" ArrayDimensions="1">
-    <DisplayName>InputArguments</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=25601</Reference>
-    </References>
-    <Value>
-      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=297</Identifier>
-          </TypeId>
-          <Body>
-            <Argument>
-              <Name>Endpoint</Name>
-              <DataType>
-                <Identifier>i=15528</Identifier>
-              </DataType>
-              <ValueRank>-1</ValueRank>
-              <ArrayDimensions />
-            </Argument>
-          </Body>
-        </ExtensionObject>
-      </ListOfExtensionObject>
-    </Value>
-  </UAVariable>
-  <UAObject NodeId="i=25603" BrowseName="SecurityKeyAccess" SymbolicName="WellKnownRole_SecurityKeyAccess">
-    <DisplayName>SecurityKeyAccess</DisplayName>
-    <Description>This role is allowed to access an SKS to pull keys. It is intended to be a non-human Role.</Description>
+  <UAObject NodeId="i=25603" BrowseName="SecurityKeyServerAccess" SymbolicName="WellKnownRole_SecurityKeyServerAccess">
+    <DisplayName>SecurityKeyServerAccess</DisplayName>
+    <Description>
+      This Role allows a PubSub Application to access an SKS to pull keys. It is the default Role for pull but it is expected that different custom Roles are used for different SecurityGroups.
+    </Description>
     <References>
       <Reference ReferenceType="HasProperty">i=25604</Reference>
       <Reference ReferenceType="HasProperty">i=25605</Reference>
@@ -15392,6 +15134,268 @@
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=25620</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Endpoint</Name>
+              <DataType>
+                <Identifier>i=15528</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="i=25584" BrowseName="SecurityKeyServerPush" SymbolicName="WellKnownRole_SecurityKeyServerPush">
+    <DisplayName>SecurityKeyServerPush</DisplayName>
+    <Description>
+      This Role allows an SKS to push security keys to PubSub Applications. This includes executing methods related to PubSub security.
+    </Description>
+    <References>
+      <Reference ReferenceType="HasProperty">i=25585</Reference>
+      <Reference ReferenceType="HasProperty">i=25586</Reference>
+      <Reference ReferenceType="HasProperty">i=25587</Reference>
+      <Reference ReferenceType="HasProperty">i=25588</Reference>
+      <Reference ReferenceType="HasProperty">i=25589</Reference>
+      <Reference ReferenceType="HasProperty">i=25590</Reference>
+      <Reference ReferenceType="HasComponent">i=25591</Reference>
+      <Reference ReferenceType="HasComponent">i=25593</Reference>
+      <Reference ReferenceType="HasComponent">i=25595</Reference>
+      <Reference ReferenceType="HasComponent">i=25597</Reference>
+      <Reference ReferenceType="HasComponent">i=25599</Reference>
+      <Reference ReferenceType="HasComponent">i=25601</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=15606</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=15620</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="i=25585" BrowseName="Identities" ParentNodeId="i=25584" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>Identities</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=25584</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=25586" BrowseName="ApplicationsExclude" ParentNodeId="i=25584" DataType="Boolean">
+    <DisplayName>ApplicationsExclude</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=25584</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=25587" BrowseName="Applications" ParentNodeId="i=25584" DataType="String" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>Applications</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=25584</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=25588" BrowseName="EndpointsExclude" ParentNodeId="i=25584" DataType="Boolean">
+    <DisplayName>EndpointsExclude</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=25584</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=25589" BrowseName="Endpoints" ParentNodeId="i=25584" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>Endpoints</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=25584</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=25590" BrowseName="CustomConfiguration" ParentNodeId="i=25584" DataType="Boolean">
+    <DisplayName>CustomConfiguration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=25584</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="i=25591" BrowseName="AddIdentity" ParentNodeId="i=25584" MethodDeclarationId="i=15624">
+    <DisplayName>AddIdentity</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=25592</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=25584</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=25592" BrowseName="InputArguments" ParentNodeId="i=25591" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=25591</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Rule</Name>
+              <DataType>
+                <Identifier>i=15634</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="i=25593" BrowseName="RemoveIdentity" ParentNodeId="i=25584" MethodDeclarationId="i=15626">
+    <DisplayName>RemoveIdentity</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=25594</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=25584</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=25594" BrowseName="InputArguments" ParentNodeId="i=25593" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=25593</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Rule</Name>
+              <DataType>
+                <Identifier>i=15634</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="i=25595" BrowseName="AddApplication" ParentNodeId="i=25584" MethodDeclarationId="i=16176">
+    <DisplayName>AddApplication</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=25596</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=25584</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=25596" BrowseName="InputArguments" ParentNodeId="i=25595" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=25595</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ApplicationUri</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="i=25597" BrowseName="RemoveApplication" ParentNodeId="i=25584" MethodDeclarationId="i=16178">
+    <DisplayName>RemoveApplication</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=25598</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=25584</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=25598" BrowseName="InputArguments" ParentNodeId="i=25597" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=25597</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ApplicationUri</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="i=25599" BrowseName="AddEndpoint" ParentNodeId="i=25584" MethodDeclarationId="i=16180">
+    <DisplayName>AddEndpoint</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=25600</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=25584</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=25600" BrowseName="InputArguments" ParentNodeId="i=25599" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=25599</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Endpoint</Name>
+              <DataType>
+                <Identifier>i=15528</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="i=25601" BrowseName="RemoveEndpoint" ParentNodeId="i=25584" MethodDeclarationId="i=16182">
+    <DisplayName>RemoveEndpoint</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=25602</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=25584</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=25602" BrowseName="InputArguments" ParentNodeId="i=25601" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=25601</Reference>
     </References>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
@@ -21043,7 +21047,7 @@
   </UAVariable>
   <UAObjectType NodeId="i=2318" BrowseName="HistoricalDataConfigurationType">
     <DisplayName>HistoricalDataConfigurationType</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.2.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.2.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=3059</Reference>
       <Reference ReferenceType="HasComponent">i=11876</Reference>
@@ -21185,7 +21189,7 @@
   </UAVariable>
   <UAObject NodeId="i=11202" BrowseName="HA Configuration" SymbolicName="HAConfiguration">
     <DisplayName>HA Configuration</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.2.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.2.4</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=11203</Reference>
       <Reference ReferenceType="HasProperty">i=11208</Reference>
@@ -21246,7 +21250,7 @@
   </UAVariable>
   <UAObjectType NodeId="i=2330" BrowseName="HistoryServerCapabilitiesType">
     <DisplayName>HistoryServerCapabilitiesType</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.4.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.4.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2331</Reference>
       <Reference ReferenceType="HasProperty">i=2332</Reference>
@@ -21397,7 +21401,7 @@
   </UAVariable>
   <UAObjectType NodeId="i=2999" BrowseName="AuditHistoryEventUpdateEventType" IsAbstract="true">
     <DisplayName>AuditHistoryEventUpdateEventType</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.6.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.6.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=3025</Reference>
       <Reference ReferenceType="HasProperty">i=3028</Reference>
@@ -21449,7 +21453,7 @@
   </UAVariable>
   <UAObjectType NodeId="i=3006" BrowseName="AuditHistoryValueUpdateEventType" IsAbstract="true">
     <DisplayName>AuditHistoryValueUpdateEventType</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.6.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.6.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=3026</Reference>
       <Reference ReferenceType="HasProperty">i=3031</Reference>
@@ -21492,7 +21496,7 @@
   </UAVariable>
   <UAObjectType NodeId="i=19095" BrowseName="AuditHistoryAnnotationUpdateEventType" IsAbstract="true">
     <DisplayName>AuditHistoryAnnotationUpdateEventType</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.6.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.6.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=19293</Reference>
       <Reference ReferenceType="HasProperty">i=19294</Reference>
@@ -21526,7 +21530,7 @@
   </UAVariable>
   <UAObjectType NodeId="i=3012" BrowseName="AuditHistoryDeleteEventType" IsAbstract="true">
     <DisplayName>AuditHistoryDeleteEventType</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.6.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.6.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=3027</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2104</Reference>
@@ -21542,7 +21546,7 @@
   </UAVariable>
   <UAObjectType NodeId="i=3014" BrowseName="AuditHistoryRawModifyDeleteEventType" IsAbstract="true">
     <DisplayName>AuditHistoryRawModifyDeleteEventType</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.6.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.6.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=3015</Reference>
       <Reference ReferenceType="HasProperty">i=3016</Reference>
@@ -21585,7 +21589,7 @@
   </UAVariable>
   <UAObjectType NodeId="i=3019" BrowseName="AuditHistoryAtTimeDeleteEventType" IsAbstract="true">
     <DisplayName>AuditHistoryAtTimeDeleteEventType</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.6.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.6.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=3020</Reference>
       <Reference ReferenceType="HasProperty">i=3021</Reference>
@@ -21610,7 +21614,7 @@
   </UAVariable>
   <UAObjectType NodeId="i=3022" BrowseName="AuditHistoryEventDeleteEventType" IsAbstract="true">
     <DisplayName>AuditHistoryEventDeleteEventType</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.6.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.6.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=3023</Reference>
       <Reference ReferenceType="HasProperty">i=3024</Reference>
@@ -42061,7 +42065,7 @@
   </UAVariable>
   <UAMethod NodeId="i=14493" BrowseName="AddPublishedDataItems" ParentNodeId="i=14477">
     <DisplayName>AddPublishedDataItems</DisplayName>
-    <Category>PubSub Model Base</Category>
+    <Category>PubSub Model PublishedDataSet</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part14/9.1.4/#9.1.4.5.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=14494</Reference>
@@ -42209,7 +42213,7 @@
   </UAVariable>
   <UAMethod NodeId="i=14496" BrowseName="AddPublishedEvents" ParentNodeId="i=14477">
     <DisplayName>AddPublishedEvents</DisplayName>
-    <Category>PubSub Model Base</Category>
+    <Category>PubSub Model PublishedDataSet Events</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part14/9.1.4/#9.1.4.5.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=14497</Reference>
@@ -42370,7 +42374,7 @@
   </UAVariable>
   <UAMethod NodeId="i=16935" BrowseName="AddPublishedDataItemsTemplate" ParentNodeId="i=14477">
     <DisplayName>AddPublishedDataItemsTemplate</DisplayName>
-    <Category>PubSub Model Base</Category>
+    <Category>PubSub Model PublishedDataSet</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part14/9.1.4/#9.1.4.5.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=16958</Reference>
@@ -42484,7 +42488,7 @@
   </UAVariable>
   <UAMethod NodeId="i=16960" BrowseName="AddPublishedEventsTemplate" ParentNodeId="i=14477">
     <DisplayName>AddPublishedEventsTemplate</DisplayName>
-    <Category>PubSub Model Base</Category>
+    <Category>PubSub Model PublishedDataSet Events</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part14/9.1.4/#9.1.4.5.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=16961</Reference>
@@ -42611,7 +42615,7 @@
   </UAVariable>
   <UAMethod NodeId="i=14499" BrowseName="RemovePublishedDataSet" ParentNodeId="i=14477">
     <DisplayName>RemovePublishedDataSet</DisplayName>
-    <Category>PubSub Model Base</Category>
+    <Category>PubSub Model PublishedDataSet</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part14/9.1.4/#9.1.4.5.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=14500</Reference>
@@ -42648,7 +42652,7 @@
   </UAVariable>
   <UAMethod NodeId="i=16994" BrowseName="AddDataSetFolder" ParentNodeId="i=14477">
     <DisplayName>AddDataSetFolder</DisplayName>
-    <Category>PubSub Model Base</Category>
+    <Category>PubSub Model PublishedDataSet</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part14/9.1.4/#9.1.4.5.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=16995</Reference>
@@ -42713,7 +42717,7 @@
   </UAVariable>
   <UAMethod NodeId="i=16997" BrowseName="RemoveDataSetFolder" ParentNodeId="i=14477">
     <DisplayName>RemoveDataSetFolder</DisplayName>
-    <Category>PubSub Model Base</Category>
+    <Category>PubSub Model PublishedDataSet</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part14/9.1.4/#9.1.4.5.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=17007</Reference>
@@ -46313,7 +46317,7 @@
   </UAObject>
   <UAMethod NodeId="i=17386" BrowseName="CreateTargetVariables" ParentNodeId="i=15306">
     <DisplayName>CreateTargetVariables</DisplayName>
-    <Category>PubSub Model Base</Category>
+    <Category>PubSub Model SubscribedDataSet</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part14/9.1.8/#9.1.8.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=17387</Reference>
@@ -46397,7 +46401,7 @@
   </UAVariable>
   <UAMethod NodeId="i=17389" BrowseName="CreateDataSetMirror" ParentNodeId="i=15306">
     <DisplayName>CreateDataSetMirror</DisplayName>
-    <Category>PubSub Model Base</Category>
+    <Category>PubSub Model SubscribedDataSet Mirror</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part14/9.1.8/#9.1.8.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=17390</Reference>
@@ -50960,7 +50964,6 @@
   </UAVariable>
   <UAMethod NodeId="i=26873" BrowseName="RequestTickets" ParentNodeId="i=26871">
     <DisplayName>RequestTickets</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part21/9.3.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=26874</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -50998,7 +51001,6 @@
   </UAVariable>
   <UAMethod NodeId="i=26875" BrowseName="SetRegistrarEndpoints" ParentNodeId="i=26871">
     <DisplayName>SetRegistrarEndpoints</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part21/9.3.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=26876</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -56417,7 +56419,7 @@
   </UADataType>
   <UADataType NodeId="i=11234" BrowseName="HistoryUpdateType">
     <DisplayName>HistoryUpdateType</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/6.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/6.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11884</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
@@ -56494,7 +56496,7 @@
   </UAVariable>
   <UADataType NodeId="i=11293" BrowseName="PerformUpdateType">
     <DisplayName>PerformUpdateType</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/6.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/6.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11885</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
@@ -56590,7 +56592,7 @@
   </UADataType>
   <UADataType NodeId="i=948" BrowseName="AggregateConfiguration">
     <DisplayName>AggregateConfiguration</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.22.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/6.4.4/#6.4.4.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -56980,7 +56982,7 @@
   <UADataType NodeId="i=884" BrowseName="Range">
     <DisplayName>Range</DisplayName>
     <Category>Base Info Range DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part13/5.4.3/#5.4.3.14</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part8/5.6.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -57130,7 +57132,7 @@
   </UADataType>
   <UADataType NodeId="i=891" BrowseName="Annotation">
     <DisplayName>Annotation</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -57142,7 +57144,7 @@
   </UADataType>
   <UADataType NodeId="i=890" BrowseName="ExceptionDeviationFormat">
     <DisplayName>ExceptionDeviationFormat</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part11/5.2.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.2.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=7614</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
