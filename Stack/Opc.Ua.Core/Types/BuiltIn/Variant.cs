@@ -13,6 +13,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -2629,10 +2630,7 @@ namespace Opc.Ua
             m_elements = Utils.FlattenArray(value);
             m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
 
-#if DEBUG
-            TypeInfo sanityCheck = TypeInfo.Construct(m_elements);
-            System.Diagnostics.Debug.Assert(sanityCheck.BuiltInType == builtInType || (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte));
-#endif
+            SanityCheckArrayElements(m_elements, builtInType);
         }
 
         /// <summary>
@@ -2647,14 +2645,14 @@ namespace Opc.Ua
 
             if (dimensions != null && dimensions.Length > 0)
             {
-                int length = 1;
+                ulong length = 1;
 
                 for (int ii = 0; ii < dimensions.Length; ii++)
                 {
-                    length *= dimensions[ii];
+                    length *= (ulong)dimensions[ii];
                 }
 
-                if (length != elements.Length)
+                if ((length > int.MaxValue) || (length != (ulong)elements.Length))
                 {
                     throw new ArgumentException("The number of elements in the array does not match the dimensions.");
                 }
@@ -2666,13 +2664,7 @@ namespace Opc.Ua
 
             m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
 
-#if DEBUG
-            TypeInfo sanityCheck = TypeInfo.Construct(m_elements);
-            System.Diagnostics.Debug.Assert(sanityCheck.BuiltInType == builtInType ||
-                (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
-                (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||
-                (builtInType == BuiltInType.Variant));
-#endif
+            SanityCheckArrayElements(m_elements, builtInType);
         }
         #endregion
 
@@ -2701,28 +2693,34 @@ namespace Opc.Ua
         /// </summary>
         public Array ToArray()
         {
-            Array array = Array.CreateInstance(m_elements.GetType().GetElementType(), m_dimensions);
-
-            int[] indexes = new int[m_dimensions.Length];
-
-            for (int ii = 0; ii < m_elements.Length; ii++)
+            try
             {
-                array.SetValue(m_elements.GetValue(ii), indexes);
+                Array array = Array.CreateInstance(m_elements.GetType().GetElementType(), m_dimensions);
 
-                for (int jj = indexes.Length - 1; jj >= 0; jj--)
+                int[] indexes = new int[m_dimensions.Length];
+
+                for (int ii = 0; ii < m_elements.Length; ii++)
                 {
-                    indexes[jj]++;
+                    array.SetValue(m_elements.GetValue(ii), indexes);
 
-                    if (indexes[jj] < m_dimensions[jj])
+                    for (int jj = indexes.Length - 1; jj >= 0; jj--)
                     {
-                        break;
+                        indexes[jj]++;
+
+                        if (indexes[jj] < m_dimensions[jj])
+                        {
+                            break;
+                        }
+
+                        indexes[jj] = 0;
                     }
-
-                    indexes[jj] = 0;
                 }
+                return array;
             }
-
-            return array;
+            catch (OutOfMemoryException oom)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, oom.Message);
+            }
         }
         #endregion
 
@@ -2829,6 +2827,26 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             return new Matrix((Array)Utils.Clone(m_elements), m_typeInfo.BuiltInType, (int[])Utils.Clone(m_dimensions));
+        }
+        #endregion
+
+        #region Private Methods
+        /// <summary>
+        /// Debug.Assert if the elements are assigned a valid BuiltInType.
+        /// </summary>
+        /// <param name="elements">An array of elements to sanity check.</param>
+        /// <param name="builtInType">The builtInType used for the elements.</param>
+        [Conditional("DEBUG")]
+        private static void SanityCheckArrayElements(Array elements, BuiltInType builtInType)
+        {
+#if DEBUG
+            TypeInfo sanityCheck = TypeInfo.Construct(elements);
+            Debug.Assert(sanityCheck.BuiltInType == builtInType || builtInType == BuiltInType.Enumeration ||
+                    (sanityCheck.BuiltInType == BuiltInType.ExtensionObject && builtInType == BuiltInType.Null) ||
+                    (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
+                    (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||
+                    (builtInType == BuiltInType.Variant));
+#endif
         }
         #endregion
 

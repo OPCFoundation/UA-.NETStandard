@@ -297,9 +297,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             else
             {
-                Assert.True(constraints.CertificateAuthority);
-                Assert.True(constraints.HasPathLengthConstraint);
-                Assert.AreEqual(0, constraints.PathLengthConstraint);
+                Assert.False(constraints.CertificateAuthority);
+                Assert.False(constraints.HasPathLengthConstraint);
             }
 
             // key usage

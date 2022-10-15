@@ -62,7 +62,8 @@ namespace Opc.Ua.Client.ComplexTypes
             this Schema.Binary.StructuredType structuredType,
             ExpandedNodeId defaultEncodingId,
             Dictionary<XmlQualifiedName, NodeId> typeDictionary,
-            NamespaceTable namespaceTable)
+            NamespaceTable namespaceTable,
+            NodeId dataTypeNodeId)
         {
             var structureDefinition = new StructureDefinition() {
                 BaseDataType = null,
@@ -159,11 +160,20 @@ namespace Opc.Ua.Client.ComplexTypes
                     throw new DataTypeNotSupportedException(
                         "Bitwise option selectors must have 32 bits.");
                 }
-
+                NodeId fieldDataTypeNodeId;
+                if(field.TypeName == structuredType.QName)
+                {
+                    // recursive type
+                    fieldDataTypeNodeId = dataTypeNodeId;
+                }
+                else
+                {
+                    fieldDataTypeNodeId = field.TypeName.ToNodeId(typeDictionary);
+                }
                 var dataTypeField = new StructureField() {
                     Name = field.Name,
                     Description = null,
-                    DataType = field.TypeName.ToNodeId(typeDictionary),
+                    DataType = fieldDataTypeNodeId,
                     IsOptional = false,
                     MaxStringLength = 0,
                     ArrayDimensions = null,
@@ -180,7 +190,7 @@ namespace Opc.Ua.Client.ComplexTypes
                             "The length field must precede the type field of an array.");
                     }
                     lastField.Name = field.Name;
-                    lastField.DataType = field.TypeName.ToNodeId(typeDictionary);
+                    lastField.DataType = fieldDataTypeNodeId;
                     lastField.ValueRank = 1;
                 }
                 else
@@ -204,17 +214,14 @@ namespace Opc.Ua.Client.ComplexTypes
                         }
                         dataTypeFieldPosition++;
                     }
-                    else
+                    else if (field.SwitchField != null)
                     {
-                        if (field.SwitchField != null)
+                        dataTypeField.IsOptional = true;
+                        byte value;
+                        if (!switchFieldBits.TryGetValue(field.SwitchField, out value))
                         {
-                            dataTypeField.IsOptional = true;
-                            byte value;
-                            if (!switchFieldBits.TryGetValue(field.SwitchField, out value))
-                            {
-                                throw new DataTypeNotSupportedException(
-                                    $"The switch field for {field.SwitchField} does not exist.");
-                            }
+                            throw new DataTypeNotSupportedException(
+                                $"The switch field for {field.SwitchField} does not exist.");
                         }
                     }
                     structureDefinition.Fields.Add(dataTypeField);
@@ -260,8 +267,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 var internalField = typeof(DataTypeIds).GetField(typeName.Name);
                 if (internalField == null)
                 {
-                    throw new DataTypeNotFoundException(
-                        $"The type {typeName.Name} was not found in the internal type factory.");
+                    // The type was not found in the internal type factory.
+                    return NodeId.Null;
                 }
                 return (NodeId)internalField.GetValue(typeName.Name);
             }
@@ -269,9 +276,8 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))
                 {
-                    throw new DataTypeNotFoundException(
-                        typeName.Name,
-                        $"The type {typeName.Name} in namespace {typeName.Namespace} was not found.");
+                    // The type was not found in the namespace
+                    return NodeId.Null;
                 }
                 return referenceId;
             }

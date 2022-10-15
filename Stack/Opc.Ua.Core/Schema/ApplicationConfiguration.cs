@@ -923,12 +923,26 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the Validator skips the full chain validation
+        /// for already validated or accepted certificates.
+        /// </summary>
+        /// <remarks>
+        /// This flag can be set to true by applications.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 13)]
+        public bool UseValidatedCertificates
+        {
+            get { return m_useValidatedCertificates; }
+            set { m_useValidatedCertificates = value; }
+        }
+
+        /// <summary>
         /// Gets or sets a value indicating whether the application cert should be copied to the trusted store.
         /// </summary>
         /// <remarks>
         /// It is useful for client/server applications running on the same host  and sharing the cert store to autotrust.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 13)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 14)]
         public bool AddAppCertToTrustedStore
         {
             get { return m_addAppCertToTrustedStore; }
@@ -941,7 +955,7 @@ namespace Opc.Ua
         /// <remarks>
         /// If set to true the complete certificate chain will be sent for CA signed certificates.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 14)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
         public bool SendCertificateChain
         {
             get { return m_sendCertificateChain; }
@@ -951,7 +965,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional user issuer certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 16)]
         public CertificateTrustList UserIssuerCertificates
         {
             get
@@ -973,7 +987,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted user certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 16)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 17)]
         public CertificateTrustList TrustedUserCertificates
         {
             get
@@ -995,7 +1009,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional Https issuer certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 17)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 18)]
         public CertificateTrustList HttpsIssuerCertificates
         {
             get
@@ -1017,7 +1031,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted Https certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 18)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 19)]
         public CertificateTrustList TrustedHttpsCertificates
         {
             get
@@ -1044,7 +1058,7 @@ namespace Opc.Ua
         /// If set to true the server nonce validation errors are suppressed.
         /// Please set this flag to true only in close and secured networks since it can cause security vulnerabilities.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 19)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 20)]
         public bool SuppressNonceValidationErrors
         {
             get { return m_suppressNonceValidationErrors; }
@@ -1067,6 +1081,7 @@ namespace Opc.Ua
         private bool m_rejectSHA1SignedCertificates;
         private bool m_rejectUnknownRevocationStatus;
         private ushort m_minCertificateKeySize;
+        private bool m_useValidatedCertificates;
         private bool m_addAppCertToTrustedStore;
         private bool m_sendCertificateChain;
         private bool m_suppressNonceValidationErrors;
@@ -1464,6 +1479,7 @@ namespace Opc.Ua
             m_supportedPrivateKeyFormats = new string[] { "PFX", "PEM" };
             m_maxTrustListSize = 0;
             m_multicastDnsEnabled = false;
+            m_auditingEnabled = false;
         }
 
         /// <summary>
@@ -1875,6 +1891,17 @@ namespace Opc.Ua
             get { return m_operationLimits; }
             set { m_operationLimits = value; }
         }
+
+        /// <summary>
+        /// Whether auditing is enabled.
+        /// </summary>
+        /// <value><c>true</c> if auditing is enabled; otherwise, <c>false</c>.</value>
+        [DataMember(IsRequired = false, Order = 36)]
+        public bool AuditingEnabled
+        {
+            get { return m_auditingEnabled; }
+            set { m_auditingEnabled = value; }
+        }
         #endregion
 
         #region Private Members
@@ -1911,6 +1938,7 @@ namespace Opc.Ua
         private bool m_multicastDnsEnabled;
         private ReverseConnectServerConfiguration m_reverseConnect;
         private OperationLimits m_operationLimits;
+        private bool m_auditingEnabled;
         #endregion
     }
     #endregion
@@ -2216,6 +2244,7 @@ namespace Opc.Ua
             m_minSubscriptionLifetime = 10000;
             m_wellKnownDiscoveryUrls = new StringCollection();
             m_discoveryServers = new EndpointDescriptionCollection();
+            m_operationLimits = new OperationLimits();
         }
 
         /// <summary>
@@ -2315,6 +2344,20 @@ namespace Opc.Ua
             get { return m_reverseConnect; }
             set { m_reverseConnect = value; }
         }
+
+        /// <summary>
+        /// Gets or sets the default operation limits of the OPC UA client.
+        /// </summary>
+        /// <remarks>
+        /// Values not equal to zero are overwritten with smaller values set by the server.
+        /// The values are used to limit client service calls.
+        /// </remarks>
+        [DataMember(IsRequired = false, Order = 6)]
+        public OperationLimits OperationLimits
+        {
+            get { return m_operationLimits; }
+            set { m_operationLimits = value; }
+        }
         #endregion
 
         #region Private Members
@@ -2324,6 +2367,7 @@ namespace Opc.Ua
         private string m_endpointCacheFilePath;
         private int m_minSubscriptionLifetime;
         private ReverseConnectClientConfiguration m_reverseConnect;
+        private OperationLimits m_operationLimits;
         #endregion
     }
     #endregion

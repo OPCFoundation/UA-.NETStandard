@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -362,7 +362,7 @@
     <opc:EnumeratedValue Name="SuppressIssuerCertificateExpired" Value="8" />
     <opc:EnumeratedValue Name="SuppressIssuerRevocationStatusUnknown" Value="16" />
     <opc:EnumeratedValue Name="CheckRevocationStatusOnline" Value="32" />
-    <opc:EnumeratedValue Name="CheckRevocationStatusOffine" Value="64" />
+    <opc:EnumeratedValue Name="CheckRevocationStatusOffline" Value="64" />
   </opc:EnumeratedType>
 
   <opc:EnumeratedType Name="TrustListMasks" LengthInBits="32">

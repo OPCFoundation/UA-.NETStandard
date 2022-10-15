@@ -54,6 +54,7 @@ namespace Opc.Ua.Client.Tests
         public const int MaxTimeout = 10000;
         public const int TransportQuotaMaxMessageSize = 4 * 1024 * 1024;
         public const int TransportQuotaMaxStringLength = 1 * 1024 * 1024;
+        public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
 
         public bool SingleSession { get; set; } = true;
         public bool SupportsExternalServerUrl { get; set; } = false;
@@ -62,7 +63,7 @@ namespace Opc.Ua.Client.Tests
         public ReferenceServer ReferenceServer { get; set; }
         public EndpointDescriptionCollection Endpoints { get; set; }
         public ReferenceDescriptionCollection ReferenceDescriptions { get; set; }
-        public Session Session { get; private set; }
+        public ISession Session { get; private set; }
         public OperationLimits OperationLimits { get; private set; }
         public string UriScheme { get; private set; }
         public string PkiRoot { get; set; }
@@ -142,15 +143,19 @@ namespace Opc.Ua.Client.Tests
                 ServerFixture.Config.TransportQuotas.MaxBufferSize = TransportQuotaMaxMessageSize;
                 ServerFixture.Config.TransportQuotas.MaxByteStringLength =
                 ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                    new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
+
                 ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+                ReferenceServer.TokenValidator = this.TokenValidator;
             }
 
             ClientFixture = new ClientFixture();
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize =
-            ClientFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
+            ClientFixture.Config.TransportQuotas.MaxBufferSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength =
-            ClientFixture.Config.TransportQuotas.MaxStringLength = 1 * 1024 * 1024;
+            ClientFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
 
             if (!string.IsNullOrEmpty(customUrl))
             {

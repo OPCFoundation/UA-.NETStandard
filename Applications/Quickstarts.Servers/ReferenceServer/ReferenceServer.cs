@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -50,6 +49,10 @@ namespace Quickstarts.ReferenceServer
     /// </remarks>
     public partial class ReferenceServer : ReverseConnectServer
     {
+        #region Properties
+        public ITokenValidator TokenValidator { get; set; }
+
+        #endregion
         #region Overridden Methods
         /// <summary>
         /// Creates the node managers for the server.
@@ -262,6 +265,17 @@ namespace Quickstarts.ReferenceServer
                 return;
             }
 
+            // check for issued identity token.
+            if (args.NewIdentity is IssuedIdentityToken issuedToken)
+            {
+                args.Identity = this.VerifyIssuedToken(issuedToken);
+
+                // set AuthenticatedUser role for accepted identity token
+                args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
+
+                return;
+            }
+
             // check for anonymous token.
             if (args.NewIdentity is AnonymousIdentityToken || args.NewIdentity == null)
             {
@@ -372,6 +386,49 @@ namespace Quickstarts.ReferenceServer
                     result,
                     info.Key,
                     LoadServerProperties().ProductUri,
+                    new LocalizedText(info)));
+            }
+        }
+
+        private IUserIdentity VerifyIssuedToken(IssuedIdentityToken issuedToken)
+        {
+            if (this.TokenValidator == null)
+            {
+                Utils.LogWarning(Utils.TraceMasks.Security, "No TokenValidator is specified.");
+                return null;
+            }
+            try
+            {
+                if (issuedToken.IssuedTokenType == IssuedTokenType.JWT)
+                {
+                    Utils.LogDebug(Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
+                    return this.TokenValidator.ValidateToken(issuedToken);
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            catch (Exception e)
+            {
+                TranslationInfo info;
+                StatusCode result = StatusCodes.BadIdentityTokenRejected;
+                if (e is ServiceResultException se && se.StatusCode == StatusCodes.BadIdentityTokenInvalid)
+                {
+                    info = new TranslationInfo("IssuedTokenInvalid", "en-US", "token is an invalid issued token.");
+                    result = StatusCodes.BadIdentityTokenInvalid;
+                }
+                else // Rejected                
+                {
+                    // construct translation object with default text.
+                    info = new TranslationInfo("IssuedTokenRejected", "en-US", "token is rejected.");
+                }
+
+                Utils.LogWarning(Utils.TraceMasks.Security, "VerifyIssuedToken: Throw ServiceResultExeption 0x{result:x}");
+                throw new ServiceResultException(new ServiceResult(
+                    result,
+                    info.Key,
+                    this.LoadServerProperties().ProductUri,
                     new LocalizedText(info)));
             }
         }

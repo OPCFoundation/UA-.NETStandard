@@ -178,7 +178,7 @@
         <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
     </UserTokenPolicies>
-    
+
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <MaxSessionCount>100</MaxSessionCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
@@ -264,9 +264,26 @@
       <MaxNodesPerTranslateBrowsePathsToNodeIds>1000</MaxNodesPerTranslateBrowsePathsToNodeIds>
       <MaxMonitoredItemsPerCall>1000</MaxMonitoredItemsPerCall>
     </OperationLimits>
+    <AuditingEnabled>true</AuditingEnabled>
   </ServerConfiguration>
 
   <Extensions>
+    <ua:XmlElement>
+      <MemoryBufferConfiguration xmlns="http://samples.org/UA/MemoryBuffer">
+        <Buffers>
+          <MemoryBufferInstance>
+            <Name>UInt32</Name>
+            <TagCount>100</TagCount>
+            <DataType>UInt32</DataType>
+          </MemoryBufferInstance>
+          <MemoryBufferInstance>
+            <Name>Double</Name>
+            <TagCount>100</TagCount>
+            <DataType>Double</DataType>
+          </MemoryBufferInstance>
+        </Buffers>
+      </MemoryBufferConfiguration>
+    </ua:XmlElement>
     <ua:XmlElement>
       <!-- For CTT testing set ShowCertificateValidationDialog to false -->
       <ReferenceServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/ReferenceServer">

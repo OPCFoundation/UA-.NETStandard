@@ -51,6 +51,7 @@
       <xs:element name="RejectSHA1SignedCertificates" type="xs:boolean" minOccurs="0" />
       <xs:element name="RejectUnknownRevocationStatus" type="xs:boolean" minOccurs="0" />
       <xs:element name="MinimumCertificateKeySize" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="UseValidatedCertificates" type="xs:boolean" minOccurs="0" />
       <xs:element name="AddAppCertToTrustedStore" type="xs:boolean" minOccurs="0" />
       <xs:element name="SendCertificateChain" type="xs:boolean" minOccurs="0" />
       <xs:element name="UserIssuerCertificates" type="CertificateTrustList" minOccurs="0" />
@@ -162,6 +163,7 @@
           <xs:element name="MultiCastDnsEnabled" type="xs:boolean" minOccurs="0" />
           <xs:element name="ReverseConnect" type="ReverseConnectServerConfiguration" minOccurs="0" />
           <xs:element name="OperationLimits" type="OperationLimits" minOccurs="0" />
+          <xs:element name="AuditingEnabled" type="xs:boolean" minOccurs="0" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
@@ -240,7 +242,8 @@
       <xs:element name="DiscoveryServers" type="ua:ListOfEndpointDescription" minOccurs="0" />
       <xs:element name="EndpointCacheFilePath" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="MinSubscriptionLifetime" type="xs:int" minOccurs="0" />
-      <xs:element name="ReverseConnect" type="ReverseConnectClientConfiguration" minOccurs="0" />	  
+      <xs:element name="ReverseConnect" type="ReverseConnectClientConfiguration" minOccurs="0" />
+      <xs:element name="OperationLimits" type="OperationLimits" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
 

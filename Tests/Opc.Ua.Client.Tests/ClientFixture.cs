@@ -44,6 +44,7 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ClientFixture
     {
+        private const uint kDefaultOperationLimits = 5000;
         private NUnitTraceLogger m_traceLogger;
         public ApplicationConfiguration Config { get; private set; }
         public ConfiguredEndpoint Endpoint { get; private set; }
@@ -53,6 +54,8 @@ namespace Opc.Ua.Client.Tests
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
+
+        public ISessionFactory SessionFactory { get; } = new DefaultSessionFactory();
 
         #region Public Methods
         /// <summary>
@@ -72,6 +75,12 @@ namespace Opc.Ua.Client.Tests
                     "urn:localhost:opcfoundation.org:" + clientName,
                     "http://opcfoundation.org/UA/" + clientName)
                 .AsClient()
+                .SetClientOperationLimits(new OperationLimits {
+                    MaxNodesPerBrowse = kDefaultOperationLimits,
+                    MaxNodesPerRead = kDefaultOperationLimits,
+                    MaxMonitoredItemsPerCall = kDefaultOperationLimits,
+                    MaxNodesPerWrite = kDefaultOperationLimits
+                })
                 .AddSecurityConfiguration(
                     "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
                     pkiRoot)
@@ -129,7 +138,7 @@ namespace Opc.Ua.Client.Tests
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
-        public async Task<Session> Connect(string endpointUrl)
+        public async Task<ISession> Connect(string endpointUrl)
         {
             if (String.IsNullOrEmpty(endpointUrl))
             {
@@ -173,16 +182,16 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Connects the url endpoint with specified security profile.
         /// </summary>
-        public async Task<Session> ConnectAsync(Uri url, string securityProfile, EndpointDescriptionCollection endpoints = null)
+        public async Task<ISession> ConnectAsync(Uri url, string securityProfile, EndpointDescriptionCollection endpoints = null, IUserIdentity userIdentity = null)
         {
-            return await ConnectAsync(await GetEndpointAsync(url, securityProfile, endpoints).ConfigureAwait(false)).ConfigureAwait(false);
+            return await ConnectAsync(await GetEndpointAsync(url, securityProfile, endpoints).ConfigureAwait(false), userIdentity).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Connects the specified endpoint.
         /// </summary>
         /// <param name="endpoint">The configured endpoint.</param>
-        public async Task<Session> ConnectAsync(ConfiguredEndpoint endpoint)
+        public async Task<ISession> ConnectAsync(ConfiguredEndpoint endpoint, IUserIdentity userIdentity = null)
         {
             if (endpoint == null)
             {
@@ -193,9 +202,9 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            var session = await Session.Create(
+            var session = await SessionFactory.CreateAsync(
                 Config, endpoint, false, false,
-                Config.ApplicationName, SessionTimeout, null, null).ConfigureAwait(false);
+                Config.ApplicationName, SessionTimeout, userIdentity, null).ConfigureAwait(false);
 
             Endpoint = session.ConfiguredEndpoint;
 
@@ -278,14 +287,14 @@ namespace Opc.Ua.Client.Tests
 
                     // pick the first available endpoint by default.
                     if (selectedEndpoint == null &&
-                        securityPolicy.Equals(endpoint.SecurityPolicyUri))
+                        securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal))
                     {
                         selectedEndpoint = endpoint;
                         continue;
                     }
 
                     if (selectedEndpoint?.SecurityMode < endpoint.SecurityMode &&
-                        securityPolicy.Equals(endpoint.SecurityPolicyUri))
+                        securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal))
                     {
                         selectedEndpoint = endpoint;
                     }
@@ -327,7 +336,7 @@ namespace Opc.Ua.Client.Tests
         #endregion
 
         #region Private Methods
-        private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (ServiceResult.IsBad(e.Status))
             {

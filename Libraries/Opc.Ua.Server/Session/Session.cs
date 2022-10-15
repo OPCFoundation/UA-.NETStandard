@@ -185,99 +185,7 @@ namespace Opc.Ua.Server
                 m_securityDiagnostics,
                 OnUpdateSecurityDiagnostics);
 
-            // report the audit event.
-            ReportAuditCreateSessionEvent(systemContext);
-
             TraceState("CREATED");
-        }
-        #endregion
-
-        #region Audit Events
-        /// <summary>
-        /// Initializes a session audit event.
-        /// </summary>
-        private void InitializeSessionAuditEvent(ServerSystemContext systemContext, AuditEventState e, TranslationInfo message)
-        {
-            e.Initialize(
-                systemContext,
-                null,
-                EventSeverity.MediumLow,
-                new LocalizedText(message),
-                true,
-                DateTime.UtcNow);
-
-            e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
-            e.SetChildValue(systemContext, BrowseNames.SessionId, m_sessionId, false);
-            e.SetChildValue(systemContext, BrowseNames.ServerId, m_server.ServerUris.GetString(0), false);
-            e.SetChildValue(systemContext, BrowseNames.ClientUserId, m_identity.DisplayName, false);
-            e.SetChildValue(systemContext, BrowseNames.ClientAuditEntryId, systemContext.OperationContext.AuditEntryId, false);
-        }
-
-        /// <summary>
-        /// Reports an audit create session event.
-        /// </summary>
-        private void ReportAuditCreateSessionEvent(ServerSystemContext context)
-        {
-            try
-            {
-                // raise an audit event.
-                AuditCreateSessionEventState e = new AuditCreateSessionEventState(null);
-
-                TranslationInfo message = new TranslationInfo(
-                    "AuditCreateSessionEvent",
-                    "en-US",
-                    "Session {0} created.",
-                    m_sessionName);
-
-                InitializeSessionAuditEvent(context, e, message);
-
-                e.SetChildValue(context, BrowseNames.SourceName, "Session/CreateSession", false);
-                e.SetChildValue(context, BrowseNames.ClientCertificate, m_securityDiagnostics.ClientCertificate, false);
-                e.SetChildValue(context, BrowseNames.SecureChannelId, m_secureChannelId, false);
-
-                m_server.ReportEvent(context, e);
-            }
-            catch (Exception e)
-            {
-                Utils.LogError(e, "Error while reporting AuditCreateSessionEvent event for SessionId {0}.", m_sessionId);
-            }
-        }
-
-        /// <summary>
-        /// Reports an audit activate session event.
-        /// </summary>
-        private void ReportAuditActivateSessionEvent(ServerSystemContext context)
-        {
-            try
-            {
-                AuditActivateSessionEventState e = new AuditActivateSessionEventState(null);
-
-                TranslationInfo message = new TranslationInfo(
-                    "AuditActivateSessionEvent",
-                    "en-US",
-                    "Session {0} activated.",
-                    m_sessionName);
-
-                InitializeSessionAuditEvent(context, e, message);
-
-                e.SetChildValue(context, BrowseNames.SourceName, "Session/ActivateSession", false);
-
-                if (m_softwareCertificates != null && m_softwareCertificates.Count > 0)
-                {
-                    e.SetChildValue(context, BrowseNames.ClientSoftwareCertificates, m_softwareCertificates.ToArray(), false);
-                }
-
-                if (m_identityToken != null)
-                {
-                    e.SetChildValue(context, BrowseNames.UserIdentityToken, Utils.Clone(m_identityToken), false);
-                }
-
-                m_server.ReportEvent(context, e);
-            }
-            catch (Exception e)
-            {
-                Utils.LogError(e, "Error while reporting AuditActivateSessionEvent event for SessionId {0}.", m_sessionId);
-            }
         }
         #endregion
 
@@ -457,6 +365,17 @@ namespace Opc.Ua.Server
             get
             {
                 return m_endpoint;
+            }
+        }
+
+        /// <summary>
+        /// Returns the session's SecureChannelId
+        /// </summary>
+        public string SecureChannelId
+        {
+            get
+            {
+                return m_secureChannelId;
             }
         }
 
@@ -698,10 +617,6 @@ namespace Opc.Ua.Server
                         signedSoftwareCertificates.Add(item);
                     }
                 }
-
-                // raise an audit event.
-                ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(context);
-                ReportAuditActivateSessionEvent(systemContext);
 
                 // update the contact time.
                 lock (DiagnosticsLock)
@@ -1014,6 +929,14 @@ namespace Opc.Ua.Server
             if (policy == null)
             {
                 throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid, "User token policy not supported.");
+            }
+
+            if (token is IssuedIdentityToken issuedToken)
+            {
+                if (policy.IssuedTokenType == Profiles.JwtUserToken)
+                {
+                    issuedToken.IssuedTokenType = IssuedTokenType.JWT; 
+                }
             }
 
             // determine the security policy uri.

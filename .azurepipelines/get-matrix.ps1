@@ -45,7 +45,7 @@ if ($AgentTable -eq $null -or $AgentTable.Count -eq 0)
     $agents = @{
         windows = "windows-2019"
         linux = "ubuntu-20.04"
-        mac = "macOS-10.15"
+        mac = "macOS-11"
     }
 }
 else {

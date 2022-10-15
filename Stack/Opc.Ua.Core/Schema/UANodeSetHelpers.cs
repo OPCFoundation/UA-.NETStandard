@@ -54,10 +54,8 @@ namespace Opc.Ua.Export
         /// <param name="istrm">The input stream.</param>
         public void Write(Stream istrm)
         {
-            var setting = Utils.DefaultXmlWriterSettings();
-            setting.CloseOutput = true;
-
-            var writer = XmlWriter.Create(istrm, setting);
+            XmlWriterSettings setting = Utils.DefaultXmlWriterSettings();
+            XmlWriter writer = XmlWriter.Create(istrm, setting);
 
             try
             {
@@ -299,6 +297,32 @@ namespace Opc.Ua.Export
             exportedNode.WriteMask = (uint)node.WriteMask;
             exportedNode.UserWriteMask = (uint)node.UserWriteMask;
             exportedNode.Extensions = node.Extensions;
+            exportedNode.RolePermissions = null;
+            exportedNode.AccessRestrictions = 0;
+            exportedNode.AccessRestrictionsSpecified = false;
+
+            if (node.RolePermissions != null)
+            {
+                var permissions = new List<RolePermission>();
+
+                foreach (var ii in node.RolePermissions)
+                {
+                    var permission = new RolePermission() {
+                        Permissions = ii.Permissions,
+                        Value = ExportAlias(ii.RoleId, context.NamespaceUris)
+                    };
+
+                    permissions.Add(permission);
+                }
+
+                exportedNode.RolePermissions = permissions.ToArray();
+            }
+
+            if (node.AccessRestrictions != AccessRestrictionType.None)
+            {
+                exportedNode.AccessRestrictions = (ushort)node.AccessRestrictions;
+                exportedNode.AccessRestrictionsSpecified = true;
+            }
 
             if (!String.IsNullOrEmpty(node.SymbolicName) && node.SymbolicName != node.BrowseName.Name)
             {
@@ -614,6 +638,28 @@ namespace Opc.Ua.Export
             importedNode.UserWriteMask = (AttributeWriteMask)node.UserWriteMask;
             importedNode.Extensions = node.Extensions;
 
+            if (node.RolePermissions != null)
+            {
+                var permissions = new RolePermissionTypeCollection();
+
+                foreach (var ii in node.RolePermissions)
+                {
+                    var permission = new RolePermissionType() {
+                        Permissions = ii.Permissions,
+                        RoleId = ImportNodeId(ii.Value, context.NamespaceUris, true)
+                    };
+
+                    permissions.Add(permission);
+                }
+
+                importedNode.RolePermissions = permissions;
+            }
+
+            if (node.AccessRestrictionsSpecified)
+            {
+                importedNode.AccessRestrictions = (AccessRestrictionType)node.AccessRestrictions;
+            }
+
             if (!String.IsNullOrEmpty(node.SymbolicName))
             {
                 importedNode.SymbolicName = node.SymbolicName;
@@ -878,7 +924,7 @@ namespace Opc.Ua.Export
 
             if (sd != null)
             {
-                if (sd.StructureType == StructureType.Union || sd.StructureType == (StructureType)4) // StructureType.UnionWithSubtypedValues)
+                if (sd.StructureType == StructureType.Union || sd.StructureType == StructureType.UnionWithSubtypedValues)
                 {
                     definition.IsUnion = true;
                 }
@@ -901,8 +947,8 @@ namespace Opc.Ua.Export
                             output.IsOptional = field.IsOptional;
                             output.AllowSubTypes = false;
                         }
-                        else if (sd.StructureType == (StructureType)3 || // StructureType.StructureWithSubtypedValues ||
-                                 sd.StructureType == (StructureType)4)   // StructureType.UnionWithSubtypedValues)
+                        else if (sd.StructureType == StructureType.StructureWithSubtypedValues ||
+                                 sd.StructureType == StructureType.UnionWithSubtypedValues)
                         {
                             output.IsOptional = false;
                             output.AllowSubTypes = field.IsOptional;
@@ -1026,11 +1072,11 @@ namespace Opc.Ua.Export
                                 {
                                     if (source.IsUnion)
                                     {
-                                        sd.StructureType = (StructureType)4; // StructureType.UnionWithSubtypedValues;
+                                        sd.StructureType = StructureType.UnionWithSubtypedValues;
                                     }
                                     else
                                     {
-                                        sd.StructureType = (StructureType)3; // StructureType.StructureWithSubtypedValues;
+                                        sd.StructureType = StructureType.StructureWithSubtypedValues;
                                     }
                                 }
                             }
@@ -1056,8 +1102,8 @@ namespace Opc.Ua.Export
                             {
                                 output.IsOptional = false;
                             }
-                            else if (sd.StructureType == (StructureType)3 || //StructureType.StructureWithSubtypedValues ||
-                                    sd.StructureType == (StructureType)4)   //StructureType.UnionWithSubtypedValues)
+                            else if (sd.StructureType == StructureType.StructureWithSubtypedValues ||
+                                    sd.StructureType == StructureType.UnionWithSubtypedValues)
                             {
                                 output.IsOptional = field.AllowSubTypes;
                             }

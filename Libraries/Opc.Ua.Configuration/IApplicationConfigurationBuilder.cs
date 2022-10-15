@@ -246,6 +246,9 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.OperationLimits"/>
         IApplicationConfigurationBuilderServerOptions SetOperationLimits(OperationLimits operationLimits);
+
+        /// <inheritdoc cref="ServerConfiguration.AuditingEnabled"/>
+        IApplicationConfigurationBuilderServerOptions SetAuditingEnabled(bool auditingEnabled);
     }
 
     /// <summary>
@@ -282,6 +285,9 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ClientConfiguration.ReverseConnect"/>
         IApplicationConfigurationBuilderClientOptions SetReverseConnect(ReverseConnectClientConfiguration reverseConnect);
+
+        /// <inheritdoc cref="ClientConfiguration.OperationLimits"/>
+        IApplicationConfigurationBuilderClientOptions SetClientOperationLimits(OperationLimits operationLimits);
     }
 
     /// <summary>
@@ -411,6 +417,12 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="rejectUnknownRevocationStatus"><see langword="false"/> to accept CA certs with unknown revocation status.</param>
         IApplicationConfigurationBuilderSecurityOptions SetRejectUnknownRevocationStatus(bool rejectUnknownRevocationStatus);
+
+        /// <summary>
+        /// Use the validated certificates for fast Validation.
+        /// </summary>
+        /// <param name="useValidatedCertificates"><see langword="true"/> to use the validated certificates.</param>
+        IApplicationConfigurationBuilderSecurityOptions SetUseValidatedCertificates(bool useValidatedCertificates);
 
         /// <summary>
         /// Whether to suppress errors which are caused by clients and servers which provide

@@ -32,7 +32,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -49,7 +51,6 @@ namespace Opc.Ua.Client.Tests
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [TestFixtureSource(nameof(FixtureArgs))]
-    [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class ClientTest : ClientTestFramework
@@ -242,6 +243,71 @@ namespace Opc.Ua.Client.Tests
             session.Dispose();
         }
 
+        [Theory, Order(220)]
+        public async Task ConnectJWT(string securityPolicy)
+        {
+            var identityToken = "fakeTokenString";
+
+            var issuedToken = new IssuedIdentityToken() {
+                IssuedTokenType = IssuedTokenType.JWT,
+                PolicyId = Profiles.JwtUserToken,
+                DecryptedTokenData = Encoding.UTF8.GetBytes(identityToken)
+            };
+
+            var userIdentity = new UserIdentity(issuedToken);
+
+            var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity).ConfigureAwait(false);
+            Assert.NotNull(session);
+            Assert.NotNull(TokenValidator.LastIssuedToken);
+
+            var receivedToken = Encoding.UTF8.GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
+            Assert.AreEqual(identityToken, receivedToken);
+
+            var result = session.Close();
+            Assert.NotNull(result);
+
+            session.Dispose();
+        }
+
+        [Theory, Order(230)]
+        public async Task ReconnectJWT(string securityPolicy)
+        {
+            UserIdentity CreateUserIdentity(string tokenData)
+            {
+                var issuedToken = new IssuedIdentityToken() {
+                    IssuedTokenType = IssuedTokenType.JWT,
+                    PolicyId = Profiles.JwtUserToken,
+                    DecryptedTokenData = Encoding.UTF8.GetBytes(tokenData)
+                };
+
+                return new UserIdentity(issuedToken);
+            }
+
+            var identityToken = "fakeTokenString";
+            var userIdentity = CreateUserIdentity(identityToken);
+
+            var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity).ConfigureAwait(false);
+            Assert.NotNull(session);
+            Assert.NotNull(TokenValidator.LastIssuedToken);
+
+            var receivedToken = Encoding.UTF8.GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
+            Assert.AreEqual(identityToken, receivedToken);
+
+            var newIdentityToken = "fakeTokenStringNew";
+            session.RenewUserIdentity += (s, i) => {
+                return CreateUserIdentity(newIdentityToken);
+            };
+
+            session.Reconnect();
+            receivedToken = Encoding.UTF8.GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
+            Assert.AreEqual(newIdentityToken, receivedToken);
+
+            var result = session.Close();
+            Assert.NotNull(result);
+
+            session.Dispose();
+        }
+
         [Test, Order(240)]
         public async Task ConnectMultipleSessionsAsync()
         {
@@ -274,6 +340,19 @@ namespace Opc.Ua.Client.Tests
         public new void GetOperationLimits()
         {
             base.GetOperationLimits();
+
+            ValidateOperationLimit(OperationLimits.MaxNodesPerRead, Session.OperationLimits.MaxNodesPerRead);
+            ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryReadData, Session.OperationLimits.MaxNodesPerHistoryReadData);
+            ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryReadEvents, Session.OperationLimits.MaxNodesPerHistoryReadEvents);
+            ValidateOperationLimit(OperationLimits.MaxNodesPerBrowse, Session.OperationLimits.MaxNodesPerBrowse);
+            ValidateOperationLimit(OperationLimits.MaxMonitoredItemsPerCall, Session.OperationLimits.MaxMonitoredItemsPerCall);
+            ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryUpdateData, Session.OperationLimits.MaxNodesPerHistoryUpdateData);
+            ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryUpdateEvents, Session.OperationLimits.MaxNodesPerHistoryUpdateEvents);
+            ValidateOperationLimit(OperationLimits.MaxNodesPerMethodCall, Session.OperationLimits.MaxNodesPerMethodCall);
+            ValidateOperationLimit(OperationLimits.MaxNodesPerNodeManagement, Session.OperationLimits.MaxNodesPerNodeManagement);
+            ValidateOperationLimit(OperationLimits.MaxNodesPerRegisterNodes, Session.OperationLimits.MaxNodesPerRegisterNodes);
+            ValidateOperationLimit(OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, Session.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
+            ValidateOperationLimit(OperationLimits.MaxNodesPerWrite, Session.OperationLimits.MaxNodesPerWrite);
         }
 
         [Test]
@@ -313,7 +392,17 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadValue()
+        public void ReadValueAsync()
+        {
+            // Test ReadValue
+            Task task1 = Session.ReadValueAsync(VariableIds.Server_ServerRedundancy_RedundancySupport);
+            Task task2 = Session.ReadValueAsync(VariableIds.Server_ServerStatus);
+            Task task3 = Session.ReadValueAsync(VariableIds.Server_ServerStatus);
+            Task.WaitAll(task1, task2, task3);
+        }
+
+        [Test]
+        public void ReadValueTyped()
         {
             // Test ReadValue
             _ = Session.ReadValue(VariableIds.Server_ServerRedundancy_RedundancySupport, typeof(Int32));
@@ -323,7 +412,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadValues()
+        public void ReadValue()
         {
             var namespaceUris = Session.NamespaceUris;
             var testSet = GetTestSetStatic(namespaceUris).ToList();
@@ -337,10 +426,81 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void ReadValues()
+        {
+            var namespaceUris = Session.NamespaceUris;
+            var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
+            testSet.AddRange(GetTestSetSimulation(namespaceUris));
+            Session.ReadValues(testSet, out DataValueCollection values, out IList<ServiceResult> errors);
+            Assert.AreEqual(testSet.Count, values.Count);
+            Assert.AreEqual(testSet.Count, errors.Count);
+        }
+
+        [Test]
+        public async Task ReadValuesAsync()
+        {
+            var namespaceUris = Session.NamespaceUris;
+            var testSet = GetTestSetStatic(namespaceUris).ToList();
+            testSet.AddRange(GetTestSetSimulation(namespaceUris));
+            DataValueCollection values;
+            IList<ServiceResult> errors;
+            (values, errors) = await Session.ReadValuesAsync(new NodeIdCollection(testSet)).ConfigureAwait(false);
+            Assert.AreEqual(testSet.Count, values.Count);
+            Assert.AreEqual(testSet.Count, errors.Count);
+        }
+
+        [Test]
         public void ReadDataTypeDefinition()
         {
             // Test Read a DataType Node
-            var node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType);
+            INode node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType);
+            ValidateDataTypeDefinition(node);
+        }
+
+        [Test]
+        public async Task ReadDataTypeDefinitionAsync()
+        {
+            // Test Read a DataType Node
+            INode node = await Session.ReadNodeAsync(DataTypeIds.ProgramDiagnosticDataType).ConfigureAwait(false);
+            ValidateDataTypeDefinition(node);
+        }
+
+        [Test]
+        public void ReadDataTypeDefinition2()
+        {
+            // Test Read a DataType Node, the nodeclass is known
+            INode node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType, NodeClass.DataType, false);
+            ValidateDataTypeDefinition(node);
+        }
+
+        [Test]
+        public async Task ReadDataTypeDefinition2Async()
+        {
+            // Test Read a DataType Node, the nodeclass is known
+            INode node = await Session.ReadNodeAsync(DataTypeIds.ProgramDiagnosticDataType, NodeClass.DataType, false).ConfigureAwait(false);
+            ValidateDataTypeDefinition(node);
+        }
+
+        [Test]
+        public void ReadDataTypeDefinitionNodes()
+        {
+            // Test Read a DataType Node, the nodeclass is known
+            Session.ReadNodes(new NodeIdCollection() { DataTypeIds.ProgramDiagnosticDataType }, NodeClass.DataType, out IList<Node> nodes, out IList<ServiceResult> errors, false);
+            ValidateDataTypeDefinition(nodes[0]);
+        }
+
+        [Test]
+        public async Task ReadDataTypeDefinitionNodesAsync()
+        {
+            // Test Read a DataType Node, the nodeclass is known
+            (var nodes, var errors) = await Session.ReadNodesAsync(new NodeIdCollection() { DataTypeIds.ProgramDiagnosticDataType }, NodeClass.DataType, false).ConfigureAwait(false);
+            Assert.AreEqual(nodes.Count, errors.Count);
+            ValidateDataTypeDefinition(nodes[0]);
+        }
+
+
+        private void ValidateDataTypeDefinition(INode node)
+        {
             Assert.NotNull(node);
             var dataTypeNode = (DataTypeNode)node;
             Assert.NotNull(dataTypeNode);
@@ -354,7 +514,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(400)]
-        public async Task BrowseFullAddressSpace(string securityPolicy)
+        public async Task BrowseFullAddressSpace(string securityPolicy, bool operationLimits = false)
         {
             if (OperationLimits == null) { GetOperationLimits(); }
 
@@ -363,10 +523,15 @@ namespace Opc.Ua.Client.Tests
             requestHeader.TimeoutHint = MaxTimeout;
 
             // Session
-            Session session;
+            ISession session;
             if (securityPolicy != null)
             {
                 session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+                if (operationLimits)
+                {
+                    // disable the operation limit handler in SessionClientOperationLimits
+                    session.OperationLimits.MaxNodesPerBrowse = 0;
+                }
             }
             else
             {
@@ -374,7 +539,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var clientTestServices = new ClientTestServices(session);
-            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader, OperationLimits);
+            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader, operationLimits ? OperationLimits : null);
 
             if (securityPolicy != null)
             {
@@ -384,6 +549,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(410)]
+        [NonParallelizable]
         public async Task ReadDisplayNames()
         {
             if (ReferenceDescriptions == null) { await BrowseFullAddressSpace(null).ConfigureAwait(false); }
@@ -391,16 +557,25 @@ namespace Opc.Ua.Client.Tests
             if (OperationLimits.MaxNodesPerRead > 0 &&
                 nodeIds.Count > OperationLimits.MaxNodesPerRead)
             {
-                var sre = Assert.Throws<ServiceResultException>(() => Session.ReadDisplayName(nodeIds, out var displayNames, out var errors));
-                Assert.AreEqual(StatusCodes.BadTooManyOperations, sre.StatusCode);
-                while (nodeIds.Count > 0)
+                // force error
+                try
                 {
-                    Session.ReadDisplayName(nodeIds.Take((int)OperationLimits.MaxNodesPerRead).ToArray(), out var displayNames, out var errors);
-                    foreach (var name in displayNames)
+                    Session.OperationLimits.MaxNodesPerRead = 0;
+                    var sre = Assert.Throws<ServiceResultException>(() => Session.ReadDisplayName(nodeIds, out var displayNames, out var errors));
+                    Assert.AreEqual(StatusCodes.BadTooManyOperations, sre.StatusCode);
+                    while (nodeIds.Count > 0)
                     {
-                        TestContext.Out.WriteLine("{0}", name);
+                        Session.ReadDisplayName(nodeIds.Take((int)OperationLimits.MaxNodesPerRead).ToArray(), out var displayNames, out var errors);
+                        foreach (var name in displayNames)
+                        {
+                            TestContext.Out.WriteLine("{0}", name);
+                        }
+                        nodeIds = nodeIds.Skip((int)OperationLimits.MaxNodesPerRead).ToList();
                     }
-                    nodeIds = nodeIds.Skip((int)OperationLimits.MaxNodesPerRead).ToList();
+                }
+                finally
+                {
+                    Session.OperationLimits.MaxNodesPerRead = OperationLimits.MaxNodesPerRead;
                 }
             }
             else
@@ -424,123 +599,9 @@ namespace Opc.Ua.Client.Tests
             CommonTestWorkers.SubscriptionTest(clientTestServices, requestHeader);
         }
 
-        /// <summary>
-        /// Load Ua types in node cache.
-        /// </summary>
-        [Test, Order(500)]
-        public void NodeCache_LoadUaDefinedTypes()
-        {
-            INodeCache nodeCache = Session.NodeCache;
-            Assert.IsNotNull(nodeCache);
-
-            // clear node cache
-            nodeCache.Clear();
-
-            // load the predefined types
-            nodeCache.LoadUaDefinedTypes(Session.SystemContext);
-
-            // reload the predefined types
-            nodeCache.LoadUaDefinedTypes(Session.SystemContext);
-        }
-
-        /// <summary>
-        /// Browse all variables in the objects folder.
-        /// </summary>
-        [Test, Order(510)]
-        public void NodeCache_BrowseAllVariables()
-        {
-            var result = new List<INode>();
-            var nodesToBrowse = new ExpandedNodeIdCollection {
-                ObjectIds.ObjectsFolder
-            };
-            Session.NodeCache.Clear();
-            Session.NodeCache.LoadUaDefinedTypes(Session.SystemContext);
-            while (nodesToBrowse.Count > 0)
-            {
-                var nextNodesToBrowse = new ExpandedNodeIdCollection();
-                foreach (var node in nodesToBrowse)
-                {
-                    try
-                    {
-                        var organizers = Session.NodeCache.FindReferences(
-                            node,
-                            ReferenceTypeIds.HierarchicalReferences,
-                            false,
-                            true);
-                        var objectNodes = organizers.Where(n => n is ObjectNode);
-                        nextNodesToBrowse.AddRange(objectNodes.Select(n => n.NodeId));
-                        var variableNodes = organizers.Where(n => n is VariableNode);
-                        nextNodesToBrowse.AddRange(variableNodes.Select(n => n.NodeId).ToList());
-                        result.AddRange(variableNodes);
-                    }
-                    catch (ServiceResultException sre)
-                    {
-                        if (sre.StatusCode == StatusCodes.BadUserAccessDenied)
-                        {
-                            TestContext.Out.WriteLine($"Access denied: Skip node {node}.");
-                        }
-                    }
-                }
-                nodesToBrowse = nextNodesToBrowse;
-
-                if (result.Count > MaxReferences)
-                {
-                    break;
-                }
-            }
-
-            TestContext.Out.WriteLine("Browsed {0} variables", result.Count);
-        }
-
-        /// <summary>
-        /// Load Ua types in node cache.
-        /// </summary>
-        [Test, Order(520)]
-        public void NodeCache_References()
-        {
-            INodeCache nodeCache = Session.NodeCache;
-            Assert.IsNotNull(nodeCache);
-
-            // ensure the predefined types are loaded
-            nodeCache.LoadUaDefinedTypes(Session.SystemContext);
-
-            // check on all reference type ids
-            var refTypeDictionary = typeof(ReferenceTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static)
-                .Where(f => f.FieldType == typeof(NodeId))
-                .ToDictionary(f => f.Name, f => (NodeId)f.GetValue(null));
-
-            TestContext.Out.WriteLine("Testing {0} references", refTypeDictionary.Count);
-            foreach (var property in refTypeDictionary)
-            {
-                TestContext.Out.WriteLine("FindReferenceTypeName({0})={1}", property.Value, property.Key);
-                // find the Qualified Name
-                var qn = nodeCache.FindReferenceTypeName(property.Value);
-                Assert.NotNull(qn);
-                Assert.AreEqual(property.Key, qn.Name);
-                // find the node by name
-                var refId = nodeCache.FindReferenceType(new QualifiedName(property.Key));
-                Assert.NotNull(refId);
-                Assert.AreEqual(property.Value, refId);
-                // is the node id known?
-                var isKnown = nodeCache.IsKnown(property.Value);
-                Assert.IsTrue(isKnown);
-                // is it a reference?
-                var isTypeOf = nodeCache.IsTypeOf(
-                    NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
-                    NodeId.ToExpandedNodeId(ReferenceTypeIds.References, Session.NamespaceUris));
-                Assert.IsTrue(isTypeOf);
-                // negative test
-                isTypeOf = nodeCache.IsTypeOf(
-                    NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
-                    NodeId.ToExpandedNodeId(DataTypeIds.Byte, Session.NamespaceUris));
-                Assert.IsFalse(isTypeOf);
-                var subTypes = nodeCache.FindSubTypes(NodeId.ToExpandedNodeId(refId, Session.NamespaceUris));
-                Assert.NotNull(subTypes);
-            }
-        }
 
         [Test, Order(550)]
-        public async Task Read()
+        public async Task ReadNode()
         {
             if (ReferenceDescriptions == null)
             {
@@ -569,8 +630,8 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        [Test, Order(600)]
-        public async Task NodeCache_Read()
+        [Test, Order(550)]
+        public async Task ReadNodeAsync()
         {
             if (ReferenceDescriptions == null)
             {
@@ -580,15 +641,135 @@ namespace Opc.Ua.Client.Tests
             foreach (var reference in ReferenceDescriptions.Take(MaxReferences))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
-                var node = Session.NodeCache.Find(reference.NodeId);
+                INode node = await Session.ReadNodeAsync(nodeId).ConfigureAwait(false);
+                Assert.NotNull(node);
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
+                if (node is VariableNode)
+                {
+                    try
+                    {
+                        var value = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
+                        Assert.NotNull(value);
+                        TestContext.Out.WriteLine("-- Value {0} ", value);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        TestContext.Out.WriteLine("-- Read Value {0} ", sre.Message);
+                    }
+                }
             }
         }
 
-        [Test, Order(610)]
-        public void FetchTypeTree()
+        [Test, Order(560)]
+        public async Task ReadNodes()
         {
-            Session.FetchTypeTree(NodeId.ToExpandedNodeId(DataTypeIds.BaseDataType, Session.NamespaceUris));
+            if (ReferenceDescriptions == null)
+            {
+                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+            }
+
+            NodeIdCollection nodes = new NodeIdCollection(
+                ReferenceDescriptions.Take(MaxReferences).Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
+                );
+            Session.ReadNodes(nodes, out IList<Node> nodeCollection, out IList<ServiceResult> errors);
+            Assert.NotNull(nodeCollection);
+            Assert.NotNull(errors);
+            Assert.AreEqual(nodes.Count, nodeCollection.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+
+
+            int ii = 0;
+            var variableNodes = new NodeIdCollection();
+            foreach (Node node in nodeCollection)
+            {
+                Assert.NotNull(node);
+                Assert.AreEqual(ServiceResult.Good, errors[ii]);
+                TestContext.Out.WriteLine("NodeId: {0} Node: {1}", node.NodeId, node);
+                if (node is VariableNode)
+                {
+                    try
+                    {
+                        variableNodes.Add(node.NodeId);
+                        var value = Session.ReadValue(node.NodeId);
+                        Assert.NotNull(value);
+                        TestContext.Out.WriteLine("-- Value {0} ", value);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        TestContext.Out.WriteLine("-- Read Value {0} ", sre.Message);
+                    }
+                }
+                ii++;
+            }
+
+            Session.ReadValues(nodes, out DataValueCollection values, out errors);
+
+            Assert.NotNull(values);
+            Assert.AreEqual(nodes.Count, values.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+
+            Session.ReadValues(variableNodes, out values, out errors);
+
+            Assert.NotNull(values);
+            Assert.AreEqual(variableNodes.Count, values.Count);
+            Assert.AreEqual(variableNodes.Count, errors.Count);
+        }
+
+        [Test, Order(570)]
+        public async Task ReadNodesAsync()
+        {
+            if (ReferenceDescriptions == null)
+            {
+                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+            }
+
+            NodeIdCollection nodes = new NodeIdCollection(
+                ReferenceDescriptions.Take(MaxReferences).Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
+                );
+            (IList<Node> nodeCollection, IList<ServiceResult> errors) = await Session.ReadNodesAsync(nodes).ConfigureAwait(false);
+            Assert.NotNull(nodeCollection);
+            Assert.NotNull(errors);
+            Assert.AreEqual(nodes.Count, nodeCollection.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+
+            int ii = 0;
+            var variableNodes = new NodeIdCollection();
+            foreach (Node node in nodeCollection)
+            {
+                Assert.NotNull(node);
+                Assert.AreEqual(ServiceResult.Good, errors[ii]);
+                TestContext.Out.WriteLine("NodeId: {0} Node: {1}", node.NodeId, node);
+                if (node is VariableNode)
+                {
+                    try
+                    {
+                        variableNodes.Add(node.NodeId);
+                        var value = await Session.ReadValueAsync(node.NodeId).ConfigureAwait(false);
+                        Assert.NotNull(value);
+                        TestContext.Out.WriteLine("-- Value {0} ", value);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        TestContext.Out.WriteLine("-- Read Value {0} ", sre.Message);
+                    }
+                }
+                ii++;
+            }
+
+            DataValueCollection values;
+            (values, errors) = await Session.ReadValuesAsync(nodes).ConfigureAwait(false);
+
+            Assert.NotNull(values);
+            Assert.NotNull(errors);
+            Assert.AreEqual(nodes.Count, values.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+
+            (values, errors) = await Session.ReadValuesAsync(variableNodes).ConfigureAwait(false);
+
+            Assert.NotNull(values);
+            Assert.NotNull(errors);
+            Assert.AreEqual(variableNodes.Count, values.Count);
+            Assert.AreEqual(variableNodes.Count, errors.Count);
         }
 
         [Test, Order(620)]
@@ -674,7 +855,7 @@ namespace Opc.Ua.Client.Tests
         [NonParallelizable]
         public async Task TransferSubscriptionNative(bool sendInitialData)
         {
-            Session transferSession = null;
+            ISession transferSession = null;
             try
             {
                 var requestHeader = new RequestHeader {
@@ -687,7 +868,7 @@ namespace Opc.Ua.Client.Tests
                 var namespaceUris = Session.NamespaceUris;
                 NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
                 var clientTestServices = new ClientTestServices(Session);
-                CommonTestWorkers.CreateSubscriptionForTransfer(clientTestServices, requestHeader, testSet, out var subscriptionIds);
+                var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(clientTestServices, requestHeader, testSet, 0, -1);
 
                 TestContext.Out.WriteLine("Transfer SubscriptionIds: {0}", subscriptionIds[0]);
 
@@ -729,6 +910,14 @@ namespace Opc.Ua.Client.Tests
         #endregion
 
         #region Private Methods
+        void ValidateOperationLimit(uint serverLimit, uint clientLimit)
+        {
+            if (serverLimit != 0)
+            {
+                Assert.GreaterOrEqual(serverLimit, clientLimit);
+                Assert.NotZero(clientLimit);
+            }
+        }
         #endregion
     }
 }

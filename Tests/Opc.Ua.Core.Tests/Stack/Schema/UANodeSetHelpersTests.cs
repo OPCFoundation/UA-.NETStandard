@@ -165,12 +165,15 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 Assert.AreEqual(256, dataType2.Definition.Field[5].MaxStringLength);
 
                 // export the nodeSet to a file, reimport it and re-test.
-                importedNodeStates.SaveAsNodeSet2(localContext, new FileStream(bufferPath, FileMode.Create));
+                using (var fileStream = new FileStream(bufferPath, FileMode.Create))
+                {
+                    importedNodeStates.SaveAsNodeSet2(localContext, fileStream);
+                }
                 try
                 {
                     using (var exportStream = new FileStream(bufferPath, FileMode.Open))
                     {
-                        var exportedNodeSet = Opc.Ua.Export.UANodeSet.Read(exportStream);
+                        var exportedNodeSet = Export.UANodeSet.Read(exportStream);
 
                         var exportedNodeStates = new NodeStateCollection();
                         localContext.NamespaceUris = new NamespaceTable();

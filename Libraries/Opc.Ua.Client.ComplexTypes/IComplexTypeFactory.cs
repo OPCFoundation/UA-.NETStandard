@@ -119,6 +119,11 @@ namespace Opc.Ua.Client.ComplexTypes
         void AddField(StructureField field, Type fieldType, int order);
 
         /// <summary>
+        /// The type of the structure of the field.
+        /// </summary>
+        Type GetStructureType(int valueRank);
+
+        /// <summary>
         /// Finish the type creation and returns the new type.
         /// </summary>
         Type CreateType();

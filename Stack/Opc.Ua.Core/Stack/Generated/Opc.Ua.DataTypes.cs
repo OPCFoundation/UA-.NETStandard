@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -4178,8 +4178,8 @@ namespace Opc.Ua
         CheckRevocationStatusOnline = 32,
 
         /// <remarks />
-        [EnumMember(Value = "CheckRevocationStatusOffine_64")]
-        CheckRevocationStatusOffine = 64,
+        [EnumMember(Value = "CheckRevocationStatusOffline_64")]
+        CheckRevocationStatusOffline = 64,
     }
     #endif
     #endregion
