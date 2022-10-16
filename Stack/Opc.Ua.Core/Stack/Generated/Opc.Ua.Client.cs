@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -37,13 +37,1472 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
+    #region ISessionClientMethods Interface
+    /// <summary>
+    /// An interface used by by clients to access a UA server.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public interface ISessionClientMethods
+    {
+        #region Client Interface
+        #region CreateSession Methods
+        #if (!OPCUA_EXCLUDE_CreateSession)
+        /// <summary>
+        /// Invokes the CreateSession service.
+        /// </summary>
+        ResponseHeader CreateSession(
+            RequestHeader                           requestHeader,
+            ApplicationDescription                  clientDescription,
+            string                                  serverUri,
+            string                                  endpointUrl,
+            string                                  sessionName,
+            byte[]                                  clientNonce,
+            byte[]                                  clientCertificate,
+            double                                  requestedSessionTimeout,
+            uint                                    maxResponseMessageSize,
+            out NodeId                              sessionId,
+            out NodeId                              authenticationToken,
+            out double                              revisedSessionTimeout,
+            out byte[]                              serverNonce,
+            out byte[]                              serverCertificate,
+            out EndpointDescriptionCollection       serverEndpoints,
+            out SignedSoftwareCertificateCollection serverSoftwareCertificates,
+            out SignatureData                       serverSignature,
+            out uint                                maxRequestMessageSize);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the CreateSession service.
+        /// </summary>
+        IAsyncResult BeginCreateSession(
+            RequestHeader          requestHeader,
+            ApplicationDescription clientDescription,
+            string                 serverUri,
+            string                 endpointUrl,
+            string                 sessionName,
+            byte[]                 clientNonce,
+            byte[]                 clientCertificate,
+            double                 requestedSessionTimeout,
+            uint                   maxResponseMessageSize,
+            AsyncCallback          callback,
+            object                 asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the CreateSession service.
+        /// </summary>
+        ResponseHeader EndCreateSession(
+            IAsyncResult                            result,
+            out NodeId                              sessionId,
+            out NodeId                              authenticationToken,
+            out double                              revisedSessionTimeout,
+            out byte[]                              serverNonce,
+            out byte[]                              serverCertificate,
+            out EndpointDescriptionCollection       serverEndpoints,
+            out SignedSoftwareCertificateCollection serverSoftwareCertificates,
+            out SignatureData                       serverSignature,
+            out uint                                maxRequestMessageSize);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the CreateSession service using async Task based request.
+        /// </summary>
+        Task<CreateSessionResponse> CreateSessionAsync(
+            RequestHeader          requestHeader,
+            ApplicationDescription clientDescription,
+            string                 serverUri,
+            string                 endpointUrl,
+            string                 sessionName,
+            byte[]                 clientNonce,
+            byte[]                 clientCertificate,
+            double                 requestedSessionTimeout,
+            uint                   maxResponseMessageSize,
+            CancellationToken      ct);
+        #endif
+        #endif
+        #endregion
+
+        #region ActivateSession Methods
+        #if (!OPCUA_EXCLUDE_ActivateSession)
+        /// <summary>
+        /// Invokes the ActivateSession service.
+        /// </summary>
+        ResponseHeader ActivateSession(
+            RequestHeader                       requestHeader,
+            SignatureData                       clientSignature,
+            SignedSoftwareCertificateCollection clientSoftwareCertificates,
+            StringCollection                    localeIds,
+            ExtensionObject                     userIdentityToken,
+            SignatureData                       userTokenSignature,
+            out byte[]                          serverNonce,
+            out StatusCodeCollection            results,
+            out DiagnosticInfoCollection        diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the ActivateSession service.
+        /// </summary>
+        IAsyncResult BeginActivateSession(
+            RequestHeader                       requestHeader,
+            SignatureData                       clientSignature,
+            SignedSoftwareCertificateCollection clientSoftwareCertificates,
+            StringCollection                    localeIds,
+            ExtensionObject                     userIdentityToken,
+            SignatureData                       userTokenSignature,
+            AsyncCallback                       callback,
+            object                              asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the ActivateSession service.
+        /// </summary>
+        ResponseHeader EndActivateSession(
+            IAsyncResult                 result,
+            out byte[]                   serverNonce,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the ActivateSession service using async Task based request.
+        /// </summary>
+        Task<ActivateSessionResponse> ActivateSessionAsync(
+            RequestHeader                       requestHeader,
+            SignatureData                       clientSignature,
+            SignedSoftwareCertificateCollection clientSoftwareCertificates,
+            StringCollection                    localeIds,
+            ExtensionObject                     userIdentityToken,
+            SignatureData                       userTokenSignature,
+            CancellationToken                   ct);
+        #endif
+        #endif
+        #endregion
+
+        #region CloseSession Methods
+        #if (!OPCUA_EXCLUDE_CloseSession)
+        /// <summary>
+        /// Invokes the CloseSession service.
+        /// </summary>
+        ResponseHeader CloseSession(
+            RequestHeader requestHeader,
+            bool          deleteSubscriptions);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the CloseSession service.
+        /// </summary>
+        IAsyncResult BeginCloseSession(
+            RequestHeader requestHeader,
+            bool          deleteSubscriptions,
+            AsyncCallback callback,
+            object        asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the CloseSession service.
+        /// </summary>
+        ResponseHeader EndCloseSession(
+            IAsyncResult result);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the CloseSession service using async Task based request.
+        /// </summary>
+        Task<CloseSessionResponse> CloseSessionAsync(
+            RequestHeader     requestHeader,
+            bool              deleteSubscriptions,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region Cancel Methods
+        #if (!OPCUA_EXCLUDE_Cancel)
+        /// <summary>
+        /// Invokes the Cancel service.
+        /// </summary>
+        ResponseHeader Cancel(
+            RequestHeader requestHeader,
+            uint          requestHandle,
+            out uint      cancelCount);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the Cancel service.
+        /// </summary>
+        IAsyncResult BeginCancel(
+            RequestHeader requestHeader,
+            uint          requestHandle,
+            AsyncCallback callback,
+            object        asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the Cancel service.
+        /// </summary>
+        ResponseHeader EndCancel(
+            IAsyncResult result,
+            out uint cancelCount);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the Cancel service using async Task based request.
+        /// </summary>
+        Task<CancelResponse> CancelAsync(
+            RequestHeader     requestHeader,
+            uint              requestHandle,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region AddNodes Methods
+        #if (!OPCUA_EXCLUDE_AddNodes)
+        /// <summary>
+        /// Invokes the AddNodes service.
+        /// </summary>
+        ResponseHeader AddNodes(
+            RequestHeader                requestHeader,
+            AddNodesItemCollection       nodesToAdd,
+            out AddNodesResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the AddNodes service.
+        /// </summary>
+        IAsyncResult BeginAddNodes(
+            RequestHeader          requestHeader,
+            AddNodesItemCollection nodesToAdd,
+            AsyncCallback          callback,
+            object                 asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the AddNodes service.
+        /// </summary>
+        ResponseHeader EndAddNodes(
+            IAsyncResult                 result,
+            out AddNodesResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the AddNodes service using async Task based request.
+        /// </summary>
+        Task<AddNodesResponse> AddNodesAsync(
+            RequestHeader          requestHeader,
+            AddNodesItemCollection nodesToAdd,
+            CancellationToken      ct);
+        #endif
+        #endif
+        #endregion
+
+        #region AddReferences Methods
+        #if (!OPCUA_EXCLUDE_AddReferences)
+        /// <summary>
+        /// Invokes the AddReferences service.
+        /// </summary>
+        ResponseHeader AddReferences(
+            RequestHeader                requestHeader,
+            AddReferencesItemCollection  referencesToAdd,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the AddReferences service.
+        /// </summary>
+        IAsyncResult BeginAddReferences(
+            RequestHeader               requestHeader,
+            AddReferencesItemCollection referencesToAdd,
+            AsyncCallback               callback,
+            object                      asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the AddReferences service.
+        /// </summary>
+        ResponseHeader EndAddReferences(
+            IAsyncResult                 result,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the AddReferences service using async Task based request.
+        /// </summary>
+        Task<AddReferencesResponse> AddReferencesAsync(
+            RequestHeader               requestHeader,
+            AddReferencesItemCollection referencesToAdd,
+            CancellationToken           ct);
+        #endif
+        #endif
+        #endregion
+
+        #region DeleteNodes Methods
+        #if (!OPCUA_EXCLUDE_DeleteNodes)
+        /// <summary>
+        /// Invokes the DeleteNodes service.
+        /// </summary>
+        ResponseHeader DeleteNodes(
+            RequestHeader                requestHeader,
+            DeleteNodesItemCollection    nodesToDelete,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the DeleteNodes service.
+        /// </summary>
+        IAsyncResult BeginDeleteNodes(
+            RequestHeader             requestHeader,
+            DeleteNodesItemCollection nodesToDelete,
+            AsyncCallback             callback,
+            object                    asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the DeleteNodes service.
+        /// </summary>
+        ResponseHeader EndDeleteNodes(
+            IAsyncResult                 result,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the DeleteNodes service using async Task based request.
+        /// </summary>
+        Task<DeleteNodesResponse> DeleteNodesAsync(
+            RequestHeader             requestHeader,
+            DeleteNodesItemCollection nodesToDelete,
+            CancellationToken         ct);
+        #endif
+        #endif
+        #endregion
+
+        #region DeleteReferences Methods
+        #if (!OPCUA_EXCLUDE_DeleteReferences)
+        /// <summary>
+        /// Invokes the DeleteReferences service.
+        /// </summary>
+        ResponseHeader DeleteReferences(
+            RequestHeader                  requestHeader,
+            DeleteReferencesItemCollection referencesToDelete,
+            out StatusCodeCollection       results,
+            out DiagnosticInfoCollection   diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the DeleteReferences service.
+        /// </summary>
+        IAsyncResult BeginDeleteReferences(
+            RequestHeader                  requestHeader,
+            DeleteReferencesItemCollection referencesToDelete,
+            AsyncCallback                  callback,
+            object                         asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the DeleteReferences service.
+        /// </summary>
+        ResponseHeader EndDeleteReferences(
+            IAsyncResult                 result,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the DeleteReferences service using async Task based request.
+        /// </summary>
+        Task<DeleteReferencesResponse> DeleteReferencesAsync(
+            RequestHeader                  requestHeader,
+            DeleteReferencesItemCollection referencesToDelete,
+            CancellationToken              ct);
+        #endif
+        #endif
+        #endregion
+
+        #region Browse Methods
+        #if (!OPCUA_EXCLUDE_Browse)
+        /// <summary>
+        /// Invokes the Browse service.
+        /// </summary>
+        ResponseHeader Browse(
+            RequestHeader                requestHeader,
+            ViewDescription              view,
+            uint                         requestedMaxReferencesPerNode,
+            BrowseDescriptionCollection  nodesToBrowse,
+            out BrowseResultCollection   results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the Browse service.
+        /// </summary>
+        IAsyncResult BeginBrowse(
+            RequestHeader               requestHeader,
+            ViewDescription             view,
+            uint                        requestedMaxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            AsyncCallback               callback,
+            object                      asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the Browse service.
+        /// </summary>
+        ResponseHeader EndBrowse(
+            IAsyncResult                 result,
+            out BrowseResultCollection   results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the Browse service using async Task based request.
+        /// </summary>
+        Task<BrowseResponse> BrowseAsync(
+            RequestHeader               requestHeader,
+            ViewDescription             view,
+            uint                        requestedMaxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            CancellationToken           ct);
+        #endif
+        #endif
+        #endregion
+
+        #region BrowseNext Methods
+        #if (!OPCUA_EXCLUDE_BrowseNext)
+        /// <summary>
+        /// Invokes the BrowseNext service.
+        /// </summary>
+        ResponseHeader BrowseNext(
+            RequestHeader                requestHeader,
+            bool                         releaseContinuationPoints,
+            ByteStringCollection         continuationPoints,
+            out BrowseResultCollection   results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the BrowseNext service.
+        /// </summary>
+        IAsyncResult BeginBrowseNext(
+            RequestHeader        requestHeader,
+            bool                 releaseContinuationPoints,
+            ByteStringCollection continuationPoints,
+            AsyncCallback        callback,
+            object               asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the BrowseNext service.
+        /// </summary>
+        ResponseHeader EndBrowseNext(
+            IAsyncResult                 result,
+            out BrowseResultCollection   results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the BrowseNext service using async Task based request.
+        /// </summary>
+        Task<BrowseNextResponse> BrowseNextAsync(
+            RequestHeader        requestHeader,
+            bool                 releaseContinuationPoints,
+            ByteStringCollection continuationPoints,
+            CancellationToken    ct);
+        #endif
+        #endif
+        #endregion
+
+        #region TranslateBrowsePathsToNodeIds Methods
+        #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds)
+        /// <summary>
+        /// Invokes the TranslateBrowsePathsToNodeIds service.
+        /// </summary>
+        ResponseHeader TranslateBrowsePathsToNodeIds(
+            RequestHeader                  requestHeader,
+            BrowsePathCollection           browsePaths,
+            out BrowsePathResultCollection results,
+            out DiagnosticInfoCollection   diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the TranslateBrowsePathsToNodeIds service.
+        /// </summary>
+        IAsyncResult BeginTranslateBrowsePathsToNodeIds(
+            RequestHeader        requestHeader,
+            BrowsePathCollection browsePaths,
+            AsyncCallback        callback,
+            object               asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the TranslateBrowsePathsToNodeIds service.
+        /// </summary>
+        ResponseHeader EndTranslateBrowsePathsToNodeIds(
+            IAsyncResult                   result,
+            out BrowsePathResultCollection results,
+            out DiagnosticInfoCollection   diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the TranslateBrowsePathsToNodeIds service using async Task based request.
+        /// </summary>
+        Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+            RequestHeader        requestHeader,
+            BrowsePathCollection browsePaths,
+            CancellationToken    ct);
+        #endif
+        #endif
+        #endregion
+
+        #region RegisterNodes Methods
+        #if (!OPCUA_EXCLUDE_RegisterNodes)
+        /// <summary>
+        /// Invokes the RegisterNodes service.
+        /// </summary>
+        ResponseHeader RegisterNodes(
+            RequestHeader        requestHeader,
+            NodeIdCollection     nodesToRegister,
+            out NodeIdCollection registeredNodeIds);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the RegisterNodes service.
+        /// </summary>
+        IAsyncResult BeginRegisterNodes(
+            RequestHeader    requestHeader,
+            NodeIdCollection nodesToRegister,
+            AsyncCallback    callback,
+            object           asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the RegisterNodes service.
+        /// </summary>
+        ResponseHeader EndRegisterNodes(
+            IAsyncResult         result,
+            out NodeIdCollection registeredNodeIds);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the RegisterNodes service using async Task based request.
+        /// </summary>
+        Task<RegisterNodesResponse> RegisterNodesAsync(
+            RequestHeader     requestHeader,
+            NodeIdCollection  nodesToRegister,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region UnregisterNodes Methods
+        #if (!OPCUA_EXCLUDE_UnregisterNodes)
+        /// <summary>
+        /// Invokes the UnregisterNodes service.
+        /// </summary>
+        ResponseHeader UnregisterNodes(
+            RequestHeader    requestHeader,
+            NodeIdCollection nodesToUnregister);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the UnregisterNodes service.
+        /// </summary>
+        IAsyncResult BeginUnregisterNodes(
+            RequestHeader    requestHeader,
+            NodeIdCollection nodesToUnregister,
+            AsyncCallback    callback,
+            object           asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the UnregisterNodes service.
+        /// </summary>
+        ResponseHeader EndUnregisterNodes(
+            IAsyncResult result);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the UnregisterNodes service using async Task based request.
+        /// </summary>
+        Task<UnregisterNodesResponse> UnregisterNodesAsync(
+            RequestHeader     requestHeader,
+            NodeIdCollection  nodesToUnregister,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region QueryFirst Methods
+        #if (!OPCUA_EXCLUDE_QueryFirst)
+        /// <summary>
+        /// Invokes the QueryFirst service.
+        /// </summary>
+        ResponseHeader QueryFirst(
+            RequestHeader                 requestHeader,
+            ViewDescription               view,
+            NodeTypeDescriptionCollection nodeTypes,
+            ContentFilter                 filter,
+            uint                          maxDataSetsToReturn,
+            uint                          maxReferencesToReturn,
+            out QueryDataSetCollection    queryDataSets,
+            out byte[]                    continuationPoint,
+            out ParsingResultCollection   parsingResults,
+            out DiagnosticInfoCollection  diagnosticInfos,
+            out ContentFilterResult       filterResult);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the QueryFirst service.
+        /// </summary>
+        IAsyncResult BeginQueryFirst(
+            RequestHeader                 requestHeader,
+            ViewDescription               view,
+            NodeTypeDescriptionCollection nodeTypes,
+            ContentFilter                 filter,
+            uint                          maxDataSetsToReturn,
+            uint                          maxReferencesToReturn,
+            AsyncCallback                 callback,
+            object                        asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the QueryFirst service.
+        /// </summary>
+        ResponseHeader EndQueryFirst(
+            IAsyncResult                 result,
+            out QueryDataSetCollection   queryDataSets,
+            out byte[]                   continuationPoint,
+            out ParsingResultCollection  parsingResults,
+            out DiagnosticInfoCollection diagnosticInfos,
+            out ContentFilterResult      filterResult);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the QueryFirst service using async Task based request.
+        /// </summary>
+        Task<QueryFirstResponse> QueryFirstAsync(
+            RequestHeader                 requestHeader,
+            ViewDescription               view,
+            NodeTypeDescriptionCollection nodeTypes,
+            ContentFilter                 filter,
+            uint                          maxDataSetsToReturn,
+            uint                          maxReferencesToReturn,
+            CancellationToken             ct);
+        #endif
+        #endif
+        #endregion
+
+        #region QueryNext Methods
+        #if (!OPCUA_EXCLUDE_QueryNext)
+        /// <summary>
+        /// Invokes the QueryNext service.
+        /// </summary>
+        ResponseHeader QueryNext(
+            RequestHeader              requestHeader,
+            bool                       releaseContinuationPoint,
+            byte[]                     continuationPoint,
+            out QueryDataSetCollection queryDataSets,
+            out byte[]                 revisedContinuationPoint);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the QueryNext service.
+        /// </summary>
+        IAsyncResult BeginQueryNext(
+            RequestHeader requestHeader,
+            bool          releaseContinuationPoint,
+            byte[]        continuationPoint,
+            AsyncCallback callback,
+            object        asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the QueryNext service.
+        /// </summary>
+        ResponseHeader EndQueryNext(
+            IAsyncResult               result,
+            out QueryDataSetCollection queryDataSets,
+            out byte[]                 revisedContinuationPoint);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the QueryNext service using async Task based request.
+        /// </summary>
+        Task<QueryNextResponse> QueryNextAsync(
+            RequestHeader     requestHeader,
+            bool              releaseContinuationPoint,
+            byte[]            continuationPoint,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region Read Methods
+        #if (!OPCUA_EXCLUDE_Read)
+        /// <summary>
+        /// Invokes the Read service.
+        /// </summary>
+        ResponseHeader Read(
+            RequestHeader                requestHeader,
+            double                       maxAge,
+            TimestampsToReturn           timestampsToReturn,
+            ReadValueIdCollection        nodesToRead,
+            out DataValueCollection      results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the Read service.
+        /// </summary>
+        IAsyncResult BeginRead(
+            RequestHeader         requestHeader,
+            double                maxAge,
+            TimestampsToReturn    timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            AsyncCallback         callback,
+            object                asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the Read service.
+        /// </summary>
+        ResponseHeader EndRead(
+            IAsyncResult                 result,
+            out DataValueCollection      results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the Read service using async Task based request.
+        /// </summary>
+        Task<ReadResponse> ReadAsync(
+            RequestHeader         requestHeader,
+            double                maxAge,
+            TimestampsToReturn    timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            CancellationToken     ct);
+        #endif
+        #endif
+        #endregion
+
+        #region HistoryRead Methods
+        #if (!OPCUA_EXCLUDE_HistoryRead)
+        /// <summary>
+        /// Invokes the HistoryRead service.
+        /// </summary>
+        ResponseHeader HistoryRead(
+            RequestHeader                   requestHeader,
+            ExtensionObject                 historyReadDetails,
+            TimestampsToReturn              timestampsToReturn,
+            bool                            releaseContinuationPoints,
+            HistoryReadValueIdCollection    nodesToRead,
+            out HistoryReadResultCollection results,
+            out DiagnosticInfoCollection    diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the HistoryRead service.
+        /// </summary>
+        IAsyncResult BeginHistoryRead(
+            RequestHeader                requestHeader,
+            ExtensionObject              historyReadDetails,
+            TimestampsToReturn           timestampsToReturn,
+            bool                         releaseContinuationPoints,
+            HistoryReadValueIdCollection nodesToRead,
+            AsyncCallback                callback,
+            object                       asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the HistoryRead service.
+        /// </summary>
+        ResponseHeader EndHistoryRead(
+            IAsyncResult                    result,
+            out HistoryReadResultCollection results,
+            out DiagnosticInfoCollection    diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the HistoryRead service using async Task based request.
+        /// </summary>
+        Task<HistoryReadResponse> HistoryReadAsync(
+            RequestHeader                requestHeader,
+            ExtensionObject              historyReadDetails,
+            TimestampsToReturn           timestampsToReturn,
+            bool                         releaseContinuationPoints,
+            HistoryReadValueIdCollection nodesToRead,
+            CancellationToken            ct);
+        #endif
+        #endif
+        #endregion
+
+        #region Write Methods
+        #if (!OPCUA_EXCLUDE_Write)
+        /// <summary>
+        /// Invokes the Write service.
+        /// </summary>
+        ResponseHeader Write(
+            RequestHeader                requestHeader,
+            WriteValueCollection         nodesToWrite,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the Write service.
+        /// </summary>
+        IAsyncResult BeginWrite(
+            RequestHeader        requestHeader,
+            WriteValueCollection nodesToWrite,
+            AsyncCallback        callback,
+            object               asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the Write service.
+        /// </summary>
+        ResponseHeader EndWrite(
+            IAsyncResult                 result,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the Write service using async Task based request.
+        /// </summary>
+        Task<WriteResponse> WriteAsync(
+            RequestHeader        requestHeader,
+            WriteValueCollection nodesToWrite,
+            CancellationToken    ct);
+        #endif
+        #endif
+        #endregion
+
+        #region HistoryUpdate Methods
+        #if (!OPCUA_EXCLUDE_HistoryUpdate)
+        /// <summary>
+        /// Invokes the HistoryUpdate service.
+        /// </summary>
+        ResponseHeader HistoryUpdate(
+            RequestHeader                     requestHeader,
+            ExtensionObjectCollection         historyUpdateDetails,
+            out HistoryUpdateResultCollection results,
+            out DiagnosticInfoCollection      diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the HistoryUpdate service.
+        /// </summary>
+        IAsyncResult BeginHistoryUpdate(
+            RequestHeader             requestHeader,
+            ExtensionObjectCollection historyUpdateDetails,
+            AsyncCallback             callback,
+            object                    asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the HistoryUpdate service.
+        /// </summary>
+        ResponseHeader EndHistoryUpdate(
+            IAsyncResult                      result,
+            out HistoryUpdateResultCollection results,
+            out DiagnosticInfoCollection      diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the HistoryUpdate service using async Task based request.
+        /// </summary>
+        Task<HistoryUpdateResponse> HistoryUpdateAsync(
+            RequestHeader             requestHeader,
+            ExtensionObjectCollection historyUpdateDetails,
+            CancellationToken         ct);
+        #endif
+        #endif
+        #endregion
+
+        #region Call Methods
+        #if (!OPCUA_EXCLUDE_Call)
+        /// <summary>
+        /// Invokes the Call service.
+        /// </summary>
+        ResponseHeader Call(
+            RequestHeader                  requestHeader,
+            CallMethodRequestCollection    methodsToCall,
+            out CallMethodResultCollection results,
+            out DiagnosticInfoCollection   diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the Call service.
+        /// </summary>
+        IAsyncResult BeginCall(
+            RequestHeader               requestHeader,
+            CallMethodRequestCollection methodsToCall,
+            AsyncCallback               callback,
+            object                      asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the Call service.
+        /// </summary>
+        ResponseHeader EndCall(
+            IAsyncResult                   result,
+            out CallMethodResultCollection results,
+            out DiagnosticInfoCollection   diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the Call service using async Task based request.
+        /// </summary>
+        Task<CallResponse> CallAsync(
+            RequestHeader               requestHeader,
+            CallMethodRequestCollection methodsToCall,
+            CancellationToken           ct);
+        #endif
+        #endif
+        #endregion
+
+        #region CreateMonitoredItems Methods
+        #if (!OPCUA_EXCLUDE_CreateMonitoredItems)
+        /// <summary>
+        /// Invokes the CreateMonitoredItems service.
+        /// </summary>
+        ResponseHeader CreateMonitoredItems(
+            RequestHeader                           requestHeader,
+            uint                                    subscriptionId,
+            TimestampsToReturn                      timestampsToReturn,
+            MonitoredItemCreateRequestCollection    itemsToCreate,
+            out MonitoredItemCreateResultCollection results,
+            out DiagnosticInfoCollection            diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the CreateMonitoredItems service.
+        /// </summary>
+        IAsyncResult BeginCreateMonitoredItems(
+            RequestHeader                        requestHeader,
+            uint                                 subscriptionId,
+            TimestampsToReturn                   timestampsToReturn,
+            MonitoredItemCreateRequestCollection itemsToCreate,
+            AsyncCallback                        callback,
+            object                               asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the CreateMonitoredItems service.
+        /// </summary>
+        ResponseHeader EndCreateMonitoredItems(
+            IAsyncResult                            result,
+            out MonitoredItemCreateResultCollection results,
+            out DiagnosticInfoCollection            diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the CreateMonitoredItems service using async Task based request.
+        /// </summary>
+        Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+            RequestHeader                        requestHeader,
+            uint                                 subscriptionId,
+            TimestampsToReturn                   timestampsToReturn,
+            MonitoredItemCreateRequestCollection itemsToCreate,
+            CancellationToken                    ct);
+        #endif
+        #endif
+        #endregion
+
+        #region ModifyMonitoredItems Methods
+        #if (!OPCUA_EXCLUDE_ModifyMonitoredItems)
+        /// <summary>
+        /// Invokes the ModifyMonitoredItems service.
+        /// </summary>
+        ResponseHeader ModifyMonitoredItems(
+            RequestHeader                           requestHeader,
+            uint                                    subscriptionId,
+            TimestampsToReturn                      timestampsToReturn,
+            MonitoredItemModifyRequestCollection    itemsToModify,
+            out MonitoredItemModifyResultCollection results,
+            out DiagnosticInfoCollection            diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the ModifyMonitoredItems service.
+        /// </summary>
+        IAsyncResult BeginModifyMonitoredItems(
+            RequestHeader                        requestHeader,
+            uint                                 subscriptionId,
+            TimestampsToReturn                   timestampsToReturn,
+            MonitoredItemModifyRequestCollection itemsToModify,
+            AsyncCallback                        callback,
+            object                               asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the ModifyMonitoredItems service.
+        /// </summary>
+        ResponseHeader EndModifyMonitoredItems(
+            IAsyncResult                            result,
+            out MonitoredItemModifyResultCollection results,
+            out DiagnosticInfoCollection            diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the ModifyMonitoredItems service using async Task based request.
+        /// </summary>
+        Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+            RequestHeader                        requestHeader,
+            uint                                 subscriptionId,
+            TimestampsToReturn                   timestampsToReturn,
+            MonitoredItemModifyRequestCollection itemsToModify,
+            CancellationToken                    ct);
+        #endif
+        #endif
+        #endregion
+
+        #region SetMonitoringMode Methods
+        #if (!OPCUA_EXCLUDE_SetMonitoringMode)
+        /// <summary>
+        /// Invokes the SetMonitoringMode service.
+        /// </summary>
+        ResponseHeader SetMonitoringMode(
+            RequestHeader                requestHeader,
+            uint                         subscriptionId,
+            MonitoringMode               monitoringMode,
+            UInt32Collection             monitoredItemIds,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the SetMonitoringMode service.
+        /// </summary>
+        IAsyncResult BeginSetMonitoringMode(
+            RequestHeader    requestHeader,
+            uint             subscriptionId,
+            MonitoringMode   monitoringMode,
+            UInt32Collection monitoredItemIds,
+            AsyncCallback    callback,
+            object           asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the SetMonitoringMode service.
+        /// </summary>
+        ResponseHeader EndSetMonitoringMode(
+            IAsyncResult                 result,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the SetMonitoringMode service using async Task based request.
+        /// </summary>
+        Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
+            RequestHeader     requestHeader,
+            uint              subscriptionId,
+            MonitoringMode    monitoringMode,
+            UInt32Collection  monitoredItemIds,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region SetTriggering Methods
+        #if (!OPCUA_EXCLUDE_SetTriggering)
+        /// <summary>
+        /// Invokes the SetTriggering service.
+        /// </summary>
+        ResponseHeader SetTriggering(
+            RequestHeader                requestHeader,
+            uint                         subscriptionId,
+            uint                         triggeringItemId,
+            UInt32Collection             linksToAdd,
+            UInt32Collection             linksToRemove,
+            out StatusCodeCollection     addResults,
+            out DiagnosticInfoCollection addDiagnosticInfos,
+            out StatusCodeCollection     removeResults,
+            out DiagnosticInfoCollection removeDiagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the SetTriggering service.
+        /// </summary>
+        IAsyncResult BeginSetTriggering(
+            RequestHeader    requestHeader,
+            uint             subscriptionId,
+            uint             triggeringItemId,
+            UInt32Collection linksToAdd,
+            UInt32Collection linksToRemove,
+            AsyncCallback    callback,
+            object           asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the SetTriggering service.
+        /// </summary>
+        ResponseHeader EndSetTriggering(
+            IAsyncResult                 result,
+            out StatusCodeCollection     addResults,
+            out DiagnosticInfoCollection addDiagnosticInfos,
+            out StatusCodeCollection     removeResults,
+            out DiagnosticInfoCollection removeDiagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the SetTriggering service using async Task based request.
+        /// </summary>
+        Task<SetTriggeringResponse> SetTriggeringAsync(
+            RequestHeader     requestHeader,
+            uint              subscriptionId,
+            uint              triggeringItemId,
+            UInt32Collection  linksToAdd,
+            UInt32Collection  linksToRemove,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region DeleteMonitoredItems Methods
+        #if (!OPCUA_EXCLUDE_DeleteMonitoredItems)
+        /// <summary>
+        /// Invokes the DeleteMonitoredItems service.
+        /// </summary>
+        ResponseHeader DeleteMonitoredItems(
+            RequestHeader                requestHeader,
+            uint                         subscriptionId,
+            UInt32Collection             monitoredItemIds,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the DeleteMonitoredItems service.
+        /// </summary>
+        IAsyncResult BeginDeleteMonitoredItems(
+            RequestHeader    requestHeader,
+            uint             subscriptionId,
+            UInt32Collection monitoredItemIds,
+            AsyncCallback    callback,
+            object           asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the DeleteMonitoredItems service.
+        /// </summary>
+        ResponseHeader EndDeleteMonitoredItems(
+            IAsyncResult                 result,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the DeleteMonitoredItems service using async Task based request.
+        /// </summary>
+        Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+            RequestHeader     requestHeader,
+            uint              subscriptionId,
+            UInt32Collection  monitoredItemIds,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region CreateSubscription Methods
+        #if (!OPCUA_EXCLUDE_CreateSubscription)
+        /// <summary>
+        /// Invokes the CreateSubscription service.
+        /// </summary>
+        ResponseHeader CreateSubscription(
+            RequestHeader requestHeader,
+            double        requestedPublishingInterval,
+            uint          requestedLifetimeCount,
+            uint          requestedMaxKeepAliveCount,
+            uint          maxNotificationsPerPublish,
+            bool          publishingEnabled,
+            byte          priority,
+            out uint      subscriptionId,
+            out double    revisedPublishingInterval,
+            out uint      revisedLifetimeCount,
+            out uint      revisedMaxKeepAliveCount);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the CreateSubscription service.
+        /// </summary>
+        IAsyncResult BeginCreateSubscription(
+            RequestHeader requestHeader,
+            double        requestedPublishingInterval,
+            uint          requestedLifetimeCount,
+            uint          requestedMaxKeepAliveCount,
+            uint          maxNotificationsPerPublish,
+            bool          publishingEnabled,
+            byte          priority,
+            AsyncCallback callback,
+            object        asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the CreateSubscription service.
+        /// </summary>
+        ResponseHeader EndCreateSubscription(
+            IAsyncResult result,
+            out uint   subscriptionId,
+            out double revisedPublishingInterval,
+            out uint   revisedLifetimeCount,
+            out uint   revisedMaxKeepAliveCount);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the CreateSubscription service using async Task based request.
+        /// </summary>
+        Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
+            RequestHeader     requestHeader,
+            double            requestedPublishingInterval,
+            uint              requestedLifetimeCount,
+            uint              requestedMaxKeepAliveCount,
+            uint              maxNotificationsPerPublish,
+            bool              publishingEnabled,
+            byte              priority,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region ModifySubscription Methods
+        #if (!OPCUA_EXCLUDE_ModifySubscription)
+        /// <summary>
+        /// Invokes the ModifySubscription service.
+        /// </summary>
+        ResponseHeader ModifySubscription(
+            RequestHeader requestHeader,
+            uint          subscriptionId,
+            double        requestedPublishingInterval,
+            uint          requestedLifetimeCount,
+            uint          requestedMaxKeepAliveCount,
+            uint          maxNotificationsPerPublish,
+            byte          priority,
+            out double    revisedPublishingInterval,
+            out uint      revisedLifetimeCount,
+            out uint      revisedMaxKeepAliveCount);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the ModifySubscription service.
+        /// </summary>
+        IAsyncResult BeginModifySubscription(
+            RequestHeader requestHeader,
+            uint          subscriptionId,
+            double        requestedPublishingInterval,
+            uint          requestedLifetimeCount,
+            uint          requestedMaxKeepAliveCount,
+            uint          maxNotificationsPerPublish,
+            byte          priority,
+            AsyncCallback callback,
+            object        asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the ModifySubscription service.
+        /// </summary>
+        ResponseHeader EndModifySubscription(
+            IAsyncResult result,
+            out double revisedPublishingInterval,
+            out uint   revisedLifetimeCount,
+            out uint   revisedMaxKeepAliveCount);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the ModifySubscription service using async Task based request.
+        /// </summary>
+        Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
+            RequestHeader     requestHeader,
+            uint              subscriptionId,
+            double            requestedPublishingInterval,
+            uint              requestedLifetimeCount,
+            uint              requestedMaxKeepAliveCount,
+            uint              maxNotificationsPerPublish,
+            byte              priority,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region SetPublishingMode Methods
+        #if (!OPCUA_EXCLUDE_SetPublishingMode)
+        /// <summary>
+        /// Invokes the SetPublishingMode service.
+        /// </summary>
+        ResponseHeader SetPublishingMode(
+            RequestHeader                requestHeader,
+            bool                         publishingEnabled,
+            UInt32Collection             subscriptionIds,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the SetPublishingMode service.
+        /// </summary>
+        IAsyncResult BeginSetPublishingMode(
+            RequestHeader    requestHeader,
+            bool             publishingEnabled,
+            UInt32Collection subscriptionIds,
+            AsyncCallback    callback,
+            object           asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the SetPublishingMode service.
+        /// </summary>
+        ResponseHeader EndSetPublishingMode(
+            IAsyncResult                 result,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the SetPublishingMode service using async Task based request.
+        /// </summary>
+        Task<SetPublishingModeResponse> SetPublishingModeAsync(
+            RequestHeader     requestHeader,
+            bool              publishingEnabled,
+            UInt32Collection  subscriptionIds,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region Publish Methods
+        #if (!OPCUA_EXCLUDE_Publish)
+        /// <summary>
+        /// Invokes the Publish service.
+        /// </summary>
+        ResponseHeader Publish(
+            RequestHeader                         requestHeader,
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            out uint                              subscriptionId,
+            out UInt32Collection                  availableSequenceNumbers,
+            out bool                              moreNotifications,
+            out NotificationMessage               notificationMessage,
+            out StatusCodeCollection              results,
+            out DiagnosticInfoCollection          diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the Publish service.
+        /// </summary>
+        IAsyncResult BeginPublish(
+            RequestHeader                         requestHeader,
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            AsyncCallback                         callback,
+            object                                asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the Publish service.
+        /// </summary>
+        ResponseHeader EndPublish(
+            IAsyncResult                 result,
+            out uint                     subscriptionId,
+            out UInt32Collection         availableSequenceNumbers,
+            out bool                     moreNotifications,
+            out NotificationMessage      notificationMessage,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the Publish service using async Task based request.
+        /// </summary>
+        Task<PublishResponse> PublishAsync(
+            RequestHeader                         requestHeader,
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            CancellationToken                     ct);
+        #endif
+        #endif
+        #endregion
+
+        #region Republish Methods
+        #if (!OPCUA_EXCLUDE_Republish)
+        /// <summary>
+        /// Invokes the Republish service.
+        /// </summary>
+        ResponseHeader Republish(
+            RequestHeader           requestHeader,
+            uint                    subscriptionId,
+            uint                    retransmitSequenceNumber,
+            out NotificationMessage notificationMessage);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the Republish service.
+        /// </summary>
+        IAsyncResult BeginRepublish(
+            RequestHeader requestHeader,
+            uint          subscriptionId,
+            uint          retransmitSequenceNumber,
+            AsyncCallback callback,
+            object        asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the Republish service.
+        /// </summary>
+        ResponseHeader EndRepublish(
+            IAsyncResult            result,
+            out NotificationMessage notificationMessage);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the Republish service using async Task based request.
+        /// </summary>
+        Task<RepublishResponse> RepublishAsync(
+            RequestHeader     requestHeader,
+            uint              subscriptionId,
+            uint              retransmitSequenceNumber,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region TransferSubscriptions Methods
+        #if (!OPCUA_EXCLUDE_TransferSubscriptions)
+        /// <summary>
+        /// Invokes the TransferSubscriptions service.
+        /// </summary>
+        ResponseHeader TransferSubscriptions(
+            RequestHeader                requestHeader,
+            UInt32Collection             subscriptionIds,
+            bool                         sendInitialValues,
+            out TransferResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the TransferSubscriptions service.
+        /// </summary>
+        IAsyncResult BeginTransferSubscriptions(
+            RequestHeader    requestHeader,
+            UInt32Collection subscriptionIds,
+            bool             sendInitialValues,
+            AsyncCallback    callback,
+            object           asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the TransferSubscriptions service.
+        /// </summary>
+        ResponseHeader EndTransferSubscriptions(
+            IAsyncResult                 result,
+            out TransferResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the TransferSubscriptions service using async Task based request.
+        /// </summary>
+        Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+            RequestHeader     requestHeader,
+            UInt32Collection  subscriptionIds,
+            bool              sendInitialValues,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region DeleteSubscriptions Methods
+        #if (!OPCUA_EXCLUDE_DeleteSubscriptions)
+        /// <summary>
+        /// Invokes the DeleteSubscriptions service.
+        /// </summary>
+        ResponseHeader DeleteSubscriptions(
+            RequestHeader                requestHeader,
+            UInt32Collection             subscriptionIds,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the DeleteSubscriptions service.
+        /// </summary>
+        IAsyncResult BeginDeleteSubscriptions(
+            RequestHeader    requestHeader,
+            UInt32Collection subscriptionIds,
+            AsyncCallback    callback,
+            object           asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the DeleteSubscriptions service.
+        /// </summary>
+        ResponseHeader EndDeleteSubscriptions(
+            IAsyncResult                 result,
+            out StatusCodeCollection     results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the DeleteSubscriptions service using async Task based request.
+        /// </summary>
+        Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+            RequestHeader     requestHeader,
+            UInt32Collection  subscriptionIds,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+        #endregion
+    }
+    #endregion
+
     /// <summary>
     /// The client side interface for a UA server.
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class SessionClient : ClientBase
-    {
+    public partial class SessionClient : ClientBase, ISessionClientMethods
+        {
         #region Constructors
         /// <summary>
         /// Intializes the object with a channel and a message context.
@@ -155,7 +1614,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the CreateSession service.
         /// </summary>
-        public IAsyncResult BeginCreateSession(
+        public virtual IAsyncResult BeginCreateSession(
             RequestHeader          requestHeader,
             ApplicationDescription clientDescription,
             string                 serverUri,
@@ -193,7 +1652,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CreateSession service.
         /// </summary>
-        public ResponseHeader EndCreateSession(
+        public virtual ResponseHeader EndCreateSession(
             IAsyncResult                            result,
             out NodeId                              sessionId,
             out NodeId                              authenticationToken,
@@ -323,7 +1782,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the CreateSession service.
         /// </summary>
-        public IAsyncResult BeginCreateSession(
+        public virtual IAsyncResult BeginCreateSession(
             RequestHeader          requestHeader,
             ApplicationDescription clientDescription,
             string                 serverUri,
@@ -356,7 +1815,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CreateSession service.
         /// </summary>
-        public ResponseHeader EndCreateSession(
+        public virtual ResponseHeader EndCreateSession(
             IAsyncResult                            result,
             out NodeId                              sessionId,
             out NodeId                              authenticationToken,
@@ -526,7 +1985,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the ActivateSession service.
         /// </summary>
-        public IAsyncResult BeginActivateSession(
+        public virtual IAsyncResult BeginActivateSession(
             RequestHeader                       requestHeader,
             SignatureData                       clientSignature,
             SignedSoftwareCertificateCollection clientSoftwareCertificates,
@@ -558,7 +2017,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the ActivateSession service.
         /// </summary>
-        public ResponseHeader EndActivateSession(
+        public virtual ResponseHeader EndActivateSession(
             IAsyncResult                 result,
             out byte[]                   serverNonce,
             out StatusCodeCollection     results,
@@ -658,7 +2117,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the ActivateSession service.
         /// </summary>
-        public IAsyncResult BeginActivateSession(
+        public virtual IAsyncResult BeginActivateSession(
             RequestHeader                       requestHeader,
             SignatureData                       clientSignature,
             SignedSoftwareCertificateCollection clientSoftwareCertificates,
@@ -685,7 +2144,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the ActivateSession service.
         /// </summary>
-        public ResponseHeader EndActivateSession(
+        public virtual ResponseHeader EndActivateSession(
             IAsyncResult                 result,
             out byte[]                   serverNonce,
             out StatusCodeCollection     results,
@@ -823,7 +2282,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the CloseSession service.
         /// </summary>
-        public IAsyncResult BeginCloseSession(
+        public virtual IAsyncResult BeginCloseSession(
             RequestHeader requestHeader,
             bool          deleteSubscriptions,
             AsyncCallback callback,
@@ -847,7 +2306,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CloseSession service.
         /// </summary>
-        public ResponseHeader EndCloseSession(
+        public virtual ResponseHeader EndCloseSession(
             IAsyncResult result)
         {
             CloseSessionResponse response = null;
@@ -927,7 +2386,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the CloseSession service.
         /// </summary>
-        public IAsyncResult BeginCloseSession(
+        public virtual IAsyncResult BeginCloseSession(
             RequestHeader requestHeader,
             bool          deleteSubscriptions,
             AsyncCallback callback,
@@ -946,7 +2405,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CloseSession service.
         /// </summary>
-        public ResponseHeader EndCloseSession(
+        public virtual ResponseHeader EndCloseSession(
             IAsyncResult result)
         {
             CloseSessionResponse response = null;
@@ -1072,7 +2531,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Cancel service.
         /// </summary>
-        public IAsyncResult BeginCancel(
+        public virtual IAsyncResult BeginCancel(
             RequestHeader requestHeader,
             uint          requestHandle,
             AsyncCallback callback,
@@ -1096,7 +2555,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Cancel service.
         /// </summary>
-        public ResponseHeader EndCancel(
+        public virtual ResponseHeader EndCancel(
             IAsyncResult result,
             out uint cancelCount)
         {
@@ -1180,7 +2639,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Cancel service.
         /// </summary>
-        public IAsyncResult BeginCancel(
+        public virtual IAsyncResult BeginCancel(
             RequestHeader requestHeader,
             uint          requestHandle,
             AsyncCallback callback,
@@ -1199,7 +2658,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Cancel service.
         /// </summary>
-        public ResponseHeader EndCancel(
+        public virtual ResponseHeader EndCancel(
             IAsyncResult result,
             out uint cancelCount)
         {
@@ -1329,7 +2788,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the AddNodes service.
         /// </summary>
-        public IAsyncResult BeginAddNodes(
+        public virtual IAsyncResult BeginAddNodes(
             RequestHeader          requestHeader,
             AddNodesItemCollection nodesToAdd,
             AsyncCallback          callback,
@@ -1353,7 +2812,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the AddNodes service.
         /// </summary>
-        public ResponseHeader EndAddNodes(
+        public virtual ResponseHeader EndAddNodes(
             IAsyncResult                 result,
             out AddNodesResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -1441,7 +2900,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the AddNodes service.
         /// </summary>
-        public IAsyncResult BeginAddNodes(
+        public virtual IAsyncResult BeginAddNodes(
             RequestHeader          requestHeader,
             AddNodesItemCollection nodesToAdd,
             AsyncCallback          callback,
@@ -1460,7 +2919,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the AddNodes service.
         /// </summary>
-        public ResponseHeader EndAddNodes(
+        public virtual ResponseHeader EndAddNodes(
             IAsyncResult                 result,
             out AddNodesResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -1592,7 +3051,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the AddReferences service.
         /// </summary>
-        public IAsyncResult BeginAddReferences(
+        public virtual IAsyncResult BeginAddReferences(
             RequestHeader               requestHeader,
             AddReferencesItemCollection referencesToAdd,
             AsyncCallback               callback,
@@ -1616,7 +3075,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the AddReferences service.
         /// </summary>
-        public ResponseHeader EndAddReferences(
+        public virtual ResponseHeader EndAddReferences(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -1704,7 +3163,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the AddReferences service.
         /// </summary>
-        public IAsyncResult BeginAddReferences(
+        public virtual IAsyncResult BeginAddReferences(
             RequestHeader               requestHeader,
             AddReferencesItemCollection referencesToAdd,
             AsyncCallback               callback,
@@ -1723,7 +3182,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the AddReferences service.
         /// </summary>
-        public ResponseHeader EndAddReferences(
+        public virtual ResponseHeader EndAddReferences(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -1855,7 +3314,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteNodes service.
         /// </summary>
-        public IAsyncResult BeginDeleteNodes(
+        public virtual IAsyncResult BeginDeleteNodes(
             RequestHeader             requestHeader,
             DeleteNodesItemCollection nodesToDelete,
             AsyncCallback             callback,
@@ -1879,7 +3338,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteNodes service.
         /// </summary>
-        public ResponseHeader EndDeleteNodes(
+        public virtual ResponseHeader EndDeleteNodes(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -1967,7 +3426,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteNodes service.
         /// </summary>
-        public IAsyncResult BeginDeleteNodes(
+        public virtual IAsyncResult BeginDeleteNodes(
             RequestHeader             requestHeader,
             DeleteNodesItemCollection nodesToDelete,
             AsyncCallback             callback,
@@ -1986,7 +3445,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteNodes service.
         /// </summary>
-        public ResponseHeader EndDeleteNodes(
+        public virtual ResponseHeader EndDeleteNodes(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -2118,7 +3577,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteReferences service.
         /// </summary>
-        public IAsyncResult BeginDeleteReferences(
+        public virtual IAsyncResult BeginDeleteReferences(
             RequestHeader                  requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
             AsyncCallback                  callback,
@@ -2142,7 +3601,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteReferences service.
         /// </summary>
-        public ResponseHeader EndDeleteReferences(
+        public virtual ResponseHeader EndDeleteReferences(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -2230,7 +3689,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteReferences service.
         /// </summary>
-        public IAsyncResult BeginDeleteReferences(
+        public virtual IAsyncResult BeginDeleteReferences(
             RequestHeader                  requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
             AsyncCallback                  callback,
@@ -2249,7 +3708,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteReferences service.
         /// </summary>
-        public ResponseHeader EndDeleteReferences(
+        public virtual ResponseHeader EndDeleteReferences(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -2385,7 +3844,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Browse service.
         /// </summary>
-        public IAsyncResult BeginBrowse(
+        public virtual IAsyncResult BeginBrowse(
             RequestHeader               requestHeader,
             ViewDescription             view,
             uint                        requestedMaxReferencesPerNode,
@@ -2413,7 +3872,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Browse service.
         /// </summary>
-        public ResponseHeader EndBrowse(
+        public virtual ResponseHeader EndBrowse(
             IAsyncResult                 result,
             out BrowseResultCollection   results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -2505,7 +3964,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Browse service.
         /// </summary>
-        public IAsyncResult BeginBrowse(
+        public virtual IAsyncResult BeginBrowse(
             RequestHeader               requestHeader,
             ViewDescription             view,
             uint                        requestedMaxReferencesPerNode,
@@ -2528,7 +3987,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Browse service.
         /// </summary>
-        public ResponseHeader EndBrowse(
+        public virtual ResponseHeader EndBrowse(
             IAsyncResult                 result,
             out BrowseResultCollection   results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -2666,7 +4125,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the BrowseNext service.
         /// </summary>
-        public IAsyncResult BeginBrowseNext(
+        public virtual IAsyncResult BeginBrowseNext(
             RequestHeader        requestHeader,
             bool                 releaseContinuationPoints,
             ByteStringCollection continuationPoints,
@@ -2692,7 +4151,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the BrowseNext service.
         /// </summary>
-        public ResponseHeader EndBrowseNext(
+        public virtual ResponseHeader EndBrowseNext(
             IAsyncResult                 result,
             out BrowseResultCollection   results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -2782,7 +4241,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the BrowseNext service.
         /// </summary>
-        public IAsyncResult BeginBrowseNext(
+        public virtual IAsyncResult BeginBrowseNext(
             RequestHeader        requestHeader,
             bool                 releaseContinuationPoints,
             ByteStringCollection continuationPoints,
@@ -2803,7 +4262,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the BrowseNext service.
         /// </summary>
-        public ResponseHeader EndBrowseNext(
+        public virtual ResponseHeader EndBrowseNext(
             IAsyncResult                 result,
             out BrowseResultCollection   results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -2937,7 +4396,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        public IAsyncResult BeginTranslateBrowsePathsToNodeIds(
+        public virtual IAsyncResult BeginTranslateBrowsePathsToNodeIds(
             RequestHeader        requestHeader,
             BrowsePathCollection browsePaths,
             AsyncCallback        callback,
@@ -2961,7 +4420,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        public ResponseHeader EndTranslateBrowsePathsToNodeIds(
+        public virtual ResponseHeader EndTranslateBrowsePathsToNodeIds(
             IAsyncResult                   result,
             out BrowsePathResultCollection results,
             out DiagnosticInfoCollection   diagnosticInfos)
@@ -3049,7 +4508,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        public IAsyncResult BeginTranslateBrowsePathsToNodeIds(
+        public virtual IAsyncResult BeginTranslateBrowsePathsToNodeIds(
             RequestHeader        requestHeader,
             BrowsePathCollection browsePaths,
             AsyncCallback        callback,
@@ -3068,7 +4527,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        public ResponseHeader EndTranslateBrowsePathsToNodeIds(
+        public virtual ResponseHeader EndTranslateBrowsePathsToNodeIds(
             IAsyncResult                   result,
             out BrowsePathResultCollection results,
             out DiagnosticInfoCollection   diagnosticInfos)
@@ -3198,7 +4657,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the RegisterNodes service.
         /// </summary>
-        public IAsyncResult BeginRegisterNodes(
+        public virtual IAsyncResult BeginRegisterNodes(
             RequestHeader    requestHeader,
             NodeIdCollection nodesToRegister,
             AsyncCallback    callback,
@@ -3222,7 +4681,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the RegisterNodes service.
         /// </summary>
-        public ResponseHeader EndRegisterNodes(
+        public virtual ResponseHeader EndRegisterNodes(
             IAsyncResult         result,
             out NodeIdCollection registeredNodeIds)
         {
@@ -3306,7 +4765,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the RegisterNodes service.
         /// </summary>
-        public IAsyncResult BeginRegisterNodes(
+        public virtual IAsyncResult BeginRegisterNodes(
             RequestHeader    requestHeader,
             NodeIdCollection nodesToRegister,
             AsyncCallback    callback,
@@ -3325,7 +4784,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the RegisterNodes service.
         /// </summary>
-        public ResponseHeader EndRegisterNodes(
+        public virtual ResponseHeader EndRegisterNodes(
             IAsyncResult         result,
             out NodeIdCollection registeredNodeIds)
         {
@@ -3451,7 +4910,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the UnregisterNodes service.
         /// </summary>
-        public IAsyncResult BeginUnregisterNodes(
+        public virtual IAsyncResult BeginUnregisterNodes(
             RequestHeader    requestHeader,
             NodeIdCollection nodesToUnregister,
             AsyncCallback    callback,
@@ -3475,7 +4934,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the UnregisterNodes service.
         /// </summary>
-        public ResponseHeader EndUnregisterNodes(
+        public virtual ResponseHeader EndUnregisterNodes(
             IAsyncResult result)
         {
             UnregisterNodesResponse response = null;
@@ -3555,7 +5014,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the UnregisterNodes service.
         /// </summary>
-        public IAsyncResult BeginUnregisterNodes(
+        public virtual IAsyncResult BeginUnregisterNodes(
             RequestHeader    requestHeader,
             NodeIdCollection nodesToUnregister,
             AsyncCallback    callback,
@@ -3574,7 +5033,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the UnregisterNodes service.
         /// </summary>
-        public ResponseHeader EndUnregisterNodes(
+        public virtual ResponseHeader EndUnregisterNodes(
             IAsyncResult result)
         {
             UnregisterNodesResponse response = null;
@@ -3716,7 +5175,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the QueryFirst service.
         /// </summary>
-        public IAsyncResult BeginQueryFirst(
+        public virtual IAsyncResult BeginQueryFirst(
             RequestHeader                 requestHeader,
             ViewDescription               view,
             NodeTypeDescriptionCollection nodeTypes,
@@ -3748,7 +5207,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the QueryFirst service.
         /// </summary>
-        public ResponseHeader EndQueryFirst(
+        public virtual ResponseHeader EndQueryFirst(
             IAsyncResult                 result,
             out QueryDataSetCollection   queryDataSets,
             out byte[]                   continuationPoint,
@@ -3856,7 +5315,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the QueryFirst service.
         /// </summary>
-        public IAsyncResult BeginQueryFirst(
+        public virtual IAsyncResult BeginQueryFirst(
             RequestHeader                 requestHeader,
             ViewDescription               view,
             NodeTypeDescriptionCollection nodeTypes,
@@ -3883,7 +5342,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the QueryFirst service.
         /// </summary>
-        public ResponseHeader EndQueryFirst(
+        public virtual ResponseHeader EndQueryFirst(
             IAsyncResult                 result,
             out QueryDataSetCollection   queryDataSets,
             out byte[]                   continuationPoint,
@@ -4031,7 +5490,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the QueryNext service.
         /// </summary>
-        public IAsyncResult BeginQueryNext(
+        public virtual IAsyncResult BeginQueryNext(
             RequestHeader requestHeader,
             bool          releaseContinuationPoint,
             byte[]        continuationPoint,
@@ -4057,7 +5516,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the QueryNext service.
         /// </summary>
-        public ResponseHeader EndQueryNext(
+        public virtual ResponseHeader EndQueryNext(
             IAsyncResult               result,
             out QueryDataSetCollection queryDataSets,
             out byte[]                 revisedContinuationPoint)
@@ -4147,7 +5606,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the QueryNext service.
         /// </summary>
-        public IAsyncResult BeginQueryNext(
+        public virtual IAsyncResult BeginQueryNext(
             RequestHeader requestHeader,
             bool          releaseContinuationPoint,
             byte[]        continuationPoint,
@@ -4168,7 +5627,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the QueryNext service.
         /// </summary>
-        public ResponseHeader EndQueryNext(
+        public virtual ResponseHeader EndQueryNext(
             IAsyncResult               result,
             out QueryDataSetCollection queryDataSets,
             out byte[]                 revisedContinuationPoint)
@@ -4306,7 +5765,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Read service.
         /// </summary>
-        public IAsyncResult BeginRead(
+        public virtual IAsyncResult BeginRead(
             RequestHeader         requestHeader,
             double                maxAge,
             TimestampsToReturn    timestampsToReturn,
@@ -4334,7 +5793,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Read service.
         /// </summary>
-        public ResponseHeader EndRead(
+        public virtual ResponseHeader EndRead(
             IAsyncResult                 result,
             out DataValueCollection      results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -4426,7 +5885,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Read service.
         /// </summary>
-        public IAsyncResult BeginRead(
+        public virtual IAsyncResult BeginRead(
             RequestHeader         requestHeader,
             double                maxAge,
             TimestampsToReturn    timestampsToReturn,
@@ -4449,7 +5908,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Read service.
         /// </summary>
-        public ResponseHeader EndRead(
+        public virtual ResponseHeader EndRead(
             IAsyncResult                 result,
             out DataValueCollection      results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -4591,7 +6050,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the HistoryRead service.
         /// </summary>
-        public IAsyncResult BeginHistoryRead(
+        public virtual IAsyncResult BeginHistoryRead(
             RequestHeader                requestHeader,
             ExtensionObject              historyReadDetails,
             TimestampsToReturn           timestampsToReturn,
@@ -4621,7 +6080,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the HistoryRead service.
         /// </summary>
-        public ResponseHeader EndHistoryRead(
+        public virtual ResponseHeader EndHistoryRead(
             IAsyncResult                    result,
             out HistoryReadResultCollection results,
             out DiagnosticInfoCollection    diagnosticInfos)
@@ -4715,7 +6174,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the HistoryRead service.
         /// </summary>
-        public IAsyncResult BeginHistoryRead(
+        public virtual IAsyncResult BeginHistoryRead(
             RequestHeader                requestHeader,
             ExtensionObject              historyReadDetails,
             TimestampsToReturn           timestampsToReturn,
@@ -4740,7 +6199,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the HistoryRead service.
         /// </summary>
-        public ResponseHeader EndHistoryRead(
+        public virtual ResponseHeader EndHistoryRead(
             IAsyncResult                    result,
             out HistoryReadResultCollection results,
             out DiagnosticInfoCollection    diagnosticInfos)
@@ -4878,7 +6337,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Write service.
         /// </summary>
-        public IAsyncResult BeginWrite(
+        public virtual IAsyncResult BeginWrite(
             RequestHeader        requestHeader,
             WriteValueCollection nodesToWrite,
             AsyncCallback        callback,
@@ -4902,7 +6361,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Write service.
         /// </summary>
-        public ResponseHeader EndWrite(
+        public virtual ResponseHeader EndWrite(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -4990,7 +6449,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Write service.
         /// </summary>
-        public IAsyncResult BeginWrite(
+        public virtual IAsyncResult BeginWrite(
             RequestHeader        requestHeader,
             WriteValueCollection nodesToWrite,
             AsyncCallback        callback,
@@ -5009,7 +6468,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Write service.
         /// </summary>
-        public ResponseHeader EndWrite(
+        public virtual ResponseHeader EndWrite(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -5141,7 +6600,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the HistoryUpdate service.
         /// </summary>
-        public IAsyncResult BeginHistoryUpdate(
+        public virtual IAsyncResult BeginHistoryUpdate(
             RequestHeader             requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
             AsyncCallback             callback,
@@ -5165,7 +6624,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the HistoryUpdate service.
         /// </summary>
-        public ResponseHeader EndHistoryUpdate(
+        public virtual ResponseHeader EndHistoryUpdate(
             IAsyncResult                      result,
             out HistoryUpdateResultCollection results,
             out DiagnosticInfoCollection      diagnosticInfos)
@@ -5253,7 +6712,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the HistoryUpdate service.
         /// </summary>
-        public IAsyncResult BeginHistoryUpdate(
+        public virtual IAsyncResult BeginHistoryUpdate(
             RequestHeader             requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
             AsyncCallback             callback,
@@ -5272,7 +6731,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the HistoryUpdate service.
         /// </summary>
-        public ResponseHeader EndHistoryUpdate(
+        public virtual ResponseHeader EndHistoryUpdate(
             IAsyncResult                      result,
             out HistoryUpdateResultCollection results,
             out DiagnosticInfoCollection      diagnosticInfos)
@@ -5404,7 +6863,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Call service.
         /// </summary>
-        public IAsyncResult BeginCall(
+        public virtual IAsyncResult BeginCall(
             RequestHeader               requestHeader,
             CallMethodRequestCollection methodsToCall,
             AsyncCallback               callback,
@@ -5428,7 +6887,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Call service.
         /// </summary>
-        public ResponseHeader EndCall(
+        public virtual ResponseHeader EndCall(
             IAsyncResult                   result,
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection   diagnosticInfos)
@@ -5516,7 +6975,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Call service.
         /// </summary>
-        public IAsyncResult BeginCall(
+        public virtual IAsyncResult BeginCall(
             RequestHeader               requestHeader,
             CallMethodRequestCollection methodsToCall,
             AsyncCallback               callback,
@@ -5535,7 +6994,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Call service.
         /// </summary>
-        public ResponseHeader EndCall(
+        public virtual ResponseHeader EndCall(
             IAsyncResult                   result,
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection   diagnosticInfos)
@@ -5671,7 +7130,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the CreateMonitoredItems service.
         /// </summary>
-        public IAsyncResult BeginCreateMonitoredItems(
+        public virtual IAsyncResult BeginCreateMonitoredItems(
             RequestHeader                        requestHeader,
             uint                                 subscriptionId,
             TimestampsToReturn                   timestampsToReturn,
@@ -5699,7 +7158,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CreateMonitoredItems service.
         /// </summary>
-        public ResponseHeader EndCreateMonitoredItems(
+        public virtual ResponseHeader EndCreateMonitoredItems(
             IAsyncResult                            result,
             out MonitoredItemCreateResultCollection results,
             out DiagnosticInfoCollection            diagnosticInfos)
@@ -5791,7 +7250,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the CreateMonitoredItems service.
         /// </summary>
-        public IAsyncResult BeginCreateMonitoredItems(
+        public virtual IAsyncResult BeginCreateMonitoredItems(
             RequestHeader                        requestHeader,
             uint                                 subscriptionId,
             TimestampsToReturn                   timestampsToReturn,
@@ -5814,7 +7273,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CreateMonitoredItems service.
         /// </summary>
-        public ResponseHeader EndCreateMonitoredItems(
+        public virtual ResponseHeader EndCreateMonitoredItems(
             IAsyncResult                            result,
             out MonitoredItemCreateResultCollection results,
             out DiagnosticInfoCollection            diagnosticInfos)
@@ -5954,7 +7413,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the ModifyMonitoredItems service.
         /// </summary>
-        public IAsyncResult BeginModifyMonitoredItems(
+        public virtual IAsyncResult BeginModifyMonitoredItems(
             RequestHeader                        requestHeader,
             uint                                 subscriptionId,
             TimestampsToReturn                   timestampsToReturn,
@@ -5982,7 +7441,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the ModifyMonitoredItems service.
         /// </summary>
-        public ResponseHeader EndModifyMonitoredItems(
+        public virtual ResponseHeader EndModifyMonitoredItems(
             IAsyncResult                            result,
             out MonitoredItemModifyResultCollection results,
             out DiagnosticInfoCollection            diagnosticInfos)
@@ -6074,7 +7533,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the ModifyMonitoredItems service.
         /// </summary>
-        public IAsyncResult BeginModifyMonitoredItems(
+        public virtual IAsyncResult BeginModifyMonitoredItems(
             RequestHeader                        requestHeader,
             uint                                 subscriptionId,
             TimestampsToReturn                   timestampsToReturn,
@@ -6097,7 +7556,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the ModifyMonitoredItems service.
         /// </summary>
-        public ResponseHeader EndModifyMonitoredItems(
+        public virtual ResponseHeader EndModifyMonitoredItems(
             IAsyncResult                            result,
             out MonitoredItemModifyResultCollection results,
             out DiagnosticInfoCollection            diagnosticInfos)
@@ -6237,7 +7696,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the SetMonitoringMode service.
         /// </summary>
-        public IAsyncResult BeginSetMonitoringMode(
+        public virtual IAsyncResult BeginSetMonitoringMode(
             RequestHeader    requestHeader,
             uint             subscriptionId,
             MonitoringMode   monitoringMode,
@@ -6265,7 +7724,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the SetMonitoringMode service.
         /// </summary>
-        public ResponseHeader EndSetMonitoringMode(
+        public virtual ResponseHeader EndSetMonitoringMode(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -6357,7 +7816,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the SetMonitoringMode service.
         /// </summary>
-        public IAsyncResult BeginSetMonitoringMode(
+        public virtual IAsyncResult BeginSetMonitoringMode(
             RequestHeader    requestHeader,
             uint             subscriptionId,
             MonitoringMode   monitoringMode,
@@ -6380,7 +7839,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the SetMonitoringMode service.
         /// </summary>
-        public ResponseHeader EndSetMonitoringMode(
+        public virtual ResponseHeader EndSetMonitoringMode(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -6526,7 +7985,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the SetTriggering service.
         /// </summary>
-        public IAsyncResult BeginSetTriggering(
+        public virtual IAsyncResult BeginSetTriggering(
             RequestHeader    requestHeader,
             uint             subscriptionId,
             uint             triggeringItemId,
@@ -6556,7 +8015,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the SetTriggering service.
         /// </summary>
-        public ResponseHeader EndSetTriggering(
+        public virtual ResponseHeader EndSetTriggering(
             IAsyncResult                 result,
             out StatusCodeCollection     addResults,
             out DiagnosticInfoCollection addDiagnosticInfos,
@@ -6658,7 +8117,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the SetTriggering service.
         /// </summary>
-        public IAsyncResult BeginSetTriggering(
+        public virtual IAsyncResult BeginSetTriggering(
             RequestHeader    requestHeader,
             uint             subscriptionId,
             uint             triggeringItemId,
@@ -6683,7 +8142,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the SetTriggering service.
         /// </summary>
-        public ResponseHeader EndSetTriggering(
+        public virtual ResponseHeader EndSetTriggering(
             IAsyncResult                 result,
             out StatusCodeCollection     addResults,
             out DiagnosticInfoCollection addDiagnosticInfos,
@@ -6827,7 +8286,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteMonitoredItems service.
         /// </summary>
-        public IAsyncResult BeginDeleteMonitoredItems(
+        public virtual IAsyncResult BeginDeleteMonitoredItems(
             RequestHeader    requestHeader,
             uint             subscriptionId,
             UInt32Collection monitoredItemIds,
@@ -6853,7 +8312,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteMonitoredItems service.
         /// </summary>
-        public ResponseHeader EndDeleteMonitoredItems(
+        public virtual ResponseHeader EndDeleteMonitoredItems(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -6943,7 +8402,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteMonitoredItems service.
         /// </summary>
-        public IAsyncResult BeginDeleteMonitoredItems(
+        public virtual IAsyncResult BeginDeleteMonitoredItems(
             RequestHeader    requestHeader,
             uint             subscriptionId,
             UInt32Collection monitoredItemIds,
@@ -6964,7 +8423,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteMonitoredItems service.
         /// </summary>
-        public ResponseHeader EndDeleteMonitoredItems(
+        public virtual ResponseHeader EndDeleteMonitoredItems(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -7112,7 +8571,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the CreateSubscription service.
         /// </summary>
-        public IAsyncResult BeginCreateSubscription(
+        public virtual IAsyncResult BeginCreateSubscription(
             RequestHeader requestHeader,
             double        requestedPublishingInterval,
             uint          requestedLifetimeCount,
@@ -7146,7 +8605,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CreateSubscription service.
         /// </summary>
-        public ResponseHeader EndCreateSubscription(
+        public virtual ResponseHeader EndCreateSubscription(
             IAsyncResult result,
             out uint   subscriptionId,
             out double revisedPublishingInterval,
@@ -7252,7 +8711,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the CreateSubscription service.
         /// </summary>
-        public IAsyncResult BeginCreateSubscription(
+        public virtual IAsyncResult BeginCreateSubscription(
             RequestHeader requestHeader,
             double        requestedPublishingInterval,
             uint          requestedLifetimeCount,
@@ -7281,7 +8740,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the CreateSubscription service.
         /// </summary>
-        public ResponseHeader EndCreateSubscription(
+        public virtual ResponseHeader EndCreateSubscription(
             IAsyncResult result,
             out uint   subscriptionId,
             out double revisedPublishingInterval,
@@ -7439,7 +8898,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the ModifySubscription service.
         /// </summary>
-        public IAsyncResult BeginModifySubscription(
+        public virtual IAsyncResult BeginModifySubscription(
             RequestHeader requestHeader,
             uint          subscriptionId,
             double        requestedPublishingInterval,
@@ -7473,7 +8932,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the ModifySubscription service.
         /// </summary>
-        public ResponseHeader EndModifySubscription(
+        public virtual ResponseHeader EndModifySubscription(
             IAsyncResult result,
             out double revisedPublishingInterval,
             out uint   revisedLifetimeCount,
@@ -7575,7 +9034,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the ModifySubscription service.
         /// </summary>
-        public IAsyncResult BeginModifySubscription(
+        public virtual IAsyncResult BeginModifySubscription(
             RequestHeader requestHeader,
             uint          subscriptionId,
             double        requestedPublishingInterval,
@@ -7604,7 +9063,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the ModifySubscription service.
         /// </summary>
-        public ResponseHeader EndModifySubscription(
+        public virtual ResponseHeader EndModifySubscription(
             IAsyncResult result,
             out double revisedPublishingInterval,
             out uint   revisedLifetimeCount,
@@ -7750,7 +9209,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the SetPublishingMode service.
         /// </summary>
-        public IAsyncResult BeginSetPublishingMode(
+        public virtual IAsyncResult BeginSetPublishingMode(
             RequestHeader    requestHeader,
             bool             publishingEnabled,
             UInt32Collection subscriptionIds,
@@ -7776,7 +9235,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the SetPublishingMode service.
         /// </summary>
-        public ResponseHeader EndSetPublishingMode(
+        public virtual ResponseHeader EndSetPublishingMode(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -7866,7 +9325,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the SetPublishingMode service.
         /// </summary>
-        public IAsyncResult BeginSetPublishingMode(
+        public virtual IAsyncResult BeginSetPublishingMode(
             RequestHeader    requestHeader,
             bool             publishingEnabled,
             UInt32Collection subscriptionIds,
@@ -7887,7 +9346,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the SetPublishingMode service.
         /// </summary>
-        public ResponseHeader EndSetPublishingMode(
+        public virtual ResponseHeader EndSetPublishingMode(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -8029,7 +9488,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Publish service.
         /// </summary>
-        public IAsyncResult BeginPublish(
+        public virtual IAsyncResult BeginPublish(
             RequestHeader                         requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             AsyncCallback                         callback,
@@ -8053,7 +9512,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Publish service.
         /// </summary>
-        public ResponseHeader EndPublish(
+        public virtual ResponseHeader EndPublish(
             IAsyncResult                 result,
             out uint                     subscriptionId,
             out UInt32Collection         availableSequenceNumbers,
@@ -8157,7 +9616,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Publish service.
         /// </summary>
-        public IAsyncResult BeginPublish(
+        public virtual IAsyncResult BeginPublish(
             RequestHeader                         requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             AsyncCallback                         callback,
@@ -8176,7 +9635,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Publish service.
         /// </summary>
-        public ResponseHeader EndPublish(
+        public virtual ResponseHeader EndPublish(
             IAsyncResult                 result,
             out uint                     subscriptionId,
             out UInt32Collection         availableSequenceNumbers,
@@ -8316,7 +9775,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Republish service.
         /// </summary>
-        public IAsyncResult BeginRepublish(
+        public virtual IAsyncResult BeginRepublish(
             RequestHeader requestHeader,
             uint          subscriptionId,
             uint          retransmitSequenceNumber,
@@ -8342,7 +9801,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Republish service.
         /// </summary>
-        public ResponseHeader EndRepublish(
+        public virtual ResponseHeader EndRepublish(
             IAsyncResult            result,
             out NotificationMessage notificationMessage)
         {
@@ -8428,7 +9887,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the Republish service.
         /// </summary>
-        public IAsyncResult BeginRepublish(
+        public virtual IAsyncResult BeginRepublish(
             RequestHeader requestHeader,
             uint          subscriptionId,
             uint          retransmitSequenceNumber,
@@ -8449,7 +9908,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the Republish service.
         /// </summary>
-        public ResponseHeader EndRepublish(
+        public virtual ResponseHeader EndRepublish(
             IAsyncResult            result,
             out NotificationMessage notificationMessage)
         {
@@ -8583,7 +10042,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the TransferSubscriptions service.
         /// </summary>
-        public IAsyncResult BeginTransferSubscriptions(
+        public virtual IAsyncResult BeginTransferSubscriptions(
             RequestHeader    requestHeader,
             UInt32Collection subscriptionIds,
             bool             sendInitialValues,
@@ -8609,7 +10068,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the TransferSubscriptions service.
         /// </summary>
-        public ResponseHeader EndTransferSubscriptions(
+        public virtual ResponseHeader EndTransferSubscriptions(
             IAsyncResult                 result,
             out TransferResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -8699,7 +10158,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the TransferSubscriptions service.
         /// </summary>
-        public IAsyncResult BeginTransferSubscriptions(
+        public virtual IAsyncResult BeginTransferSubscriptions(
             RequestHeader    requestHeader,
             UInt32Collection subscriptionIds,
             bool             sendInitialValues,
@@ -8720,7 +10179,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the TransferSubscriptions service.
         /// </summary>
-        public ResponseHeader EndTransferSubscriptions(
+        public virtual ResponseHeader EndTransferSubscriptions(
             IAsyncResult                 result,
             out TransferResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -8854,7 +10313,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteSubscriptions service.
         /// </summary>
-        public IAsyncResult BeginDeleteSubscriptions(
+        public virtual IAsyncResult BeginDeleteSubscriptions(
             RequestHeader    requestHeader,
             UInt32Collection subscriptionIds,
             AsyncCallback    callback,
@@ -8878,7 +10337,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteSubscriptions service.
         /// </summary>
-        public ResponseHeader EndDeleteSubscriptions(
+        public virtual ResponseHeader EndDeleteSubscriptions(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -8966,7 +10425,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the DeleteSubscriptions service.
         /// </summary>
-        public IAsyncResult BeginDeleteSubscriptions(
+        public virtual IAsyncResult BeginDeleteSubscriptions(
             RequestHeader    requestHeader,
             UInt32Collection subscriptionIds,
             AsyncCallback    callback,
@@ -8985,7 +10444,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the DeleteSubscriptions service.
         /// </summary>
-        public ResponseHeader EndDeleteSubscriptions(
+        public virtual ResponseHeader EndDeleteSubscriptions(
             IAsyncResult                 result,
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -9058,13 +10517,159 @@ namespace Opc.Ua
         #endregion
     }
 
+    #region IDiscoveryClientMethods Interface
+    /// <summary>
+    /// An interface used by by clients to access a UA server.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public interface IDiscoveryClientMethods
+    {
+        #region Client Interface
+        #region FindServers Methods
+        #if (!OPCUA_EXCLUDE_FindServers)
+        /// <summary>
+        /// Invokes the FindServers service.
+        /// </summary>
+        ResponseHeader FindServers(
+            RequestHeader                        requestHeader,
+            string                               endpointUrl,
+            StringCollection                     localeIds,
+            StringCollection                     serverUris,
+            out ApplicationDescriptionCollection servers);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the FindServers service.
+        /// </summary>
+        IAsyncResult BeginFindServers(
+            RequestHeader    requestHeader,
+            string           endpointUrl,
+            StringCollection localeIds,
+            StringCollection serverUris,
+            AsyncCallback    callback,
+            object           asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the FindServers service.
+        /// </summary>
+        ResponseHeader EndFindServers(
+            IAsyncResult                         result,
+            out ApplicationDescriptionCollection servers);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the FindServers service using async Task based request.
+        /// </summary>
+        Task<FindServersResponse> FindServersAsync(
+            RequestHeader     requestHeader,
+            string            endpointUrl,
+            StringCollection  localeIds,
+            StringCollection  serverUris,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region FindServersOnNetwork Methods
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service.
+        /// </summary>
+        ResponseHeader FindServersOnNetwork(
+            RequestHeader                 requestHeader,
+            uint                          startingRecordId,
+            uint                          maxRecordsToReturn,
+            StringCollection              serverCapabilityFilter,
+            out DateTime                  lastCounterResetTime,
+            out ServerOnNetworkCollection servers);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the FindServersOnNetwork service.
+        /// </summary>
+        IAsyncResult BeginFindServersOnNetwork(
+            RequestHeader    requestHeader,
+            uint             startingRecordId,
+            uint             maxRecordsToReturn,
+            StringCollection serverCapabilityFilter,
+            AsyncCallback    callback,
+            object           asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the FindServersOnNetwork service.
+        /// </summary>
+        ResponseHeader EndFindServersOnNetwork(
+            IAsyncResult                  result,
+            out DateTime                  lastCounterResetTime,
+            out ServerOnNetworkCollection servers);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service using async Task based request.
+        /// </summary>
+        Task<FindServersOnNetworkResponse> FindServersOnNetworkAsync(
+            RequestHeader     requestHeader,
+            uint              startingRecordId,
+            uint              maxRecordsToReturn,
+            StringCollection  serverCapabilityFilter,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region GetEndpoints Methods
+        #if (!OPCUA_EXCLUDE_GetEndpoints)
+        /// <summary>
+        /// Invokes the GetEndpoints service.
+        /// </summary>
+        ResponseHeader GetEndpoints(
+            RequestHeader                     requestHeader,
+            string                            endpointUrl,
+            StringCollection                  localeIds,
+            StringCollection                  profileUris,
+            out EndpointDescriptionCollection endpoints);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the GetEndpoints service.
+        /// </summary>
+        IAsyncResult BeginGetEndpoints(
+            RequestHeader    requestHeader,
+            string           endpointUrl,
+            StringCollection localeIds,
+            StringCollection profileUris,
+            AsyncCallback    callback,
+            object           asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the GetEndpoints service.
+        /// </summary>
+        ResponseHeader EndGetEndpoints(
+            IAsyncResult                      result,
+            out EndpointDescriptionCollection endpoints);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the GetEndpoints service using async Task based request.
+        /// </summary>
+        Task<GetEndpointsResponse> GetEndpointsAsync(
+            RequestHeader     requestHeader,
+            string            endpointUrl,
+            StringCollection  localeIds,
+            StringCollection  profileUris,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+        #endregion
+    }
+    #endregion
+
     /// <summary>
     /// The client side interface for a UA server.
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class DiscoveryClient : ClientBase
-    {
+    public partial class DiscoveryClient : ClientBase, IDiscoveryClientMethods
+        {
         #region Constructors
         /// <summary>
         /// Intializes the object with a channel and a message context.
@@ -9150,7 +10755,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the FindServers service.
         /// </summary>
-        public IAsyncResult BeginFindServers(
+        public virtual IAsyncResult BeginFindServers(
             RequestHeader    requestHeader,
             string           endpointUrl,
             StringCollection localeIds,
@@ -9178,7 +10783,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the FindServers service.
         /// </summary>
-        public ResponseHeader EndFindServers(
+        public virtual ResponseHeader EndFindServers(
             IAsyncResult                         result,
             out ApplicationDescriptionCollection servers)
         {
@@ -9266,7 +10871,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the FindServers service.
         /// </summary>
-        public IAsyncResult BeginFindServers(
+        public virtual IAsyncResult BeginFindServers(
             RequestHeader    requestHeader,
             string           endpointUrl,
             StringCollection localeIds,
@@ -9289,7 +10894,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the FindServers service.
         /// </summary>
-        public ResponseHeader EndFindServers(
+        public virtual ResponseHeader EndFindServers(
             IAsyncResult                         result,
             out ApplicationDescriptionCollection servers)
         {
@@ -9427,7 +11032,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the FindServersOnNetwork service.
         /// </summary>
-        public IAsyncResult BeginFindServersOnNetwork(
+        public virtual IAsyncResult BeginFindServersOnNetwork(
             RequestHeader    requestHeader,
             uint             startingRecordId,
             uint             maxRecordsToReturn,
@@ -9455,7 +11060,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the FindServersOnNetwork service.
         /// </summary>
-        public ResponseHeader EndFindServersOnNetwork(
+        public virtual ResponseHeader EndFindServersOnNetwork(
             IAsyncResult                  result,
             out DateTime                  lastCounterResetTime,
             out ServerOnNetworkCollection servers)
@@ -9547,7 +11152,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the FindServersOnNetwork service.
         /// </summary>
-        public IAsyncResult BeginFindServersOnNetwork(
+        public virtual IAsyncResult BeginFindServersOnNetwork(
             RequestHeader    requestHeader,
             uint             startingRecordId,
             uint             maxRecordsToReturn,
@@ -9570,7 +11175,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the FindServersOnNetwork service.
         /// </summary>
-        public ResponseHeader EndFindServersOnNetwork(
+        public virtual ResponseHeader EndFindServersOnNetwork(
             IAsyncResult                  result,
             out DateTime                  lastCounterResetTime,
             out ServerOnNetworkCollection servers)
@@ -9708,7 +11313,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the GetEndpoints service.
         /// </summary>
-        public IAsyncResult BeginGetEndpoints(
+        public virtual IAsyncResult BeginGetEndpoints(
             RequestHeader    requestHeader,
             string           endpointUrl,
             StringCollection localeIds,
@@ -9736,7 +11341,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the GetEndpoints service.
         /// </summary>
-        public ResponseHeader EndGetEndpoints(
+        public virtual ResponseHeader EndGetEndpoints(
             IAsyncResult                      result,
             out EndpointDescriptionCollection endpoints)
         {
@@ -9824,7 +11429,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the GetEndpoints service.
         /// </summary>
-        public IAsyncResult BeginGetEndpoints(
+        public virtual IAsyncResult BeginGetEndpoints(
             RequestHeader    requestHeader,
             string           endpointUrl,
             StringCollection localeIds,
@@ -9847,7 +11452,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the GetEndpoints service.
         /// </summary>
-        public ResponseHeader EndGetEndpoints(
+        public virtual ResponseHeader EndGetEndpoints(
             IAsyncResult                      result,
             out EndpointDescriptionCollection endpoints)
         {
@@ -9922,13 +11527,104 @@ namespace Opc.Ua
         #endregion
     }
 
+    #region IRegistrationClientMethods Interface
+    /// <summary>
+    /// An interface used by by clients to access a UA server.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public interface IRegistrationClientMethods
+    {
+        #region Client Interface
+        #region RegisterServer Methods
+        #if (!OPCUA_EXCLUDE_RegisterServer)
+        /// <summary>
+        /// Invokes the RegisterServer service.
+        /// </summary>
+        ResponseHeader RegisterServer(
+            RequestHeader    requestHeader,
+            RegisteredServer server);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the RegisterServer service.
+        /// </summary>
+        IAsyncResult BeginRegisterServer(
+            RequestHeader    requestHeader,
+            RegisteredServer server,
+            AsyncCallback    callback,
+            object           asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the RegisterServer service.
+        /// </summary>
+        ResponseHeader EndRegisterServer(
+            IAsyncResult result);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the RegisterServer service using async Task based request.
+        /// </summary>
+        Task<RegisterServerResponse> RegisterServerAsync(
+            RequestHeader     requestHeader,
+            RegisteredServer  server,
+            CancellationToken ct);
+        #endif
+        #endif
+        #endregion
+
+        #region RegisterServer2 Methods
+        #if (!OPCUA_EXCLUDE_RegisterServer2)
+        /// <summary>
+        /// Invokes the RegisterServer2 service.
+        /// </summary>
+        ResponseHeader RegisterServer2(
+            RequestHeader                requestHeader,
+            RegisteredServer             server,
+            ExtensionObjectCollection    discoveryConfiguration,
+            out StatusCodeCollection     configurationResults,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the RegisterServer2 service.
+        /// </summary>
+        IAsyncResult BeginRegisterServer2(
+            RequestHeader             requestHeader,
+            RegisteredServer          server,
+            ExtensionObjectCollection discoveryConfiguration,
+            AsyncCallback             callback,
+            object                    asyncState);
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the RegisterServer2 service.
+        /// </summary>
+        ResponseHeader EndRegisterServer2(
+            IAsyncResult                 result,
+            out StatusCodeCollection     configurationResults,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        #if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Invokes the RegisterServer2 service using async Task based request.
+        /// </summary>
+        Task<RegisterServer2Response> RegisterServer2Async(
+            RequestHeader             requestHeader,
+            RegisteredServer          server,
+            ExtensionObjectCollection discoveryConfiguration,
+            CancellationToken         ct);
+        #endif
+        #endif
+        #endregion
+        #endregion
+    }
+    #endregion
+
     /// <summary>
     /// The client side interface for a UA server.
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class RegistrationClient : ClientBase
-    {
+    public partial class RegistrationClient : ClientBase, IRegistrationClientMethods
+        {
         #region Constructors
         /// <summary>
         /// Intializes the object with a channel and a message context.
@@ -10008,7 +11704,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the RegisterServer service.
         /// </summary>
-        public IAsyncResult BeginRegisterServer(
+        public virtual IAsyncResult BeginRegisterServer(
             RequestHeader    requestHeader,
             RegisteredServer server,
             AsyncCallback    callback,
@@ -10032,7 +11728,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the RegisterServer service.
         /// </summary>
-        public ResponseHeader EndRegisterServer(
+        public virtual ResponseHeader EndRegisterServer(
             IAsyncResult result)
         {
             RegisterServerResponse response = null;
@@ -10112,7 +11808,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the RegisterServer service.
         /// </summary>
-        public IAsyncResult BeginRegisterServer(
+        public virtual IAsyncResult BeginRegisterServer(
             RequestHeader    requestHeader,
             RegisteredServer server,
             AsyncCallback    callback,
@@ -10131,7 +11827,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the RegisterServer service.
         /// </summary>
-        public ResponseHeader EndRegisterServer(
+        public virtual ResponseHeader EndRegisterServer(
             IAsyncResult result)
         {
             RegisterServerResponse response = null;
@@ -10261,7 +11957,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the RegisterServer2 service.
         /// </summary>
-        public IAsyncResult BeginRegisterServer2(
+        public virtual IAsyncResult BeginRegisterServer2(
             RequestHeader             requestHeader,
             RegisteredServer          server,
             ExtensionObjectCollection discoveryConfiguration,
@@ -10287,7 +11983,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the RegisterServer2 service.
         /// </summary>
-        public ResponseHeader EndRegisterServer2(
+        public virtual ResponseHeader EndRegisterServer2(
             IAsyncResult                 result,
             out StatusCodeCollection     configurationResults,
             out DiagnosticInfoCollection diagnosticInfos)
@@ -10377,7 +12073,7 @@ namespace Opc.Ua
         /// <summary>
         /// Begins an asynchronous invocation of the RegisterServer2 service.
         /// </summary>
-        public IAsyncResult BeginRegisterServer2(
+        public virtual IAsyncResult BeginRegisterServer2(
             RequestHeader             requestHeader,
             RegisteredServer          server,
             ExtensionObjectCollection discoveryConfiguration,
@@ -10398,7 +12094,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finishes an asynchronous invocation of the RegisterServer2 service.
         /// </summary>
-        public ResponseHeader EndRegisterServer2(
+        public virtual ResponseHeader EndRegisterServer2(
             IAsyncResult                 result,
             out StatusCodeCollection     configurationResults,
             out DiagnosticInfoCollection diagnosticInfos)

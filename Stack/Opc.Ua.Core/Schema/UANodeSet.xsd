@@ -34,6 +34,12 @@
     xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
 >
+  <xs:annotation>
+    <xs:appinfo>
+      <Model ModelUri="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" Version="1.05.02" PublicationDate="2022-10-01T00:00:00Z" />
+    </xs:appinfo>
+  </xs:annotation>
+
   <xs:element name="UANodeSet">
     <xs:complexType>
       <xs:sequence>
@@ -159,6 +165,7 @@
     <xs:attribute name="ModelUri" type="xs:string" use="required" />
     <xs:attribute name="XmlSchemaUri" type="xs:string" use="optional" />
     <xs:attribute name="Version" type="xs:string" />
+    <xs:attribute name="ModelVersion" type="ModelVersion" use="optional" />
     <xs:attribute name="PublicationDate" type="xs:dateTime" />
     <xs:attribute name="AccessRestrictions" type="AccessRestriction" default="0" />
   </xs:complexType>
@@ -168,6 +175,12 @@
       <xs:element name="Model" type="ModelTableEntry" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
   </xs:complexType>
+
+  <xs:simpleType name="ModelVersion">
+    <xs:restriction base="xs:token">
+      <xs:pattern value="^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$" />
+    </xs:restriction>
+  </xs:simpleType>
 
   <xs:simpleType name="NodeId">
     <xs:restriction base="xs:string" />
