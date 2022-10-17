@@ -82,14 +82,12 @@
   </Aliases>
   <UAObject NodeId="i=3062" BrowseName="Default Binary" SymbolicName="DefaultBinary">
     <DisplayName>Default Binary</DisplayName>
-    <Description>The default binary encoding for a data type.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=3063" BrowseName="Default XML" SymbolicName="DefaultXml">
     <DisplayName>Default XML</DisplayName>
-    <Description>The default XML encoding for a data type.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
     </References>
@@ -708,7 +706,6 @@
   </UAObjectType>
   <UAObject NodeId="i=78" BrowseName="Mandatory" SymbolicName="ModellingRule_Mandatory">
     <DisplayName>Mandatory</DisplayName>
-    <Description>Specifies that an instance with the attributes and references of the instance declaration must appear when a type is instantiated.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.4.2</Documentation>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=77</Reference>
@@ -716,7 +713,6 @@
   </UAObject>
   <UAObject NodeId="i=80" BrowseName="Optional" SymbolicName="ModellingRule_Optional">
     <DisplayName>Optional</DisplayName>
-    <Description>Specifies that an instance with the attributes and references of the instance declaration may appear when a type is instantiated.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.4.3</Documentation>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=77</Reference>
@@ -724,7 +720,6 @@
   </UAObject>
   <UAObject NodeId="i=83" BrowseName="ExposesItsArray" SymbolicName="ModellingRule_ExposesItsArray">
     <DisplayName>ExposesItsArray</DisplayName>
-    <Description>Specifies that an instance appears for each element of the containing array variable.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.4.1</Documentation>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=77</Reference>
@@ -732,7 +727,6 @@
   </UAObject>
   <UAObject NodeId="i=11508" BrowseName="OptionalPlaceholder" SymbolicName="ModellingRule_OptionalPlaceholder">
     <DisplayName>OptionalPlaceholder</DisplayName>
-    <Description>Specifies that zero or more instances with the attributes and references of the instance declaration may appear when a type is instantiated.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.4.4</Documentation>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=77</Reference>
@@ -740,7 +734,6 @@
   </UAObject>
   <UAObject NodeId="i=11510" BrowseName="MandatoryPlaceholder" SymbolicName="ModellingRule_MandatoryPlaceholder">
     <DisplayName>MandatoryPlaceholder</DisplayName>
-    <Description>Specifies that one or more instances with the attributes and references of the instance declaration must appear when a type is instantiated.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.4.5</Documentation>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=77</Reference>
@@ -748,7 +741,6 @@
   </UAObject>
   <UAObject NodeId="i=84" BrowseName="Root" SymbolicName="RootFolder">
     <DisplayName>Root</DisplayName>
-    <Description>The root of the server address space.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.2</Documentation>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
@@ -756,7 +748,6 @@
   </UAObject>
   <UAObject NodeId="i=85" BrowseName="Objects" SymbolicName="ObjectsFolder">
     <DisplayName>Objects</DisplayName>
-    <Description>The browse entry point when looking for objects in the server address space.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.4</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=84</Reference>
@@ -765,7 +756,6 @@
   </UAObject>
   <UAObject NodeId="i=86" BrowseName="Types" SymbolicName="TypesFolder">
     <DisplayName>Types</DisplayName>
-    <Description>The browse entry point when looking for types in the server address space.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.5</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=84</Reference>
@@ -774,7 +764,6 @@
   </UAObject>
   <UAObject NodeId="i=87" BrowseName="Views" SymbolicName="ViewsFolder">
     <DisplayName>Views</DisplayName>
-    <Description>The browse entry point when looking for views in the server address space.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.3</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=84</Reference>
@@ -783,7 +772,6 @@
   </UAObject>
   <UAObject NodeId="i=88" BrowseName="ObjectTypes" SymbolicName="ObjectTypesFolder">
     <DisplayName>ObjectTypes</DisplayName>
-    <Description>The browse entry point when looking for object types in the server address space.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.6</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=86</Reference>
@@ -793,7 +781,6 @@
   </UAObject>
   <UAObject NodeId="i=89" BrowseName="VariableTypes" SymbolicName="VariableTypesFolder">
     <DisplayName>VariableTypes</DisplayName>
-    <Description>The browse entry point when looking for variable types in the server address space.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.7</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=86</Reference>
@@ -803,7 +790,6 @@
   </UAObject>
   <UAObject NodeId="i=90" BrowseName="DataTypes" SymbolicName="DataTypesFolder">
     <DisplayName>DataTypes</DisplayName>
-    <Description>The browse entry point when looking for data types in the server address space.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.9</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=86</Reference>
@@ -813,7 +799,6 @@
   </UAObject>
   <UAObject NodeId="i=91" BrowseName="ReferenceTypes" SymbolicName="ReferenceTypesFolder">
     <DisplayName>ReferenceTypes</DisplayName>
-    <Description>The browse entry point when looking for reference types in the server address space.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.8</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=86</Reference>
@@ -823,7 +808,6 @@
   </UAObject>
   <UAObject NodeId="i=92" BrowseName="XML Schema" SymbolicName="XmlSchema_TypeSystem" ReleaseStatus="Deprecated">
     <DisplayName>XML Schema</DisplayName>
-    <Description>A type system which uses XML schema to describe the encoding of data types.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/D.5.6</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=90</Reference>
@@ -832,7 +816,6 @@
   </UAObject>
   <UAObject NodeId="i=93" BrowseName="OPC Binary" SymbolicName="OPCBinarySchema_TypeSystem" ReleaseStatus="Deprecated">
     <DisplayName>OPC Binary</DisplayName>
-    <Description>A type system which uses OPC binary schema to describe the encoding of data types.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/D.5.5</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=90</Reference>
@@ -1001,119 +984,102 @@
   </UAVariable>
   <UAVariable NodeId="i=3068" BrowseName="NodeVersion" DataType="String">
     <DisplayName>NodeVersion</DisplayName>
-    <Description>The version number of the node (used to indicate changes to references of the owning node).</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=12170" BrowseName="ViewVersion" DataType="UInt32">
     <DisplayName>ViewVersion</DisplayName>
-    <Description>The version number of the view.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=3067" BrowseName="Icon" DataType="i=30">
     <DisplayName>Icon</DisplayName>
-    <Description>A small image representing the object.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=3069" BrowseName="LocalTime" DataType="i=8912">
     <DisplayName>LocalTime</DisplayName>
-    <Description>The local time where the owning variable value was collected.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=3070" BrowseName="AllowNulls" DataType="Boolean">
     <DisplayName>AllowNulls</DisplayName>
-    <Description>Whether the value of the owning variable is allowed to be null.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=11433" BrowseName="ValueAsText" DataType="LocalizedText">
     <DisplayName>ValueAsText</DisplayName>
-    <Description>The string representation of the current value for a variable with an enumerated data type.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=11498" BrowseName="MaxStringLength" DataType="UInt32">
     <DisplayName>MaxStringLength</DisplayName>
-    <Description>The maximum number of bytes supported by the DataVariable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=15002" BrowseName="MaxCharacters" DataType="UInt32">
     <DisplayName>MaxCharacters</DisplayName>
-    <Description>The maximum number of Unicode characters supported by the DataVariable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=12908" BrowseName="MaxByteStringLength" DataType="UInt32">
     <DisplayName>MaxByteStringLength</DisplayName>
-    <Description>The maximum length for a byte string that can be stored in the owning variable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=11512" BrowseName="MaxArrayLength" DataType="UInt32">
     <DisplayName>MaxArrayLength</DisplayName>
-    <Description>The maximum length for an array that can be stored in the owning variable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=11513" BrowseName="EngineeringUnits" DataType="i=887">
     <DisplayName>EngineeringUnits</DisplayName>
-    <Description>The engineering units for the value of the owning variable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=11432" BrowseName="EnumStrings" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
-    <Description>The human readable strings associated with the values of an enumerated value (when values are sequential).</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=3071" BrowseName="EnumValues" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumValues</DisplayName>
-    <Description>The human readable strings associated with the values of an enumerated value (when values have no sequence).</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=12745" BrowseName="OptionSetValues" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OptionSetValues</DisplayName>
-    <Description>Contains the human-readable representation for each bit of the bit mask.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=3072" BrowseName="InputArguments" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
-    <Description>The input arguments for a method.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=3073" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
-    <Description>The output arguments for a method.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=17605" BrowseName="DefaultInstanceBrowseName" DataType="QualifiedName">
     <DisplayName>DefaultInstanceBrowseName</DisplayName>
-    <Description>Allows the definition of BrowseName on an ObjectType that all instances should use by default.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
@@ -11906,7 +11872,6 @@
   </UAObjectType>
   <UAObject NodeId="i=15644" BrowseName="Anonymous" SymbolicName="WellKnownRole_Anonymous">
     <DisplayName>Anonymous</DisplayName>
-    <Description>The Role has very limited access for use when a Session has anonymous credentials.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16192</Reference>
       <Reference ReferenceType="HasProperty">i=16193</Reference>
@@ -12158,7 +12123,6 @@
   </UAVariable>
   <UAObject NodeId="i=15656" BrowseName="AuthenticatedUser" SymbolicName="WellKnownRole_AuthenticatedUser">
     <DisplayName>AuthenticatedUser</DisplayName>
-    <Description>The Role has limited access for use when a Session has valid non-anonymous credentials but has not been explicity granted access to a Role.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16203</Reference>
       <Reference ReferenceType="HasProperty">i=16204</Reference>
@@ -12410,7 +12374,6 @@
   </UAVariable>
   <UAObject NodeId="i=15668" BrowseName="Observer" SymbolicName="WellKnownRole_Observer">
     <DisplayName>Observer</DisplayName>
-    <Description>The Role is allowed to browse, read live data, read historical data/events or subscribe to data/events.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16214</Reference>
       <Reference ReferenceType="HasProperty">i=16215</Reference>
@@ -12662,7 +12625,6 @@
   </UAVariable>
   <UAObject NodeId="i=15680" BrowseName="Operator" SymbolicName="WellKnownRole_Operator">
     <DisplayName>Operator</DisplayName>
-    <Description>The Role is allowed to browse, read live data, read historical data/events or subscribe to data/events.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16225</Reference>
       <Reference ReferenceType="HasProperty">i=16226</Reference>
@@ -12914,7 +12876,6 @@
   </UAVariable>
   <UAObject NodeId="i=16036" BrowseName="Engineer" SymbolicName="WellKnownRole_Engineer">
     <DisplayName>Engineer</DisplayName>
-    <Description>The Role is allowed to browse, read live data, read and update historical data/events, call methods or subscribe to data/events.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16236</Reference>
       <Reference ReferenceType="HasProperty">i=16237</Reference>
@@ -13166,7 +13127,6 @@
   </UAVariable>
   <UAObject NodeId="i=15692" BrowseName="Supervisor" SymbolicName="WellKnownRole_Supervisor">
     <DisplayName>Supervisor</DisplayName>
-    <Description>The Role is allowed to browse, read live data, read and historical data/events, call methods or subscribe to data/events.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16247</Reference>
       <Reference ReferenceType="HasProperty">i=16248</Reference>
@@ -13418,7 +13378,6 @@
   </UAVariable>
   <UAObject NodeId="i=15716" BrowseName="ConfigureAdmin" SymbolicName="WellKnownRole_ConfigureAdmin">
     <DisplayName>ConfigureAdmin</DisplayName>
-    <Description>The Role is allowed to change the non-security related configuration settings.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16269</Reference>
       <Reference ReferenceType="HasProperty">i=16270</Reference>
@@ -13670,7 +13629,6 @@
   </UAVariable>
   <UAObject NodeId="i=15704" BrowseName="SecurityAdmin" SymbolicName="WellKnownRole_SecurityAdmin">
     <DisplayName>SecurityAdmin</DisplayName>
-    <Description>The Role is allowed to change security related settings.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16258</Reference>
       <Reference ReferenceType="HasProperty">i=16259</Reference>
@@ -26766,154 +26724,132 @@
   </UAVariable>
   <UAObject NodeId="i=2341" BrowseName="Interpolative" SymbolicName="AggregateFunction_Interpolative">
     <DisplayName>Interpolative</DisplayName>
-    <Description>At the beginning of each interval, retrieve the calculated value from the data points on either side of the requested timestamp.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2342" BrowseName="Average" SymbolicName="AggregateFunction_Average">
     <DisplayName>Average</DisplayName>
-    <Description>Retrieve the average value of the data over the interval.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2343" BrowseName="TimeAverage" SymbolicName="AggregateFunction_TimeAverage">
     <DisplayName>TimeAverage</DisplayName>
-    <Description>Retrieve the time weighted average data over the interval using Interpolated Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11285" BrowseName="TimeAverage2" SymbolicName="AggregateFunction_TimeAverage2">
     <DisplayName>TimeAverage2</DisplayName>
-    <Description>Retrieve the time weighted average data over the interval using Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2344" BrowseName="Total" SymbolicName="AggregateFunction_Total">
     <DisplayName>Total</DisplayName>
-    <Description>Retrieve the total (time integral) of the data over the interval using Interpolated Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11304" BrowseName="Total2" SymbolicName="AggregateFunction_Total2">
     <DisplayName>Total2</DisplayName>
-    <Description>Retrieve the total (time integral) of the data over the interval using Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2346" BrowseName="Minimum" SymbolicName="AggregateFunction_Minimum">
     <DisplayName>Minimum</DisplayName>
-    <Description>Retrieve the minimum raw value in the interval with the timestamp of the start of the interval.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2347" BrowseName="Maximum" SymbolicName="AggregateFunction_Maximum">
     <DisplayName>Maximum</DisplayName>
-    <Description>Retrieve the maximum raw value in the interval with the timestamp of the start of the interval.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2348" BrowseName="MinimumActualTime" SymbolicName="AggregateFunction_MinimumActualTime">
     <DisplayName>MinimumActualTime</DisplayName>
-    <Description>Retrieve the minimum value in the interval and the Timestamp of the minimum value.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2349" BrowseName="MaximumActualTime" SymbolicName="AggregateFunction_MaximumActualTime">
     <DisplayName>MaximumActualTime</DisplayName>
-    <Description>Retrieve the maximum value in the interval and the Timestamp of the maximum value.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2350" BrowseName="Range" SymbolicName="AggregateFunction_Range">
     <DisplayName>Range</DisplayName>
-    <Description>Retrieve the difference between the minimum and maximum Value over the interval.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11286" BrowseName="Minimum2" SymbolicName="AggregateFunction_Minimum2">
     <DisplayName>Minimum2</DisplayName>
-    <Description>Retrieve the minimum value in the interval including the Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11287" BrowseName="Maximum2" SymbolicName="AggregateFunction_Maximum2">
     <DisplayName>Maximum2</DisplayName>
-    <Description>Retrieve the maximum value in the interval including the Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11305" BrowseName="MinimumActualTime2" SymbolicName="AggregateFunction_MinimumActualTime2">
     <DisplayName>MinimumActualTime2</DisplayName>
-    <Description>Retrieve the minimum value with the actual timestamp including the Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11306" BrowseName="MaximumActualTime2" SymbolicName="AggregateFunction_MaximumActualTime2">
     <DisplayName>MaximumActualTime2</DisplayName>
-    <Description>Retrieve the maximum value with the actual timestamp including the Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11288" BrowseName="Range2" SymbolicName="AggregateFunction_Range2">
     <DisplayName>Range2</DisplayName>
-    <Description>Retrieve the difference between the Minimum2 and Maximum2 value over the interval.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2351" BrowseName="AnnotationCount" SymbolicName="AggregateFunction_AnnotationCount">
     <DisplayName>AnnotationCount</DisplayName>
-    <Description>Retrieve the number of Annotations in the interval.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2352" BrowseName="Count" SymbolicName="AggregateFunction_Count">
     <DisplayName>Count</DisplayName>
-    <Description>Retrieve the number of raw values over the interval.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11307" BrowseName="DurationInStateZero" SymbolicName="AggregateFunction_DurationInStateZero">
     <DisplayName>DurationInStateZero</DisplayName>
-    <Description>Retrieve the time a Boolean or numeric was in a zero state using Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11308" BrowseName="DurationInStateNonZero" SymbolicName="AggregateFunction_DurationInStateNonZero">
     <DisplayName>DurationInStateNonZero</DisplayName>
-    <Description>Retrieve the time a Boolean or numeric was in a non-zero state using Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2355" BrowseName="NumberOfTransitions" SymbolicName="AggregateFunction_NumberOfTransitions">
     <DisplayName>NumberOfTransitions</DisplayName>
-    <Description>Retrieve the number of changes between zero and non-zero that a Boolean or Numeric value experienced in the interval.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2357" BrowseName="Start" SymbolicName="AggregateFunction_Start">
     <DisplayName>Start</DisplayName>
-    <Description>Retrieve the value at the beginning of the interval using Interpolated Bounding Values.</Description>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part10/A.2.6/#A.2.6.2</Documentation>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
@@ -26921,105 +26857,90 @@
   </UAObject>
   <UAObject NodeId="i=2358" BrowseName="End" SymbolicName="AggregateFunction_End">
     <DisplayName>End</DisplayName>
-    <Description>Retrieve the value at the end of the interval using Interpolated Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2359" BrowseName="Delta" SymbolicName="AggregateFunction_Delta">
     <DisplayName>Delta</DisplayName>
-    <Description>Retrieve the difference between the Start and End value in the interval.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11505" BrowseName="StartBound" SymbolicName="AggregateFunction_StartBound">
     <DisplayName>StartBound</DisplayName>
-    <Description>Retrieve the value at the beginning of the interval using Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11506" BrowseName="EndBound" SymbolicName="AggregateFunction_EndBound">
     <DisplayName>EndBound</DisplayName>
-    <Description>Retrieve the value at the end of the interval using Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11507" BrowseName="DeltaBounds" SymbolicName="AggregateFunction_DeltaBounds">
     <DisplayName>DeltaBounds</DisplayName>
-    <Description>Retrieve the difference between the StartBound and EndBound value in the interval.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2360" BrowseName="DurationGood" SymbolicName="AggregateFunction_DurationGood">
     <DisplayName>DurationGood</DisplayName>
-    <Description>Retrieve the total duration of time in the interval during which the data is good.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2361" BrowseName="DurationBad" SymbolicName="AggregateFunction_DurationBad">
     <DisplayName>DurationBad</DisplayName>
-    <Description>Retrieve the total duration of time in the interval during which the data is bad.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2362" BrowseName="PercentGood" SymbolicName="AggregateFunction_PercentGood">
     <DisplayName>PercentGood</DisplayName>
-    <Description>Retrieve the percent of data (0 to 100) in the interval which has a good StatusCode.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2363" BrowseName="PercentBad" SymbolicName="AggregateFunction_PercentBad">
     <DisplayName>PercentBad</DisplayName>
-    <Description>Retrieve the percent of data (0 to 100) in the interval which has a bad StatusCode.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=2364" BrowseName="WorstQuality" SymbolicName="AggregateFunction_WorstQuality">
     <DisplayName>WorstQuality</DisplayName>
-    <Description>Retrieve the worst StatusCode of data in the interval.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11292" BrowseName="WorstQuality2" SymbolicName="AggregateFunction_WorstQuality2">
     <DisplayName>WorstQuality2</DisplayName>
-    <Description>Retrieve the worst StatusCode of data in the interval including the Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11426" BrowseName="StandardDeviationSample" SymbolicName="AggregateFunction_StandardDeviationSample">
     <DisplayName>StandardDeviationSample</DisplayName>
-    <Description>Retrieve the standard deviation for the interval for a sample of the population (n-1).</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11427" BrowseName="StandardDeviationPopulation" SymbolicName="AggregateFunction_StandardDeviationPopulation">
     <DisplayName>StandardDeviationPopulation</DisplayName>
-    <Description>Retrieve the standard deviation for the interval for a complete population (n) which includes Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11428" BrowseName="VarianceSample" SymbolicName="AggregateFunction_VarianceSample">
     <DisplayName>VarianceSample</DisplayName>
-    <Description>Retrieve the variance for the interval as calculated by the StandardDeviationSample.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=11429" BrowseName="VariancePopulation" SymbolicName="AggregateFunction_VariancePopulation">
     <DisplayName>VariancePopulation</DisplayName>
-    <Description>Retrieve the variance for the interval as calculated by the StandardDeviationPopulation which includes Simple Bounding Values.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
