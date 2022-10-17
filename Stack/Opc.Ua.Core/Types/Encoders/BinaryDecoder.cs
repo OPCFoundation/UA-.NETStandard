@@ -1524,7 +1524,7 @@ namespace Opc.Ua
                 if (dimensions != null && dimensions.Count > 0)
                 {
                     //int length;
-                    (_, int length) = Matrix.ValidateDimensions(dimensions, Context.MaxArrayLength);
+                    (_, int length) = Matrix.ValidateDimensions(false, dimensions, Context.MaxArrayLength);
 
                     // read the elements
                     Array elements = null;

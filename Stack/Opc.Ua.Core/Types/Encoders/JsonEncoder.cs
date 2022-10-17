@@ -2531,7 +2531,7 @@ namespace Opc.Ua
             TypeInfo typeInfo)
         {
             // check if matrix is well formed
-            (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(matrix.Dimensions, Context.MaxArrayLength);
+            (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(true, matrix.Dimensions, Context.MaxArrayLength);
 
             if (!valid || (sizeFromDimensions != matrix.Elements.Length))
             {

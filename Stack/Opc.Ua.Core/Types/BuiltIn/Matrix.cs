@@ -271,15 +271,19 @@ namespace Opc.Ua
         /// As a side effect will bring to 0 negative dimensions.
         /// Throws ArgumentException if dimensions overflow and ServiceResultException if maxArrayLength is exceeded
         /// </summary>
+        /// <param name="allowZeroDimension">Allow zero value dimensions </param>
         /// <param name="dimensions">Dimensions to be validated</param>
         /// <param name="maxArrayLength">The limit representing the maximum array length</param>
         /// <returns>Tuple with validation result and the calculated length of the flattended matrix</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public static (bool valid, int flatLength) ValidateDimensions(Int32Collection dimensions, int maxArrayLength)
+        public static (bool valid, int flatLength) ValidateDimensions(bool allowZeroDimension, Int32Collection dimensions, int maxArrayLength)
         {
-            ValidateDimensionsFunction customValidation = (i, dimCollection) => {
-                if (dimCollection[i] <= 0)
+            bool ValidateWithSideEffect(int i, Int32Collection dimCollection)
+            {
+                bool zeroCompFails = allowZeroDimension ? dimCollection[i] < 0 : dimCollection[i] <= 0;
+
+                if (zeroCompFails)
                 {
                     /* The number of values is 0 if one or more dimension is less than or equal to 0.*/
                     Utils.LogTrace("ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.", i, dimCollection);
@@ -296,9 +300,9 @@ namespace Opc.Ua
                         maxArrayLength);
                 }
                 return true;
-            };
+            }
 
-            return ValidateDimensions(dimensions, maxArrayLength, customValidation);
+            return ValidateDimensions(dimensions, maxArrayLength, ValidateWithSideEffect);
         }
 
         /// <summary>
@@ -313,7 +317,8 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static (bool valid, int flatLength) ValidateDimensions(Int32Collection dimensions, int flatLength, int maxArrayLength)
         {
-            ValidateDimensionsFunction customValidation = (i, dimCollection) => {
+            bool ValidateAgainstExpectedFlatLength(int i, Int32Collection dimCollection)
+            {
                 if (dimCollection[i] == 0 && flatLength > 0)
                 {
                     throw new ServiceResultException(
@@ -327,9 +332,9 @@ namespace Opc.Ua
                         Utils.Format("ArrayDimensions [{0}] = {1} is greater than length {2}.", i, dimCollection[i], flatLength));
                 }
                 return true;
-            };
+            }
 
-            return ValidateDimensions(dimensions, maxArrayLength, customValidation);
+            return ValidateDimensions(dimensions, maxArrayLength, ValidateAgainstExpectedFlatLength);
         }
 
         /// <summary>
@@ -347,7 +352,7 @@ namespace Opc.Ua
 
         #region Private Static
         /// <summary>
-        /// Validate the dimensions of a matrix.
+        /// Validate the dimensions of a matrix against a given validation function.
         /// Throws ArgumentException if dimensions overflow and ServiceResultException if maxArrayLength is exceeded
         /// </summary>
         /// <param name="dimensions">Dimensions to be validated</param>
