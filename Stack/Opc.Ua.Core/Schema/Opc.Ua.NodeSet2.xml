@@ -30,7 +30,7 @@
 
 <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2022-10-01T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.02" ModelVersion="1.5.2" PublicationDate="2022-10-01T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.02" PublicationDate="2022-10-01T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -12528,6 +12528,7 @@
   </UAObjectType>
   <UAObject NodeId="i=15644" BrowseName="Anonymous" SymbolicName="WellKnownRole_Anonymous">
     <DisplayName>Anonymous</DisplayName>
+    <Description>The Role has very limited access for use when a Session has anonymous credentials.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16192</Reference>
       <Reference ReferenceType="HasProperty">i=15412</Reference>
@@ -12779,6 +12780,7 @@
   </UAVariable>
   <UAObject NodeId="i=15656" BrowseName="AuthenticatedUser" SymbolicName="WellKnownRole_AuthenticatedUser">
     <DisplayName>AuthenticatedUser</DisplayName>
+    <Description>The Role has limited access for use when a Session has valid non-anonymous credentials but has not been explicity granted access to a Role.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16203</Reference>
       <Reference ReferenceType="HasProperty">i=15414</Reference>
@@ -13038,6 +13040,7 @@
   </UAVariable>
   <UAObject NodeId="i=15668" BrowseName="Observer" SymbolicName="WellKnownRole_Observer">
     <DisplayName>Observer</DisplayName>
+    <Description>The Role is allowed to browse, read live data, read historical data/events or subscribe to data/events.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16214</Reference>
       <Reference ReferenceType="HasProperty">i=15416</Reference>
@@ -13297,6 +13300,7 @@
   </UAVariable>
   <UAObject NodeId="i=15680" BrowseName="Operator" SymbolicName="WellKnownRole_Operator">
     <DisplayName>Operator</DisplayName>
+    <Description>The Role is allowed to browse, read live data, read historical data/events or subscribe to data/events.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16225</Reference>
       <Reference ReferenceType="HasProperty">i=15418</Reference>
@@ -13556,6 +13560,7 @@
   </UAVariable>
   <UAObject NodeId="i=16036" BrowseName="Engineer" SymbolicName="WellKnownRole_Engineer">
     <DisplayName>Engineer</DisplayName>
+    <Description>The Role is allowed to browse, read live data, read and update historical data/events, call methods or subscribe to data/events.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16236</Reference>
       <Reference ReferenceType="HasProperty">i=15424</Reference>
@@ -13815,6 +13820,7 @@
   </UAVariable>
   <UAObject NodeId="i=15692" BrowseName="Supervisor" SymbolicName="WellKnownRole_Supervisor">
     <DisplayName>Supervisor</DisplayName>
+    <Description>The Role is allowed to browse, read live data, read and historical data/events, call methods or subscribe to data/events.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16247</Reference>
       <Reference ReferenceType="HasProperty">i=15426</Reference>
@@ -14074,6 +14080,7 @@
   </UAVariable>
   <UAObject NodeId="i=15716" BrowseName="ConfigureAdmin" SymbolicName="WellKnownRole_ConfigureAdmin">
     <DisplayName>ConfigureAdmin</DisplayName>
+    <Description>The Role is allowed to change the non-security related configuration settings.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16269</Reference>
       <Reference ReferenceType="HasProperty">i=15428</Reference>
@@ -14333,6 +14340,7 @@
   </UAVariable>
   <UAObject NodeId="i=15704" BrowseName="SecurityAdmin" SymbolicName="WellKnownRole_SecurityAdmin">
     <DisplayName>SecurityAdmin</DisplayName>
+    <Description>The Role is allowed to change security related settings.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=16258</Reference>
       <Reference ReferenceType="HasProperty">i=15430</Reference>
@@ -14592,6 +14600,7 @@
   </UAVariable>
   <UAObject NodeId="i=25565" BrowseName="SecurityKeyServerAdmin" SymbolicName="WellKnownRole_SecurityKeyServerAdmin">
     <DisplayName>SecurityKeyServerAdmin</DisplayName>
+    <Description>This Role allows an administrator to manage SecurityGroups and PushTargets on a SKS. This includes executing methods related to management of SecurityGroups and PushTargets on an SKS.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=25566</Reference>
       <Reference ReferenceType="HasProperty">i=25567</Reference>
@@ -14851,6 +14860,9 @@
   </UAVariable>
   <UAObject NodeId="i=25603" BrowseName="SecurityKeyServerAccess" SymbolicName="WellKnownRole_SecurityKeyServerAccess">
     <DisplayName>SecurityKeyServerAccess</DisplayName>
+    <Description>
+      This Role allows a PubSub Application to access an SKS to pull keys. It is the default Role for pull but it is expected that different custom Roles are used for different SecurityGroups.
+    </Description>
     <References>
       <Reference ReferenceType="HasProperty">i=25604</Reference>
       <Reference ReferenceType="HasProperty">i=25605</Reference>
@@ -15110,6 +15122,9 @@
   </UAVariable>
   <UAObject NodeId="i=25584" BrowseName="SecurityKeyServerPush" SymbolicName="WellKnownRole_SecurityKeyServerPush">
     <DisplayName>SecurityKeyServerPush</DisplayName>
+    <Description>
+      This Role allows an SKS to push security keys to PubSub Applications. This includes executing methods related to PubSub security.
+    </Description>
     <References>
       <Reference ReferenceType="HasProperty">i=25585</Reference>
       <Reference ReferenceType="HasProperty">i=25586</Reference>
@@ -50877,6 +50892,7 @@
   </UAVariable>
   <UAMethod NodeId="i=26873" BrowseName="RequestTickets" ParentNodeId="i=26871">
     <DisplayName>RequestTickets</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part21/9.3.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=26874</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -50914,6 +50930,7 @@
   </UAVariable>
   <UAMethod NodeId="i=26875" BrowseName="SetRegistrarEndpoints" ParentNodeId="i=26871">
     <DisplayName>SetRegistrarEndpoints</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part21/9.3.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=26876</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -56895,7 +56912,7 @@
   <UADataType NodeId="i=884" BrowseName="Range">
     <DisplayName>Range</DisplayName>
     <Category>Base Info Range DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part8/5.6.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part13/5.4.3/#5.4.3.14</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
