@@ -85161,7 +85161,7 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <remarks />
-        public PropertyState<NodeId> EnumDictionaryEntries
+        public PropertyState<Variant> EnumDictionaryEntries
         {
             get
             {
@@ -85248,11 +85248,11 @@ namespace Opc.Ua
                         {
                             if (replacement == null)
                             {
-                                EnumDictionaryEntries = new PropertyState<NodeId>(this);
+                                EnumDictionaryEntries = new PropertyState<Variant>(this);
                             }
                             else
                             {
-                                EnumDictionaryEntries = (PropertyState<NodeId>)replacement;
+                                EnumDictionaryEntries = (PropertyState<Variant>)replacement;
                             }
                         }
                     }
@@ -85293,7 +85293,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private PropertyState<NodeId> m_enumDictionaryEntries;
+        private PropertyState<Variant> m_enumDictionaryEntries;
         private PropertyState<NodeId[]> m_valueAsDictionaryEntries;
         #endregion
     }
@@ -87391,7 +87391,7 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public BaseDataVariableState<byte> FailureSystemIdentifier
+        public BaseDataVariableState<Variant> FailureSystemIdentifier
         {
             get
             {
@@ -87532,11 +87532,11 @@ namespace Opc.Ua
                         {
                             if (replacement == null)
                             {
-                                FailureSystemIdentifier = new BaseDataVariableState<byte>(this);
+                                FailureSystemIdentifier = new BaseDataVariableState<Variant>(this);
                             }
                             else
                             {
-                                FailureSystemIdentifier = (BaseDataVariableState<byte>)replacement;
+                                FailureSystemIdentifier = (BaseDataVariableState<Variant>)replacement;
                             }
                         }
                     }
@@ -87559,7 +87559,7 @@ namespace Opc.Ua
         private BaseDataVariableState<TsnTalkerStatus> m_talkerStatus;
         private BaseDataVariableState<TsnListenerStatus> m_listenerStatus;
         private BaseDataVariableState<TsnFailureCode> m_failureCode;
-        private BaseDataVariableState<byte> m_failureSystemIdentifier;
+        private BaseDataVariableState<Variant> m_failureSystemIdentifier;
         #endregion
     }
     #endif
