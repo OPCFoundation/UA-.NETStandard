@@ -38,35 +38,25 @@ namespace Opc.Ua.Gds
 {
     #region ApplicationRecordDataType Class
     #if (!OPCUA_EXCLUDE_ApplicationRecordDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGdsXsd)]
     public partial class ApplicationRecordDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ApplicationRecordDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_applicationId = null;
@@ -293,9 +283,7 @@ namespace Opc.Ua.Gds
     }
 
     #region ApplicationRecordDataTypeCollection Class
-    /// <summary>
-    /// A collection of ApplicationRecordDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfApplicationRecordDataType", Namespace = Opc.Ua.Gds.Namespaces.OpcUaGdsXsd, ItemName = "ApplicationRecordDataType")]

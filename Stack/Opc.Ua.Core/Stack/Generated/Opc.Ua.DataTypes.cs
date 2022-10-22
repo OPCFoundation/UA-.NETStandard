@@ -37,9 +37,7 @@ namespace Opc.Ua
 {
     #region Enumeration Enumeration
     #if (!OPCUA_EXCLUDE_Enumeration)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -48,9 +46,7 @@ namespace Opc.Ua
     }
 
     #region EnumerationCollection Class
-    /// <summary>
-    /// A collection of Enumeration objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumeration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Enumeration")]
@@ -136,9 +132,7 @@ namespace Opc.Ua
 
     #region NamingRuleType Enumeration
     #if (!OPCUA_EXCLUDE_NamingRuleType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -158,9 +152,7 @@ namespace Opc.Ua
     }
 
     #region NamingRuleTypeCollection Class
-    /// <summary>
-    /// A collection of NamingRuleType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNamingRuleType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NamingRuleType")]
@@ -246,35 +238,25 @@ namespace Opc.Ua
 
     #region Union Class
     #if (!OPCUA_EXCLUDE_Union)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Union : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Union()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -362,9 +344,7 @@ namespace Opc.Ua
     }
 
     #region UnionCollection Class
-    /// <summary>
-    /// A collection of Union objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUnion", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Union")]
@@ -450,35 +430,25 @@ namespace Opc.Ua
 
     #region KeyValuePair Class
     #if (!OPCUA_EXCLUDE_KeyValuePair)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class KeyValuePair : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public KeyValuePair()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_key = null;
@@ -593,9 +563,7 @@ namespace Opc.Ua
     }
 
     #region KeyValuePairCollection Class
-    /// <summary>
-    /// A collection of KeyValuePair objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfKeyValuePair", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "KeyValuePair")]
@@ -681,35 +649,25 @@ namespace Opc.Ua
 
     #region AdditionalParametersType Class
     #if (!OPCUA_EXCLUDE_AdditionalParametersType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AdditionalParametersType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AdditionalParametersType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_parameters = new KeyValuePairCollection();
@@ -827,35 +785,25 @@ namespace Opc.Ua
 
     #region EphemeralKeyType Class
     #if (!OPCUA_EXCLUDE_EphemeralKeyType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EphemeralKeyType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EphemeralKeyType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_publicKey = null;
@@ -973,35 +921,25 @@ namespace Opc.Ua
 
     #region EndpointType Class
     #if (!OPCUA_EXCLUDE_EndpointType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EndpointType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_endpointUrl = null;
@@ -1144,9 +1082,7 @@ namespace Opc.Ua
     }
 
     #region EndpointTypeCollection Class
-    /// <summary>
-    /// A collection of EndpointType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEndpointType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointType")]
@@ -1232,35 +1168,25 @@ namespace Opc.Ua
 
     #region RationalNumber Class
     #if (!OPCUA_EXCLUDE_RationalNumber)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RationalNumber : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RationalNumber()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_numerator = (int)0;
@@ -1375,9 +1301,7 @@ namespace Opc.Ua
     }
 
     #region RationalNumberCollection Class
-    /// <summary>
-    /// A collection of RationalNumber objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RationalNumber")]
@@ -1463,35 +1387,25 @@ namespace Opc.Ua
 
     #region Vector Class
     #if (!OPCUA_EXCLUDE_Vector)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Vector : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Vector()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -1579,9 +1493,7 @@ namespace Opc.Ua
     }
 
     #region VectorCollection Class
-    /// <summary>
-    /// A collection of Vector objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfVector", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Vector")]
@@ -1667,35 +1579,25 @@ namespace Opc.Ua
 
     #region ThreeDVector Class
     #if (!OPCUA_EXCLUDE_ThreeDVector)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ThreeDVector : Vector
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ThreeDVector()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_x = (double)0;
@@ -1829,9 +1731,7 @@ namespace Opc.Ua
     }
 
     #region ThreeDVectorCollection Class
-    /// <summary>
-    /// A collection of ThreeDVector objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfThreeDVector", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDVector")]
@@ -1917,35 +1817,25 @@ namespace Opc.Ua
 
     #region CartesianCoordinates Class
     #if (!OPCUA_EXCLUDE_CartesianCoordinates)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CartesianCoordinates : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CartesianCoordinates()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -2033,9 +1923,7 @@ namespace Opc.Ua
     }
 
     #region CartesianCoordinatesCollection Class
-    /// <summary>
-    /// A collection of CartesianCoordinates objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCartesianCoordinates", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CartesianCoordinates")]
@@ -2121,35 +2009,25 @@ namespace Opc.Ua
 
     #region ThreeDCartesianCoordinates Class
     #if (!OPCUA_EXCLUDE_ThreeDCartesianCoordinates)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ThreeDCartesianCoordinates : CartesianCoordinates
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ThreeDCartesianCoordinates()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_x = (double)0;
@@ -2283,9 +2161,7 @@ namespace Opc.Ua
     }
 
     #region ThreeDCartesianCoordinatesCollection Class
-    /// <summary>
-    /// A collection of ThreeDCartesianCoordinates objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfThreeDCartesianCoordinates", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDCartesianCoordinates")]
@@ -2371,35 +2247,25 @@ namespace Opc.Ua
 
     #region Orientation Class
     #if (!OPCUA_EXCLUDE_Orientation)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Orientation : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Orientation()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -2487,9 +2353,7 @@ namespace Opc.Ua
     }
 
     #region OrientationCollection Class
-    /// <summary>
-    /// A collection of Orientation objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfOrientation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Orientation")]
@@ -2575,35 +2439,25 @@ namespace Opc.Ua
 
     #region ThreeDOrientation Class
     #if (!OPCUA_EXCLUDE_ThreeDOrientation)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ThreeDOrientation : Orientation
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ThreeDOrientation()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_a = (double)0;
@@ -2737,9 +2591,7 @@ namespace Opc.Ua
     }
 
     #region ThreeDOrientationCollection Class
-    /// <summary>
-    /// A collection of ThreeDOrientation objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfThreeDOrientation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDOrientation")]
@@ -2825,35 +2677,25 @@ namespace Opc.Ua
 
     #region Frame Class
     #if (!OPCUA_EXCLUDE_Frame)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Frame : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Frame()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -2941,9 +2783,7 @@ namespace Opc.Ua
     }
 
     #region FrameCollection Class
-    /// <summary>
-    /// A collection of Frame objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfFrame", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Frame")]
@@ -3029,35 +2869,25 @@ namespace Opc.Ua
 
     #region ThreeDFrame Class
     #if (!OPCUA_EXCLUDE_ThreeDFrame)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ThreeDFrame : Frame
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ThreeDFrame()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_cartesianCoordinates = new ThreeDCartesianCoordinates();
@@ -3205,9 +3035,7 @@ namespace Opc.Ua
     }
 
     #region ThreeDFrameCollection Class
-    /// <summary>
-    /// A collection of ThreeDFrame objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfThreeDFrame", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDFrame")]
@@ -3293,9 +3121,7 @@ namespace Opc.Ua
 
     #region OpenFileMode Enumeration
     #if (!OPCUA_EXCLUDE_OpenFileMode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -3319,9 +3145,7 @@ namespace Opc.Ua
     }
 
     #region OpenFileModeCollection Class
-    /// <summary>
-    /// A collection of OpenFileMode objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfOpenFileMode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OpenFileMode")]
@@ -3407,9 +3231,7 @@ namespace Opc.Ua
 
     #region IdentityCriteriaType Enumeration
     #if (!OPCUA_EXCLUDE_IdentityCriteriaType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -3445,9 +3267,7 @@ namespace Opc.Ua
     }
 
     #region IdentityCriteriaTypeCollection Class
-    /// <summary>
-    /// A collection of IdentityCriteriaType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfIdentityCriteriaType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdentityCriteriaType")]
@@ -3533,35 +3353,25 @@ namespace Opc.Ua
 
     #region IdentityMappingRuleType Class
     #if (!OPCUA_EXCLUDE_IdentityMappingRuleType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class IdentityMappingRuleType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public IdentityMappingRuleType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_criteriaType = IdentityCriteriaType.UserName;
@@ -3676,9 +3486,7 @@ namespace Opc.Ua
     }
 
     #region IdentityMappingRuleTypeCollection Class
-    /// <summary>
-    /// A collection of IdentityMappingRuleType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfIdentityMappingRuleType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdentityMappingRuleType")]
@@ -3764,35 +3572,25 @@ namespace Opc.Ua
 
     #region CurrencyUnitType Class
     #if (!OPCUA_EXCLUDE_CurrencyUnitType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CurrencyUnitType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CurrencyUnitType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_numericCode = (short)0;
@@ -3935,9 +3733,7 @@ namespace Opc.Ua
     }
 
     #region CurrencyUnitTypeCollection Class
-    /// <summary>
-    /// A collection of CurrencyUnitType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCurrencyUnitType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CurrencyUnitType")]
@@ -4023,9 +3819,7 @@ namespace Opc.Ua
 
     #region TrustListMasks Enumeration
     #if (!OPCUA_EXCLUDE_TrustListMasks)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -4060,35 +3854,25 @@ namespace Opc.Ua
 
     #region TrustListDataType Class
     #if (!OPCUA_EXCLUDE_TrustListDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TrustListDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TrustListDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_specifiedLists = (uint)0;
@@ -4301,9 +4085,7 @@ namespace Opc.Ua
     }
 
     #region TrustListDataTypeCollection Class
-    /// <summary>
-    /// A collection of TrustListDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTrustListDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TrustListDataType")]
@@ -4389,35 +4171,25 @@ namespace Opc.Ua
 
     #region DecimalDataType Class
     #if (!OPCUA_EXCLUDE_DecimalDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DecimalDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DecimalDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_scale = (short)0;
@@ -4535,35 +4307,25 @@ namespace Opc.Ua
 
     #region DataTypeSchemaHeader Class
     #if (!OPCUA_EXCLUDE_DataTypeSchemaHeader)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeSchemaHeader : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataTypeSchemaHeader()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_namespaces = new StringCollection();
@@ -4762,9 +4524,7 @@ namespace Opc.Ua
     }
 
     #region DataTypeSchemaHeaderCollection Class
-    /// <summary>
-    /// A collection of DataTypeSchemaHeader objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataTypeSchemaHeader", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeSchemaHeader")]
@@ -4850,35 +4610,25 @@ namespace Opc.Ua
 
     #region DataTypeDescription Class
     #if (!OPCUA_EXCLUDE_DataTypeDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeDescription : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataTypeDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_dataTypeId = null;
@@ -4993,9 +4743,7 @@ namespace Opc.Ua
     }
 
     #region DataTypeDescriptionCollection Class
-    /// <summary>
-    /// A collection of DataTypeDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeDescription")]
@@ -5081,35 +4829,25 @@ namespace Opc.Ua
 
     #region StructureDescription Class
     #if (!OPCUA_EXCLUDE_StructureDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StructureDescription : DataTypeDescription
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public StructureDescription()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_structureDefinition = new StructureDefinition();
@@ -5229,9 +4967,7 @@ namespace Opc.Ua
     }
 
     #region StructureDescriptionCollection Class
-    /// <summary>
-    /// A collection of StructureDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfStructureDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureDescription")]
@@ -5317,35 +5053,25 @@ namespace Opc.Ua
 
     #region EnumDescription Class
     #if (!OPCUA_EXCLUDE_EnumDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EnumDescription : DataTypeDescription
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EnumDescription()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_enumDefinition = new EnumDefinition();
@@ -5479,9 +5205,7 @@ namespace Opc.Ua
     }
 
     #region EnumDescriptionCollection Class
-    /// <summary>
-    /// A collection of EnumDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumDescription")]
@@ -5567,35 +5291,25 @@ namespace Opc.Ua
 
     #region SimpleTypeDescription Class
     #if (!OPCUA_EXCLUDE_SimpleTypeDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SimpleTypeDescription : DataTypeDescription
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SimpleTypeDescription()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_baseDataType = null;
@@ -5715,9 +5429,7 @@ namespace Opc.Ua
     }
 
     #region SimpleTypeDescriptionCollection Class
-    /// <summary>
-    /// A collection of SimpleTypeDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSimpleTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SimpleTypeDescription")]
@@ -5803,35 +5515,25 @@ namespace Opc.Ua
 
     #region UABinaryFileDataType Class
     #if (!OPCUA_EXCLUDE_UABinaryFileDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UABinaryFileDataType : DataTypeSchemaHeader
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UABinaryFileDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_schemaLocation = null;
@@ -5979,9 +5681,7 @@ namespace Opc.Ua
     }
 
     #region UABinaryFileDataTypeCollection Class
-    /// <summary>
-    /// A collection of UABinaryFileDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUABinaryFileDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UABinaryFileDataType")]
@@ -6067,9 +5767,7 @@ namespace Opc.Ua
 
     #region PubSubState Enumeration
     #if (!OPCUA_EXCLUDE_PubSubState)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -6097,9 +5795,7 @@ namespace Opc.Ua
     }
 
     #region PubSubStateCollection Class
-    /// <summary>
-    /// A collection of PubSubState objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubState")]
@@ -6185,35 +5881,25 @@ namespace Opc.Ua
 
     #region DataSetMetaDataType Class
     #if (!OPCUA_EXCLUDE_DataSetMetaDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetMetaDataType : DataTypeSchemaHeader
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetMetaDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_name = null;
@@ -6403,9 +6089,7 @@ namespace Opc.Ua
     }
 
     #region DataSetMetaDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetMetaDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetMetaDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetMetaDataType")]
@@ -6491,35 +6175,25 @@ namespace Opc.Ua
 
     #region FieldMetaData Class
     #if (!OPCUA_EXCLUDE_FieldMetaData)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FieldMetaData : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FieldMetaData()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -6774,9 +6448,7 @@ namespace Opc.Ua
     }
 
     #region FieldMetaDataCollection Class
-    /// <summary>
-    /// A collection of FieldMetaData objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfFieldMetaData", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "FieldMetaData")]
@@ -6862,9 +6534,7 @@ namespace Opc.Ua
 
     #region DataSetFieldFlags Enumeration
     #if (!OPCUA_EXCLUDE_DataSetFieldFlags)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -6883,35 +6553,25 @@ namespace Opc.Ua
 
     #region ConfigurationVersionDataType Class
     #if (!OPCUA_EXCLUDE_ConfigurationVersionDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ConfigurationVersionDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ConfigurationVersionDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_majorVersion = (uint)0;
@@ -7026,9 +6686,7 @@ namespace Opc.Ua
     }
 
     #region ConfigurationVersionDataTypeCollection Class
-    /// <summary>
-    /// A collection of ConfigurationVersionDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfConfigurationVersionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConfigurationVersionDataType")]
@@ -7114,35 +6772,25 @@ namespace Opc.Ua
 
     #region PublishedDataSetDataType Class
     #if (!OPCUA_EXCLUDE_PublishedDataSetDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedDataSetDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishedDataSetDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -7341,9 +6989,7 @@ namespace Opc.Ua
     }
 
     #region PublishedDataSetDataTypeCollection Class
-    /// <summary>
-    /// A collection of PublishedDataSetDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetDataType")]
@@ -7429,35 +7075,25 @@ namespace Opc.Ua
 
     #region PublishedDataSetSourceDataType Class
     #if (!OPCUA_EXCLUDE_PublishedDataSetSourceDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedDataSetSourceDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishedDataSetSourceDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -7545,9 +7181,7 @@ namespace Opc.Ua
     }
 
     #region PublishedDataSetSourceDataTypeCollection Class
-    /// <summary>
-    /// A collection of PublishedDataSetSourceDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedDataSetSourceDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetSourceDataType")]
@@ -7633,35 +7267,25 @@ namespace Opc.Ua
 
     #region PublishedVariableDataType Class
     #if (!OPCUA_EXCLUDE_PublishedVariableDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedVariableDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishedVariableDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_publishedVariable = null;
@@ -7874,9 +7498,7 @@ namespace Opc.Ua
     }
 
     #region PublishedVariableDataTypeCollection Class
-    /// <summary>
-    /// A collection of PublishedVariableDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedVariableDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedVariableDataType")]
@@ -7962,35 +7584,25 @@ namespace Opc.Ua
 
     #region PublishedDataItemsDataType Class
     #if (!OPCUA_EXCLUDE_PublishedDataItemsDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedDataItemsDataType : PublishedDataSetSourceDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishedDataItemsDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_publishedData = new PublishedVariableDataTypeCollection();
@@ -8110,9 +7722,7 @@ namespace Opc.Ua
     }
 
     #region PublishedDataItemsDataTypeCollection Class
-    /// <summary>
-    /// A collection of PublishedDataItemsDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedDataItemsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataItemsDataType")]
@@ -8198,35 +7808,25 @@ namespace Opc.Ua
 
     #region PublishedEventsDataType Class
     #if (!OPCUA_EXCLUDE_PublishedEventsDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedEventsDataType : PublishedDataSetSourceDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishedEventsDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_eventNotifier = null;
@@ -8388,9 +7988,7 @@ namespace Opc.Ua
     }
 
     #region PublishedEventsDataTypeCollection Class
-    /// <summary>
-    /// A collection of PublishedEventsDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedEventsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedEventsDataType")]
@@ -8476,9 +8074,7 @@ namespace Opc.Ua
 
     #region DataSetFieldContentMask Enumeration
     #if (!OPCUA_EXCLUDE_DataSetFieldContentMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -8514,9 +8110,7 @@ namespace Opc.Ua
     }
 
     #region DataSetFieldContentMaskCollection Class
-    /// <summary>
-    /// A collection of DataSetFieldContentMask objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetFieldContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetFieldContentMask")]
@@ -8602,35 +8196,25 @@ namespace Opc.Ua
 
     #region DataSetWriterDataType Class
     #if (!OPCUA_EXCLUDE_DataSetWriterDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetWriterDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -8857,9 +8441,7 @@ namespace Opc.Ua
     }
 
     #region DataSetWriterDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetWriterDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetWriterDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterDataType")]
@@ -8945,35 +8527,25 @@ namespace Opc.Ua
 
     #region DataSetWriterTransportDataType Class
     #if (!OPCUA_EXCLUDE_DataSetWriterTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetWriterTransportDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterTransportDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -9061,9 +8633,7 @@ namespace Opc.Ua
     }
 
     #region DataSetWriterTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetWriterTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetWriterTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterTransportDataType")]
@@ -9149,35 +8719,25 @@ namespace Opc.Ua
 
     #region DataSetWriterMessageDataType Class
     #if (!OPCUA_EXCLUDE_DataSetWriterMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetWriterMessageDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterMessageDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -9265,9 +8825,7 @@ namespace Opc.Ua
     }
 
     #region DataSetWriterMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetWriterMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterMessageDataType")]
@@ -9353,35 +8911,25 @@ namespace Opc.Ua
 
     #region PubSubGroupDataType Class
     #if (!OPCUA_EXCLUDE_PubSubGroupDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubGroupDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PubSubGroupDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -9594,9 +9142,7 @@ namespace Opc.Ua
     }
 
     #region PubSubGroupDataTypeCollection Class
-    /// <summary>
-    /// A collection of PubSubGroupDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubGroupDataType")]
@@ -9682,35 +9228,25 @@ namespace Opc.Ua
 
     #region WriterGroupDataType Class
     #if (!OPCUA_EXCLUDE_WriterGroupDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriterGroupDataType : PubSubGroupDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public WriterGroupDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_writerGroupId = (ushort)0;
@@ -9956,9 +9492,7 @@ namespace Opc.Ua
     }
 
     #region WriterGroupDataTypeCollection Class
-    /// <summary>
-    /// A collection of WriterGroupDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWriterGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupDataType")]
@@ -10044,35 +9578,25 @@ namespace Opc.Ua
 
     #region WriterGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_WriterGroupTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriterGroupTransportDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public WriterGroupTransportDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -10160,9 +9684,7 @@ namespace Opc.Ua
     }
 
     #region WriterGroupTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of WriterGroupTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupTransportDataType")]
@@ -10248,35 +9770,25 @@ namespace Opc.Ua
 
     #region WriterGroupMessageDataType Class
     #if (!OPCUA_EXCLUDE_WriterGroupMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriterGroupMessageDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public WriterGroupMessageDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -10364,9 +9876,7 @@ namespace Opc.Ua
     }
 
     #region WriterGroupMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of WriterGroupMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupMessageDataType")]
@@ -10452,35 +9962,25 @@ namespace Opc.Ua
 
     #region PubSubConnectionDataType Class
     #if (!OPCUA_EXCLUDE_PubSubConnectionDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubConnectionDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PubSubConnectionDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -10735,9 +10235,7 @@ namespace Opc.Ua
     }
 
     #region PubSubConnectionDataTypeCollection Class
-    /// <summary>
-    /// A collection of PubSubConnectionDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubConnectionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConnectionDataType")]
@@ -10823,35 +10321,25 @@ namespace Opc.Ua
 
     #region ConnectionTransportDataType Class
     #if (!OPCUA_EXCLUDE_ConnectionTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ConnectionTransportDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ConnectionTransportDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -10939,9 +10427,7 @@ namespace Opc.Ua
     }
 
     #region ConnectionTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of ConnectionTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConnectionTransportDataType")]
@@ -11027,35 +10513,25 @@ namespace Opc.Ua
 
     #region NetworkAddressDataType Class
     #if (!OPCUA_EXCLUDE_NetworkAddressDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NetworkAddressDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NetworkAddressDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_networkInterface = null;
@@ -11156,9 +10632,7 @@ namespace Opc.Ua
     }
 
     #region NetworkAddressDataTypeCollection Class
-    /// <summary>
-    /// A collection of NetworkAddressDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNetworkAddressDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkAddressDataType")]
@@ -11244,35 +10718,25 @@ namespace Opc.Ua
 
     #region NetworkAddressUrlDataType Class
     #if (!OPCUA_EXCLUDE_NetworkAddressUrlDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NetworkAddressUrlDataType : NetworkAddressDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NetworkAddressUrlDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_url = null;
@@ -11378,9 +10842,7 @@ namespace Opc.Ua
     }
 
     #region NetworkAddressUrlDataTypeCollection Class
-    /// <summary>
-    /// A collection of NetworkAddressUrlDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNetworkAddressUrlDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkAddressUrlDataType")]
@@ -11466,35 +10928,25 @@ namespace Opc.Ua
 
     #region ReaderGroupDataType Class
     #if (!OPCUA_EXCLUDE_ReaderGroupDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReaderGroupDataType : PubSubGroupDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_transportSettings = null;
@@ -11642,9 +11094,7 @@ namespace Opc.Ua
     }
 
     #region ReaderGroupDataTypeCollection Class
-    /// <summary>
-    /// A collection of ReaderGroupDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReaderGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupDataType")]
@@ -11730,35 +11180,25 @@ namespace Opc.Ua
 
     #region ReaderGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_ReaderGroupTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReaderGroupTransportDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupTransportDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -11846,9 +11286,7 @@ namespace Opc.Ua
     }
 
     #region ReaderGroupTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of ReaderGroupTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReaderGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupTransportDataType")]
@@ -11934,35 +11372,25 @@ namespace Opc.Ua
 
     #region ReaderGroupMessageDataType Class
     #if (!OPCUA_EXCLUDE_ReaderGroupMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReaderGroupMessageDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupMessageDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -12050,9 +11478,7 @@ namespace Opc.Ua
     }
 
     #region ReaderGroupMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of ReaderGroupMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReaderGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupMessageDataType")]
@@ -12138,35 +11564,25 @@ namespace Opc.Ua
 
     #region DataSetReaderDataType Class
     #if (!OPCUA_EXCLUDE_DataSetReaderDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetReaderDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -12533,9 +11949,7 @@ namespace Opc.Ua
     }
 
     #region DataSetReaderDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetReaderDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetReaderDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderDataType")]
@@ -12621,35 +12035,25 @@ namespace Opc.Ua
 
     #region DataSetReaderTransportDataType Class
     #if (!OPCUA_EXCLUDE_DataSetReaderTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetReaderTransportDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderTransportDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -12737,9 +12141,7 @@ namespace Opc.Ua
     }
 
     #region DataSetReaderTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetReaderTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderTransportDataType")]
@@ -12825,35 +12227,25 @@ namespace Opc.Ua
 
     #region DataSetReaderMessageDataType Class
     #if (!OPCUA_EXCLUDE_DataSetReaderMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetReaderMessageDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderMessageDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -12941,9 +12333,7 @@ namespace Opc.Ua
     }
 
     #region DataSetReaderMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetReaderMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderMessageDataType")]
@@ -13029,35 +12419,25 @@ namespace Opc.Ua
 
     #region SubscribedDataSetDataType Class
     #if (!OPCUA_EXCLUDE_SubscribedDataSetDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SubscribedDataSetDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SubscribedDataSetDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -13145,9 +12525,7 @@ namespace Opc.Ua
     }
 
     #region SubscribedDataSetDataTypeCollection Class
-    /// <summary>
-    /// A collection of SubscribedDataSetDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSubscribedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscribedDataSetDataType")]
@@ -13233,35 +12611,25 @@ namespace Opc.Ua
 
     #region TargetVariablesDataType Class
     #if (!OPCUA_EXCLUDE_TargetVariablesDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TargetVariablesDataType : SubscribedDataSetDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TargetVariablesDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_targetVariables = new FieldTargetDataTypeCollection();
@@ -13381,9 +12749,7 @@ namespace Opc.Ua
     }
 
     #region TargetVariablesDataTypeCollection Class
-    /// <summary>
-    /// A collection of TargetVariablesDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTargetVariablesDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TargetVariablesDataType")]
@@ -13469,35 +12835,25 @@ namespace Opc.Ua
 
     #region FieldTargetDataType Class
     #if (!OPCUA_EXCLUDE_FieldTargetDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FieldTargetDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FieldTargetDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_dataSetFieldId = Uuid.Empty;
@@ -13682,9 +13038,7 @@ namespace Opc.Ua
     }
 
     #region FieldTargetDataTypeCollection Class
-    /// <summary>
-    /// A collection of FieldTargetDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfFieldTargetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "FieldTargetDataType")]
@@ -13770,9 +13124,7 @@ namespace Opc.Ua
 
     #region OverrideValueHandling Enumeration
     #if (!OPCUA_EXCLUDE_OverrideValueHandling)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -13792,9 +13144,7 @@ namespace Opc.Ua
     }
 
     #region OverrideValueHandlingCollection Class
-    /// <summary>
-    /// A collection of OverrideValueHandling objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfOverrideValueHandling", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OverrideValueHandling")]
@@ -13880,35 +13230,25 @@ namespace Opc.Ua
 
     #region SubscribedDataSetMirrorDataType Class
     #if (!OPCUA_EXCLUDE_SubscribedDataSetMirrorDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SubscribedDataSetMirrorDataType : SubscribedDataSetDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SubscribedDataSetMirrorDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_parentNodeName = null;
@@ -14042,9 +13382,7 @@ namespace Opc.Ua
     }
 
     #region SubscribedDataSetMirrorDataTypeCollection Class
-    /// <summary>
-    /// A collection of SubscribedDataSetMirrorDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSubscribedDataSetMirrorDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscribedDataSetMirrorDataType")]
@@ -14130,35 +13468,25 @@ namespace Opc.Ua
 
     #region PubSubConfigurationDataType Class
     #if (!OPCUA_EXCLUDE_PubSubConfigurationDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubConfigurationDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PubSubConfigurationDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_publishedDataSets = new PublishedDataSetDataTypeCollection();
@@ -14315,9 +13643,7 @@ namespace Opc.Ua
     }
 
     #region PubSubConfigurationDataTypeCollection Class
-    /// <summary>
-    /// A collection of PubSubConfigurationDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationDataType")]
@@ -14403,9 +13729,7 @@ namespace Opc.Ua
 
     #region DataSetOrderingType Enumeration
     #if (!OPCUA_EXCLUDE_DataSetOrderingType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -14425,9 +13749,7 @@ namespace Opc.Ua
     }
 
     #region DataSetOrderingTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetOrderingType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetOrderingType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetOrderingType")]
@@ -14513,9 +13835,7 @@ namespace Opc.Ua
 
     #region UadpNetworkMessageContentMask Enumeration
     #if (!OPCUA_EXCLUDE_UadpNetworkMessageContentMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -14571,9 +13891,7 @@ namespace Opc.Ua
     }
 
     #region UadpNetworkMessageContentMaskCollection Class
-    /// <summary>
-    /// A collection of UadpNetworkMessageContentMask objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpNetworkMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpNetworkMessageContentMask")]
@@ -14659,35 +13977,25 @@ namespace Opc.Ua
 
     #region UadpWriterGroupMessageDataType Class
     #if (!OPCUA_EXCLUDE_UadpWriterGroupMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UadpWriterGroupMessageDataType : WriterGroupMessageDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UadpWriterGroupMessageDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_groupVersion = (uint)0;
@@ -14863,9 +14171,7 @@ namespace Opc.Ua
     }
 
     #region UadpWriterGroupMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of UadpWriterGroupMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpWriterGroupMessageDataType")]
@@ -14951,9 +14257,7 @@ namespace Opc.Ua
 
     #region UadpDataSetMessageContentMask Enumeration
     #if (!OPCUA_EXCLUDE_UadpDataSetMessageContentMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -14989,9 +14293,7 @@ namespace Opc.Ua
     }
 
     #region UadpDataSetMessageContentMaskCollection Class
-    /// <summary>
-    /// A collection of UadpDataSetMessageContentMask objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpDataSetMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetMessageContentMask")]
@@ -15077,35 +14379,25 @@ namespace Opc.Ua
 
     #region UadpDataSetWriterMessageDataType Class
     #if (!OPCUA_EXCLUDE_UadpDataSetWriterMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UadpDataSetWriterMessageDataType : DataSetWriterMessageDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetWriterMessageDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_dataSetMessageContentMask = 0;
@@ -15253,9 +14545,7 @@ namespace Opc.Ua
     }
 
     #region UadpDataSetWriterMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of UadpDataSetWriterMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetWriterMessageDataType")]
@@ -15341,35 +14631,25 @@ namespace Opc.Ua
 
     #region UadpDataSetReaderMessageDataType Class
     #if (!OPCUA_EXCLUDE_UadpDataSetReaderMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UadpDataSetReaderMessageDataType : DataSetReaderMessageDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetReaderMessageDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_groupVersion = (uint)0;
@@ -15587,9 +14867,7 @@ namespace Opc.Ua
     }
 
     #region UadpDataSetReaderMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of UadpDataSetReaderMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetReaderMessageDataType")]
@@ -15675,9 +14953,7 @@ namespace Opc.Ua
 
     #region JsonNetworkMessageContentMask Enumeration
     #if (!OPCUA_EXCLUDE_JsonNetworkMessageContentMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -15713,9 +14989,7 @@ namespace Opc.Ua
     }
 
     #region JsonNetworkMessageContentMaskCollection Class
-    /// <summary>
-    /// A collection of JsonNetworkMessageContentMask objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonNetworkMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonNetworkMessageContentMask")]
@@ -15801,35 +15075,25 @@ namespace Opc.Ua
 
     #region JsonWriterGroupMessageDataType Class
     #if (!OPCUA_EXCLUDE_JsonWriterGroupMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonWriterGroupMessageDataType : WriterGroupMessageDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public JsonWriterGroupMessageDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_networkMessageContentMask = 0;
@@ -15935,9 +15199,7 @@ namespace Opc.Ua
     }
 
     #region JsonWriterGroupMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of JsonWriterGroupMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonWriterGroupMessageDataType")]
@@ -16023,9 +15285,7 @@ namespace Opc.Ua
 
     #region JsonDataSetMessageContentMask Enumeration
     #if (!OPCUA_EXCLUDE_JsonDataSetMessageContentMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -16061,9 +15321,7 @@ namespace Opc.Ua
     }
 
     #region JsonDataSetMessageContentMaskCollection Class
-    /// <summary>
-    /// A collection of JsonDataSetMessageContentMask objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonDataSetMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetMessageContentMask")]
@@ -16149,35 +15407,25 @@ namespace Opc.Ua
 
     #region JsonDataSetWriterMessageDataType Class
     #if (!OPCUA_EXCLUDE_JsonDataSetWriterMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonDataSetWriterMessageDataType : DataSetWriterMessageDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetWriterMessageDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_dataSetMessageContentMask = 0;
@@ -16283,9 +15531,7 @@ namespace Opc.Ua
     }
 
     #region JsonDataSetWriterMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of JsonDataSetWriterMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetWriterMessageDataType")]
@@ -16371,35 +15617,25 @@ namespace Opc.Ua
 
     #region JsonDataSetReaderMessageDataType Class
     #if (!OPCUA_EXCLUDE_JsonDataSetReaderMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonDataSetReaderMessageDataType : DataSetReaderMessageDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetReaderMessageDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_networkMessageContentMask = 0;
@@ -16519,9 +15755,7 @@ namespace Opc.Ua
     }
 
     #region JsonDataSetReaderMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of JsonDataSetReaderMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetReaderMessageDataType")]
@@ -16607,35 +15841,25 @@ namespace Opc.Ua
 
     #region DatagramConnectionTransportDataType Class
     #if (!OPCUA_EXCLUDE_DatagramConnectionTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DatagramConnectionTransportDataType : ConnectionTransportDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DatagramConnectionTransportDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_discoveryAddress = null;
@@ -16741,9 +15965,7 @@ namespace Opc.Ua
     }
 
     #region DatagramConnectionTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of DatagramConnectionTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDatagramConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramConnectionTransportDataType")]
@@ -16829,35 +16051,25 @@ namespace Opc.Ua
 
     #region DatagramWriterGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_DatagramWriterGroupTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DatagramWriterGroupTransportDataType : WriterGroupTransportDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DatagramWriterGroupTransportDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_messageRepeatCount = (byte)0;
@@ -16977,9 +16189,7 @@ namespace Opc.Ua
     }
 
     #region DatagramWriterGroupTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of DatagramWriterGroupTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDatagramWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramWriterGroupTransportDataType")]
@@ -17065,35 +16275,25 @@ namespace Opc.Ua
 
     #region BrokerConnectionTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerConnectionTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrokerConnectionTransportDataType : ConnectionTransportDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrokerConnectionTransportDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_resourceUri = null;
@@ -17213,9 +16413,7 @@ namespace Opc.Ua
     }
 
     #region BrokerConnectionTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of BrokerConnectionTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerConnectionTransportDataType")]
@@ -17301,9 +16499,7 @@ namespace Opc.Ua
 
     #region BrokerTransportQualityOfService Enumeration
     #if (!OPCUA_EXCLUDE_BrokerTransportQualityOfService)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -17331,9 +16527,7 @@ namespace Opc.Ua
     }
 
     #region BrokerTransportQualityOfServiceCollection Class
-    /// <summary>
-    /// A collection of BrokerTransportQualityOfService objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerTransportQualityOfService", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerTransportQualityOfService")]
@@ -17419,35 +16613,25 @@ namespace Opc.Ua
 
     #region BrokerWriterGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerWriterGroupTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrokerWriterGroupTransportDataType : WriterGroupTransportDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrokerWriterGroupTransportDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_queueName = null;
@@ -17595,9 +16779,7 @@ namespace Opc.Ua
     }
 
     #region BrokerWriterGroupTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of BrokerWriterGroupTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerWriterGroupTransportDataType")]
@@ -17683,35 +16865,25 @@ namespace Opc.Ua
 
     #region BrokerDataSetWriterTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerDataSetWriterTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrokerDataSetWriterTransportDataType : DataSetWriterTransportDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrokerDataSetWriterTransportDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_queueName = null;
@@ -17887,9 +17059,7 @@ namespace Opc.Ua
     }
 
     #region BrokerDataSetWriterTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of BrokerDataSetWriterTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerDataSetWriterTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerDataSetWriterTransportDataType")]
@@ -17975,35 +17145,25 @@ namespace Opc.Ua
 
     #region BrokerDataSetReaderTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerDataSetReaderTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrokerDataSetReaderTransportDataType : DataSetReaderTransportDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrokerDataSetReaderTransportDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_queueName = null;
@@ -18165,9 +17325,7 @@ namespace Opc.Ua
     }
 
     #region BrokerDataSetReaderTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of BrokerDataSetReaderTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerDataSetReaderTransportDataType")]
@@ -18253,9 +17411,7 @@ namespace Opc.Ua
 
     #region DiagnosticsLevel Enumeration
     #if (!OPCUA_EXCLUDE_DiagnosticsLevel)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -18283,9 +17439,7 @@ namespace Opc.Ua
     }
 
     #region DiagnosticsLevelCollection Class
-    /// <summary>
-    /// A collection of DiagnosticsLevel objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDiagnosticsLevel", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DiagnosticsLevel")]
@@ -18371,9 +17525,7 @@ namespace Opc.Ua
 
     #region PubSubDiagnosticsCounterClassification Enumeration
     #if (!OPCUA_EXCLUDE_PubSubDiagnosticsCounterClassification)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -18389,9 +17541,7 @@ namespace Opc.Ua
     }
 
     #region PubSubDiagnosticsCounterClassificationCollection Class
-    /// <summary>
-    /// A collection of PubSubDiagnosticsCounterClassification objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubDiagnosticsCounterClassification", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubDiagnosticsCounterClassification")]
@@ -18477,35 +17627,25 @@ namespace Opc.Ua
 
     #region AliasNameDataType Class
     #if (!OPCUA_EXCLUDE_AliasNameDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AliasNameDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AliasNameDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_aliasName = null;
@@ -18634,9 +17774,7 @@ namespace Opc.Ua
     }
 
     #region AliasNameDataTypeCollection Class
-    /// <summary>
-    /// A collection of AliasNameDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfAliasNameDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AliasNameDataType")]
@@ -18722,9 +17860,7 @@ namespace Opc.Ua
 
     #region Duplex Enumeration
     #if (!OPCUA_EXCLUDE_Duplex)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -18744,9 +17880,7 @@ namespace Opc.Ua
     }
 
     #region DuplexCollection Class
-    /// <summary>
-    /// A collection of Duplex objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDuplex", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Duplex")]
@@ -18832,9 +17966,7 @@ namespace Opc.Ua
 
     #region InterfaceAdminStatus Enumeration
     #if (!OPCUA_EXCLUDE_InterfaceAdminStatus)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -18854,9 +17986,7 @@ namespace Opc.Ua
     }
 
     #region InterfaceAdminStatusCollection Class
-    /// <summary>
-    /// A collection of InterfaceAdminStatus objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfInterfaceAdminStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "InterfaceAdminStatus")]
@@ -18942,9 +18072,7 @@ namespace Opc.Ua
 
     #region InterfaceOperStatus Enumeration
     #if (!OPCUA_EXCLUDE_InterfaceOperStatus)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -18980,9 +18108,7 @@ namespace Opc.Ua
     }
 
     #region InterfaceOperStatusCollection Class
-    /// <summary>
-    /// A collection of InterfaceOperStatus objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfInterfaceOperStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "InterfaceOperStatus")]
@@ -19068,9 +18194,7 @@ namespace Opc.Ua
 
     #region NegotiationStatus Enumeration
     #if (!OPCUA_EXCLUDE_NegotiationStatus)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -19098,9 +18222,7 @@ namespace Opc.Ua
     }
 
     #region NegotiationStatusCollection Class
-    /// <summary>
-    /// A collection of NegotiationStatus objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNegotiationStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NegotiationStatus")]
@@ -19186,9 +18308,7 @@ namespace Opc.Ua
 
     #region TsnFailureCode Enumeration
     #if (!OPCUA_EXCLUDE_TsnFailureCode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -19300,9 +18420,7 @@ namespace Opc.Ua
     }
 
     #region TsnFailureCodeCollection Class
-    /// <summary>
-    /// A collection of TsnFailureCode objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTsnFailureCode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnFailureCode")]
@@ -19388,9 +18506,7 @@ namespace Opc.Ua
 
     #region TsnStreamState Enumeration
     #if (!OPCUA_EXCLUDE_TsnStreamState)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -19418,9 +18534,7 @@ namespace Opc.Ua
     }
 
     #region TsnStreamStateCollection Class
-    /// <summary>
-    /// A collection of TsnStreamState objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTsnStreamState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnStreamState")]
@@ -19506,9 +18620,7 @@ namespace Opc.Ua
 
     #region TsnTalkerStatus Enumeration
     #if (!OPCUA_EXCLUDE_TsnTalkerStatus)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -19528,9 +18640,7 @@ namespace Opc.Ua
     }
 
     #region TsnTalkerStatusCollection Class
-    /// <summary>
-    /// A collection of TsnTalkerStatus objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTsnTalkerStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnTalkerStatus")]
@@ -19616,9 +18726,7 @@ namespace Opc.Ua
 
     #region TsnListenerStatus Enumeration
     #if (!OPCUA_EXCLUDE_TsnListenerStatus)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -19642,9 +18750,7 @@ namespace Opc.Ua
     }
 
     #region TsnListenerStatusCollection Class
-    /// <summary>
-    /// A collection of TsnListenerStatus objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTsnListenerStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnListenerStatus")]
@@ -19730,35 +18836,25 @@ namespace Opc.Ua
 
     #region UnsignedRationalNumber Class
     #if (!OPCUA_EXCLUDE_UnsignedRationalNumber)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UnsignedRationalNumber : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UnsignedRationalNumber()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_numerator = (uint)0;
@@ -19873,9 +18969,7 @@ namespace Opc.Ua
     }
 
     #region UnsignedRationalNumberCollection Class
-    /// <summary>
-    /// A collection of UnsignedRationalNumber objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUnsignedRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UnsignedRationalNumber")]
@@ -19961,9 +19055,7 @@ namespace Opc.Ua
 
     #region IdType Enumeration
     #if (!OPCUA_EXCLUDE_IdType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -19987,9 +19079,7 @@ namespace Opc.Ua
     }
 
     #region IdTypeCollection Class
-    /// <summary>
-    /// A collection of IdType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfIdType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdType")]
@@ -20075,9 +19165,7 @@ namespace Opc.Ua
 
     #region NodeClass Enumeration
     #if (!OPCUA_EXCLUDE_NodeClass)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -20124,9 +19212,7 @@ namespace Opc.Ua
 
     #region PermissionType Enumeration
     #if (!OPCUA_EXCLUDE_PermissionType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -20209,9 +19295,7 @@ namespace Opc.Ua
 
     #region AccessLevelType Enumeration
     #if (!OPCUA_EXCLUDE_AccessLevelType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -20254,9 +19338,7 @@ namespace Opc.Ua
 
     #region AccessLevelExType Enumeration
     #if (!OPCUA_EXCLUDE_AccessLevelExType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -20315,9 +19397,7 @@ namespace Opc.Ua
 
     #region EventNotifierType Enumeration
     #if (!OPCUA_EXCLUDE_EventNotifierType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -20344,9 +19424,7 @@ namespace Opc.Ua
 
     #region AccessRestrictionType Enumeration
     #if (!OPCUA_EXCLUDE_AccessRestrictionType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -20377,35 +19455,25 @@ namespace Opc.Ua
 
     #region RolePermissionType Class
     #if (!OPCUA_EXCLUDE_RolePermissionType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RolePermissionType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RolePermissionType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_roleId = null;
@@ -20520,9 +19588,7 @@ namespace Opc.Ua
     }
 
     #region RolePermissionTypeCollection Class
-    /// <summary>
-    /// A collection of RolePermissionType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRolePermissionType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RolePermissionType")]
@@ -20608,35 +19674,25 @@ namespace Opc.Ua
 
     #region DataTypeDefinition Class
     #if (!OPCUA_EXCLUDE_DataTypeDefinition)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeDefinition : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataTypeDefinition()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -20724,9 +19780,7 @@ namespace Opc.Ua
     }
 
     #region DataTypeDefinitionCollection Class
-    /// <summary>
-    /// A collection of DataTypeDefinition objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataTypeDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeDefinition")]
@@ -20812,9 +19866,7 @@ namespace Opc.Ua
 
     #region StructureType Enumeration
     #if (!OPCUA_EXCLUDE_StructureType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -20845,35 +19897,25 @@ namespace Opc.Ua
 
     #region StructureField Class
     #if (!OPCUA_EXCLUDE_StructureField)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StructureField : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public StructureField()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -21072,9 +20114,7 @@ namespace Opc.Ua
     }
 
     #region StructureFieldCollection Class
-    /// <summary>
-    /// A collection of StructureField objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfStructureField", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureField")]
@@ -21160,35 +20200,25 @@ namespace Opc.Ua
 
     #region StructureDefinition Class
     #if (!OPCUA_EXCLUDE_StructureDefinition)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StructureDefinition : DataTypeDefinition
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public StructureDefinition()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_defaultEncodingId = null;
@@ -21350,9 +20380,7 @@ namespace Opc.Ua
     }
 
     #region StructureDefinitionCollection Class
-    /// <summary>
-    /// A collection of StructureDefinition objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfStructureDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureDefinition")]
@@ -21438,35 +20466,25 @@ namespace Opc.Ua
 
     #region EnumDefinition Class
     #if (!OPCUA_EXCLUDE_EnumDefinition)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EnumDefinition : DataTypeDefinition
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EnumDefinition()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_fields = new EnumFieldCollection();
@@ -21586,9 +20604,7 @@ namespace Opc.Ua
     }
 
     #region EnumDefinitionCollection Class
-    /// <summary>
-    /// A collection of EnumDefinition objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumDefinition")]
@@ -21674,35 +20690,25 @@ namespace Opc.Ua
 
     #region Node Class
     #if (!OPCUA_EXCLUDE_Node)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Node : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Node()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -21985,9 +20991,7 @@ namespace Opc.Ua
     }
 
     #region NodeCollection Class
-    /// <summary>
-    /// A collection of Node objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Node")]
@@ -22073,35 +21077,25 @@ namespace Opc.Ua
 
     #region InstanceNode Class
     #if (!OPCUA_EXCLUDE_InstanceNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class InstanceNode : Node
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public InstanceNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
         }
@@ -22196,35 +21190,25 @@ namespace Opc.Ua
 
     #region TypeNode Class
     #if (!OPCUA_EXCLUDE_TypeNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TypeNode : Node
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TypeNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
         }
@@ -22319,35 +21303,25 @@ namespace Opc.Ua
 
     #region ObjectNode Class
     #if (!OPCUA_EXCLUDE_ObjectNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ObjectNode : InstanceNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ObjectNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_eventNotifier = (byte)0;
@@ -22456,35 +21430,25 @@ namespace Opc.Ua
 
     #region ObjectTypeNode Class
     #if (!OPCUA_EXCLUDE_ObjectTypeNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ObjectTypeNode : TypeNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ObjectTypeNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isAbstract = true;
@@ -22593,35 +21557,25 @@ namespace Opc.Ua
 
     #region VariableNode Class
     #if (!OPCUA_EXCLUDE_VariableNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class VariableNode : InstanceNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public VariableNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_value = Variant.Null;
@@ -22856,35 +21810,25 @@ namespace Opc.Ua
 
     #region VariableTypeNode Class
     #if (!OPCUA_EXCLUDE_VariableTypeNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class VariableTypeNode : TypeNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public VariableTypeNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_value = Variant.Null;
@@ -23063,35 +22007,25 @@ namespace Opc.Ua
 
     #region ReferenceTypeNode Class
     #if (!OPCUA_EXCLUDE_ReferenceTypeNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceTypeNode : TypeNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReferenceTypeNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isAbstract = true;
@@ -23228,35 +22162,25 @@ namespace Opc.Ua
 
     #region MethodNode Class
     #if (!OPCUA_EXCLUDE_MethodNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MethodNode : InstanceNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MethodNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_executable = true;
@@ -23379,35 +22303,25 @@ namespace Opc.Ua
 
     #region ViewNode Class
     #if (!OPCUA_EXCLUDE_ViewNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ViewNode : InstanceNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ViewNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_containsNoLoops = true;
@@ -23530,35 +22444,25 @@ namespace Opc.Ua
 
     #region DataTypeNode Class
     #if (!OPCUA_EXCLUDE_DataTypeNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeNode : TypeNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataTypeNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isAbstract = true;
@@ -23681,35 +22585,25 @@ namespace Opc.Ua
 
     #region ReferenceNode Class
     #if (!OPCUA_EXCLUDE_ReferenceNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceNode : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReferenceNode()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_referenceTypeId = null;
@@ -23838,9 +22732,7 @@ namespace Opc.Ua
     }
 
     #region ReferenceNodeCollection Class
-    /// <summary>
-    /// A collection of ReferenceNode objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReferenceNode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceNode")]
@@ -23926,35 +22818,25 @@ namespace Opc.Ua
 
     #region Argument Class
     #if (!OPCUA_EXCLUDE_Argument)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Argument : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Argument()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -24125,9 +23007,7 @@ namespace Opc.Ua
     }
 
     #region ArgumentCollection Class
-    /// <summary>
-    /// A collection of Argument objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfArgument", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Argument")]
@@ -24213,35 +23093,25 @@ namespace Opc.Ua
 
     #region EnumValueType Class
     #if (!OPCUA_EXCLUDE_EnumValueType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EnumValueType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EnumValueType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_value = (long)0;
@@ -24370,9 +23240,7 @@ namespace Opc.Ua
     }
 
     #region EnumValueTypeCollection Class
-    /// <summary>
-    /// A collection of EnumValueType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumValueType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumValueType")]
@@ -24458,35 +23326,25 @@ namespace Opc.Ua
 
     #region EnumField Class
     #if (!OPCUA_EXCLUDE_EnumField)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EnumField : EnumValueType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EnumField()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_name = null;
@@ -24592,9 +23450,7 @@ namespace Opc.Ua
     }
 
     #region EnumFieldCollection Class
-    /// <summary>
-    /// A collection of EnumField objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumField", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumField")]
@@ -24680,35 +23536,25 @@ namespace Opc.Ua
 
     #region OptionSet Class
     #if (!OPCUA_EXCLUDE_OptionSet)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class OptionSet : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public OptionSet()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_value = null;
@@ -24823,9 +23669,7 @@ namespace Opc.Ua
     }
 
     #region OptionSetCollection Class
-    /// <summary>
-    /// A collection of OptionSet objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfOptionSet", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OptionSet")]
@@ -24911,35 +23755,25 @@ namespace Opc.Ua
 
     #region TimeZoneDataType Class
     #if (!OPCUA_EXCLUDE_TimeZoneDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TimeZoneDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TimeZoneDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_offset = (short)0;
@@ -25054,9 +23888,7 @@ namespace Opc.Ua
     }
 
     #region TimeZoneDataTypeCollection Class
-    /// <summary>
-    /// A collection of TimeZoneDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTimeZoneDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TimeZoneDataType")]
@@ -25142,9 +23974,7 @@ namespace Opc.Ua
 
     #region ApplicationType Enumeration
     #if (!OPCUA_EXCLUDE_ApplicationType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -25171,35 +24001,25 @@ namespace Opc.Ua
 
     #region ApplicationDescription Class
     #if (!OPCUA_EXCLUDE_ApplicationDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ApplicationDescription : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ApplicationDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_applicationUri = null;
@@ -25398,9 +24218,7 @@ namespace Opc.Ua
     }
 
     #region ApplicationDescriptionCollection Class
-    /// <summary>
-    /// A collection of ApplicationDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfApplicationDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ApplicationDescription")]
@@ -25486,35 +24304,25 @@ namespace Opc.Ua
 
     #region RequestHeader Class
     #if (!OPCUA_EXCLUDE_RequestHeader)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RequestHeader : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RequestHeader()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_authenticationToken = null;
@@ -25702,35 +24510,25 @@ namespace Opc.Ua
 
     #region ResponseHeader Class
     #if (!OPCUA_EXCLUDE_ResponseHeader)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ResponseHeader : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ResponseHeader()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_timestamp = DateTime.MinValue;
@@ -25918,35 +24716,25 @@ namespace Opc.Ua
 
     #region ServiceFault Class
     #if (!OPCUA_EXCLUDE_ServiceFault)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServiceFault : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ServiceFault()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -26064,35 +24852,25 @@ namespace Opc.Ua
 
     #region SessionlessInvokeRequestType Class
     #if (!OPCUA_EXCLUDE_SessionlessInvokeRequestType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SessionlessInvokeRequestType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SessionlessInvokeRequestType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_urisVersion = (uint)0;
@@ -26294,35 +25072,25 @@ namespace Opc.Ua
 
     #region SessionlessInvokeResponseType Class
     #if (!OPCUA_EXCLUDE_SessionlessInvokeResponseType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SessionlessInvokeResponseType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SessionlessInvokeResponseType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_namespaceUris = new StringCollection();
@@ -26482,35 +25250,25 @@ namespace Opc.Ua
 
     #region FindServersRequest Class
     #if (!OPCUA_EXCLUDE_FindServersRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FindServersRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FindServersRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -26698,35 +25456,25 @@ namespace Opc.Ua
 
     #region FindServersResponse Class
     #if (!OPCUA_EXCLUDE_FindServersResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FindServersResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FindServersResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -26872,35 +25620,25 @@ namespace Opc.Ua
 
     #region ServerOnNetwork Class
     #if (!OPCUA_EXCLUDE_ServerOnNetwork)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServerOnNetwork : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ServerOnNetwork()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_recordId = (uint)0;
@@ -27057,9 +25795,7 @@ namespace Opc.Ua
     }
 
     #region ServerOnNetworkCollection Class
-    /// <summary>
-    /// A collection of ServerOnNetwork objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfServerOnNetwork", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ServerOnNetwork")]
@@ -27145,35 +25881,25 @@ namespace Opc.Ua
 
     #region FindServersOnNetworkRequest Class
     #if (!OPCUA_EXCLUDE_FindServersOnNetworkRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FindServersOnNetworkRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FindServersOnNetworkRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -27347,35 +26073,25 @@ namespace Opc.Ua
 
     #region FindServersOnNetworkResponse Class
     #if (!OPCUA_EXCLUDE_FindServersOnNetworkResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FindServersOnNetworkResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FindServersOnNetworkResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -27535,9 +26251,7 @@ namespace Opc.Ua
 
     #region MessageSecurityMode Enumeration
     #if (!OPCUA_EXCLUDE_MessageSecurityMode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -27564,9 +26278,7 @@ namespace Opc.Ua
 
     #region UserTokenType Enumeration
     #if (!OPCUA_EXCLUDE_UserTokenType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -27593,35 +26305,25 @@ namespace Opc.Ua
 
     #region UserTokenPolicy Class
     #if (!OPCUA_EXCLUDE_UserTokenPolicy)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UserTokenPolicy : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UserTokenPolicy()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_policyId = null;
@@ -27778,9 +26480,7 @@ namespace Opc.Ua
     }
 
     #region UserTokenPolicyCollection Class
-    /// <summary>
-    /// A collection of UserTokenPolicy objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUserTokenPolicy", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserTokenPolicy")]
@@ -27866,35 +26566,25 @@ namespace Opc.Ua
 
     #region EndpointDescription Class
     #if (!OPCUA_EXCLUDE_EndpointDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointDescription : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EndpointDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_endpointUrl = null;
@@ -28121,9 +26811,7 @@ namespace Opc.Ua
     }
 
     #region EndpointDescriptionCollection Class
-    /// <summary>
-    /// A collection of EndpointDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEndpointDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointDescription")]
@@ -28209,35 +26897,25 @@ namespace Opc.Ua
 
     #region GetEndpointsRequest Class
     #if (!OPCUA_EXCLUDE_GetEndpointsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class GetEndpointsRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public GetEndpointsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -28425,35 +27103,25 @@ namespace Opc.Ua
 
     #region GetEndpointsResponse Class
     #if (!OPCUA_EXCLUDE_GetEndpointsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class GetEndpointsResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public GetEndpointsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -28599,35 +27267,25 @@ namespace Opc.Ua
 
     #region RegisteredServer Class
     #if (!OPCUA_EXCLUDE_RegisteredServer)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisteredServer : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisteredServer()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_serverUri = null;
@@ -28854,9 +27512,7 @@ namespace Opc.Ua
     }
 
     #region RegisteredServerCollection Class
-    /// <summary>
-    /// A collection of RegisteredServer objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRegisteredServer", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RegisteredServer")]
@@ -28942,35 +27598,25 @@ namespace Opc.Ua
 
     #region RegisterServerRequest Class
     #if (!OPCUA_EXCLUDE_RegisterServerRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterServerRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisterServerRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -29116,35 +27762,25 @@ namespace Opc.Ua
 
     #region RegisterServerResponse Class
     #if (!OPCUA_EXCLUDE_RegisterServerResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterServerResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisterServerResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -29262,35 +27898,25 @@ namespace Opc.Ua
 
     #region DiscoveryConfiguration Class
     #if (!OPCUA_EXCLUDE_DiscoveryConfiguration)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DiscoveryConfiguration : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DiscoveryConfiguration()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -29381,35 +28007,25 @@ namespace Opc.Ua
 
     #region MdnsDiscoveryConfiguration Class
     #if (!OPCUA_EXCLUDE_MdnsDiscoveryConfiguration)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MdnsDiscoveryConfiguration : DiscoveryConfiguration
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MdnsDiscoveryConfiguration()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_mdnsServerName = null;
@@ -29546,35 +28162,25 @@ namespace Opc.Ua
 
     #region RegisterServer2Request Class
     #if (!OPCUA_EXCLUDE_RegisterServer2Request)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterServer2Request : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisterServer2Request()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -29748,35 +28354,25 @@ namespace Opc.Ua
 
     #region RegisterServer2Response Class
     #if (!OPCUA_EXCLUDE_RegisterServer2Response)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterServer2Response : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisterServer2Response()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -29950,9 +28546,7 @@ namespace Opc.Ua
 
     #region SecurityTokenRequestType Enumeration
     #if (!OPCUA_EXCLUDE_SecurityTokenRequestType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -29971,35 +28565,25 @@ namespace Opc.Ua
 
     #region ChannelSecurityToken Class
     #if (!OPCUA_EXCLUDE_ChannelSecurityToken)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ChannelSecurityToken : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ChannelSecurityToken()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_channelId = (uint)0;
@@ -30145,35 +28729,25 @@ namespace Opc.Ua
 
     #region OpenSecureChannelRequest Class
     #if (!OPCUA_EXCLUDE_OpenSecureChannelRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class OpenSecureChannelRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public OpenSecureChannelRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -30361,35 +28935,25 @@ namespace Opc.Ua
 
     #region OpenSecureChannelResponse Class
     #if (!OPCUA_EXCLUDE_OpenSecureChannelResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class OpenSecureChannelResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public OpenSecureChannelResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -30563,35 +29127,25 @@ namespace Opc.Ua
 
     #region CloseSecureChannelRequest Class
     #if (!OPCUA_EXCLUDE_CloseSecureChannelRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CloseSecureChannelRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CloseSecureChannelRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -30709,35 +29263,25 @@ namespace Opc.Ua
 
     #region CloseSecureChannelResponse Class
     #if (!OPCUA_EXCLUDE_CloseSecureChannelResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CloseSecureChannelResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CloseSecureChannelResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -30855,35 +29399,25 @@ namespace Opc.Ua
 
     #region SignedSoftwareCertificate Class
     #if (!OPCUA_EXCLUDE_SignedSoftwareCertificate)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SignedSoftwareCertificate : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SignedSoftwareCertificate()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_certificateData = null;
@@ -30998,9 +29532,7 @@ namespace Opc.Ua
     }
 
     #region SignedSoftwareCertificateCollection Class
-    /// <summary>
-    /// A collection of SignedSoftwareCertificate objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSignedSoftwareCertificate", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SignedSoftwareCertificate")]
@@ -31086,35 +29618,25 @@ namespace Opc.Ua
 
     #region SignatureData Class
     #if (!OPCUA_EXCLUDE_SignatureData)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SignatureData : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SignatureData()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_algorithm = null;
@@ -31232,35 +29754,25 @@ namespace Opc.Ua
 
     #region CreateSessionRequest Class
     #if (!OPCUA_EXCLUDE_CreateSessionRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateSessionRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CreateSessionRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -31504,35 +30016,25 @@ namespace Opc.Ua
 
     #region CreateSessionResponse Class
     #if (!OPCUA_EXCLUDE_CreateSessionResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateSessionResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CreateSessionResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -31818,35 +30320,25 @@ namespace Opc.Ua
 
     #region UserIdentityToken Class
     #if (!OPCUA_EXCLUDE_UserIdentityToken)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UserIdentityToken : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UserIdentityToken()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_policyId = null;
@@ -31950,35 +30442,25 @@ namespace Opc.Ua
 
     #region AnonymousIdentityToken Class
     #if (!OPCUA_EXCLUDE_AnonymousIdentityToken)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AnonymousIdentityToken : UserIdentityToken
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AnonymousIdentityToken()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
         }
@@ -32073,35 +30555,25 @@ namespace Opc.Ua
 
     #region UserNameIdentityToken Class
     #if (!OPCUA_EXCLUDE_UserNameIdentityToken)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UserNameIdentityToken : UserIdentityToken
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UserNameIdentityToken()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_userName = null;
@@ -32238,35 +30710,25 @@ namespace Opc.Ua
 
     #region X509IdentityToken Class
     #if (!OPCUA_EXCLUDE_X509IdentityToken)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class X509IdentityToken : UserIdentityToken
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public X509IdentityToken()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_certificateData = null;
@@ -32375,35 +30837,25 @@ namespace Opc.Ua
 
     #region IssuedIdentityToken Class
     #if (!OPCUA_EXCLUDE_IssuedIdentityToken)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class IssuedIdentityToken : UserIdentityToken
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public IssuedIdentityToken()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_tokenData = null;
@@ -32526,35 +30978,25 @@ namespace Opc.Ua
 
     #region ActivateSessionRequest Class
     #if (!OPCUA_EXCLUDE_ActivateSessionRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ActivateSessionRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ActivateSessionRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -32798,35 +31240,25 @@ namespace Opc.Ua
 
     #region ActivateSessionResponse Class
     #if (!OPCUA_EXCLUDE_ActivateSessionResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ActivateSessionResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ActivateSessionResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -33014,35 +31446,25 @@ namespace Opc.Ua
 
     #region CloseSessionRequest Class
     #if (!OPCUA_EXCLUDE_CloseSessionRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CloseSessionRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CloseSessionRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -33174,35 +31596,25 @@ namespace Opc.Ua
 
     #region CloseSessionResponse Class
     #if (!OPCUA_EXCLUDE_CloseSessionResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CloseSessionResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CloseSessionResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -33320,35 +31732,25 @@ namespace Opc.Ua
 
     #region CancelRequest Class
     #if (!OPCUA_EXCLUDE_CancelRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CancelRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CancelRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -33480,35 +31882,25 @@ namespace Opc.Ua
 
     #region CancelResponse Class
     #if (!OPCUA_EXCLUDE_CancelResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CancelResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CancelResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -33640,9 +32032,7 @@ namespace Opc.Ua
 
     #region NodeAttributesMask Enumeration
     #if (!OPCUA_EXCLUDE_NodeAttributesMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -33793,35 +32183,25 @@ namespace Opc.Ua
 
     #region NodeAttributes Class
     #if (!OPCUA_EXCLUDE_NodeAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NodeAttributes : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NodeAttributes()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_specifiedAttributes = (uint)0;
@@ -33981,35 +32361,25 @@ namespace Opc.Ua
 
     #region ObjectAttributes Class
     #if (!OPCUA_EXCLUDE_ObjectAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ObjectAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ObjectAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_eventNotifier = (byte)0;
@@ -34118,35 +32488,25 @@ namespace Opc.Ua
 
     #region VariableAttributes Class
     #if (!OPCUA_EXCLUDE_VariableAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class VariableAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public VariableAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_value = Variant.Null;
@@ -34367,35 +32727,25 @@ namespace Opc.Ua
 
     #region MethodAttributes Class
     #if (!OPCUA_EXCLUDE_MethodAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MethodAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MethodAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_executable = true;
@@ -34518,35 +32868,25 @@ namespace Opc.Ua
 
     #region ObjectTypeAttributes Class
     #if (!OPCUA_EXCLUDE_ObjectTypeAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ObjectTypeAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ObjectTypeAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isAbstract = true;
@@ -34655,35 +32995,25 @@ namespace Opc.Ua
 
     #region VariableTypeAttributes Class
     #if (!OPCUA_EXCLUDE_VariableTypeAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class VariableTypeAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public VariableTypeAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_value = Variant.Null;
@@ -34862,35 +33192,25 @@ namespace Opc.Ua
 
     #region ReferenceTypeAttributes Class
     #if (!OPCUA_EXCLUDE_ReferenceTypeAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceTypeAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReferenceTypeAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isAbstract = true;
@@ -35027,35 +33347,25 @@ namespace Opc.Ua
 
     #region DataTypeAttributes Class
     #if (!OPCUA_EXCLUDE_DataTypeAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataTypeAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isAbstract = true;
@@ -35164,35 +33474,25 @@ namespace Opc.Ua
 
     #region ViewAttributes Class
     #if (!OPCUA_EXCLUDE_ViewAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ViewAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ViewAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_containsNoLoops = true;
@@ -35315,35 +33615,25 @@ namespace Opc.Ua
 
     #region GenericAttributeValue Class
     #if (!OPCUA_EXCLUDE_GenericAttributeValue)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class GenericAttributeValue : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public GenericAttributeValue()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_attributeId = (uint)0;
@@ -35458,9 +33748,7 @@ namespace Opc.Ua
     }
 
     #region GenericAttributeValueCollection Class
-    /// <summary>
-    /// A collection of GenericAttributeValue objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfGenericAttributeValue", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "GenericAttributeValue")]
@@ -35546,35 +33834,25 @@ namespace Opc.Ua
 
     #region GenericAttributes Class
     #if (!OPCUA_EXCLUDE_GenericAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class GenericAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public GenericAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_attributeValues = new GenericAttributeValueCollection();
@@ -35697,35 +33975,25 @@ namespace Opc.Ua
 
     #region AddNodesItem Class
     #if (!OPCUA_EXCLUDE_AddNodesItem)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddNodesItem : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddNodesItem()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_parentNodeId = null;
@@ -35910,9 +34178,7 @@ namespace Opc.Ua
     }
 
     #region AddNodesItemCollection Class
-    /// <summary>
-    /// A collection of AddNodesItem objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfAddNodesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddNodesItem")]
@@ -35998,35 +34264,25 @@ namespace Opc.Ua
 
     #region AddNodesResult Class
     #if (!OPCUA_EXCLUDE_AddNodesResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddNodesResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddNodesResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -36141,9 +34397,7 @@ namespace Opc.Ua
     }
 
     #region AddNodesResultCollection Class
-    /// <summary>
-    /// A collection of AddNodesResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfAddNodesResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddNodesResult")]
@@ -36229,35 +34483,25 @@ namespace Opc.Ua
 
     #region AddNodesRequest Class
     #if (!OPCUA_EXCLUDE_AddNodesRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddNodesRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddNodesRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -36403,35 +34647,25 @@ namespace Opc.Ua
 
     #region AddNodesResponse Class
     #if (!OPCUA_EXCLUDE_AddNodesResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddNodesResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddNodesResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -36605,35 +34839,25 @@ namespace Opc.Ua
 
     #region AddReferencesItem Class
     #if (!OPCUA_EXCLUDE_AddReferencesItem)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddReferencesItem : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddReferencesItem()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_sourceNodeId = null;
@@ -36804,9 +35028,7 @@ namespace Opc.Ua
     }
 
     #region AddReferencesItemCollection Class
-    /// <summary>
-    /// A collection of AddReferencesItem objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfAddReferencesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddReferencesItem")]
@@ -36892,35 +35114,25 @@ namespace Opc.Ua
 
     #region AddReferencesRequest Class
     #if (!OPCUA_EXCLUDE_AddReferencesRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddReferencesRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddReferencesRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -37066,35 +35278,25 @@ namespace Opc.Ua
 
     #region AddReferencesResponse Class
     #if (!OPCUA_EXCLUDE_AddReferencesResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddReferencesResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddReferencesResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -37268,35 +35470,25 @@ namespace Opc.Ua
 
     #region DeleteNodesItem Class
     #if (!OPCUA_EXCLUDE_DeleteNodesItem)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteNodesItem : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteNodesItem()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -37411,9 +35603,7 @@ namespace Opc.Ua
     }
 
     #region DeleteNodesItemCollection Class
-    /// <summary>
-    /// A collection of DeleteNodesItem objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDeleteNodesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DeleteNodesItem")]
@@ -37499,35 +35689,25 @@ namespace Opc.Ua
 
     #region DeleteNodesRequest Class
     #if (!OPCUA_EXCLUDE_DeleteNodesRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteNodesRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteNodesRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -37673,35 +35853,25 @@ namespace Opc.Ua
 
     #region DeleteNodesResponse Class
     #if (!OPCUA_EXCLUDE_DeleteNodesResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteNodesResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteNodesResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -37875,35 +36045,25 @@ namespace Opc.Ua
 
     #region DeleteReferencesItem Class
     #if (!OPCUA_EXCLUDE_DeleteReferencesItem)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteReferencesItem : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteReferencesItem()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_sourceNodeId = null;
@@ -38060,9 +36220,7 @@ namespace Opc.Ua
     }
 
     #region DeleteReferencesItemCollection Class
-    /// <summary>
-    /// A collection of DeleteReferencesItem objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDeleteReferencesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DeleteReferencesItem")]
@@ -38148,35 +36306,25 @@ namespace Opc.Ua
 
     #region DeleteReferencesRequest Class
     #if (!OPCUA_EXCLUDE_DeleteReferencesRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteReferencesRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteReferencesRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -38322,35 +36470,25 @@ namespace Opc.Ua
 
     #region DeleteReferencesResponse Class
     #if (!OPCUA_EXCLUDE_DeleteReferencesResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteReferencesResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteReferencesResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -38524,9 +36662,7 @@ namespace Opc.Ua
 
     #region AttributeWriteMask Enumeration
     #if (!OPCUA_EXCLUDE_AttributeWriteMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -38645,9 +36781,7 @@ namespace Opc.Ua
 
     #region BrowseDirection Enumeration
     #if (!OPCUA_EXCLUDE_BrowseDirection)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -38674,35 +36808,25 @@ namespace Opc.Ua
 
     #region ViewDescription Class
     #if (!OPCUA_EXCLUDE_ViewDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ViewDescription : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ViewDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_viewId = null;
@@ -38834,35 +36958,25 @@ namespace Opc.Ua
 
     #region BrowseDescription Class
     #if (!OPCUA_EXCLUDE_BrowseDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseDescription : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowseDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -39033,9 +37147,7 @@ namespace Opc.Ua
     }
 
     #region BrowseDescriptionCollection Class
-    /// <summary>
-    /// A collection of BrowseDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowseDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowseDescription")]
@@ -39121,9 +37233,7 @@ namespace Opc.Ua
 
     #region BrowseResultMask Enumeration
     #if (!OPCUA_EXCLUDE_BrowseResultMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -39174,35 +37284,25 @@ namespace Opc.Ua
 
     #region ReferenceDescription Class
     #if (!OPCUA_EXCLUDE_ReferenceDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceDescription : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReferenceDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_referenceTypeId = null;
@@ -39387,9 +37487,7 @@ namespace Opc.Ua
     }
 
     #region ReferenceDescriptionCollection Class
-    /// <summary>
-    /// A collection of ReferenceDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReferenceDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceDescription")]
@@ -39475,35 +37573,25 @@ namespace Opc.Ua
 
     #region BrowseResult Class
     #if (!OPCUA_EXCLUDE_BrowseResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowseResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -39646,9 +37734,7 @@ namespace Opc.Ua
     }
 
     #region BrowseResultCollection Class
-    /// <summary>
-    /// A collection of BrowseResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowseResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowseResult")]
@@ -39734,35 +37820,25 @@ namespace Opc.Ua
 
     #region BrowseRequest Class
     #if (!OPCUA_EXCLUDE_BrowseRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowseRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -39950,35 +38026,25 @@ namespace Opc.Ua
 
     #region BrowseResponse Class
     #if (!OPCUA_EXCLUDE_BrowseResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowseResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -40152,35 +38218,25 @@ namespace Opc.Ua
 
     #region BrowseNextRequest Class
     #if (!OPCUA_EXCLUDE_BrowseNextRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseNextRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowseNextRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -40340,35 +38396,25 @@ namespace Opc.Ua
 
     #region BrowseNextResponse Class
     #if (!OPCUA_EXCLUDE_BrowseNextResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseNextResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowseNextResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -40542,35 +38588,25 @@ namespace Opc.Ua
 
     #region RelativePathElement Class
     #if (!OPCUA_EXCLUDE_RelativePathElement)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RelativePathElement : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RelativePathElement()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_referenceTypeId = null;
@@ -40713,9 +38749,7 @@ namespace Opc.Ua
     }
 
     #region RelativePathElementCollection Class
-    /// <summary>
-    /// A collection of RelativePathElement objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRelativePathElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RelativePathElement")]
@@ -40801,35 +38835,25 @@ namespace Opc.Ua
 
     #region RelativePath Class
     #if (!OPCUA_EXCLUDE_RelativePath)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RelativePath : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RelativePath()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_elements = new RelativePathElementCollection();
@@ -40947,35 +38971,25 @@ namespace Opc.Ua
 
     #region BrowsePath Class
     #if (!OPCUA_EXCLUDE_BrowsePath)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowsePath : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowsePath()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_startingNode = null;
@@ -41104,9 +39118,7 @@ namespace Opc.Ua
     }
 
     #region BrowsePathCollection Class
-    /// <summary>
-    /// A collection of BrowsePath objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowsePath", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePath")]
@@ -41192,35 +39204,25 @@ namespace Opc.Ua
 
     #region BrowsePathTarget Class
     #if (!OPCUA_EXCLUDE_BrowsePathTarget)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowsePathTarget : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowsePathTarget()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_targetId = null;
@@ -41335,9 +39337,7 @@ namespace Opc.Ua
     }
 
     #region BrowsePathTargetCollection Class
-    /// <summary>
-    /// A collection of BrowsePathTarget objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowsePathTarget", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePathTarget")]
@@ -41423,35 +39423,25 @@ namespace Opc.Ua
 
     #region BrowsePathResult Class
     #if (!OPCUA_EXCLUDE_BrowsePathResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowsePathResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowsePathResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -41580,9 +39570,7 @@ namespace Opc.Ua
     }
 
     #region BrowsePathResultCollection Class
-    /// <summary>
-    /// A collection of BrowsePathResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowsePathResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePathResult")]
@@ -41668,35 +39656,25 @@ namespace Opc.Ua
 
     #region TranslateBrowsePathsToNodeIdsRequest Class
     #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIdsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TranslateBrowsePathsToNodeIdsRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TranslateBrowsePathsToNodeIdsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -41842,35 +39820,25 @@ namespace Opc.Ua
 
     #region TranslateBrowsePathsToNodeIdsResponse Class
     #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIdsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TranslateBrowsePathsToNodeIdsResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TranslateBrowsePathsToNodeIdsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -42044,35 +40012,25 @@ namespace Opc.Ua
 
     #region RegisterNodesRequest Class
     #if (!OPCUA_EXCLUDE_RegisterNodesRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterNodesRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisterNodesRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -42218,35 +40176,25 @@ namespace Opc.Ua
 
     #region RegisterNodesResponse Class
     #if (!OPCUA_EXCLUDE_RegisterNodesResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterNodesResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisterNodesResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -42392,35 +40340,25 @@ namespace Opc.Ua
 
     #region UnregisterNodesRequest Class
     #if (!OPCUA_EXCLUDE_UnregisterNodesRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UnregisterNodesRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UnregisterNodesRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -42566,35 +40504,25 @@ namespace Opc.Ua
 
     #region UnregisterNodesResponse Class
     #if (!OPCUA_EXCLUDE_UnregisterNodesResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UnregisterNodesResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UnregisterNodesResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -42712,35 +40640,25 @@ namespace Opc.Ua
 
     #region EndpointConfiguration Class
     #if (!OPCUA_EXCLUDE_EndpointConfiguration)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointConfiguration : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EndpointConfiguration()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_operationTimeout = (int)0;
@@ -42953,9 +40871,7 @@ namespace Opc.Ua
     }
 
     #region EndpointConfigurationCollection Class
-    /// <summary>
-    /// A collection of EndpointConfiguration objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEndpointConfiguration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointConfiguration")]
@@ -43041,35 +40957,25 @@ namespace Opc.Ua
 
     #region QueryDataDescription Class
     #if (!OPCUA_EXCLUDE_QueryDataDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryDataDescription : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public QueryDataDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_relativePath = new RelativePath();
@@ -43212,9 +41118,7 @@ namespace Opc.Ua
     }
 
     #region QueryDataDescriptionCollection Class
-    /// <summary>
-    /// A collection of QueryDataDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfQueryDataDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QueryDataDescription")]
@@ -43300,35 +41204,25 @@ namespace Opc.Ua
 
     #region NodeTypeDescription Class
     #if (!OPCUA_EXCLUDE_NodeTypeDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NodeTypeDescription : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NodeTypeDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_typeDefinitionNode = null;
@@ -43471,9 +41365,7 @@ namespace Opc.Ua
     }
 
     #region NodeTypeDescriptionCollection Class
-    /// <summary>
-    /// A collection of NodeTypeDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNodeTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NodeTypeDescription")]
@@ -43559,9 +41451,7 @@ namespace Opc.Ua
 
     #region FilterOperator Enumeration
     #if (!OPCUA_EXCLUDE_FilterOperator)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -43644,35 +41534,25 @@ namespace Opc.Ua
 
     #region QueryDataSet Class
     #if (!OPCUA_EXCLUDE_QueryDataSet)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryDataSet : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public QueryDataSet()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -43815,9 +41695,7 @@ namespace Opc.Ua
     }
 
     #region QueryDataSetCollection Class
-    /// <summary>
-    /// A collection of QueryDataSet objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfQueryDataSet", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QueryDataSet")]
@@ -43903,35 +41781,25 @@ namespace Opc.Ua
 
     #region NodeReference Class
     #if (!OPCUA_EXCLUDE_NodeReference)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NodeReference : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NodeReference()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -44088,9 +41956,7 @@ namespace Opc.Ua
     }
 
     #region NodeReferenceCollection Class
-    /// <summary>
-    /// A collection of NodeReference objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNodeReference", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NodeReference")]
@@ -44176,35 +42042,25 @@ namespace Opc.Ua
 
     #region ContentFilterElement Class
     #if (!OPCUA_EXCLUDE_ContentFilterElement)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ContentFilterElement : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ContentFilterElement()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_filterOperator = FilterOperator.Equals;
@@ -44333,9 +42189,7 @@ namespace Opc.Ua
     }
 
     #region ContentFilterElementCollection Class
-    /// <summary>
-    /// A collection of ContentFilterElement objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfContentFilterElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilterElement")]
@@ -44421,35 +42275,25 @@ namespace Opc.Ua
 
     #region ContentFilter Class
     #if (!OPCUA_EXCLUDE_ContentFilter)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ContentFilter : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ContentFilter()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_elements = new ContentFilterElementCollection();
@@ -44564,9 +42408,7 @@ namespace Opc.Ua
     }
 
     #region ContentFilterCollection Class
-    /// <summary>
-    /// A collection of ContentFilter objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfContentFilter", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilter")]
@@ -44652,35 +42494,25 @@ namespace Opc.Ua
 
     #region FilterOperand Class
     #if (!OPCUA_EXCLUDE_FilterOperand)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FilterOperand : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FilterOperand()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -44771,35 +42603,25 @@ namespace Opc.Ua
 
     #region ElementOperand Class
     #if (!OPCUA_EXCLUDE_ElementOperand)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ElementOperand : FilterOperand
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ElementOperand()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_index = (uint)0;
@@ -44908,35 +42730,25 @@ namespace Opc.Ua
 
     #region LiteralOperand Class
     #if (!OPCUA_EXCLUDE_LiteralOperand)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class LiteralOperand : FilterOperand
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public LiteralOperand()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_value = Variant.Null;
@@ -45045,35 +42857,25 @@ namespace Opc.Ua
 
     #region AttributeOperand Class
     #if (!OPCUA_EXCLUDE_AttributeOperand)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AttributeOperand : FilterOperand
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AttributeOperand()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_nodeId = null;
@@ -45252,35 +43054,25 @@ namespace Opc.Ua
 
     #region SimpleAttributeOperand Class
     #if (!OPCUA_EXCLUDE_SimpleAttributeOperand)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SimpleAttributeOperand : FilterOperand
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SimpleAttributeOperand()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_typeDefinitionId = null;
@@ -45442,9 +43234,7 @@ namespace Opc.Ua
     }
 
     #region SimpleAttributeOperandCollection Class
-    /// <summary>
-    /// A collection of SimpleAttributeOperand objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSimpleAttributeOperand", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SimpleAttributeOperand")]
@@ -45530,35 +43320,25 @@ namespace Opc.Ua
 
     #region ContentFilterElementResult Class
     #if (!OPCUA_EXCLUDE_ContentFilterElementResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ContentFilterElementResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ContentFilterElementResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -45715,9 +43495,7 @@ namespace Opc.Ua
     }
 
     #region ContentFilterElementResultCollection Class
-    /// <summary>
-    /// A collection of ContentFilterElementResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfContentFilterElementResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilterElementResult")]
@@ -45803,35 +43581,25 @@ namespace Opc.Ua
 
     #region ContentFilterResult Class
     #if (!OPCUA_EXCLUDE_ContentFilterResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ContentFilterResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ContentFilterResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_elementResults = new ContentFilterElementResultCollection();
@@ -45977,35 +43745,25 @@ namespace Opc.Ua
 
     #region ParsingResult Class
     #if (!OPCUA_EXCLUDE_ParsingResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ParsingResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ParsingResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -46162,9 +43920,7 @@ namespace Opc.Ua
     }
 
     #region ParsingResultCollection Class
-    /// <summary>
-    /// A collection of ParsingResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfParsingResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ParsingResult")]
@@ -46250,35 +44006,25 @@ namespace Opc.Ua
 
     #region QueryFirstRequest Class
     #if (!OPCUA_EXCLUDE_QueryFirstRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryFirstRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public QueryFirstRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -46508,35 +44254,25 @@ namespace Opc.Ua
 
     #region QueryFirstResponse Class
     #if (!OPCUA_EXCLUDE_QueryFirstResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryFirstResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public QueryFirstResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -46780,35 +44516,25 @@ namespace Opc.Ua
 
     #region QueryNextRequest Class
     #if (!OPCUA_EXCLUDE_QueryNextRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryNextRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public QueryNextRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -46954,35 +44680,25 @@ namespace Opc.Ua
 
     #region QueryNextResponse Class
     #if (!OPCUA_EXCLUDE_QueryNextResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryNextResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public QueryNextResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -47142,9 +44858,7 @@ namespace Opc.Ua
 
     #region TimestampsToReturn Enumeration
     #if (!OPCUA_EXCLUDE_TimestampsToReturn)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -47175,35 +44889,25 @@ namespace Opc.Ua
 
     #region ReadValueId Class
     #if (!OPCUA_EXCLUDE_ReadValueId)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadValueId : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadValueId()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -47346,9 +45050,7 @@ namespace Opc.Ua
     }
 
     #region ReadValueIdCollection Class
-    /// <summary>
-    /// A collection of ReadValueId objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReadValueId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReadValueId")]
@@ -47434,35 +45136,25 @@ namespace Opc.Ua
 
     #region ReadRequest Class
     #if (!OPCUA_EXCLUDE_ReadRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -47636,35 +45328,25 @@ namespace Opc.Ua
 
     #region ReadResponse Class
     #if (!OPCUA_EXCLUDE_ReadResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -47838,35 +45520,25 @@ namespace Opc.Ua
 
     #region HistoryReadValueId Class
     #if (!OPCUA_EXCLUDE_HistoryReadValueId)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadValueId : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryReadValueId()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -48009,9 +45681,7 @@ namespace Opc.Ua
     }
 
     #region HistoryReadValueIdCollection Class
-    /// <summary>
-    /// A collection of HistoryReadValueId objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfHistoryReadValueId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryReadValueId")]
@@ -48097,35 +45767,25 @@ namespace Opc.Ua
 
     #region HistoryReadResult Class
     #if (!OPCUA_EXCLUDE_HistoryReadResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryReadResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -48254,9 +45914,7 @@ namespace Opc.Ua
     }
 
     #region HistoryReadResultCollection Class
-    /// <summary>
-    /// A collection of HistoryReadResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfHistoryReadResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryReadResult")]
@@ -48342,35 +46000,25 @@ namespace Opc.Ua
 
     #region HistoryReadDetails Class
     #if (!OPCUA_EXCLUDE_HistoryReadDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadDetails : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryReadDetails()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -48461,35 +46109,25 @@ namespace Opc.Ua
 
     #region ReadEventDetails Class
     #if (!OPCUA_EXCLUDE_ReadEventDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadEventDetails : HistoryReadDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadEventDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_numValuesPerNode = (uint)0;
@@ -48654,35 +46292,25 @@ namespace Opc.Ua
 
     #region ReadRawModifiedDetails Class
     #if (!OPCUA_EXCLUDE_ReadRawModifiedDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadRawModifiedDetails : HistoryReadDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadRawModifiedDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isReadModified = true;
@@ -48847,35 +46475,25 @@ namespace Opc.Ua
 
     #region ReadProcessedDetails Class
     #if (!OPCUA_EXCLUDE_ReadProcessedDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadProcessedDetails : HistoryReadDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadProcessedDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_startTime = DateTime.MinValue;
@@ -49068,35 +46686,25 @@ namespace Opc.Ua
 
     #region ReadAtTimeDetails Class
     #if (!OPCUA_EXCLUDE_ReadAtTimeDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadAtTimeDetails : HistoryReadDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadAtTimeDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_reqTimes = new DateTimeCollection();
@@ -49233,35 +46841,25 @@ namespace Opc.Ua
 
     #region ReadAnnotationDataDetails Class
     #if (!OPCUA_EXCLUDE_ReadAnnotationDataDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadAnnotationDataDetails : HistoryReadDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadAnnotationDataDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_reqTimes = new DateTimeCollection();
@@ -49384,35 +46982,25 @@ namespace Opc.Ua
 
     #region HistoryData Class
     #if (!OPCUA_EXCLUDE_HistoryData)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryData : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryData()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_dataValues = new DataValueCollection();
@@ -49530,35 +47118,25 @@ namespace Opc.Ua
 
     #region ModificationInfo Class
     #if (!OPCUA_EXCLUDE_ModificationInfo)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModificationInfo : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ModificationInfo()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_modificationTime = DateTime.MinValue;
@@ -49687,9 +47265,7 @@ namespace Opc.Ua
     }
 
     #region ModificationInfoCollection Class
-    /// <summary>
-    /// A collection of ModificationInfo objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfModificationInfo", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ModificationInfo")]
@@ -49775,35 +47351,25 @@ namespace Opc.Ua
 
     #region HistoryModifiedData Class
     #if (!OPCUA_EXCLUDE_HistoryModifiedData)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryModifiedData : HistoryData
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryModifiedData()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_modificationInfos = new ModificationInfoCollection();
@@ -49926,35 +47492,25 @@ namespace Opc.Ua
 
     #region HistoryEvent Class
     #if (!OPCUA_EXCLUDE_HistoryEvent)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryEvent : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryEvent()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_events = new HistoryEventFieldListCollection();
@@ -50072,35 +47628,25 @@ namespace Opc.Ua
 
     #region HistoryReadRequest Class
     #if (!OPCUA_EXCLUDE_HistoryReadRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryReadRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -50288,35 +47834,25 @@ namespace Opc.Ua
 
     #region HistoryReadResponse Class
     #if (!OPCUA_EXCLUDE_HistoryReadResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryReadResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -50490,35 +48026,25 @@ namespace Opc.Ua
 
     #region WriteValue Class
     #if (!OPCUA_EXCLUDE_WriteValue)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriteValue : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public WriteValue()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -50661,9 +48187,7 @@ namespace Opc.Ua
     }
 
     #region WriteValueCollection Class
-    /// <summary>
-    /// A collection of WriteValue objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWriteValue", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriteValue")]
@@ -50749,35 +48273,25 @@ namespace Opc.Ua
 
     #region WriteRequest Class
     #if (!OPCUA_EXCLUDE_WriteRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriteRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public WriteRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -50923,35 +48437,25 @@ namespace Opc.Ua
 
     #region WriteResponse Class
     #if (!OPCUA_EXCLUDE_WriteResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriteResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public WriteResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -51125,35 +48629,25 @@ namespace Opc.Ua
 
     #region HistoryUpdateDetails Class
     #if (!OPCUA_EXCLUDE_HistoryUpdateDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryUpdateDetails : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryUpdateDetails()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -51257,9 +48751,7 @@ namespace Opc.Ua
 
     #region HistoryUpdateType Enumeration
     #if (!OPCUA_EXCLUDE_HistoryUpdateType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -51286,9 +48778,7 @@ namespace Opc.Ua
 
     #region PerformUpdateType Enumeration
     #if (!OPCUA_EXCLUDE_PerformUpdateType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -51315,35 +48805,25 @@ namespace Opc.Ua
 
     #region UpdateDataDetails Class
     #if (!OPCUA_EXCLUDE_UpdateDataDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UpdateDataDetails : HistoryUpdateDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UpdateDataDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_performInsertReplace = PerformUpdateType.Insert;
@@ -51480,35 +48960,25 @@ namespace Opc.Ua
 
     #region UpdateStructureDataDetails Class
     #if (!OPCUA_EXCLUDE_UpdateStructureDataDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UpdateStructureDataDetails : HistoryUpdateDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UpdateStructureDataDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_performInsertReplace = PerformUpdateType.Insert;
@@ -51645,35 +49115,25 @@ namespace Opc.Ua
 
     #region UpdateEventDetails Class
     #if (!OPCUA_EXCLUDE_UpdateEventDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UpdateEventDetails : HistoryUpdateDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UpdateEventDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_performInsertReplace = PerformUpdateType.Insert;
@@ -51838,35 +49298,25 @@ namespace Opc.Ua
 
     #region DeleteRawModifiedDetails Class
     #if (!OPCUA_EXCLUDE_DeleteRawModifiedDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteRawModifiedDetails : HistoryUpdateDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteRawModifiedDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isDeleteModified = true;
@@ -52003,35 +49453,25 @@ namespace Opc.Ua
 
     #region DeleteAtTimeDetails Class
     #if (!OPCUA_EXCLUDE_DeleteAtTimeDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteAtTimeDetails : HistoryUpdateDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteAtTimeDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_reqTimes = new DateTimeCollection();
@@ -52154,35 +49594,25 @@ namespace Opc.Ua
 
     #region DeleteEventDetails Class
     #if (!OPCUA_EXCLUDE_DeleteEventDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteEventDetails : HistoryUpdateDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteEventDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_eventIds = new ByteStringCollection();
@@ -52305,35 +49735,25 @@ namespace Opc.Ua
 
     #region HistoryUpdateResult Class
     #if (!OPCUA_EXCLUDE_HistoryUpdateResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryUpdateResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryUpdateResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -52490,9 +49910,7 @@ namespace Opc.Ua
     }
 
     #region HistoryUpdateResultCollection Class
-    /// <summary>
-    /// A collection of HistoryUpdateResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfHistoryUpdateResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryUpdateResult")]
@@ -52578,35 +49996,25 @@ namespace Opc.Ua
 
     #region HistoryUpdateRequest Class
     #if (!OPCUA_EXCLUDE_HistoryUpdateRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryUpdateRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryUpdateRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -52752,35 +50160,25 @@ namespace Opc.Ua
 
     #region HistoryUpdateResponse Class
     #if (!OPCUA_EXCLUDE_HistoryUpdateResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryUpdateResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryUpdateResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -52954,35 +50352,25 @@ namespace Opc.Ua
 
     #region CallMethodRequest Class
     #if (!OPCUA_EXCLUDE_CallMethodRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CallMethodRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CallMethodRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_objectId = null;
@@ -53125,9 +50513,7 @@ namespace Opc.Ua
     }
 
     #region CallMethodRequestCollection Class
-    /// <summary>
-    /// A collection of CallMethodRequest objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCallMethodRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CallMethodRequest")]
@@ -53213,35 +50599,25 @@ namespace Opc.Ua
 
     #region CallMethodResult Class
     #if (!OPCUA_EXCLUDE_CallMethodResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CallMethodResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CallMethodResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -53426,9 +50802,7 @@ namespace Opc.Ua
     }
 
     #region CallMethodResultCollection Class
-    /// <summary>
-    /// A collection of CallMethodResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCallMethodResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CallMethodResult")]
@@ -53514,35 +50888,25 @@ namespace Opc.Ua
 
     #region CallRequest Class
     #if (!OPCUA_EXCLUDE_CallRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CallRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CallRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -53688,35 +51052,25 @@ namespace Opc.Ua
 
     #region CallResponse Class
     #if (!OPCUA_EXCLUDE_CallResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CallResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CallResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -53890,9 +51244,7 @@ namespace Opc.Ua
 
     #region MonitoringMode Enumeration
     #if (!OPCUA_EXCLUDE_MonitoringMode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -53915,9 +51267,7 @@ namespace Opc.Ua
 
     #region DataChangeTrigger Enumeration
     #if (!OPCUA_EXCLUDE_DataChangeTrigger)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -53940,9 +51290,7 @@ namespace Opc.Ua
 
     #region DeadbandType Enumeration
     #if (!OPCUA_EXCLUDE_DeadbandType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -53965,35 +51313,25 @@ namespace Opc.Ua
 
     #region MonitoringFilter Class
     #if (!OPCUA_EXCLUDE_MonitoringFilter)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoringFilter : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoringFilter()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -54084,35 +51422,25 @@ namespace Opc.Ua
 
     #region DataChangeFilter Class
     #if (!OPCUA_EXCLUDE_DataChangeFilter)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataChangeFilter : MonitoringFilter
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataChangeFilter()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_trigger = DataChangeTrigger.Status;
@@ -54249,35 +51577,25 @@ namespace Opc.Ua
 
     #region EventFilter Class
     #if (!OPCUA_EXCLUDE_EventFilter)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EventFilter : MonitoringFilter
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EventFilter()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_selectClauses = new SimpleAttributeOperandCollection();
@@ -54428,35 +51746,25 @@ namespace Opc.Ua
 
     #region AggregateConfiguration Class
     #if (!OPCUA_EXCLUDE_AggregateConfiguration)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AggregateConfiguration : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AggregateConfiguration()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_useServerCapabilitiesDefaults = true;
@@ -54616,35 +51924,25 @@ namespace Opc.Ua
 
     #region AggregateFilter Class
     #if (!OPCUA_EXCLUDE_AggregateFilter)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AggregateFilter : MonitoringFilter
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AggregateFilter()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_startTime = DateTime.MinValue;
@@ -54809,35 +52107,25 @@ namespace Opc.Ua
 
     #region MonitoringFilterResult Class
     #if (!OPCUA_EXCLUDE_MonitoringFilterResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoringFilterResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoringFilterResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -54928,35 +52216,25 @@ namespace Opc.Ua
 
     #region EventFilterResult Class
     #if (!OPCUA_EXCLUDE_EventFilterResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EventFilterResult : MonitoringFilterResult
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EventFilterResult()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_selectClauseResults = new StatusCodeCollection();
@@ -55135,35 +52413,25 @@ namespace Opc.Ua
 
     #region AggregateFilterResult Class
     #if (!OPCUA_EXCLUDE_AggregateFilterResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AggregateFilterResult : MonitoringFilterResult
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AggregateFilterResult()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_revisedStartTime = DateTime.MinValue;
@@ -55314,35 +52582,25 @@ namespace Opc.Ua
 
     #region MonitoringParameters Class
     #if (!OPCUA_EXCLUDE_MonitoringParameters)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoringParameters : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoringParameters()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_clientHandle = (uint)0;
@@ -55502,35 +52760,25 @@ namespace Opc.Ua
 
     #region MonitoredItemCreateRequest Class
     #if (!OPCUA_EXCLUDE_MonitoredItemCreateRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemCreateRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemCreateRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_itemToMonitor = new ReadValueId();
@@ -55687,9 +52935,7 @@ namespace Opc.Ua
     }
 
     #region MonitoredItemCreateRequestCollection Class
-    /// <summary>
-    /// A collection of MonitoredItemCreateRequest objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemCreateRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemCreateRequest")]
@@ -55775,35 +53021,25 @@ namespace Opc.Ua
 
     #region MonitoredItemCreateResult Class
     #if (!OPCUA_EXCLUDE_MonitoredItemCreateResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemCreateResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemCreateResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -55960,9 +53196,7 @@ namespace Opc.Ua
     }
 
     #region MonitoredItemCreateResultCollection Class
-    /// <summary>
-    /// A collection of MonitoredItemCreateResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemCreateResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemCreateResult")]
@@ -56048,35 +53282,25 @@ namespace Opc.Ua
 
     #region CreateMonitoredItemsRequest Class
     #if (!OPCUA_EXCLUDE_CreateMonitoredItemsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateMonitoredItemsRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CreateMonitoredItemsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -56250,35 +53474,25 @@ namespace Opc.Ua
 
     #region CreateMonitoredItemsResponse Class
     #if (!OPCUA_EXCLUDE_CreateMonitoredItemsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateMonitoredItemsResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CreateMonitoredItemsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -56452,35 +53666,25 @@ namespace Opc.Ua
 
     #region MonitoredItemModifyRequest Class
     #if (!OPCUA_EXCLUDE_MonitoredItemModifyRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemModifyRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemModifyRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_monitoredItemId = (uint)0;
@@ -56609,9 +53813,7 @@ namespace Opc.Ua
     }
 
     #region MonitoredItemModifyRequestCollection Class
-    /// <summary>
-    /// A collection of MonitoredItemModifyRequest objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemModifyRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemModifyRequest")]
@@ -56697,35 +53899,25 @@ namespace Opc.Ua
 
     #region MonitoredItemModifyResult Class
     #if (!OPCUA_EXCLUDE_MonitoredItemModifyResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemModifyResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemModifyResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -56868,9 +54060,7 @@ namespace Opc.Ua
     }
 
     #region MonitoredItemModifyResultCollection Class
-    /// <summary>
-    /// A collection of MonitoredItemModifyResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemModifyResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemModifyResult")]
@@ -56956,35 +54146,25 @@ namespace Opc.Ua
 
     #region ModifyMonitoredItemsRequest Class
     #if (!OPCUA_EXCLUDE_ModifyMonitoredItemsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModifyMonitoredItemsRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ModifyMonitoredItemsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -57158,35 +54338,25 @@ namespace Opc.Ua
 
     #region ModifyMonitoredItemsResponse Class
     #if (!OPCUA_EXCLUDE_ModifyMonitoredItemsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModifyMonitoredItemsResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ModifyMonitoredItemsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -57360,35 +54530,25 @@ namespace Opc.Ua
 
     #region SetMonitoringModeRequest Class
     #if (!OPCUA_EXCLUDE_SetMonitoringModeRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetMonitoringModeRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SetMonitoringModeRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -57562,35 +54722,25 @@ namespace Opc.Ua
 
     #region SetMonitoringModeResponse Class
     #if (!OPCUA_EXCLUDE_SetMonitoringModeResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetMonitoringModeResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SetMonitoringModeResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -57764,35 +54914,25 @@ namespace Opc.Ua
 
     #region SetTriggeringRequest Class
     #if (!OPCUA_EXCLUDE_SetTriggeringRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetTriggeringRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SetTriggeringRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -57994,35 +55134,25 @@ namespace Opc.Ua
 
     #region SetTriggeringResponse Class
     #if (!OPCUA_EXCLUDE_SetTriggeringResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetTriggeringResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SetTriggeringResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -58252,35 +55382,25 @@ namespace Opc.Ua
 
     #region DeleteMonitoredItemsRequest Class
     #if (!OPCUA_EXCLUDE_DeleteMonitoredItemsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteMonitoredItemsRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteMonitoredItemsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -58440,35 +55560,25 @@ namespace Opc.Ua
 
     #region DeleteMonitoredItemsResponse Class
     #if (!OPCUA_EXCLUDE_DeleteMonitoredItemsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteMonitoredItemsResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteMonitoredItemsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -58642,35 +55752,25 @@ namespace Opc.Ua
 
     #region CreateSubscriptionRequest Class
     #if (!OPCUA_EXCLUDE_CreateSubscriptionRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateSubscriptionRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CreateSubscriptionRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -58872,35 +55972,25 @@ namespace Opc.Ua
 
     #region CreateSubscriptionResponse Class
     #if (!OPCUA_EXCLUDE_CreateSubscriptionResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateSubscriptionResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CreateSubscriptionResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -59074,35 +56164,25 @@ namespace Opc.Ua
 
     #region ModifySubscriptionRequest Class
     #if (!OPCUA_EXCLUDE_ModifySubscriptionRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModifySubscriptionRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ModifySubscriptionRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -59304,35 +56384,25 @@ namespace Opc.Ua
 
     #region ModifySubscriptionResponse Class
     #if (!OPCUA_EXCLUDE_ModifySubscriptionResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModifySubscriptionResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ModifySubscriptionResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -59492,35 +56562,25 @@ namespace Opc.Ua
 
     #region SetPublishingModeRequest Class
     #if (!OPCUA_EXCLUDE_SetPublishingModeRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetPublishingModeRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SetPublishingModeRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -59680,35 +56740,25 @@ namespace Opc.Ua
 
     #region SetPublishingModeResponse Class
     #if (!OPCUA_EXCLUDE_SetPublishingModeResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetPublishingModeResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SetPublishingModeResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -59882,35 +56932,25 @@ namespace Opc.Ua
 
     #region NotificationMessage Class
     #if (!OPCUA_EXCLUDE_NotificationMessage)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NotificationMessage : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NotificationMessage()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_sequenceNumber = (uint)0;
@@ -60056,35 +57096,25 @@ namespace Opc.Ua
 
     #region NotificationData Class
     #if (!OPCUA_EXCLUDE_NotificationData)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NotificationData : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NotificationData()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -60175,35 +57205,25 @@ namespace Opc.Ua
 
     #region DataChangeNotification Class
     #if (!OPCUA_EXCLUDE_DataChangeNotification)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataChangeNotification : NotificationData
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataChangeNotification()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_monitoredItems = new MonitoredItemNotificationCollection();
@@ -60354,35 +57374,25 @@ namespace Opc.Ua
 
     #region MonitoredItemNotification Class
     #if (!OPCUA_EXCLUDE_MonitoredItemNotification)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemNotification : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemNotification()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_clientHandle = (uint)0;
@@ -60497,9 +57507,7 @@ namespace Opc.Ua
     }
 
     #region MonitoredItemNotificationCollection Class
-    /// <summary>
-    /// A collection of MonitoredItemNotification objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemNotification", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemNotification")]
@@ -60585,35 +57593,25 @@ namespace Opc.Ua
 
     #region EventNotificationList Class
     #if (!OPCUA_EXCLUDE_EventNotificationList)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EventNotificationList : NotificationData
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EventNotificationList()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_events = new EventFieldListCollection();
@@ -60736,35 +57734,25 @@ namespace Opc.Ua
 
     #region EventFieldList Class
     #if (!OPCUA_EXCLUDE_EventFieldList)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EventFieldList : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EventFieldList()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_clientHandle = (uint)0;
@@ -60893,9 +57881,7 @@ namespace Opc.Ua
     }
 
     #region EventFieldListCollection Class
-    /// <summary>
-    /// A collection of EventFieldList objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEventFieldList", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EventFieldList")]
@@ -60981,35 +57967,25 @@ namespace Opc.Ua
 
     #region HistoryEventFieldList Class
     #if (!OPCUA_EXCLUDE_HistoryEventFieldList)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryEventFieldList : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryEventFieldList()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_eventFields = new VariantCollection();
@@ -61124,9 +58100,7 @@ namespace Opc.Ua
     }
 
     #region HistoryEventFieldListCollection Class
-    /// <summary>
-    /// A collection of HistoryEventFieldList objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfHistoryEventFieldList", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryEventFieldList")]
@@ -61212,35 +58186,25 @@ namespace Opc.Ua
 
     #region StatusChangeNotification Class
     #if (!OPCUA_EXCLUDE_StatusChangeNotification)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StatusChangeNotification : NotificationData
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public StatusChangeNotification()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_status = StatusCodes.Good;
@@ -61363,35 +58327,25 @@ namespace Opc.Ua
 
     #region SubscriptionAcknowledgement Class
     #if (!OPCUA_EXCLUDE_SubscriptionAcknowledgement)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SubscriptionAcknowledgement : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SubscriptionAcknowledgement()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_subscriptionId = (uint)0;
@@ -61506,9 +58460,7 @@ namespace Opc.Ua
     }
 
     #region SubscriptionAcknowledgementCollection Class
-    /// <summary>
-    /// A collection of SubscriptionAcknowledgement objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSubscriptionAcknowledgement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscriptionAcknowledgement")]
@@ -61594,35 +58546,25 @@ namespace Opc.Ua
 
     #region PublishRequest Class
     #if (!OPCUA_EXCLUDE_PublishRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -61768,35 +58710,25 @@ namespace Opc.Ua
 
     #region PublishResponse Class
     #if (!OPCUA_EXCLUDE_PublishResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -62054,35 +58986,25 @@ namespace Opc.Ua
 
     #region RepublishRequest Class
     #if (!OPCUA_EXCLUDE_RepublishRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RepublishRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RepublishRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -62228,35 +59150,25 @@ namespace Opc.Ua
 
     #region RepublishResponse Class
     #if (!OPCUA_EXCLUDE_RepublishResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RepublishResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RepublishResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -62402,35 +59314,25 @@ namespace Opc.Ua
 
     #region TransferResult Class
     #if (!OPCUA_EXCLUDE_TransferResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TransferResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TransferResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -62559,9 +59461,7 @@ namespace Opc.Ua
     }
 
     #region TransferResultCollection Class
-    /// <summary>
-    /// A collection of TransferResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTransferResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransferResult")]
@@ -62647,35 +59547,25 @@ namespace Opc.Ua
 
     #region TransferSubscriptionsRequest Class
     #if (!OPCUA_EXCLUDE_TransferSubscriptionsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TransferSubscriptionsRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TransferSubscriptionsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -62835,35 +59725,25 @@ namespace Opc.Ua
 
     #region TransferSubscriptionsResponse Class
     #if (!OPCUA_EXCLUDE_TransferSubscriptionsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TransferSubscriptionsResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TransferSubscriptionsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -63037,35 +59917,25 @@ namespace Opc.Ua
 
     #region DeleteSubscriptionsRequest Class
     #if (!OPCUA_EXCLUDE_DeleteSubscriptionsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteSubscriptionsRequest : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteSubscriptionsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -63211,35 +60081,25 @@ namespace Opc.Ua
 
     #region DeleteSubscriptionsResponse Class
     #if (!OPCUA_EXCLUDE_DeleteSubscriptionsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteSubscriptionsResponse : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteSubscriptionsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -63413,35 +60273,25 @@ namespace Opc.Ua
 
     #region BuildInfo Class
     #if (!OPCUA_EXCLUDE_BuildInfo)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BuildInfo : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BuildInfo()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_productUri = null;
@@ -63615,9 +60465,7 @@ namespace Opc.Ua
 
     #region RedundancySupport Enumeration
     #if (!OPCUA_EXCLUDE_RedundancySupport)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -63652,9 +60500,7 @@ namespace Opc.Ua
 
     #region ServerState Enumeration
     #if (!OPCUA_EXCLUDE_ServerState)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -63697,35 +60543,25 @@ namespace Opc.Ua
 
     #region RedundantServerDataType Class
     #if (!OPCUA_EXCLUDE_RedundantServerDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RedundantServerDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RedundantServerDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_serverId = null;
@@ -63854,9 +60690,7 @@ namespace Opc.Ua
     }
 
     #region RedundantServerDataTypeCollection Class
-    /// <summary>
-    /// A collection of RedundantServerDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRedundantServerDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RedundantServerDataType")]
@@ -63942,35 +60776,25 @@ namespace Opc.Ua
 
     #region EndpointUrlListDataType Class
     #if (!OPCUA_EXCLUDE_EndpointUrlListDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointUrlListDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EndpointUrlListDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_endpointUrlList = new StringCollection();
@@ -64085,9 +60909,7 @@ namespace Opc.Ua
     }
 
     #region EndpointUrlListDataTypeCollection Class
-    /// <summary>
-    /// A collection of EndpointUrlListDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEndpointUrlListDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointUrlListDataType")]
@@ -64173,35 +60995,25 @@ namespace Opc.Ua
 
     #region NetworkGroupDataType Class
     #if (!OPCUA_EXCLUDE_NetworkGroupDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NetworkGroupDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NetworkGroupDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_serverUri = null;
@@ -64330,9 +61142,7 @@ namespace Opc.Ua
     }
 
     #region NetworkGroupDataTypeCollection Class
-    /// <summary>
-    /// A collection of NetworkGroupDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNetworkGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkGroupDataType")]
@@ -64418,35 +61228,25 @@ namespace Opc.Ua
 
     #region SamplingIntervalDiagnosticsDataType Class
     #if (!OPCUA_EXCLUDE_SamplingIntervalDiagnosticsDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SamplingIntervalDiagnosticsDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SamplingIntervalDiagnosticsDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_samplingInterval = (double)0;
@@ -64589,9 +61389,7 @@ namespace Opc.Ua
     }
 
     #region SamplingIntervalDiagnosticsDataTypeCollection Class
-    /// <summary>
-    /// A collection of SamplingIntervalDiagnosticsDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSamplingIntervalDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SamplingIntervalDiagnosticsDataType")]
@@ -64677,35 +61475,25 @@ namespace Opc.Ua
 
     #region ServerDiagnosticsSummaryDataType Class
     #if (!OPCUA_EXCLUDE_ServerDiagnosticsSummaryDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServerDiagnosticsSummaryDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ServerDiagnosticsSummaryDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_serverViewCount = (uint)0;
@@ -64963,35 +61751,25 @@ namespace Opc.Ua
 
     #region ServerStatusDataType Class
     #if (!OPCUA_EXCLUDE_ServerStatusDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServerStatusDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ServerStatusDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_startTime = DateTime.MinValue;
@@ -65179,35 +61957,25 @@ namespace Opc.Ua
 
     #region SessionDiagnosticsDataType Class
     #if (!OPCUA_EXCLUDE_SessionDiagnosticsDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SessionDiagnosticsDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SessionDiagnosticsDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_sessionId = null;
@@ -66330,9 +63098,7 @@ namespace Opc.Ua
     }
 
     #region SessionDiagnosticsDataTypeCollection Class
-    /// <summary>
-    /// A collection of SessionDiagnosticsDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSessionDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SessionDiagnosticsDataType")]
@@ -66418,35 +63184,25 @@ namespace Opc.Ua
 
     #region SessionSecurityDiagnosticsDataType Class
     #if (!OPCUA_EXCLUDE_SessionSecurityDiagnosticsDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SessionSecurityDiagnosticsDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SessionSecurityDiagnosticsDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_sessionId = null;
@@ -66673,9 +63429,7 @@ namespace Opc.Ua
     }
 
     #region SessionSecurityDiagnosticsDataTypeCollection Class
-    /// <summary>
-    /// A collection of SessionSecurityDiagnosticsDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSessionSecurityDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SessionSecurityDiagnosticsDataType")]
@@ -66761,35 +63515,25 @@ namespace Opc.Ua
 
     #region ServiceCounterDataType Class
     #if (!OPCUA_EXCLUDE_ServiceCounterDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServiceCounterDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ServiceCounterDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_totalCount = (uint)0;
@@ -66907,35 +63651,25 @@ namespace Opc.Ua
 
     #region StatusResult Class
     #if (!OPCUA_EXCLUDE_StatusResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StatusResult : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public StatusResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -67050,9 +63784,7 @@ namespace Opc.Ua
     }
 
     #region StatusResultCollection Class
-    /// <summary>
-    /// A collection of StatusResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfStatusResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StatusResult")]
@@ -67138,35 +63870,25 @@ namespace Opc.Ua
 
     #region SubscriptionDiagnosticsDataType Class
     #if (!OPCUA_EXCLUDE_SubscriptionDiagnosticsDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SubscriptionDiagnosticsDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SubscriptionDiagnosticsDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_sessionId = null;
@@ -67687,9 +64409,7 @@ namespace Opc.Ua
     }
 
     #region SubscriptionDiagnosticsDataTypeCollection Class
-    /// <summary>
-    /// A collection of SubscriptionDiagnosticsDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSubscriptionDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscriptionDiagnosticsDataType")]
@@ -67775,9 +64495,7 @@ namespace Opc.Ua
 
     #region ModelChangeStructureVerbMask Enumeration
     #if (!OPCUA_EXCLUDE_ModelChangeStructureVerbMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -67808,35 +64526,25 @@ namespace Opc.Ua
 
     #region ModelChangeStructureDataType Class
     #if (!OPCUA_EXCLUDE_ModelChangeStructureDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModelChangeStructureDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ModelChangeStructureDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_affected = null;
@@ -67965,9 +64673,7 @@ namespace Opc.Ua
     }
 
     #region ModelChangeStructureDataTypeCollection Class
-    /// <summary>
-    /// A collection of ModelChangeStructureDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfModelChangeStructureDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ModelChangeStructureDataType")]
@@ -68053,35 +64759,25 @@ namespace Opc.Ua
 
     #region SemanticChangeStructureDataType Class
     #if (!OPCUA_EXCLUDE_SemanticChangeStructureDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SemanticChangeStructureDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SemanticChangeStructureDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_affected = null;
@@ -68196,9 +64892,7 @@ namespace Opc.Ua
     }
 
     #region SemanticChangeStructureDataTypeCollection Class
-    /// <summary>
-    /// A collection of SemanticChangeStructureDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSemanticChangeStructureDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SemanticChangeStructureDataType")]
@@ -68284,35 +64978,25 @@ namespace Opc.Ua
 
     #region Range Class
     #if (!OPCUA_EXCLUDE_Range)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Range : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Range()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_low = (double)0;
@@ -68430,35 +65114,25 @@ namespace Opc.Ua
 
     #region EUInformation Class
     #if (!OPCUA_EXCLUDE_EUInformation)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EUInformation : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EUInformation()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_namespaceUri = null;
@@ -68604,9 +65278,7 @@ namespace Opc.Ua
 
     #region AxisScaleEnumeration Enumeration
     #if (!OPCUA_EXCLUDE_AxisScaleEnumeration)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -68629,35 +65301,25 @@ namespace Opc.Ua
 
     #region ComplexNumberType Class
     #if (!OPCUA_EXCLUDE_ComplexNumberType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ComplexNumberType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ComplexNumberType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_real = (float)0;
@@ -68775,35 +65437,25 @@ namespace Opc.Ua
 
     #region DoubleComplexNumberType Class
     #if (!OPCUA_EXCLUDE_DoubleComplexNumberType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DoubleComplexNumberType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DoubleComplexNumberType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_real = (double)0;
@@ -68921,35 +65573,25 @@ namespace Opc.Ua
 
     #region AxisInformation Class
     #if (!OPCUA_EXCLUDE_AxisInformation)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AxisInformation : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AxisInformation()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_engineeringUnits = new EUInformation();
@@ -69151,35 +65793,25 @@ namespace Opc.Ua
 
     #region XVType Class
     #if (!OPCUA_EXCLUDE_XVType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class XVType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public XVType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_x = (double)0;
@@ -69297,35 +65929,25 @@ namespace Opc.Ua
 
     #region ProgramDiagnosticDataType Class
     #if (!OPCUA_EXCLUDE_ProgramDiagnosticDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ProgramDiagnosticDataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ProgramDiagnosticDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_createSessionId = null;
@@ -69597,35 +66219,25 @@ namespace Opc.Ua
 
     #region ProgramDiagnostic2DataType Class
     #if (!OPCUA_EXCLUDE_ProgramDiagnostic2DataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ProgramDiagnostic2DataType : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ProgramDiagnostic2DataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_createSessionId = null;
@@ -69939,35 +66551,25 @@ namespace Opc.Ua
 
     #region Annotation Class
     #if (!OPCUA_EXCLUDE_Annotation)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Annotation : IEncodeable
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Annotation()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_message = null;
@@ -70099,9 +66701,7 @@ namespace Opc.Ua
 
     #region ExceptionDeviationFormat Enumeration
     #if (!OPCUA_EXCLUDE_ExceptionDeviationFormat)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
