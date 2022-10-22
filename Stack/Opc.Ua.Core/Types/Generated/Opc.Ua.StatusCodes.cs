@@ -120,7 +120,7 @@ namespace Opc.Ua
         public const uint BadServerHalted = 0x800E0000;
 
         /// <summary>
-        /// There was nothing to do because the client passed a list of operations with no elements.
+        /// No processing could be done because there was nothing to do.
         /// </summary>
         public const uint BadNothingToDo = 0x800F0000;
 
@@ -1060,7 +1060,7 @@ namespace Opc.Ua
         public const uint GoodNoData = 0x00A50000;
 
         /// <summary>
-        /// The data or event field was successfully replaced in the historical database.
+        /// More data is available in the time range beyond the number of values requested.
         /// </summary>
         public const uint GoodMoreData = 0x00A60000;
 
@@ -1100,6 +1100,11 @@ namespace Opc.Ua
         public const uint BadRequestNotComplete = 0x81130000;
 
         /// <summary>
+        /// The operation is not allowed because a transaction is in progress.
+        /// </summary>
+        public const uint BadTransactionPending = 0x80E80000;
+
+        /// <summary>
         /// The device identity needs a ticket before it can be accepted.
         /// </summary>
         public const uint BadTicketRequired = 0x811F0000;
@@ -1108,6 +1113,11 @@ namespace Opc.Ua
         /// The device identity needs a ticket before it can be accepted.
         /// </summary>
         public const uint BadTicketInvalid = 0x81200000;
+
+        /// <summary>
+        /// The requested operation is not allowed, because the Node is locked by a different application.
+        /// </summary>
+        public const uint BadLocked = 0x80E90000;
 
         /// <summary>
         /// The value does not come from the real source and has been edited by the server.
@@ -1328,5 +1338,10 @@ namespace Opc.Ua
         /// The value is accurate, and the signal source supports cascade handshaking.
         /// </summary>
         public const uint GoodCascade = 0x04090000;
+
+        /// <summary>
+        /// The DataSet specified for the DataSetWriter creation is invalid.
+        /// </summary>
+        public const uint BadDataSetIdInvalid = 0x80E70000;
     }
 }
