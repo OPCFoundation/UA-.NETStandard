@@ -50892,7 +50892,6 @@
   </UAVariable>
   <UAMethod NodeId="i=26873" BrowseName="RequestTickets" ParentNodeId="i=26871">
     <DisplayName>RequestTickets</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part21/9.3.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=26874</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -50930,7 +50929,6 @@
   </UAVariable>
   <UAMethod NodeId="i=26875" BrowseName="SetRegistrarEndpoints" ParentNodeId="i=26871">
     <DisplayName>SetRegistrarEndpoints</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part21/9.3.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=26876</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
