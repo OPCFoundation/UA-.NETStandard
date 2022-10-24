@@ -211,6 +211,68 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
             }
         }
+
+        /// <summary>
+        /// Validate a CRL Builder and decoder pass on using utc and generalized times.
+        /// </summary>
+        [Test]
+        public void CrlUtcAndGeneralizedTimeTest()
+        {
+            // Generate a CRL with dates over 2050 
+            var dname = new X500DistinguishedName("CN=Test, O=OPC Foundation");
+            var hash = HashAlgorithmName.SHA256;
+            var crlBuilder = CrlBuilder.Create(dname, hash)
+                .SetThisUpdate(DateTime.Today.AddYears(30))
+                .SetNextUpdate(DateTime.Today.AddYears(30).AddDays(1));
+            byte[] serial = new byte[] { 4, 5, 6, 7 };
+            var revokedarray = new RevokedCertificate(serial);
+            crlBuilder.RevokedCertificates.Add(revokedarray);
+            string serstring = "45678910";
+            var revokedstring = new RevokedCertificate(serstring);
+            crlBuilder.RevokedCertificates.Add(revokedstring);
+            crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
+            var crlEncoded = crlBuilder.Encode();
+            Assert.NotNull(crlEncoded);
+            var x509Crl = new X509CRL();
+            x509Crl.DecodeCrl(crlEncoded);
+            Assert.NotNull(x509Crl);
+            Assert.NotNull(x509Crl.CrlExtensions);
+            Assert.NotNull(x509Crl.RevokedCertificates);
+            Assert.AreEqual(dname.RawData, x509Crl.IssuerName.RawData);
+            Assert.AreEqual(crlBuilder.ThisUpdate, x509Crl.ThisUpdate);
+            Assert.AreEqual(crlBuilder.NextUpdate, x509Crl.NextUpdate);
+            Assert.AreEqual(2, x509Crl.RevokedCertificates.Count);
+            Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
+            Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
+            Assert.AreEqual(1, x509Crl.CrlExtensions.Count);
+            Assert.AreEqual(hash, x509Crl.HashAlgorithmName);
+
+            // Generate a CRL with dates up-to 2050
+            DateTime dateToEncode = DateTime.UtcNow.Date;
+            crlBuilder = CrlBuilder.Create(dname, hash)
+                .SetThisUpdate(dateToEncode)
+                .SetNextUpdate(dateToEncode.AddDays(1));
+            revokedarray = new RevokedCertificate(serial);
+            crlBuilder.RevokedCertificates.Add(revokedarray);
+            revokedstring = new RevokedCertificate(serstring);
+            crlBuilder.RevokedCertificates.Add(revokedstring);
+            crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
+            crlEncoded = crlBuilder.Encode();
+            Assert.NotNull(crlEncoded);
+            x509Crl = new X509CRL();
+            x509Crl.DecodeCrl(crlEncoded);
+            Assert.NotNull(x509Crl);
+            Assert.NotNull(x509Crl.CrlExtensions);
+            Assert.NotNull(x509Crl.RevokedCertificates);
+            Assert.AreEqual(dname.RawData, x509Crl.IssuerName.RawData);
+            Assert.AreEqual(crlBuilder.ThisUpdate, x509Crl.ThisUpdate);
+            Assert.AreEqual(crlBuilder.NextUpdate, x509Crl.NextUpdate);
+            Assert.AreEqual(2, x509Crl.RevokedCertificates.Count);
+            Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
+            Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
+            Assert.AreEqual(1, x509Crl.CrlExtensions.Count);
+            Assert.AreEqual(hash, x509Crl.HashAlgorithmName);
+        }
         #endregion
 
         #region Private Methods
