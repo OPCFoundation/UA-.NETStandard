@@ -449,7 +449,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
         }
 
-
         /// <summary>
         /// Verify that decoding of a Matrix DataValue which has invalid array dimensions.
         /// </summary
@@ -479,6 +478,90 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     matrix.Dimensions[ii] = 4;
                 }
             }
+
+            var variant = new Variant(matrix);
+
+            string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
+            TestContext.Out.WriteLine(encodeInfo);
+            TestContext.Out.WriteLine(variant);
+            DataValue expected = CreateDataValue(builtInType, variant);
+            Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
+            TestContext.Out.WriteLine("Expected:");
+            TestContext.Out.WriteLine(expected);
+            var encoderStream = new MemoryStream();
+            IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue));
+            encoder.WriteDataValue("DataValue", expected);
+            Dispose(encoder);
+            var buffer = encoderStream.ToArray();
+            string jsonFormatted;
+            switch (encoderType)
+            {
+                case EncodingType.Json:
+                    jsonFormatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    break;
+            }
+            var decoderStream = new MemoryStream(buffer);
+            IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue));
+
+            switch (encoderType)
+            {
+                case EncodingType.Json:
+                {
+                    // check such matrix cannot be initialized when decoding from Json format
+                    // the exception is thrown while trying to construct the Matrix 
+                    Assert.Throws(
+                        typeof(ArgumentException),
+                        () => {
+                            decoder.ReadDataValue("DataValue");
+                        });
+                    break;
+                }
+                case EncodingType.Xml:
+                {
+                    // check such matrix cannot be initialized when decoding from Xml format
+                    // the exception is thrown while trying to construct the Matrix but is caught and handled
+                    decoder.ReadDataValue("DataValue");
+                    break;
+                }
+                case EncodingType.Binary:
+                {
+                    // check such matrix cannot be initialized when decoding from Binary format
+                    // the exception is thrown before trying to construct the Matrix
+                    Assert.Throws(
+                        typeof(ServiceResultException),
+                        () => {
+                            decoder.ReadDataValue("DataValue");
+                        });
+                    break;
+                }
+            }
+            Dispose(decoder);
+        }
+
+        /// <summary>
+        /// Verify that decoding of a Matrix DataValue which has statical provided invalid array dimensions.
+        /// </summary
+        [Theory]
+        [Category("Matrix")]
+        public void MatrixOverflowStaticDimensions(
+            EncodingType encoderType,
+            BuiltInType builtInType
+            )
+        {
+            Assume.That(builtInType != BuiltInType.Null);
+            int matrixDimension = 5;
+            int[] dimensions = new int[matrixDimension];
+            SetMatrixDimensions(dimensions);
+            int elements = ElementsFromDimension(dimensions);
+            Array randomData = DataGenerator.GetRandomArray(builtInType, false, elements, true);
+
+            var matrix = new Matrix(randomData, builtInType, dimensions);
+            matrix.Dimensions[0] = 12301;
+            matrix.Dimensions[1] = 13193;
+            matrix.Dimensions[2] = 13418;
+            matrix.Dimensions[3] = 14087;
+            matrix.Dimensions[4] = 20446;
+
 
             var variant = new Variant(matrix);
 
