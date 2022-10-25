@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -37,9 +37,7 @@ namespace Opc.Ua
 {
     #region Enumeration Enumeration
     #if (!OPCUA_EXCLUDE_Enumeration)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -48,9 +46,7 @@ namespace Opc.Ua
     }
 
     #region EnumerationCollection Class
-    /// <summary>
-    /// A collection of Enumeration objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumeration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Enumeration")]
@@ -61,26 +57,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public EnumerationCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public EnumerationCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public EnumerationCollection(IEnumerable<Enumeration> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator EnumerationCollection(Enumeration[] values)
         {
             if (values != null)
@@ -91,9 +79,7 @@ namespace Opc.Ua
             return new EnumerationCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator Enumeration[](EnumerationCollection values)
         {
             if (values != null)
@@ -107,9 +93,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (EnumerationCollection)this.MemberwiseClone();
@@ -136,9 +120,7 @@ namespace Opc.Ua
 
     #region NamingRuleType Enumeration
     #if (!OPCUA_EXCLUDE_NamingRuleType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -158,9 +140,7 @@ namespace Opc.Ua
     }
 
     #region NamingRuleTypeCollection Class
-    /// <summary>
-    /// A collection of NamingRuleType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNamingRuleType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NamingRuleType")]
@@ -171,26 +151,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public NamingRuleTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public NamingRuleTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public NamingRuleTypeCollection(IEnumerable<NamingRuleType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator NamingRuleTypeCollection(NamingRuleType[] values)
         {
             if (values != null)
@@ -201,9 +173,7 @@ namespace Opc.Ua
             return new NamingRuleTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator NamingRuleType[](NamingRuleTypeCollection values)
         {
             if (values != null)
@@ -217,9 +187,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (NamingRuleTypeCollection)this.MemberwiseClone();
@@ -246,35 +214,25 @@ namespace Opc.Ua
 
     #region Union Class
     #if (!OPCUA_EXCLUDE_Union)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Union : IEncodeable
-    {
+    public partial class Union : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Union()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -300,6 +258,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.Union_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.Union_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -362,9 +326,7 @@ namespace Opc.Ua
     }
 
     #region UnionCollection Class
-    /// <summary>
-    /// A collection of Union objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUnion", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Union")]
@@ -375,26 +337,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public UnionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public UnionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public UnionCollection(IEnumerable<Union> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator UnionCollection(Union[] values)
         {
             if (values != null)
@@ -405,9 +359,7 @@ namespace Opc.Ua
             return new UnionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator Union[](UnionCollection values)
         {
             if (values != null)
@@ -421,9 +373,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (UnionCollection)this.MemberwiseClone();
@@ -450,35 +400,25 @@ namespace Opc.Ua
 
     #region KeyValuePair Class
     #if (!OPCUA_EXCLUDE_KeyValuePair)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class KeyValuePair : IEncodeable
-    {
+    public partial class KeyValuePair : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public KeyValuePair()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_key = null;
@@ -521,6 +461,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.KeyValuePair_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.KeyValuePair_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -593,9 +539,7 @@ namespace Opc.Ua
     }
 
     #region KeyValuePairCollection Class
-    /// <summary>
-    /// A collection of KeyValuePair objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfKeyValuePair", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "KeyValuePair")]
@@ -606,26 +550,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public KeyValuePairCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public KeyValuePairCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public KeyValuePairCollection(IEnumerable<KeyValuePair> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator KeyValuePairCollection(KeyValuePair[] values)
         {
             if (values != null)
@@ -636,9 +572,7 @@ namespace Opc.Ua
             return new KeyValuePairCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator KeyValuePair[](KeyValuePairCollection values)
         {
             if (values != null)
@@ -652,9 +586,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (KeyValuePairCollection)this.MemberwiseClone();
@@ -681,35 +613,25 @@ namespace Opc.Ua
 
     #region AdditionalParametersType Class
     #if (!OPCUA_EXCLUDE_AdditionalParametersType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AdditionalParametersType : IEncodeable
-    {
+    public partial class AdditionalParametersType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AdditionalParametersType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_parameters = new KeyValuePairCollection();
@@ -717,9 +639,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Parameters", IsRequired = false, Order = 1)]
         public KeyValuePairCollection Parameters
         {
@@ -757,6 +677,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AdditionalParametersType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AdditionalParametersType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -827,35 +753,25 @@ namespace Opc.Ua
 
     #region EphemeralKeyType Class
     #if (!OPCUA_EXCLUDE_EphemeralKeyType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EphemeralKeyType : IEncodeable
-    {
+    public partial class EphemeralKeyType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EphemeralKeyType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_publicKey = null;
@@ -898,6 +814,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EphemeralKeyType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EphemeralKeyType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -973,35 +895,25 @@ namespace Opc.Ua
 
     #region EndpointType Class
     #if (!OPCUA_EXCLUDE_EndpointType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EndpointType : IEncodeable
-    {
+    public partial class EndpointType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EndpointType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_endpointUrl = null;
@@ -1062,6 +974,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EndpointType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EndpointType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -1144,9 +1062,7 @@ namespace Opc.Ua
     }
 
     #region EndpointTypeCollection Class
-    /// <summary>
-    /// A collection of EndpointType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEndpointType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointType")]
@@ -1157,26 +1073,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public EndpointTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public EndpointTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public EndpointTypeCollection(IEnumerable<EndpointType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator EndpointTypeCollection(EndpointType[] values)
         {
             if (values != null)
@@ -1187,9 +1095,7 @@ namespace Opc.Ua
             return new EndpointTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator EndpointType[](EndpointTypeCollection values)
         {
             if (values != null)
@@ -1203,9 +1109,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (EndpointTypeCollection)this.MemberwiseClone();
@@ -1232,35 +1136,25 @@ namespace Opc.Ua
 
     #region RationalNumber Class
     #if (!OPCUA_EXCLUDE_RationalNumber)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RationalNumber : IEncodeable
-    {
+    public partial class RationalNumber : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RationalNumber()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_numerator = (int)0;
@@ -1303,6 +1197,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RationalNumber_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RationalNumber_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -1375,9 +1275,7 @@ namespace Opc.Ua
     }
 
     #region RationalNumberCollection Class
-    /// <summary>
-    /// A collection of RationalNumber objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RationalNumber")]
@@ -1388,26 +1286,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public RationalNumberCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public RationalNumberCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public RationalNumberCollection(IEnumerable<RationalNumber> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator RationalNumberCollection(RationalNumber[] values)
         {
             if (values != null)
@@ -1418,9 +1308,7 @@ namespace Opc.Ua
             return new RationalNumberCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator RationalNumber[](RationalNumberCollection values)
         {
             if (values != null)
@@ -1434,9 +1322,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (RationalNumberCollection)this.MemberwiseClone();
@@ -1463,35 +1349,25 @@ namespace Opc.Ua
 
     #region Vector Class
     #if (!OPCUA_EXCLUDE_Vector)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Vector : IEncodeable
-    {
+    public partial class Vector : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Vector()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -1517,6 +1393,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.Vector_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.Vector_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -1579,9 +1461,7 @@ namespace Opc.Ua
     }
 
     #region VectorCollection Class
-    /// <summary>
-    /// A collection of Vector objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfVector", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Vector")]
@@ -1592,26 +1472,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public VectorCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public VectorCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public VectorCollection(IEnumerable<Vector> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator VectorCollection(Vector[] values)
         {
             if (values != null)
@@ -1622,9 +1494,7 @@ namespace Opc.Ua
             return new VectorCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator Vector[](VectorCollection values)
         {
             if (values != null)
@@ -1638,9 +1508,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (VectorCollection)this.MemberwiseClone();
@@ -1667,35 +1535,25 @@ namespace Opc.Ua
 
     #region ThreeDVector Class
     #if (!OPCUA_EXCLUDE_ThreeDVector)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ThreeDVector : Vector
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ThreeDVector()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_x = (double)0;
@@ -1747,6 +1605,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ThreeDVector_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ThreeDVector_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -1829,9 +1693,7 @@ namespace Opc.Ua
     }
 
     #region ThreeDVectorCollection Class
-    /// <summary>
-    /// A collection of ThreeDVector objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfThreeDVector", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDVector")]
@@ -1842,26 +1704,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ThreeDVectorCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ThreeDVectorCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ThreeDVectorCollection(IEnumerable<ThreeDVector> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ThreeDVectorCollection(ThreeDVector[] values)
         {
             if (values != null)
@@ -1872,9 +1726,7 @@ namespace Opc.Ua
             return new ThreeDVectorCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ThreeDVector[](ThreeDVectorCollection values)
         {
             if (values != null)
@@ -1888,9 +1740,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ThreeDVectorCollection)this.MemberwiseClone();
@@ -1917,35 +1767,25 @@ namespace Opc.Ua
 
     #region CartesianCoordinates Class
     #if (!OPCUA_EXCLUDE_CartesianCoordinates)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CartesianCoordinates : IEncodeable
-    {
+    public partial class CartesianCoordinates : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CartesianCoordinates()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -1971,6 +1811,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CartesianCoordinates_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CartesianCoordinates_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -2033,9 +1879,7 @@ namespace Opc.Ua
     }
 
     #region CartesianCoordinatesCollection Class
-    /// <summary>
-    /// A collection of CartesianCoordinates objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCartesianCoordinates", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CartesianCoordinates")]
@@ -2046,26 +1890,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public CartesianCoordinatesCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public CartesianCoordinatesCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public CartesianCoordinatesCollection(IEnumerable<CartesianCoordinates> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator CartesianCoordinatesCollection(CartesianCoordinates[] values)
         {
             if (values != null)
@@ -2076,9 +1912,7 @@ namespace Opc.Ua
             return new CartesianCoordinatesCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator CartesianCoordinates[](CartesianCoordinatesCollection values)
         {
             if (values != null)
@@ -2092,9 +1926,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (CartesianCoordinatesCollection)this.MemberwiseClone();
@@ -2121,35 +1953,25 @@ namespace Opc.Ua
 
     #region ThreeDCartesianCoordinates Class
     #if (!OPCUA_EXCLUDE_ThreeDCartesianCoordinates)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ThreeDCartesianCoordinates : CartesianCoordinates
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ThreeDCartesianCoordinates()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_x = (double)0;
@@ -2201,6 +2023,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ThreeDCartesianCoordinates_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ThreeDCartesianCoordinates_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -2283,9 +2111,7 @@ namespace Opc.Ua
     }
 
     #region ThreeDCartesianCoordinatesCollection Class
-    /// <summary>
-    /// A collection of ThreeDCartesianCoordinates objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfThreeDCartesianCoordinates", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDCartesianCoordinates")]
@@ -2296,26 +2122,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ThreeDCartesianCoordinatesCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ThreeDCartesianCoordinatesCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ThreeDCartesianCoordinatesCollection(IEnumerable<ThreeDCartesianCoordinates> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ThreeDCartesianCoordinatesCollection(ThreeDCartesianCoordinates[] values)
         {
             if (values != null)
@@ -2326,9 +2144,7 @@ namespace Opc.Ua
             return new ThreeDCartesianCoordinatesCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ThreeDCartesianCoordinates[](ThreeDCartesianCoordinatesCollection values)
         {
             if (values != null)
@@ -2342,9 +2158,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ThreeDCartesianCoordinatesCollection)this.MemberwiseClone();
@@ -2371,35 +2185,25 @@ namespace Opc.Ua
 
     #region Orientation Class
     #if (!OPCUA_EXCLUDE_Orientation)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Orientation : IEncodeable
-    {
+    public partial class Orientation : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Orientation()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -2425,6 +2229,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.Orientation_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.Orientation_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -2487,9 +2297,7 @@ namespace Opc.Ua
     }
 
     #region OrientationCollection Class
-    /// <summary>
-    /// A collection of Orientation objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfOrientation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Orientation")]
@@ -2500,26 +2308,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public OrientationCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public OrientationCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public OrientationCollection(IEnumerable<Orientation> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator OrientationCollection(Orientation[] values)
         {
             if (values != null)
@@ -2530,9 +2330,7 @@ namespace Opc.Ua
             return new OrientationCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator Orientation[](OrientationCollection values)
         {
             if (values != null)
@@ -2546,9 +2344,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (OrientationCollection)this.MemberwiseClone();
@@ -2575,35 +2371,25 @@ namespace Opc.Ua
 
     #region ThreeDOrientation Class
     #if (!OPCUA_EXCLUDE_ThreeDOrientation)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ThreeDOrientation : Orientation
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ThreeDOrientation()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_a = (double)0;
@@ -2655,6 +2441,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ThreeDOrientation_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ThreeDOrientation_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -2737,9 +2529,7 @@ namespace Opc.Ua
     }
 
     #region ThreeDOrientationCollection Class
-    /// <summary>
-    /// A collection of ThreeDOrientation objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfThreeDOrientation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDOrientation")]
@@ -2750,26 +2540,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ThreeDOrientationCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ThreeDOrientationCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ThreeDOrientationCollection(IEnumerable<ThreeDOrientation> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ThreeDOrientationCollection(ThreeDOrientation[] values)
         {
             if (values != null)
@@ -2780,9 +2562,7 @@ namespace Opc.Ua
             return new ThreeDOrientationCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ThreeDOrientation[](ThreeDOrientationCollection values)
         {
             if (values != null)
@@ -2796,9 +2576,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ThreeDOrientationCollection)this.MemberwiseClone();
@@ -2825,35 +2603,25 @@ namespace Opc.Ua
 
     #region Frame Class
     #if (!OPCUA_EXCLUDE_Frame)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Frame : IEncodeable
-    {
+    public partial class Frame : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Frame()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -2879,6 +2647,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.Frame_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.Frame_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -2941,9 +2715,7 @@ namespace Opc.Ua
     }
 
     #region FrameCollection Class
-    /// <summary>
-    /// A collection of Frame objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfFrame", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Frame")]
@@ -2954,26 +2726,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public FrameCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public FrameCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public FrameCollection(IEnumerable<Frame> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator FrameCollection(Frame[] values)
         {
             if (values != null)
@@ -2984,9 +2748,7 @@ namespace Opc.Ua
             return new FrameCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator Frame[](FrameCollection values)
         {
             if (values != null)
@@ -3000,9 +2762,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (FrameCollection)this.MemberwiseClone();
@@ -3029,35 +2789,25 @@ namespace Opc.Ua
 
     #region ThreeDFrame Class
     #if (!OPCUA_EXCLUDE_ThreeDFrame)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ThreeDFrame : Frame
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ThreeDFrame()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_cartesianCoordinates = new ThreeDCartesianCoordinates();
@@ -3066,9 +2816,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "CartesianCoordinates", IsRequired = false, Order = 1)]
         public ThreeDCartesianCoordinates CartesianCoordinates
         {
@@ -3088,9 +2836,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Orientation", IsRequired = false, Order = 2)]
         public ThreeDOrientation Orientation
         {
@@ -3128,6 +2874,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ThreeDFrame_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ThreeDFrame_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -3205,9 +2957,7 @@ namespace Opc.Ua
     }
 
     #region ThreeDFrameCollection Class
-    /// <summary>
-    /// A collection of ThreeDFrame objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfThreeDFrame", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDFrame")]
@@ -3218,26 +2968,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ThreeDFrameCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ThreeDFrameCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ThreeDFrameCollection(IEnumerable<ThreeDFrame> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ThreeDFrameCollection(ThreeDFrame[] values)
         {
             if (values != null)
@@ -3248,9 +2990,7 @@ namespace Opc.Ua
             return new ThreeDFrameCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ThreeDFrame[](ThreeDFrameCollection values)
         {
             if (values != null)
@@ -3264,9 +3004,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ThreeDFrameCollection)this.MemberwiseClone();
@@ -3293,9 +3031,7 @@ namespace Opc.Ua
 
     #region OpenFileMode Enumeration
     #if (!OPCUA_EXCLUDE_OpenFileMode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -3319,9 +3055,7 @@ namespace Opc.Ua
     }
 
     #region OpenFileModeCollection Class
-    /// <summary>
-    /// A collection of OpenFileMode objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfOpenFileMode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OpenFileMode")]
@@ -3332,26 +3066,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public OpenFileModeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public OpenFileModeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public OpenFileModeCollection(IEnumerable<OpenFileMode> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator OpenFileModeCollection(OpenFileMode[] values)
         {
             if (values != null)
@@ -3362,9 +3088,7 @@ namespace Opc.Ua
             return new OpenFileModeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator OpenFileMode[](OpenFileModeCollection values)
         {
             if (values != null)
@@ -3378,9 +3102,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (OpenFileModeCollection)this.MemberwiseClone();
@@ -3407,9 +3129,7 @@ namespace Opc.Ua
 
     #region IdentityCriteriaType Enumeration
     #if (!OPCUA_EXCLUDE_IdentityCriteriaType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -3445,9 +3165,7 @@ namespace Opc.Ua
     }
 
     #region IdentityCriteriaTypeCollection Class
-    /// <summary>
-    /// A collection of IdentityCriteriaType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfIdentityCriteriaType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdentityCriteriaType")]
@@ -3458,26 +3176,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public IdentityCriteriaTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public IdentityCriteriaTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public IdentityCriteriaTypeCollection(IEnumerable<IdentityCriteriaType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator IdentityCriteriaTypeCollection(IdentityCriteriaType[] values)
         {
             if (values != null)
@@ -3488,9 +3198,7 @@ namespace Opc.Ua
             return new IdentityCriteriaTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator IdentityCriteriaType[](IdentityCriteriaTypeCollection values)
         {
             if (values != null)
@@ -3504,9 +3212,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (IdentityCriteriaTypeCollection)this.MemberwiseClone();
@@ -3533,35 +3239,25 @@ namespace Opc.Ua
 
     #region IdentityMappingRuleType Class
     #if (!OPCUA_EXCLUDE_IdentityMappingRuleType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class IdentityMappingRuleType : IEncodeable
-    {
+    public partial class IdentityMappingRuleType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public IdentityMappingRuleType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_criteriaType = IdentityCriteriaType.UserName;
@@ -3604,6 +3300,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.IdentityMappingRuleType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.IdentityMappingRuleType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -3676,9 +3378,7 @@ namespace Opc.Ua
     }
 
     #region IdentityMappingRuleTypeCollection Class
-    /// <summary>
-    /// A collection of IdentityMappingRuleType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfIdentityMappingRuleType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdentityMappingRuleType")]
@@ -3689,26 +3389,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public IdentityMappingRuleTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public IdentityMappingRuleTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public IdentityMappingRuleTypeCollection(IEnumerable<IdentityMappingRuleType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator IdentityMappingRuleTypeCollection(IdentityMappingRuleType[] values)
         {
             if (values != null)
@@ -3719,9 +3411,7 @@ namespace Opc.Ua
             return new IdentityMappingRuleTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator IdentityMappingRuleType[](IdentityMappingRuleTypeCollection values)
         {
             if (values != null)
@@ -3735,9 +3425,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (IdentityMappingRuleTypeCollection)this.MemberwiseClone();
@@ -3764,35 +3452,25 @@ namespace Opc.Ua
 
     #region CurrencyUnitType Class
     #if (!OPCUA_EXCLUDE_CurrencyUnitType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CurrencyUnitType : IEncodeable
-    {
+    public partial class CurrencyUnitType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CurrencyUnitType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_numericCode = (short)0;
@@ -3853,6 +3531,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CurrencyUnitType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CurrencyUnitType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -3935,9 +3619,7 @@ namespace Opc.Ua
     }
 
     #region CurrencyUnitTypeCollection Class
-    /// <summary>
-    /// A collection of CurrencyUnitType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCurrencyUnitType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CurrencyUnitType")]
@@ -3948,26 +3630,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public CurrencyUnitTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public CurrencyUnitTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public CurrencyUnitTypeCollection(IEnumerable<CurrencyUnitType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator CurrencyUnitTypeCollection(CurrencyUnitType[] values)
         {
             if (values != null)
@@ -3978,9 +3652,7 @@ namespace Opc.Ua
             return new CurrencyUnitTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator CurrencyUnitType[](CurrencyUnitTypeCollection values)
         {
             if (values != null)
@@ -3994,9 +3666,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (CurrencyUnitTypeCollection)this.MemberwiseClone();
@@ -4023,9 +3693,7 @@ namespace Opc.Ua
 
     #region TrustListMasks Enumeration
     #if (!OPCUA_EXCLUDE_TrustListMasks)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -4060,35 +3728,25 @@ namespace Opc.Ua
 
     #region TrustListDataType Class
     #if (!OPCUA_EXCLUDE_TrustListDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class TrustListDataType : IEncodeable
-    {
+    public partial class TrustListDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TrustListDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_specifiedLists = (uint)0;
@@ -4108,9 +3766,7 @@ namespace Opc.Ua
             set { m_specifiedLists = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "TrustedCertificates", IsRequired = false, Order = 2)]
         public ByteStringCollection TrustedCertificates
         {
@@ -4130,9 +3786,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "TrustedCrls", IsRequired = false, Order = 3)]
         public ByteStringCollection TrustedCrls
         {
@@ -4152,9 +3806,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "IssuerCertificates", IsRequired = false, Order = 4)]
         public ByteStringCollection IssuerCertificates
         {
@@ -4174,9 +3826,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "IssuerCrls", IsRequired = false, Order = 5)]
         public ByteStringCollection IssuerCrls
         {
@@ -4214,6 +3864,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.TrustListDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.TrustListDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -4301,9 +3957,7 @@ namespace Opc.Ua
     }
 
     #region TrustListDataTypeCollection Class
-    /// <summary>
-    /// A collection of TrustListDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTrustListDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TrustListDataType")]
@@ -4314,26 +3968,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public TrustListDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public TrustListDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public TrustListDataTypeCollection(IEnumerable<TrustListDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator TrustListDataTypeCollection(TrustListDataType[] values)
         {
             if (values != null)
@@ -4344,9 +3990,7 @@ namespace Opc.Ua
             return new TrustListDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator TrustListDataType[](TrustListDataTypeCollection values)
         {
             if (values != null)
@@ -4360,9 +4004,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (TrustListDataTypeCollection)this.MemberwiseClone();
@@ -4389,35 +4031,25 @@ namespace Opc.Ua
 
     #region DecimalDataType Class
     #if (!OPCUA_EXCLUDE_DecimalDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DecimalDataType : IEncodeable
-    {
+    public partial class DecimalDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DecimalDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_scale = (short)0;
@@ -4460,6 +4092,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DecimalDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DecimalDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -4535,35 +4173,25 @@ namespace Opc.Ua
 
     #region DataTypeSchemaHeader Class
     #if (!OPCUA_EXCLUDE_DataTypeSchemaHeader)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataTypeSchemaHeader : IEncodeable
-    {
+    public partial class DataTypeSchemaHeader : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataTypeSchemaHeader()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_namespaces = new StringCollection();
@@ -4574,9 +4202,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Namespaces", IsRequired = false, Order = 1)]
         public StringCollection Namespaces
         {
@@ -4596,9 +4222,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "StructureDataTypes", IsRequired = false, Order = 2)]
         public StructureDescriptionCollection StructureDataTypes
         {
@@ -4618,9 +4242,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "EnumDataTypes", IsRequired = false, Order = 3)]
         public EnumDescriptionCollection EnumDataTypes
         {
@@ -4640,9 +4262,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SimpleDataTypes", IsRequired = false, Order = 4)]
         public SimpleTypeDescriptionCollection SimpleDataTypes
         {
@@ -4680,6 +4300,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataTypeSchemaHeader_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataTypeSchemaHeader_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -4762,9 +4388,7 @@ namespace Opc.Ua
     }
 
     #region DataTypeSchemaHeaderCollection Class
-    /// <summary>
-    /// A collection of DataTypeSchemaHeader objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataTypeSchemaHeader", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeSchemaHeader")]
@@ -4775,26 +4399,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DataTypeSchemaHeaderCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DataTypeSchemaHeaderCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DataTypeSchemaHeaderCollection(IEnumerable<DataTypeSchemaHeader> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DataTypeSchemaHeaderCollection(DataTypeSchemaHeader[] values)
         {
             if (values != null)
@@ -4805,9 +4421,7 @@ namespace Opc.Ua
             return new DataTypeSchemaHeaderCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DataTypeSchemaHeader[](DataTypeSchemaHeaderCollection values)
         {
             if (values != null)
@@ -4821,9 +4435,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DataTypeSchemaHeaderCollection)this.MemberwiseClone();
@@ -4850,35 +4462,25 @@ namespace Opc.Ua
 
     #region DataTypeDescription Class
     #if (!OPCUA_EXCLUDE_DataTypeDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataTypeDescription : IEncodeable
-    {
+    public partial class DataTypeDescription : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataTypeDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_dataTypeId = null;
@@ -4921,6 +4523,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataTypeDescription_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataTypeDescription_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -4993,9 +4601,7 @@ namespace Opc.Ua
     }
 
     #region DataTypeDescriptionCollection Class
-    /// <summary>
-    /// A collection of DataTypeDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeDescription")]
@@ -5006,26 +4612,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DataTypeDescriptionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DataTypeDescriptionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DataTypeDescriptionCollection(IEnumerable<DataTypeDescription> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DataTypeDescriptionCollection(DataTypeDescription[] values)
         {
             if (values != null)
@@ -5036,9 +4634,7 @@ namespace Opc.Ua
             return new DataTypeDescriptionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DataTypeDescription[](DataTypeDescriptionCollection values)
         {
             if (values != null)
@@ -5052,9 +4648,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DataTypeDescriptionCollection)this.MemberwiseClone();
@@ -5081,35 +4675,25 @@ namespace Opc.Ua
 
     #region StructureDescription Class
     #if (!OPCUA_EXCLUDE_StructureDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StructureDescription : DataTypeDescription
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public StructureDescription()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_structureDefinition = new StructureDefinition();
@@ -5117,9 +4701,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "StructureDefinition", IsRequired = false, Order = 1)]
         public StructureDefinition StructureDefinition
         {
@@ -5157,6 +4739,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.StructureDescription_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.StructureDescription_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -5229,9 +4817,7 @@ namespace Opc.Ua
     }
 
     #region StructureDescriptionCollection Class
-    /// <summary>
-    /// A collection of StructureDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfStructureDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureDescription")]
@@ -5242,26 +4828,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public StructureDescriptionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public StructureDescriptionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public StructureDescriptionCollection(IEnumerable<StructureDescription> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator StructureDescriptionCollection(StructureDescription[] values)
         {
             if (values != null)
@@ -5272,9 +4850,7 @@ namespace Opc.Ua
             return new StructureDescriptionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator StructureDescription[](StructureDescriptionCollection values)
         {
             if (values != null)
@@ -5288,9 +4864,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (StructureDescriptionCollection)this.MemberwiseClone();
@@ -5317,35 +4891,25 @@ namespace Opc.Ua
 
     #region EnumDescription Class
     #if (!OPCUA_EXCLUDE_EnumDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EnumDescription : DataTypeDescription
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EnumDescription()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_enumDefinition = new EnumDefinition();
@@ -5354,9 +4918,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "EnumDefinition", IsRequired = false, Order = 1)]
         public EnumDefinition EnumDefinition
         {
@@ -5402,6 +4964,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EnumDescription_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EnumDescription_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -5479,9 +5047,7 @@ namespace Opc.Ua
     }
 
     #region EnumDescriptionCollection Class
-    /// <summary>
-    /// A collection of EnumDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumDescription")]
@@ -5492,26 +5058,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public EnumDescriptionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public EnumDescriptionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public EnumDescriptionCollection(IEnumerable<EnumDescription> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator EnumDescriptionCollection(EnumDescription[] values)
         {
             if (values != null)
@@ -5522,9 +5080,7 @@ namespace Opc.Ua
             return new EnumDescriptionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator EnumDescription[](EnumDescriptionCollection values)
         {
             if (values != null)
@@ -5538,9 +5094,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (EnumDescriptionCollection)this.MemberwiseClone();
@@ -5567,35 +5121,25 @@ namespace Opc.Ua
 
     #region SimpleTypeDescription Class
     #if (!OPCUA_EXCLUDE_SimpleTypeDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SimpleTypeDescription : DataTypeDescription
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SimpleTypeDescription()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_baseDataType = null;
@@ -5638,6 +5182,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SimpleTypeDescription_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SimpleTypeDescription_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -5715,9 +5265,7 @@ namespace Opc.Ua
     }
 
     #region SimpleTypeDescriptionCollection Class
-    /// <summary>
-    /// A collection of SimpleTypeDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSimpleTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SimpleTypeDescription")]
@@ -5728,26 +5276,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public SimpleTypeDescriptionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public SimpleTypeDescriptionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public SimpleTypeDescriptionCollection(IEnumerable<SimpleTypeDescription> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator SimpleTypeDescriptionCollection(SimpleTypeDescription[] values)
         {
             if (values != null)
@@ -5758,9 +5298,7 @@ namespace Opc.Ua
             return new SimpleTypeDescriptionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator SimpleTypeDescription[](SimpleTypeDescriptionCollection values)
         {
             if (values != null)
@@ -5774,9 +5312,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (SimpleTypeDescriptionCollection)this.MemberwiseClone();
@@ -5803,35 +5339,25 @@ namespace Opc.Ua
 
     #region UABinaryFileDataType Class
     #if (!OPCUA_EXCLUDE_UABinaryFileDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UABinaryFileDataType : DataTypeSchemaHeader
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UABinaryFileDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_schemaLocation = null;
@@ -5849,9 +5375,7 @@ namespace Opc.Ua
             set { m_schemaLocation = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "FileHeader", IsRequired = false, Order = 2)]
         public KeyValuePairCollection FileHeader
         {
@@ -5897,6 +5421,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UABinaryFileDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UABinaryFileDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -5979,9 +5509,7 @@ namespace Opc.Ua
     }
 
     #region UABinaryFileDataTypeCollection Class
-    /// <summary>
-    /// A collection of UABinaryFileDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUABinaryFileDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UABinaryFileDataType")]
@@ -5992,26 +5520,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public UABinaryFileDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public UABinaryFileDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public UABinaryFileDataTypeCollection(IEnumerable<UABinaryFileDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator UABinaryFileDataTypeCollection(UABinaryFileDataType[] values)
         {
             if (values != null)
@@ -6022,9 +5542,7 @@ namespace Opc.Ua
             return new UABinaryFileDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator UABinaryFileDataType[](UABinaryFileDataTypeCollection values)
         {
             if (values != null)
@@ -6038,9 +5556,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (UABinaryFileDataTypeCollection)this.MemberwiseClone();
@@ -6067,9 +5583,7 @@ namespace Opc.Ua
 
     #region PubSubState Enumeration
     #if (!OPCUA_EXCLUDE_PubSubState)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -6097,9 +5611,7 @@ namespace Opc.Ua
     }
 
     #region PubSubStateCollection Class
-    /// <summary>
-    /// A collection of PubSubState objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubState")]
@@ -6110,26 +5622,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public PubSubStateCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public PubSubStateCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public PubSubStateCollection(IEnumerable<PubSubState> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator PubSubStateCollection(PubSubState[] values)
         {
             if (values != null)
@@ -6140,9 +5644,7 @@ namespace Opc.Ua
             return new PubSubStateCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator PubSubState[](PubSubStateCollection values)
         {
             if (values != null)
@@ -6156,9 +5658,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (PubSubStateCollection)this.MemberwiseClone();
@@ -6185,35 +5685,25 @@ namespace Opc.Ua
 
     #region DataSetMetaDataType Class
     #if (!OPCUA_EXCLUDE_DataSetMetaDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetMetaDataType : DataTypeSchemaHeader
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetMetaDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_name = null;
@@ -6241,9 +5731,7 @@ namespace Opc.Ua
             set { m_description = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Fields", IsRequired = false, Order = 3)]
         public FieldMetaDataCollection Fields
         {
@@ -6271,9 +5759,7 @@ namespace Opc.Ua
             set { m_dataSetClassId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ConfigurationVersion", IsRequired = false, Order = 5)]
         public ConfigurationVersionDataType ConfigurationVersion
         {
@@ -6311,6 +5797,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataSetMetaDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataSetMetaDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -6403,9 +5895,7 @@ namespace Opc.Ua
     }
 
     #region DataSetMetaDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetMetaDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetMetaDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetMetaDataType")]
@@ -6416,26 +5906,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DataSetMetaDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DataSetMetaDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DataSetMetaDataTypeCollection(IEnumerable<DataSetMetaDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DataSetMetaDataTypeCollection(DataSetMetaDataType[] values)
         {
             if (values != null)
@@ -6446,9 +5928,7 @@ namespace Opc.Ua
             return new DataSetMetaDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DataSetMetaDataType[](DataSetMetaDataTypeCollection values)
         {
             if (values != null)
@@ -6462,9 +5942,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DataSetMetaDataTypeCollection)this.MemberwiseClone();
@@ -6491,35 +5969,25 @@ namespace Opc.Ua
 
     #region FieldMetaData Class
     #if (!OPCUA_EXCLUDE_FieldMetaData)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class FieldMetaData : IEncodeable
-    {
+    public partial class FieldMetaData : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FieldMetaData()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -6584,9 +6052,7 @@ namespace Opc.Ua
             set { m_valueRank = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 7)]
         public UInt32Collection ArrayDimensions
         {
@@ -6622,9 +6088,7 @@ namespace Opc.Ua
             set { m_dataSetFieldId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Properties", IsRequired = false, Order = 10)]
         public KeyValuePairCollection Properties
         {
@@ -6662,6 +6126,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.FieldMetaData_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.FieldMetaData_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -6774,9 +6244,7 @@ namespace Opc.Ua
     }
 
     #region FieldMetaDataCollection Class
-    /// <summary>
-    /// A collection of FieldMetaData objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfFieldMetaData", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "FieldMetaData")]
@@ -6787,26 +6255,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public FieldMetaDataCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public FieldMetaDataCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public FieldMetaDataCollection(IEnumerable<FieldMetaData> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator FieldMetaDataCollection(FieldMetaData[] values)
         {
             if (values != null)
@@ -6817,9 +6277,7 @@ namespace Opc.Ua
             return new FieldMetaDataCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator FieldMetaData[](FieldMetaDataCollection values)
         {
             if (values != null)
@@ -6833,9 +6291,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (FieldMetaDataCollection)this.MemberwiseClone();
@@ -6862,9 +6318,7 @@ namespace Opc.Ua
 
     #region DataSetFieldFlags Enumeration
     #if (!OPCUA_EXCLUDE_DataSetFieldFlags)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -6883,35 +6337,25 @@ namespace Opc.Ua
 
     #region ConfigurationVersionDataType Class
     #if (!OPCUA_EXCLUDE_ConfigurationVersionDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ConfigurationVersionDataType : IEncodeable
-    {
+    public partial class ConfigurationVersionDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ConfigurationVersionDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_majorVersion = (uint)0;
@@ -6954,6 +6398,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ConfigurationVersionDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ConfigurationVersionDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -7026,9 +6476,7 @@ namespace Opc.Ua
     }
 
     #region ConfigurationVersionDataTypeCollection Class
-    /// <summary>
-    /// A collection of ConfigurationVersionDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfConfigurationVersionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConfigurationVersionDataType")]
@@ -7039,26 +6487,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ConfigurationVersionDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ConfigurationVersionDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ConfigurationVersionDataTypeCollection(IEnumerable<ConfigurationVersionDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ConfigurationVersionDataTypeCollection(ConfigurationVersionDataType[] values)
         {
             if (values != null)
@@ -7069,9 +6509,7 @@ namespace Opc.Ua
             return new ConfigurationVersionDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ConfigurationVersionDataType[](ConfigurationVersionDataTypeCollection values)
         {
             if (values != null)
@@ -7085,9 +6523,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ConfigurationVersionDataTypeCollection)this.MemberwiseClone();
@@ -7114,35 +6550,25 @@ namespace Opc.Ua
 
     #region PublishedDataSetDataType Class
     #if (!OPCUA_EXCLUDE_PublishedDataSetDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class PublishedDataSetDataType : IEncodeable
-    {
+    public partial class PublishedDataSetDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishedDataSetDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -7162,9 +6588,7 @@ namespace Opc.Ua
             set { m_name = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DataSetFolder", IsRequired = false, Order = 2)]
         public StringCollection DataSetFolder
         {
@@ -7184,9 +6608,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DataSetMetaData", IsRequired = false, Order = 3)]
         public DataSetMetaDataType DataSetMetaData
         {
@@ -7206,9 +6628,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ExtensionFields", IsRequired = false, Order = 4)]
         public KeyValuePairCollection ExtensionFields
         {
@@ -7254,6 +6674,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.PublishedDataSetDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.PublishedDataSetDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -7341,9 +6767,7 @@ namespace Opc.Ua
     }
 
     #region PublishedDataSetDataTypeCollection Class
-    /// <summary>
-    /// A collection of PublishedDataSetDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetDataType")]
@@ -7354,26 +6778,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public PublishedDataSetDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public PublishedDataSetDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public PublishedDataSetDataTypeCollection(IEnumerable<PublishedDataSetDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator PublishedDataSetDataTypeCollection(PublishedDataSetDataType[] values)
         {
             if (values != null)
@@ -7384,9 +6800,7 @@ namespace Opc.Ua
             return new PublishedDataSetDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator PublishedDataSetDataType[](PublishedDataSetDataTypeCollection values)
         {
             if (values != null)
@@ -7400,9 +6814,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (PublishedDataSetDataTypeCollection)this.MemberwiseClone();
@@ -7429,35 +6841,25 @@ namespace Opc.Ua
 
     #region PublishedDataSetSourceDataType Class
     #if (!OPCUA_EXCLUDE_PublishedDataSetSourceDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class PublishedDataSetSourceDataType : IEncodeable
-    {
+    public partial class PublishedDataSetSourceDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishedDataSetSourceDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -7483,6 +6885,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -7545,9 +6953,7 @@ namespace Opc.Ua
     }
 
     #region PublishedDataSetSourceDataTypeCollection Class
-    /// <summary>
-    /// A collection of PublishedDataSetSourceDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedDataSetSourceDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetSourceDataType")]
@@ -7558,26 +6964,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public PublishedDataSetSourceDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public PublishedDataSetSourceDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public PublishedDataSetSourceDataTypeCollection(IEnumerable<PublishedDataSetSourceDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator PublishedDataSetSourceDataTypeCollection(PublishedDataSetSourceDataType[] values)
         {
             if (values != null)
@@ -7588,9 +6986,7 @@ namespace Opc.Ua
             return new PublishedDataSetSourceDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator PublishedDataSetSourceDataType[](PublishedDataSetSourceDataTypeCollection values)
         {
             if (values != null)
@@ -7604,9 +7000,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (PublishedDataSetSourceDataTypeCollection)this.MemberwiseClone();
@@ -7633,35 +7027,25 @@ namespace Opc.Ua
 
     #region PublishedVariableDataType Class
     #if (!OPCUA_EXCLUDE_PublishedVariableDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class PublishedVariableDataType : IEncodeable
-    {
+    public partial class PublishedVariableDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishedVariableDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_publishedVariable = null;
@@ -7732,9 +7116,7 @@ namespace Opc.Ua
             set { m_substituteValue = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "MetaDataProperties", IsRequired = false, Order = 8)]
         public QualifiedNameCollection MetaDataProperties
         {
@@ -7772,6 +7154,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.PublishedVariableDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.PublishedVariableDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -7874,9 +7262,7 @@ namespace Opc.Ua
     }
 
     #region PublishedVariableDataTypeCollection Class
-    /// <summary>
-    /// A collection of PublishedVariableDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedVariableDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedVariableDataType")]
@@ -7887,26 +7273,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public PublishedVariableDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public PublishedVariableDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public PublishedVariableDataTypeCollection(IEnumerable<PublishedVariableDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator PublishedVariableDataTypeCollection(PublishedVariableDataType[] values)
         {
             if (values != null)
@@ -7917,9 +7295,7 @@ namespace Opc.Ua
             return new PublishedVariableDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator PublishedVariableDataType[](PublishedVariableDataTypeCollection values)
         {
             if (values != null)
@@ -7933,9 +7309,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (PublishedVariableDataTypeCollection)this.MemberwiseClone();
@@ -7962,35 +7336,25 @@ namespace Opc.Ua
 
     #region PublishedDataItemsDataType Class
     #if (!OPCUA_EXCLUDE_PublishedDataItemsDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedDataItemsDataType : PublishedDataSetSourceDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishedDataItemsDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_publishedData = new PublishedVariableDataTypeCollection();
@@ -7998,9 +7362,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "PublishedData", IsRequired = false, Order = 1)]
         public PublishedVariableDataTypeCollection PublishedData
         {
@@ -8038,6 +7400,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.PublishedDataItemsDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.PublishedDataItemsDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -8110,9 +7478,7 @@ namespace Opc.Ua
     }
 
     #region PublishedDataItemsDataTypeCollection Class
-    /// <summary>
-    /// A collection of PublishedDataItemsDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedDataItemsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataItemsDataType")]
@@ -8123,26 +7489,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public PublishedDataItemsDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public PublishedDataItemsDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public PublishedDataItemsDataTypeCollection(IEnumerable<PublishedDataItemsDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator PublishedDataItemsDataTypeCollection(PublishedDataItemsDataType[] values)
         {
             if (values != null)
@@ -8153,9 +7511,7 @@ namespace Opc.Ua
             return new PublishedDataItemsDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator PublishedDataItemsDataType[](PublishedDataItemsDataTypeCollection values)
         {
             if (values != null)
@@ -8169,9 +7525,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (PublishedDataItemsDataTypeCollection)this.MemberwiseClone();
@@ -8198,35 +7552,25 @@ namespace Opc.Ua
 
     #region PublishedEventsDataType Class
     #if (!OPCUA_EXCLUDE_PublishedEventsDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedEventsDataType : PublishedDataSetSourceDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishedEventsDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_eventNotifier = null;
@@ -8244,9 +7588,7 @@ namespace Opc.Ua
             set { m_eventNotifier = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SelectedFields", IsRequired = false, Order = 2)]
         public SimpleAttributeOperandCollection SelectedFields
         {
@@ -8266,9 +7608,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Filter", IsRequired = false, Order = 3)]
         public ContentFilter Filter
         {
@@ -8306,6 +7646,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.PublishedEventsDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.PublishedEventsDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -8388,9 +7734,7 @@ namespace Opc.Ua
     }
 
     #region PublishedEventsDataTypeCollection Class
-    /// <summary>
-    /// A collection of PublishedEventsDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedEventsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedEventsDataType")]
@@ -8401,26 +7745,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public PublishedEventsDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public PublishedEventsDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public PublishedEventsDataTypeCollection(IEnumerable<PublishedEventsDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator PublishedEventsDataTypeCollection(PublishedEventsDataType[] values)
         {
             if (values != null)
@@ -8431,9 +7767,7 @@ namespace Opc.Ua
             return new PublishedEventsDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator PublishedEventsDataType[](PublishedEventsDataTypeCollection values)
         {
             if (values != null)
@@ -8447,9 +7781,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (PublishedEventsDataTypeCollection)this.MemberwiseClone();
@@ -8476,9 +7808,7 @@ namespace Opc.Ua
 
     #region DataSetFieldContentMask Enumeration
     #if (!OPCUA_EXCLUDE_DataSetFieldContentMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -8514,9 +7844,7 @@ namespace Opc.Ua
     }
 
     #region DataSetFieldContentMaskCollection Class
-    /// <summary>
-    /// A collection of DataSetFieldContentMask objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetFieldContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetFieldContentMask")]
@@ -8527,26 +7855,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DataSetFieldContentMaskCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DataSetFieldContentMaskCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DataSetFieldContentMaskCollection(IEnumerable<DataSetFieldContentMask> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DataSetFieldContentMaskCollection(DataSetFieldContentMask[] values)
         {
             if (values != null)
@@ -8557,9 +7877,7 @@ namespace Opc.Ua
             return new DataSetFieldContentMaskCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DataSetFieldContentMask[](DataSetFieldContentMaskCollection values)
         {
             if (values != null)
@@ -8573,9 +7891,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DataSetFieldContentMaskCollection)this.MemberwiseClone();
@@ -8602,35 +7918,25 @@ namespace Opc.Ua
 
     #region DataSetWriterDataType Class
     #if (!OPCUA_EXCLUDE_DataSetWriterDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataSetWriterDataType : IEncodeable
-    {
+    public partial class DataSetWriterDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -8694,9 +8000,7 @@ namespace Opc.Ua
             set { m_dataSetName = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DataSetWriterProperties", IsRequired = false, Order = 7)]
         public KeyValuePairCollection DataSetWriterProperties
         {
@@ -8750,6 +8054,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataSetWriterDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataSetWriterDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -8857,9 +8167,7 @@ namespace Opc.Ua
     }
 
     #region DataSetWriterDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetWriterDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetWriterDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterDataType")]
@@ -8870,26 +8178,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterDataTypeCollection(IEnumerable<DataSetWriterDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DataSetWriterDataTypeCollection(DataSetWriterDataType[] values)
         {
             if (values != null)
@@ -8900,9 +8200,7 @@ namespace Opc.Ua
             return new DataSetWriterDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DataSetWriterDataType[](DataSetWriterDataTypeCollection values)
         {
             if (values != null)
@@ -8916,9 +8214,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DataSetWriterDataTypeCollection)this.MemberwiseClone();
@@ -8945,35 +8241,25 @@ namespace Opc.Ua
 
     #region DataSetWriterTransportDataType Class
     #if (!OPCUA_EXCLUDE_DataSetWriterTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataSetWriterTransportDataType : IEncodeable
-    {
+    public partial class DataSetWriterTransportDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterTransportDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -8999,6 +8285,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -9061,9 +8353,7 @@ namespace Opc.Ua
     }
 
     #region DataSetWriterTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetWriterTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetWriterTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterTransportDataType")]
@@ -9074,26 +8364,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterTransportDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterTransportDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterTransportDataTypeCollection(IEnumerable<DataSetWriterTransportDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DataSetWriterTransportDataTypeCollection(DataSetWriterTransportDataType[] values)
         {
             if (values != null)
@@ -9104,9 +8386,7 @@ namespace Opc.Ua
             return new DataSetWriterTransportDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DataSetWriterTransportDataType[](DataSetWriterTransportDataTypeCollection values)
         {
             if (values != null)
@@ -9120,9 +8400,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DataSetWriterTransportDataTypeCollection)this.MemberwiseClone();
@@ -9149,35 +8427,25 @@ namespace Opc.Ua
 
     #region DataSetWriterMessageDataType Class
     #if (!OPCUA_EXCLUDE_DataSetWriterMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataSetWriterMessageDataType : IEncodeable
-    {
+    public partial class DataSetWriterMessageDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterMessageDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -9203,6 +8471,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataSetWriterMessageDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataSetWriterMessageDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -9265,9 +8539,7 @@ namespace Opc.Ua
     }
 
     #region DataSetWriterMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetWriterMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterMessageDataType")]
@@ -9278,26 +8550,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterMessageDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterMessageDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DataSetWriterMessageDataTypeCollection(IEnumerable<DataSetWriterMessageDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DataSetWriterMessageDataTypeCollection(DataSetWriterMessageDataType[] values)
         {
             if (values != null)
@@ -9308,9 +8572,7 @@ namespace Opc.Ua
             return new DataSetWriterMessageDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DataSetWriterMessageDataType[](DataSetWriterMessageDataTypeCollection values)
         {
             if (values != null)
@@ -9324,9 +8586,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DataSetWriterMessageDataTypeCollection)this.MemberwiseClone();
@@ -9353,35 +8613,25 @@ namespace Opc.Ua
 
     #region PubSubGroupDataType Class
     #if (!OPCUA_EXCLUDE_PubSubGroupDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class PubSubGroupDataType : IEncodeable
-    {
+    public partial class PubSubGroupDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PubSubGroupDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -9427,9 +8677,7 @@ namespace Opc.Ua
             set { m_securityGroupId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SecurityKeyServices", IsRequired = false, Order = 5)]
         public EndpointDescriptionCollection SecurityKeyServices
         {
@@ -9457,9 +8705,7 @@ namespace Opc.Ua
             set { m_maxNetworkMessageSize = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "GroupProperties", IsRequired = false, Order = 7)]
         public KeyValuePairCollection GroupProperties
         {
@@ -9497,6 +8743,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.PubSubGroupDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.PubSubGroupDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -9594,9 +8846,7 @@ namespace Opc.Ua
     }
 
     #region PubSubGroupDataTypeCollection Class
-    /// <summary>
-    /// A collection of PubSubGroupDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubGroupDataType")]
@@ -9607,26 +8857,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public PubSubGroupDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public PubSubGroupDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public PubSubGroupDataTypeCollection(IEnumerable<PubSubGroupDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator PubSubGroupDataTypeCollection(PubSubGroupDataType[] values)
         {
             if (values != null)
@@ -9637,9 +8879,7 @@ namespace Opc.Ua
             return new PubSubGroupDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator PubSubGroupDataType[](PubSubGroupDataTypeCollection values)
         {
             if (values != null)
@@ -9653,9 +8893,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (PubSubGroupDataTypeCollection)this.MemberwiseClone();
@@ -9682,35 +8920,25 @@ namespace Opc.Ua
 
     #region WriterGroupDataType Class
     #if (!OPCUA_EXCLUDE_WriterGroupDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriterGroupDataType : PubSubGroupDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public WriterGroupDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_writerGroupId = (ushort)0;
@@ -9758,9 +8986,7 @@ namespace Opc.Ua
             set { m_priority = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LocaleIds", IsRequired = false, Order = 5)]
         public StringCollection LocaleIds
         {
@@ -9804,9 +9030,7 @@ namespace Opc.Ua
             set { m_messageSettings = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DataSetWriters", IsRequired = false, Order = 9)]
         public DataSetWriterDataTypeCollection DataSetWriters
         {
@@ -9844,6 +9068,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.WriterGroupDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.WriterGroupDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -9956,9 +9186,7 @@ namespace Opc.Ua
     }
 
     #region WriterGroupDataTypeCollection Class
-    /// <summary>
-    /// A collection of WriterGroupDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWriterGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupDataType")]
@@ -9969,26 +9197,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public WriterGroupDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public WriterGroupDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public WriterGroupDataTypeCollection(IEnumerable<WriterGroupDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator WriterGroupDataTypeCollection(WriterGroupDataType[] values)
         {
             if (values != null)
@@ -9999,9 +9219,7 @@ namespace Opc.Ua
             return new WriterGroupDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator WriterGroupDataType[](WriterGroupDataTypeCollection values)
         {
             if (values != null)
@@ -10015,9 +9233,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (WriterGroupDataTypeCollection)this.MemberwiseClone();
@@ -10044,35 +9260,25 @@ namespace Opc.Ua
 
     #region WriterGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_WriterGroupTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class WriterGroupTransportDataType : IEncodeable
-    {
+    public partial class WriterGroupTransportDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public WriterGroupTransportDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -10098,6 +9304,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.WriterGroupTransportDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.WriterGroupTransportDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -10160,9 +9372,7 @@ namespace Opc.Ua
     }
 
     #region WriterGroupTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of WriterGroupTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupTransportDataType")]
@@ -10173,26 +9383,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public WriterGroupTransportDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public WriterGroupTransportDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public WriterGroupTransportDataTypeCollection(IEnumerable<WriterGroupTransportDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator WriterGroupTransportDataTypeCollection(WriterGroupTransportDataType[] values)
         {
             if (values != null)
@@ -10203,9 +9405,7 @@ namespace Opc.Ua
             return new WriterGroupTransportDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator WriterGroupTransportDataType[](WriterGroupTransportDataTypeCollection values)
         {
             if (values != null)
@@ -10219,9 +9419,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (WriterGroupTransportDataTypeCollection)this.MemberwiseClone();
@@ -10248,35 +9446,25 @@ namespace Opc.Ua
 
     #region WriterGroupMessageDataType Class
     #if (!OPCUA_EXCLUDE_WriterGroupMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class WriterGroupMessageDataType : IEncodeable
-    {
+    public partial class WriterGroupMessageDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public WriterGroupMessageDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -10302,6 +9490,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.WriterGroupMessageDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.WriterGroupMessageDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -10364,9 +9558,7 @@ namespace Opc.Ua
     }
 
     #region WriterGroupMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of WriterGroupMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupMessageDataType")]
@@ -10377,26 +9569,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public WriterGroupMessageDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public WriterGroupMessageDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public WriterGroupMessageDataTypeCollection(IEnumerable<WriterGroupMessageDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator WriterGroupMessageDataTypeCollection(WriterGroupMessageDataType[] values)
         {
             if (values != null)
@@ -10407,9 +9591,7 @@ namespace Opc.Ua
             return new WriterGroupMessageDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator WriterGroupMessageDataType[](WriterGroupMessageDataTypeCollection values)
         {
             if (values != null)
@@ -10423,9 +9605,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (WriterGroupMessageDataTypeCollection)this.MemberwiseClone();
@@ -10452,35 +9632,25 @@ namespace Opc.Ua
 
     #region PubSubConnectionDataType Class
     #if (!OPCUA_EXCLUDE_PubSubConnectionDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class PubSubConnectionDataType : IEncodeable
-    {
+    public partial class PubSubConnectionDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PubSubConnectionDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -10536,9 +9706,7 @@ namespace Opc.Ua
             set { m_address = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ConnectionProperties", IsRequired = false, Order = 6)]
         public KeyValuePairCollection ConnectionProperties
         {
@@ -10566,9 +9734,7 @@ namespace Opc.Ua
             set { m_transportSettings = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "WriterGroups", IsRequired = false, Order = 8)]
         public WriterGroupDataTypeCollection WriterGroups
         {
@@ -10588,9 +9754,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ReaderGroups", IsRequired = false, Order = 9)]
         public ReaderGroupDataTypeCollection ReaderGroups
         {
@@ -10628,6 +9792,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.PubSubConnectionDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.PubSubConnectionDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -10735,9 +9905,7 @@ namespace Opc.Ua
     }
 
     #region PubSubConnectionDataTypeCollection Class
-    /// <summary>
-    /// A collection of PubSubConnectionDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubConnectionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConnectionDataType")]
@@ -10748,26 +9916,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public PubSubConnectionDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public PubSubConnectionDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public PubSubConnectionDataTypeCollection(IEnumerable<PubSubConnectionDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator PubSubConnectionDataTypeCollection(PubSubConnectionDataType[] values)
         {
             if (values != null)
@@ -10778,9 +9938,7 @@ namespace Opc.Ua
             return new PubSubConnectionDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator PubSubConnectionDataType[](PubSubConnectionDataTypeCollection values)
         {
             if (values != null)
@@ -10794,9 +9952,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (PubSubConnectionDataTypeCollection)this.MemberwiseClone();
@@ -10823,35 +9979,25 @@ namespace Opc.Ua
 
     #region ConnectionTransportDataType Class
     #if (!OPCUA_EXCLUDE_ConnectionTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ConnectionTransportDataType : IEncodeable
-    {
+    public partial class ConnectionTransportDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ConnectionTransportDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -10877,6 +10023,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ConnectionTransportDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ConnectionTransportDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -10939,9 +10091,7 @@ namespace Opc.Ua
     }
 
     #region ConnectionTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of ConnectionTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConnectionTransportDataType")]
@@ -10952,26 +10102,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ConnectionTransportDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ConnectionTransportDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ConnectionTransportDataTypeCollection(IEnumerable<ConnectionTransportDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ConnectionTransportDataTypeCollection(ConnectionTransportDataType[] values)
         {
             if (values != null)
@@ -10982,9 +10124,7 @@ namespace Opc.Ua
             return new ConnectionTransportDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ConnectionTransportDataType[](ConnectionTransportDataTypeCollection values)
         {
             if (values != null)
@@ -10998,9 +10138,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ConnectionTransportDataTypeCollection)this.MemberwiseClone();
@@ -11027,35 +10165,25 @@ namespace Opc.Ua
 
     #region NetworkAddressDataType Class
     #if (!OPCUA_EXCLUDE_NetworkAddressDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class NetworkAddressDataType : IEncodeable
-    {
+    public partial class NetworkAddressDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NetworkAddressDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_networkInterface = null;
@@ -11089,6 +10217,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.NetworkAddressDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.NetworkAddressDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -11156,9 +10290,7 @@ namespace Opc.Ua
     }
 
     #region NetworkAddressDataTypeCollection Class
-    /// <summary>
-    /// A collection of NetworkAddressDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNetworkAddressDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkAddressDataType")]
@@ -11169,26 +10301,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public NetworkAddressDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public NetworkAddressDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public NetworkAddressDataTypeCollection(IEnumerable<NetworkAddressDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator NetworkAddressDataTypeCollection(NetworkAddressDataType[] values)
         {
             if (values != null)
@@ -11199,9 +10323,7 @@ namespace Opc.Ua
             return new NetworkAddressDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator NetworkAddressDataType[](NetworkAddressDataTypeCollection values)
         {
             if (values != null)
@@ -11215,9 +10337,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (NetworkAddressDataTypeCollection)this.MemberwiseClone();
@@ -11244,35 +10364,25 @@ namespace Opc.Ua
 
     #region NetworkAddressUrlDataType Class
     #if (!OPCUA_EXCLUDE_NetworkAddressUrlDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NetworkAddressUrlDataType : NetworkAddressDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NetworkAddressUrlDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_url = null;
@@ -11306,6 +10416,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.NetworkAddressUrlDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.NetworkAddressUrlDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -11378,9 +10494,7 @@ namespace Opc.Ua
     }
 
     #region NetworkAddressUrlDataTypeCollection Class
-    /// <summary>
-    /// A collection of NetworkAddressUrlDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNetworkAddressUrlDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkAddressUrlDataType")]
@@ -11391,26 +10505,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public NetworkAddressUrlDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public NetworkAddressUrlDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public NetworkAddressUrlDataTypeCollection(IEnumerable<NetworkAddressUrlDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator NetworkAddressUrlDataTypeCollection(NetworkAddressUrlDataType[] values)
         {
             if (values != null)
@@ -11421,9 +10527,7 @@ namespace Opc.Ua
             return new NetworkAddressUrlDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator NetworkAddressUrlDataType[](NetworkAddressUrlDataTypeCollection values)
         {
             if (values != null)
@@ -11437,9 +10541,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (NetworkAddressUrlDataTypeCollection)this.MemberwiseClone();
@@ -11466,35 +10568,25 @@ namespace Opc.Ua
 
     #region ReaderGroupDataType Class
     #if (!OPCUA_EXCLUDE_ReaderGroupDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReaderGroupDataType : PubSubGroupDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_transportSettings = null;
@@ -11520,9 +10612,7 @@ namespace Opc.Ua
             set { m_messageSettings = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DataSetReaders", IsRequired = false, Order = 3)]
         public DataSetReaderDataTypeCollection DataSetReaders
         {
@@ -11560,6 +10650,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReaderGroupDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReaderGroupDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -11642,9 +10738,7 @@ namespace Opc.Ua
     }
 
     #region ReaderGroupDataTypeCollection Class
-    /// <summary>
-    /// A collection of ReaderGroupDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReaderGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupDataType")]
@@ -11655,26 +10749,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupDataTypeCollection(IEnumerable<ReaderGroupDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ReaderGroupDataTypeCollection(ReaderGroupDataType[] values)
         {
             if (values != null)
@@ -11685,9 +10771,7 @@ namespace Opc.Ua
             return new ReaderGroupDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ReaderGroupDataType[](ReaderGroupDataTypeCollection values)
         {
             if (values != null)
@@ -11701,9 +10785,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ReaderGroupDataTypeCollection)this.MemberwiseClone();
@@ -11730,35 +10812,25 @@ namespace Opc.Ua
 
     #region ReaderGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_ReaderGroupTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReaderGroupTransportDataType : IEncodeable
-    {
+    public partial class ReaderGroupTransportDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupTransportDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -11784,6 +10856,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReaderGroupTransportDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReaderGroupTransportDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -11846,9 +10924,7 @@ namespace Opc.Ua
     }
 
     #region ReaderGroupTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of ReaderGroupTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReaderGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupTransportDataType")]
@@ -11859,26 +10935,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupTransportDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupTransportDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupTransportDataTypeCollection(IEnumerable<ReaderGroupTransportDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ReaderGroupTransportDataTypeCollection(ReaderGroupTransportDataType[] values)
         {
             if (values != null)
@@ -11889,9 +10957,7 @@ namespace Opc.Ua
             return new ReaderGroupTransportDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ReaderGroupTransportDataType[](ReaderGroupTransportDataTypeCollection values)
         {
             if (values != null)
@@ -11905,9 +10971,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ReaderGroupTransportDataTypeCollection)this.MemberwiseClone();
@@ -11934,35 +10998,25 @@ namespace Opc.Ua
 
     #region ReaderGroupMessageDataType Class
     #if (!OPCUA_EXCLUDE_ReaderGroupMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReaderGroupMessageDataType : IEncodeable
-    {
+    public partial class ReaderGroupMessageDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupMessageDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -11988,6 +11042,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReaderGroupMessageDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReaderGroupMessageDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -12050,9 +11110,7 @@ namespace Opc.Ua
     }
 
     #region ReaderGroupMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of ReaderGroupMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReaderGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupMessageDataType")]
@@ -12063,26 +11121,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupMessageDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupMessageDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ReaderGroupMessageDataTypeCollection(IEnumerable<ReaderGroupMessageDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ReaderGroupMessageDataTypeCollection(ReaderGroupMessageDataType[] values)
         {
             if (values != null)
@@ -12093,9 +11143,7 @@ namespace Opc.Ua
             return new ReaderGroupMessageDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ReaderGroupMessageDataType[](ReaderGroupMessageDataTypeCollection values)
         {
             if (values != null)
@@ -12109,9 +11157,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ReaderGroupMessageDataTypeCollection)this.MemberwiseClone();
@@ -12138,35 +11184,25 @@ namespace Opc.Ua
 
     #region DataSetReaderDataType Class
     #if (!OPCUA_EXCLUDE_DataSetReaderDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataSetReaderDataType : IEncodeable
-    {
+    public partial class DataSetReaderDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -12230,9 +11266,7 @@ namespace Opc.Ua
             set { m_dataSetWriterId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DataSetMetaData", IsRequired = false, Order = 6)]
         public DataSetMetaDataType DataSetMetaData
         {
@@ -12300,9 +11334,7 @@ namespace Opc.Ua
             set { m_securityGroupId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SecurityKeyServices", IsRequired = false, Order = 13)]
         public EndpointDescriptionCollection SecurityKeyServices
         {
@@ -12322,9 +11354,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DataSetReaderProperties", IsRequired = false, Order = 14)]
         public KeyValuePairCollection DataSetReaderProperties
         {
@@ -12386,6 +11416,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataSetReaderDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataSetReaderDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -12533,9 +11569,7 @@ namespace Opc.Ua
     }
 
     #region DataSetReaderDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetReaderDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetReaderDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderDataType")]
@@ -12546,26 +11580,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderDataTypeCollection(IEnumerable<DataSetReaderDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DataSetReaderDataTypeCollection(DataSetReaderDataType[] values)
         {
             if (values != null)
@@ -12576,9 +11602,7 @@ namespace Opc.Ua
             return new DataSetReaderDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DataSetReaderDataType[](DataSetReaderDataTypeCollection values)
         {
             if (values != null)
@@ -12592,9 +11616,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DataSetReaderDataTypeCollection)this.MemberwiseClone();
@@ -12621,35 +11643,25 @@ namespace Opc.Ua
 
     #region DataSetReaderTransportDataType Class
     #if (!OPCUA_EXCLUDE_DataSetReaderTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataSetReaderTransportDataType : IEncodeable
-    {
+    public partial class DataSetReaderTransportDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderTransportDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -12675,6 +11687,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -12737,9 +11755,7 @@ namespace Opc.Ua
     }
 
     #region DataSetReaderTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetReaderTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderTransportDataType")]
@@ -12750,26 +11766,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderTransportDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderTransportDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderTransportDataTypeCollection(IEnumerable<DataSetReaderTransportDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DataSetReaderTransportDataTypeCollection(DataSetReaderTransportDataType[] values)
         {
             if (values != null)
@@ -12780,9 +11788,7 @@ namespace Opc.Ua
             return new DataSetReaderTransportDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DataSetReaderTransportDataType[](DataSetReaderTransportDataTypeCollection values)
         {
             if (values != null)
@@ -12796,9 +11802,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DataSetReaderTransportDataTypeCollection)this.MemberwiseClone();
@@ -12825,35 +11829,25 @@ namespace Opc.Ua
 
     #region DataSetReaderMessageDataType Class
     #if (!OPCUA_EXCLUDE_DataSetReaderMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataSetReaderMessageDataType : IEncodeable
-    {
+    public partial class DataSetReaderMessageDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderMessageDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -12879,6 +11873,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataSetReaderMessageDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataSetReaderMessageDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -12941,9 +11941,7 @@ namespace Opc.Ua
     }
 
     #region DataSetReaderMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetReaderMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderMessageDataType")]
@@ -12954,26 +11952,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderMessageDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderMessageDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DataSetReaderMessageDataTypeCollection(IEnumerable<DataSetReaderMessageDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DataSetReaderMessageDataTypeCollection(DataSetReaderMessageDataType[] values)
         {
             if (values != null)
@@ -12984,9 +11974,7 @@ namespace Opc.Ua
             return new DataSetReaderMessageDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DataSetReaderMessageDataType[](DataSetReaderMessageDataTypeCollection values)
         {
             if (values != null)
@@ -13000,9 +11988,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DataSetReaderMessageDataTypeCollection)this.MemberwiseClone();
@@ -13029,35 +12015,25 @@ namespace Opc.Ua
 
     #region SubscribedDataSetDataType Class
     #if (!OPCUA_EXCLUDE_SubscribedDataSetDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SubscribedDataSetDataType : IEncodeable
-    {
+    public partial class SubscribedDataSetDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SubscribedDataSetDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -13083,6 +12059,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SubscribedDataSetDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SubscribedDataSetDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -13145,9 +12127,7 @@ namespace Opc.Ua
     }
 
     #region SubscribedDataSetDataTypeCollection Class
-    /// <summary>
-    /// A collection of SubscribedDataSetDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSubscribedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscribedDataSetDataType")]
@@ -13158,26 +12138,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public SubscribedDataSetDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public SubscribedDataSetDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public SubscribedDataSetDataTypeCollection(IEnumerable<SubscribedDataSetDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator SubscribedDataSetDataTypeCollection(SubscribedDataSetDataType[] values)
         {
             if (values != null)
@@ -13188,9 +12160,7 @@ namespace Opc.Ua
             return new SubscribedDataSetDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator SubscribedDataSetDataType[](SubscribedDataSetDataTypeCollection values)
         {
             if (values != null)
@@ -13204,9 +12174,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (SubscribedDataSetDataTypeCollection)this.MemberwiseClone();
@@ -13233,35 +12201,25 @@ namespace Opc.Ua
 
     #region TargetVariablesDataType Class
     #if (!OPCUA_EXCLUDE_TargetVariablesDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TargetVariablesDataType : SubscribedDataSetDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TargetVariablesDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_targetVariables = new FieldTargetDataTypeCollection();
@@ -13269,9 +12227,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "TargetVariables", IsRequired = false, Order = 1)]
         public FieldTargetDataTypeCollection TargetVariables
         {
@@ -13309,6 +12265,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.TargetVariablesDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.TargetVariablesDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -13381,9 +12343,7 @@ namespace Opc.Ua
     }
 
     #region TargetVariablesDataTypeCollection Class
-    /// <summary>
-    /// A collection of TargetVariablesDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTargetVariablesDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TargetVariablesDataType")]
@@ -13394,26 +12354,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public TargetVariablesDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public TargetVariablesDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public TargetVariablesDataTypeCollection(IEnumerable<TargetVariablesDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator TargetVariablesDataTypeCollection(TargetVariablesDataType[] values)
         {
             if (values != null)
@@ -13424,9 +12376,7 @@ namespace Opc.Ua
             return new TargetVariablesDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator TargetVariablesDataType[](TargetVariablesDataTypeCollection values)
         {
             if (values != null)
@@ -13440,9 +12390,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (TargetVariablesDataTypeCollection)this.MemberwiseClone();
@@ -13469,35 +12417,25 @@ namespace Opc.Ua
 
     #region FieldTargetDataType Class
     #if (!OPCUA_EXCLUDE_FieldTargetDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class FieldTargetDataType : IEncodeable
-    {
+    public partial class FieldTargetDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FieldTargetDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_dataSetFieldId = Uuid.Empty;
@@ -13585,6 +12523,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.FieldTargetDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.FieldTargetDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -13682,9 +12626,7 @@ namespace Opc.Ua
     }
 
     #region FieldTargetDataTypeCollection Class
-    /// <summary>
-    /// A collection of FieldTargetDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfFieldTargetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "FieldTargetDataType")]
@@ -13695,26 +12637,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public FieldTargetDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public FieldTargetDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public FieldTargetDataTypeCollection(IEnumerable<FieldTargetDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator FieldTargetDataTypeCollection(FieldTargetDataType[] values)
         {
             if (values != null)
@@ -13725,9 +12659,7 @@ namespace Opc.Ua
             return new FieldTargetDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator FieldTargetDataType[](FieldTargetDataTypeCollection values)
         {
             if (values != null)
@@ -13741,9 +12673,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (FieldTargetDataTypeCollection)this.MemberwiseClone();
@@ -13770,9 +12700,7 @@ namespace Opc.Ua
 
     #region OverrideValueHandling Enumeration
     #if (!OPCUA_EXCLUDE_OverrideValueHandling)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -13792,9 +12720,7 @@ namespace Opc.Ua
     }
 
     #region OverrideValueHandlingCollection Class
-    /// <summary>
-    /// A collection of OverrideValueHandling objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfOverrideValueHandling", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OverrideValueHandling")]
@@ -13805,26 +12731,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public OverrideValueHandlingCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public OverrideValueHandlingCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public OverrideValueHandlingCollection(IEnumerable<OverrideValueHandling> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator OverrideValueHandlingCollection(OverrideValueHandling[] values)
         {
             if (values != null)
@@ -13835,9 +12753,7 @@ namespace Opc.Ua
             return new OverrideValueHandlingCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator OverrideValueHandling[](OverrideValueHandlingCollection values)
         {
             if (values != null)
@@ -13851,9 +12767,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (OverrideValueHandlingCollection)this.MemberwiseClone();
@@ -13880,35 +12794,25 @@ namespace Opc.Ua
 
     #region SubscribedDataSetMirrorDataType Class
     #if (!OPCUA_EXCLUDE_SubscribedDataSetMirrorDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SubscribedDataSetMirrorDataType : SubscribedDataSetDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SubscribedDataSetMirrorDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_parentNodeName = null;
@@ -13925,9 +12829,7 @@ namespace Opc.Ua
             set { m_parentNodeName = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RolePermissions", IsRequired = false, Order = 2)]
         public RolePermissionTypeCollection RolePermissions
         {
@@ -13965,6 +12867,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -14042,9 +12950,7 @@ namespace Opc.Ua
     }
 
     #region SubscribedDataSetMirrorDataTypeCollection Class
-    /// <summary>
-    /// A collection of SubscribedDataSetMirrorDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSubscribedDataSetMirrorDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscribedDataSetMirrorDataType")]
@@ -14055,26 +12961,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public SubscribedDataSetMirrorDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public SubscribedDataSetMirrorDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public SubscribedDataSetMirrorDataTypeCollection(IEnumerable<SubscribedDataSetMirrorDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator SubscribedDataSetMirrorDataTypeCollection(SubscribedDataSetMirrorDataType[] values)
         {
             if (values != null)
@@ -14085,9 +12983,7 @@ namespace Opc.Ua
             return new SubscribedDataSetMirrorDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator SubscribedDataSetMirrorDataType[](SubscribedDataSetMirrorDataTypeCollection values)
         {
             if (values != null)
@@ -14101,9 +12997,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (SubscribedDataSetMirrorDataTypeCollection)this.MemberwiseClone();
@@ -14130,35 +13024,25 @@ namespace Opc.Ua
 
     #region PubSubConfigurationDataType Class
     #if (!OPCUA_EXCLUDE_PubSubConfigurationDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class PubSubConfigurationDataType : IEncodeable
-    {
+    public partial class PubSubConfigurationDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PubSubConfigurationDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_publishedDataSets = new PublishedDataSetDataTypeCollection();
@@ -14168,9 +13052,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "PublishedDataSets", IsRequired = false, Order = 1)]
         public PublishedDataSetDataTypeCollection PublishedDataSets
         {
@@ -14190,9 +13072,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Connections", IsRequired = false, Order = 2)]
         public PubSubConnectionDataTypeCollection Connections
         {
@@ -14238,6 +13118,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.PubSubConfigurationDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.PubSubConfigurationDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -14315,9 +13201,7 @@ namespace Opc.Ua
     }
 
     #region PubSubConfigurationDataTypeCollection Class
-    /// <summary>
-    /// A collection of PubSubConfigurationDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationDataType")]
@@ -14328,26 +13212,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public PubSubConfigurationDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public PubSubConfigurationDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public PubSubConfigurationDataTypeCollection(IEnumerable<PubSubConfigurationDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator PubSubConfigurationDataTypeCollection(PubSubConfigurationDataType[] values)
         {
             if (values != null)
@@ -14358,9 +13234,7 @@ namespace Opc.Ua
             return new PubSubConfigurationDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator PubSubConfigurationDataType[](PubSubConfigurationDataTypeCollection values)
         {
             if (values != null)
@@ -14374,9 +13248,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (PubSubConfigurationDataTypeCollection)this.MemberwiseClone();
@@ -14403,9 +13275,7 @@ namespace Opc.Ua
 
     #region DataSetOrderingType Enumeration
     #if (!OPCUA_EXCLUDE_DataSetOrderingType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -14425,9 +13295,7 @@ namespace Opc.Ua
     }
 
     #region DataSetOrderingTypeCollection Class
-    /// <summary>
-    /// A collection of DataSetOrderingType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetOrderingType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetOrderingType")]
@@ -14438,26 +13306,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DataSetOrderingTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DataSetOrderingTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DataSetOrderingTypeCollection(IEnumerable<DataSetOrderingType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DataSetOrderingTypeCollection(DataSetOrderingType[] values)
         {
             if (values != null)
@@ -14468,9 +13328,7 @@ namespace Opc.Ua
             return new DataSetOrderingTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DataSetOrderingType[](DataSetOrderingTypeCollection values)
         {
             if (values != null)
@@ -14484,9 +13342,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DataSetOrderingTypeCollection)this.MemberwiseClone();
@@ -14513,9 +13369,7 @@ namespace Opc.Ua
 
     #region UadpNetworkMessageContentMask Enumeration
     #if (!OPCUA_EXCLUDE_UadpNetworkMessageContentMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -14571,9 +13425,7 @@ namespace Opc.Ua
     }
 
     #region UadpNetworkMessageContentMaskCollection Class
-    /// <summary>
-    /// A collection of UadpNetworkMessageContentMask objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpNetworkMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpNetworkMessageContentMask")]
@@ -14584,26 +13436,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public UadpNetworkMessageContentMaskCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public UadpNetworkMessageContentMaskCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public UadpNetworkMessageContentMaskCollection(IEnumerable<UadpNetworkMessageContentMask> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator UadpNetworkMessageContentMaskCollection(UadpNetworkMessageContentMask[] values)
         {
             if (values != null)
@@ -14614,9 +13458,7 @@ namespace Opc.Ua
             return new UadpNetworkMessageContentMaskCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator UadpNetworkMessageContentMask[](UadpNetworkMessageContentMaskCollection values)
         {
             if (values != null)
@@ -14630,9 +13472,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (UadpNetworkMessageContentMaskCollection)this.MemberwiseClone();
@@ -14659,35 +13499,25 @@ namespace Opc.Ua
 
     #region UadpWriterGroupMessageDataType Class
     #if (!OPCUA_EXCLUDE_UadpWriterGroupMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UadpWriterGroupMessageDataType : WriterGroupMessageDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UadpWriterGroupMessageDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_groupVersion = (uint)0;
@@ -14731,9 +13561,7 @@ namespace Opc.Ua
             set { m_samplingOffset = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "PublishingOffset", IsRequired = false, Order = 5)]
         public DoubleCollection PublishingOffset
         {
@@ -14771,6 +13599,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -14863,9 +13697,7 @@ namespace Opc.Ua
     }
 
     #region UadpWriterGroupMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of UadpWriterGroupMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpWriterGroupMessageDataType")]
@@ -14876,26 +13708,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public UadpWriterGroupMessageDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public UadpWriterGroupMessageDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public UadpWriterGroupMessageDataTypeCollection(IEnumerable<UadpWriterGroupMessageDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator UadpWriterGroupMessageDataTypeCollection(UadpWriterGroupMessageDataType[] values)
         {
             if (values != null)
@@ -14906,9 +13730,7 @@ namespace Opc.Ua
             return new UadpWriterGroupMessageDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator UadpWriterGroupMessageDataType[](UadpWriterGroupMessageDataTypeCollection values)
         {
             if (values != null)
@@ -14922,9 +13744,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (UadpWriterGroupMessageDataTypeCollection)this.MemberwiseClone();
@@ -14951,9 +13771,7 @@ namespace Opc.Ua
 
     #region UadpDataSetMessageContentMask Enumeration
     #if (!OPCUA_EXCLUDE_UadpDataSetMessageContentMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -14989,9 +13807,7 @@ namespace Opc.Ua
     }
 
     #region UadpDataSetMessageContentMaskCollection Class
-    /// <summary>
-    /// A collection of UadpDataSetMessageContentMask objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpDataSetMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetMessageContentMask")]
@@ -15002,26 +13818,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetMessageContentMaskCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetMessageContentMaskCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetMessageContentMaskCollection(IEnumerable<UadpDataSetMessageContentMask> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator UadpDataSetMessageContentMaskCollection(UadpDataSetMessageContentMask[] values)
         {
             if (values != null)
@@ -15032,9 +13840,7 @@ namespace Opc.Ua
             return new UadpDataSetMessageContentMaskCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator UadpDataSetMessageContentMask[](UadpDataSetMessageContentMaskCollection values)
         {
             if (values != null)
@@ -15048,9 +13854,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (UadpDataSetMessageContentMaskCollection)this.MemberwiseClone();
@@ -15077,35 +13881,25 @@ namespace Opc.Ua
 
     #region UadpDataSetWriterMessageDataType Class
     #if (!OPCUA_EXCLUDE_UadpDataSetWriterMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UadpDataSetWriterMessageDataType : DataSetWriterMessageDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetWriterMessageDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_dataSetMessageContentMask = 0;
@@ -15166,6 +13960,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -15253,9 +14053,7 @@ namespace Opc.Ua
     }
 
     #region UadpDataSetWriterMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of UadpDataSetWriterMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetWriterMessageDataType")]
@@ -15266,26 +14064,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetWriterMessageDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetWriterMessageDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetWriterMessageDataTypeCollection(IEnumerable<UadpDataSetWriterMessageDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator UadpDataSetWriterMessageDataTypeCollection(UadpDataSetWriterMessageDataType[] values)
         {
             if (values != null)
@@ -15296,9 +14086,7 @@ namespace Opc.Ua
             return new UadpDataSetWriterMessageDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator UadpDataSetWriterMessageDataType[](UadpDataSetWriterMessageDataTypeCollection values)
         {
             if (values != null)
@@ -15312,9 +14100,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (UadpDataSetWriterMessageDataTypeCollection)this.MemberwiseClone();
@@ -15341,35 +14127,25 @@ namespace Opc.Ua
 
     #region UadpDataSetReaderMessageDataType Class
     #if (!OPCUA_EXCLUDE_UadpDataSetReaderMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UadpDataSetReaderMessageDataType : DataSetReaderMessageDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetReaderMessageDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_groupVersion = (uint)0;
@@ -15475,6 +14251,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -15587,9 +14369,7 @@ namespace Opc.Ua
     }
 
     #region UadpDataSetReaderMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of UadpDataSetReaderMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetReaderMessageDataType")]
@@ -15600,26 +14380,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetReaderMessageDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetReaderMessageDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public UadpDataSetReaderMessageDataTypeCollection(IEnumerable<UadpDataSetReaderMessageDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator UadpDataSetReaderMessageDataTypeCollection(UadpDataSetReaderMessageDataType[] values)
         {
             if (values != null)
@@ -15630,9 +14402,7 @@ namespace Opc.Ua
             return new UadpDataSetReaderMessageDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator UadpDataSetReaderMessageDataType[](UadpDataSetReaderMessageDataTypeCollection values)
         {
             if (values != null)
@@ -15646,9 +14416,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (UadpDataSetReaderMessageDataTypeCollection)this.MemberwiseClone();
@@ -15675,9 +14443,7 @@ namespace Opc.Ua
 
     #region JsonNetworkMessageContentMask Enumeration
     #if (!OPCUA_EXCLUDE_JsonNetworkMessageContentMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -15713,9 +14479,7 @@ namespace Opc.Ua
     }
 
     #region JsonNetworkMessageContentMaskCollection Class
-    /// <summary>
-    /// A collection of JsonNetworkMessageContentMask objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonNetworkMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonNetworkMessageContentMask")]
@@ -15726,26 +14490,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public JsonNetworkMessageContentMaskCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public JsonNetworkMessageContentMaskCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public JsonNetworkMessageContentMaskCollection(IEnumerable<JsonNetworkMessageContentMask> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator JsonNetworkMessageContentMaskCollection(JsonNetworkMessageContentMask[] values)
         {
             if (values != null)
@@ -15756,9 +14512,7 @@ namespace Opc.Ua
             return new JsonNetworkMessageContentMaskCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator JsonNetworkMessageContentMask[](JsonNetworkMessageContentMaskCollection values)
         {
             if (values != null)
@@ -15772,9 +14526,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (JsonNetworkMessageContentMaskCollection)this.MemberwiseClone();
@@ -15801,35 +14553,25 @@ namespace Opc.Ua
 
     #region JsonWriterGroupMessageDataType Class
     #if (!OPCUA_EXCLUDE_JsonWriterGroupMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonWriterGroupMessageDataType : WriterGroupMessageDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public JsonWriterGroupMessageDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_networkMessageContentMask = 0;
@@ -15863,6 +14605,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -15935,9 +14683,7 @@ namespace Opc.Ua
     }
 
     #region JsonWriterGroupMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of JsonWriterGroupMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonWriterGroupMessageDataType")]
@@ -15948,26 +14694,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public JsonWriterGroupMessageDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public JsonWriterGroupMessageDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public JsonWriterGroupMessageDataTypeCollection(IEnumerable<JsonWriterGroupMessageDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator JsonWriterGroupMessageDataTypeCollection(JsonWriterGroupMessageDataType[] values)
         {
             if (values != null)
@@ -15978,9 +14716,7 @@ namespace Opc.Ua
             return new JsonWriterGroupMessageDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator JsonWriterGroupMessageDataType[](JsonWriterGroupMessageDataTypeCollection values)
         {
             if (values != null)
@@ -15994,9 +14730,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (JsonWriterGroupMessageDataTypeCollection)this.MemberwiseClone();
@@ -16023,9 +14757,7 @@ namespace Opc.Ua
 
     #region JsonDataSetMessageContentMask Enumeration
     #if (!OPCUA_EXCLUDE_JsonDataSetMessageContentMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -16061,9 +14793,7 @@ namespace Opc.Ua
     }
 
     #region JsonDataSetMessageContentMaskCollection Class
-    /// <summary>
-    /// A collection of JsonDataSetMessageContentMask objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonDataSetMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetMessageContentMask")]
@@ -16074,26 +14804,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetMessageContentMaskCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetMessageContentMaskCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetMessageContentMaskCollection(IEnumerable<JsonDataSetMessageContentMask> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator JsonDataSetMessageContentMaskCollection(JsonDataSetMessageContentMask[] values)
         {
             if (values != null)
@@ -16104,9 +14826,7 @@ namespace Opc.Ua
             return new JsonDataSetMessageContentMaskCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator JsonDataSetMessageContentMask[](JsonDataSetMessageContentMaskCollection values)
         {
             if (values != null)
@@ -16120,9 +14840,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (JsonDataSetMessageContentMaskCollection)this.MemberwiseClone();
@@ -16149,35 +14867,25 @@ namespace Opc.Ua
 
     #region JsonDataSetWriterMessageDataType Class
     #if (!OPCUA_EXCLUDE_JsonDataSetWriterMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonDataSetWriterMessageDataType : DataSetWriterMessageDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetWriterMessageDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_dataSetMessageContentMask = 0;
@@ -16211,6 +14919,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -16283,9 +14997,7 @@ namespace Opc.Ua
     }
 
     #region JsonDataSetWriterMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of JsonDataSetWriterMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetWriterMessageDataType")]
@@ -16296,26 +15008,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetWriterMessageDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetWriterMessageDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetWriterMessageDataTypeCollection(IEnumerable<JsonDataSetWriterMessageDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator JsonDataSetWriterMessageDataTypeCollection(JsonDataSetWriterMessageDataType[] values)
         {
             if (values != null)
@@ -16326,9 +15030,7 @@ namespace Opc.Ua
             return new JsonDataSetWriterMessageDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator JsonDataSetWriterMessageDataType[](JsonDataSetWriterMessageDataTypeCollection values)
         {
             if (values != null)
@@ -16342,9 +15044,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (JsonDataSetWriterMessageDataTypeCollection)this.MemberwiseClone();
@@ -16371,35 +15071,25 @@ namespace Opc.Ua
 
     #region JsonDataSetReaderMessageDataType Class
     #if (!OPCUA_EXCLUDE_JsonDataSetReaderMessageDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class JsonDataSetReaderMessageDataType : DataSetReaderMessageDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetReaderMessageDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_networkMessageContentMask = 0;
@@ -16442,6 +15132,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -16519,9 +15215,7 @@ namespace Opc.Ua
     }
 
     #region JsonDataSetReaderMessageDataTypeCollection Class
-    /// <summary>
-    /// A collection of JsonDataSetReaderMessageDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetReaderMessageDataType")]
@@ -16532,26 +15226,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetReaderMessageDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetReaderMessageDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public JsonDataSetReaderMessageDataTypeCollection(IEnumerable<JsonDataSetReaderMessageDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator JsonDataSetReaderMessageDataTypeCollection(JsonDataSetReaderMessageDataType[] values)
         {
             if (values != null)
@@ -16562,9 +15248,7 @@ namespace Opc.Ua
             return new JsonDataSetReaderMessageDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator JsonDataSetReaderMessageDataType[](JsonDataSetReaderMessageDataTypeCollection values)
         {
             if (values != null)
@@ -16578,9 +15262,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (JsonDataSetReaderMessageDataTypeCollection)this.MemberwiseClone();
@@ -16607,35 +15289,25 @@ namespace Opc.Ua
 
     #region DatagramConnectionTransportDataType Class
     #if (!OPCUA_EXCLUDE_DatagramConnectionTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DatagramConnectionTransportDataType : ConnectionTransportDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DatagramConnectionTransportDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_discoveryAddress = null;
@@ -16669,6 +15341,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -16741,9 +15419,7 @@ namespace Opc.Ua
     }
 
     #region DatagramConnectionTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of DatagramConnectionTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDatagramConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramConnectionTransportDataType")]
@@ -16754,26 +15430,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DatagramConnectionTransportDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DatagramConnectionTransportDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DatagramConnectionTransportDataTypeCollection(IEnumerable<DatagramConnectionTransportDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DatagramConnectionTransportDataTypeCollection(DatagramConnectionTransportDataType[] values)
         {
             if (values != null)
@@ -16784,9 +15452,7 @@ namespace Opc.Ua
             return new DatagramConnectionTransportDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DatagramConnectionTransportDataType[](DatagramConnectionTransportDataTypeCollection values)
         {
             if (values != null)
@@ -16800,9 +15466,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DatagramConnectionTransportDataTypeCollection)this.MemberwiseClone();
@@ -16829,35 +15493,25 @@ namespace Opc.Ua
 
     #region DatagramWriterGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_DatagramWriterGroupTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DatagramWriterGroupTransportDataType : WriterGroupTransportDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DatagramWriterGroupTransportDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_messageRepeatCount = (byte)0;
@@ -16900,6 +15554,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -16977,9 +15637,7 @@ namespace Opc.Ua
     }
 
     #region DatagramWriterGroupTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of DatagramWriterGroupTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDatagramWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramWriterGroupTransportDataType")]
@@ -16990,26 +15648,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DatagramWriterGroupTransportDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DatagramWriterGroupTransportDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DatagramWriterGroupTransportDataTypeCollection(IEnumerable<DatagramWriterGroupTransportDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DatagramWriterGroupTransportDataTypeCollection(DatagramWriterGroupTransportDataType[] values)
         {
             if (values != null)
@@ -17020,9 +15670,7 @@ namespace Opc.Ua
             return new DatagramWriterGroupTransportDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DatagramWriterGroupTransportDataType[](DatagramWriterGroupTransportDataTypeCollection values)
         {
             if (values != null)
@@ -17036,9 +15684,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DatagramWriterGroupTransportDataTypeCollection)this.MemberwiseClone();
@@ -17065,35 +15711,25 @@ namespace Opc.Ua
 
     #region BrokerConnectionTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerConnectionTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrokerConnectionTransportDataType : ConnectionTransportDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrokerConnectionTransportDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_resourceUri = null;
@@ -17136,6 +15772,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -17213,9 +15855,7 @@ namespace Opc.Ua
     }
 
     #region BrokerConnectionTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of BrokerConnectionTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerConnectionTransportDataType")]
@@ -17226,26 +15866,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public BrokerConnectionTransportDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public BrokerConnectionTransportDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public BrokerConnectionTransportDataTypeCollection(IEnumerable<BrokerConnectionTransportDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator BrokerConnectionTransportDataTypeCollection(BrokerConnectionTransportDataType[] values)
         {
             if (values != null)
@@ -17256,9 +15888,7 @@ namespace Opc.Ua
             return new BrokerConnectionTransportDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator BrokerConnectionTransportDataType[](BrokerConnectionTransportDataTypeCollection values)
         {
             if (values != null)
@@ -17272,9 +15902,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (BrokerConnectionTransportDataTypeCollection)this.MemberwiseClone();
@@ -17301,9 +15929,7 @@ namespace Opc.Ua
 
     #region BrokerTransportQualityOfService Enumeration
     #if (!OPCUA_EXCLUDE_BrokerTransportQualityOfService)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -17331,9 +15957,7 @@ namespace Opc.Ua
     }
 
     #region BrokerTransportQualityOfServiceCollection Class
-    /// <summary>
-    /// A collection of BrokerTransportQualityOfService objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerTransportQualityOfService", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerTransportQualityOfService")]
@@ -17344,26 +15968,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public BrokerTransportQualityOfServiceCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public BrokerTransportQualityOfServiceCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public BrokerTransportQualityOfServiceCollection(IEnumerable<BrokerTransportQualityOfService> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator BrokerTransportQualityOfServiceCollection(BrokerTransportQualityOfService[] values)
         {
             if (values != null)
@@ -17374,9 +15990,7 @@ namespace Opc.Ua
             return new BrokerTransportQualityOfServiceCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator BrokerTransportQualityOfService[](BrokerTransportQualityOfServiceCollection values)
         {
             if (values != null)
@@ -17390,9 +16004,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (BrokerTransportQualityOfServiceCollection)this.MemberwiseClone();
@@ -17419,35 +16031,25 @@ namespace Opc.Ua
 
     #region BrokerWriterGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerWriterGroupTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrokerWriterGroupTransportDataType : WriterGroupTransportDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrokerWriterGroupTransportDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_queueName = null;
@@ -17508,6 +16110,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -17595,9 +16203,7 @@ namespace Opc.Ua
     }
 
     #region BrokerWriterGroupTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of BrokerWriterGroupTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerWriterGroupTransportDataType")]
@@ -17608,26 +16214,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public BrokerWriterGroupTransportDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public BrokerWriterGroupTransportDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public BrokerWriterGroupTransportDataTypeCollection(IEnumerable<BrokerWriterGroupTransportDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator BrokerWriterGroupTransportDataTypeCollection(BrokerWriterGroupTransportDataType[] values)
         {
             if (values != null)
@@ -17638,9 +16236,7 @@ namespace Opc.Ua
             return new BrokerWriterGroupTransportDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator BrokerWriterGroupTransportDataType[](BrokerWriterGroupTransportDataTypeCollection values)
         {
             if (values != null)
@@ -17654,9 +16250,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (BrokerWriterGroupTransportDataTypeCollection)this.MemberwiseClone();
@@ -17683,35 +16277,25 @@ namespace Opc.Ua
 
     #region BrokerDataSetWriterTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerDataSetWriterTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrokerDataSetWriterTransportDataType : DataSetWriterTransportDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrokerDataSetWriterTransportDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_queueName = null;
@@ -17790,6 +16374,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -17887,9 +16477,7 @@ namespace Opc.Ua
     }
 
     #region BrokerDataSetWriterTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of BrokerDataSetWriterTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerDataSetWriterTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerDataSetWriterTransportDataType")]
@@ -17900,26 +16488,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public BrokerDataSetWriterTransportDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public BrokerDataSetWriterTransportDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public BrokerDataSetWriterTransportDataTypeCollection(IEnumerable<BrokerDataSetWriterTransportDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator BrokerDataSetWriterTransportDataTypeCollection(BrokerDataSetWriterTransportDataType[] values)
         {
             if (values != null)
@@ -17930,9 +16510,7 @@ namespace Opc.Ua
             return new BrokerDataSetWriterTransportDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator BrokerDataSetWriterTransportDataType[](BrokerDataSetWriterTransportDataTypeCollection values)
         {
             if (values != null)
@@ -17946,9 +16524,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (BrokerDataSetWriterTransportDataTypeCollection)this.MemberwiseClone();
@@ -17975,35 +16551,25 @@ namespace Opc.Ua
 
     #region BrokerDataSetReaderTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerDataSetReaderTransportDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrokerDataSetReaderTransportDataType : DataSetReaderTransportDataType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrokerDataSetReaderTransportDataType()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_queueName = null;
@@ -18073,6 +16639,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -18165,9 +16737,7 @@ namespace Opc.Ua
     }
 
     #region BrokerDataSetReaderTransportDataTypeCollection Class
-    /// <summary>
-    /// A collection of BrokerDataSetReaderTransportDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerDataSetReaderTransportDataType")]
@@ -18178,26 +16748,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public BrokerDataSetReaderTransportDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public BrokerDataSetReaderTransportDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public BrokerDataSetReaderTransportDataTypeCollection(IEnumerable<BrokerDataSetReaderTransportDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator BrokerDataSetReaderTransportDataTypeCollection(BrokerDataSetReaderTransportDataType[] values)
         {
             if (values != null)
@@ -18208,9 +16770,7 @@ namespace Opc.Ua
             return new BrokerDataSetReaderTransportDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator BrokerDataSetReaderTransportDataType[](BrokerDataSetReaderTransportDataTypeCollection values)
         {
             if (values != null)
@@ -18224,9 +16784,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (BrokerDataSetReaderTransportDataTypeCollection)this.MemberwiseClone();
@@ -18253,9 +16811,7 @@ namespace Opc.Ua
 
     #region DiagnosticsLevel Enumeration
     #if (!OPCUA_EXCLUDE_DiagnosticsLevel)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -18283,9 +16839,7 @@ namespace Opc.Ua
     }
 
     #region DiagnosticsLevelCollection Class
-    /// <summary>
-    /// A collection of DiagnosticsLevel objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDiagnosticsLevel", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DiagnosticsLevel")]
@@ -18296,26 +16850,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DiagnosticsLevelCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DiagnosticsLevelCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DiagnosticsLevelCollection(IEnumerable<DiagnosticsLevel> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DiagnosticsLevelCollection(DiagnosticsLevel[] values)
         {
             if (values != null)
@@ -18326,9 +16872,7 @@ namespace Opc.Ua
             return new DiagnosticsLevelCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DiagnosticsLevel[](DiagnosticsLevelCollection values)
         {
             if (values != null)
@@ -18342,9 +16886,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DiagnosticsLevelCollection)this.MemberwiseClone();
@@ -18371,9 +16913,7 @@ namespace Opc.Ua
 
     #region PubSubDiagnosticsCounterClassification Enumeration
     #if (!OPCUA_EXCLUDE_PubSubDiagnosticsCounterClassification)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -18389,9 +16929,7 @@ namespace Opc.Ua
     }
 
     #region PubSubDiagnosticsCounterClassificationCollection Class
-    /// <summary>
-    /// A collection of PubSubDiagnosticsCounterClassification objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubDiagnosticsCounterClassification", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubDiagnosticsCounterClassification")]
@@ -18402,26 +16940,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public PubSubDiagnosticsCounterClassificationCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public PubSubDiagnosticsCounterClassificationCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public PubSubDiagnosticsCounterClassificationCollection(IEnumerable<PubSubDiagnosticsCounterClassification> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator PubSubDiagnosticsCounterClassificationCollection(PubSubDiagnosticsCounterClassification[] values)
         {
             if (values != null)
@@ -18432,9 +16962,7 @@ namespace Opc.Ua
             return new PubSubDiagnosticsCounterClassificationCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator PubSubDiagnosticsCounterClassification[](PubSubDiagnosticsCounterClassificationCollection values)
         {
             if (values != null)
@@ -18448,9 +16976,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (PubSubDiagnosticsCounterClassificationCollection)this.MemberwiseClone();
@@ -18477,35 +17003,25 @@ namespace Opc.Ua
 
     #region AliasNameDataType Class
     #if (!OPCUA_EXCLUDE_AliasNameDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AliasNameDataType : IEncodeable
-    {
+    public partial class AliasNameDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AliasNameDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_aliasName = null;
@@ -18522,9 +17038,7 @@ namespace Opc.Ua
             set { m_aliasName = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ReferencedNodes", IsRequired = false, Order = 2)]
         public ExpandedNodeIdCollection ReferencedNodes
         {
@@ -18562,6 +17076,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AliasNameDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AliasNameDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -18634,9 +17154,7 @@ namespace Opc.Ua
     }
 
     #region AliasNameDataTypeCollection Class
-    /// <summary>
-    /// A collection of AliasNameDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfAliasNameDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AliasNameDataType")]
@@ -18647,26 +17165,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public AliasNameDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public AliasNameDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public AliasNameDataTypeCollection(IEnumerable<AliasNameDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator AliasNameDataTypeCollection(AliasNameDataType[] values)
         {
             if (values != null)
@@ -18677,9 +17187,7 @@ namespace Opc.Ua
             return new AliasNameDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator AliasNameDataType[](AliasNameDataTypeCollection values)
         {
             if (values != null)
@@ -18693,9 +17201,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (AliasNameDataTypeCollection)this.MemberwiseClone();
@@ -18722,9 +17228,7 @@ namespace Opc.Ua
 
     #region Duplex Enumeration
     #if (!OPCUA_EXCLUDE_Duplex)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -18744,9 +17248,7 @@ namespace Opc.Ua
     }
 
     #region DuplexCollection Class
-    /// <summary>
-    /// A collection of Duplex objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDuplex", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Duplex")]
@@ -18757,26 +17259,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DuplexCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DuplexCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DuplexCollection(IEnumerable<Duplex> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DuplexCollection(Duplex[] values)
         {
             if (values != null)
@@ -18787,9 +17281,7 @@ namespace Opc.Ua
             return new DuplexCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator Duplex[](DuplexCollection values)
         {
             if (values != null)
@@ -18803,9 +17295,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DuplexCollection)this.MemberwiseClone();
@@ -18832,9 +17322,7 @@ namespace Opc.Ua
 
     #region InterfaceAdminStatus Enumeration
     #if (!OPCUA_EXCLUDE_InterfaceAdminStatus)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -18854,9 +17342,7 @@ namespace Opc.Ua
     }
 
     #region InterfaceAdminStatusCollection Class
-    /// <summary>
-    /// A collection of InterfaceAdminStatus objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfInterfaceAdminStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "InterfaceAdminStatus")]
@@ -18867,26 +17353,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public InterfaceAdminStatusCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public InterfaceAdminStatusCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public InterfaceAdminStatusCollection(IEnumerable<InterfaceAdminStatus> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator InterfaceAdminStatusCollection(InterfaceAdminStatus[] values)
         {
             if (values != null)
@@ -18897,9 +17375,7 @@ namespace Opc.Ua
             return new InterfaceAdminStatusCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator InterfaceAdminStatus[](InterfaceAdminStatusCollection values)
         {
             if (values != null)
@@ -18913,9 +17389,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (InterfaceAdminStatusCollection)this.MemberwiseClone();
@@ -18942,9 +17416,7 @@ namespace Opc.Ua
 
     #region InterfaceOperStatus Enumeration
     #if (!OPCUA_EXCLUDE_InterfaceOperStatus)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -18980,9 +17452,7 @@ namespace Opc.Ua
     }
 
     #region InterfaceOperStatusCollection Class
-    /// <summary>
-    /// A collection of InterfaceOperStatus objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfInterfaceOperStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "InterfaceOperStatus")]
@@ -18993,26 +17463,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public InterfaceOperStatusCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public InterfaceOperStatusCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public InterfaceOperStatusCollection(IEnumerable<InterfaceOperStatus> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator InterfaceOperStatusCollection(InterfaceOperStatus[] values)
         {
             if (values != null)
@@ -19023,9 +17485,7 @@ namespace Opc.Ua
             return new InterfaceOperStatusCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator InterfaceOperStatus[](InterfaceOperStatusCollection values)
         {
             if (values != null)
@@ -19039,9 +17499,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (InterfaceOperStatusCollection)this.MemberwiseClone();
@@ -19068,9 +17526,7 @@ namespace Opc.Ua
 
     #region NegotiationStatus Enumeration
     #if (!OPCUA_EXCLUDE_NegotiationStatus)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -19098,9 +17554,7 @@ namespace Opc.Ua
     }
 
     #region NegotiationStatusCollection Class
-    /// <summary>
-    /// A collection of NegotiationStatus objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNegotiationStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NegotiationStatus")]
@@ -19111,26 +17565,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public NegotiationStatusCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public NegotiationStatusCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public NegotiationStatusCollection(IEnumerable<NegotiationStatus> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator NegotiationStatusCollection(NegotiationStatus[] values)
         {
             if (values != null)
@@ -19141,9 +17587,7 @@ namespace Opc.Ua
             return new NegotiationStatusCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator NegotiationStatus[](NegotiationStatusCollection values)
         {
             if (values != null)
@@ -19157,9 +17601,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (NegotiationStatusCollection)this.MemberwiseClone();
@@ -19186,9 +17628,7 @@ namespace Opc.Ua
 
     #region TsnFailureCode Enumeration
     #if (!OPCUA_EXCLUDE_TsnFailureCode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -19300,9 +17740,7 @@ namespace Opc.Ua
     }
 
     #region TsnFailureCodeCollection Class
-    /// <summary>
-    /// A collection of TsnFailureCode objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTsnFailureCode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnFailureCode")]
@@ -19313,26 +17751,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public TsnFailureCodeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public TsnFailureCodeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public TsnFailureCodeCollection(IEnumerable<TsnFailureCode> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator TsnFailureCodeCollection(TsnFailureCode[] values)
         {
             if (values != null)
@@ -19343,9 +17773,7 @@ namespace Opc.Ua
             return new TsnFailureCodeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator TsnFailureCode[](TsnFailureCodeCollection values)
         {
             if (values != null)
@@ -19359,9 +17787,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (TsnFailureCodeCollection)this.MemberwiseClone();
@@ -19388,9 +17814,7 @@ namespace Opc.Ua
 
     #region TsnStreamState Enumeration
     #if (!OPCUA_EXCLUDE_TsnStreamState)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -19418,9 +17842,7 @@ namespace Opc.Ua
     }
 
     #region TsnStreamStateCollection Class
-    /// <summary>
-    /// A collection of TsnStreamState objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTsnStreamState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnStreamState")]
@@ -19431,26 +17853,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public TsnStreamStateCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public TsnStreamStateCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public TsnStreamStateCollection(IEnumerable<TsnStreamState> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator TsnStreamStateCollection(TsnStreamState[] values)
         {
             if (values != null)
@@ -19461,9 +17875,7 @@ namespace Opc.Ua
             return new TsnStreamStateCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator TsnStreamState[](TsnStreamStateCollection values)
         {
             if (values != null)
@@ -19477,9 +17889,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (TsnStreamStateCollection)this.MemberwiseClone();
@@ -19506,9 +17916,7 @@ namespace Opc.Ua
 
     #region TsnTalkerStatus Enumeration
     #if (!OPCUA_EXCLUDE_TsnTalkerStatus)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -19528,9 +17936,7 @@ namespace Opc.Ua
     }
 
     #region TsnTalkerStatusCollection Class
-    /// <summary>
-    /// A collection of TsnTalkerStatus objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTsnTalkerStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnTalkerStatus")]
@@ -19541,26 +17947,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public TsnTalkerStatusCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public TsnTalkerStatusCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public TsnTalkerStatusCollection(IEnumerable<TsnTalkerStatus> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator TsnTalkerStatusCollection(TsnTalkerStatus[] values)
         {
             if (values != null)
@@ -19571,9 +17969,7 @@ namespace Opc.Ua
             return new TsnTalkerStatusCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator TsnTalkerStatus[](TsnTalkerStatusCollection values)
         {
             if (values != null)
@@ -19587,9 +17983,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (TsnTalkerStatusCollection)this.MemberwiseClone();
@@ -19616,9 +18010,7 @@ namespace Opc.Ua
 
     #region TsnListenerStatus Enumeration
     #if (!OPCUA_EXCLUDE_TsnListenerStatus)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -19642,9 +18034,7 @@ namespace Opc.Ua
     }
 
     #region TsnListenerStatusCollection Class
-    /// <summary>
-    /// A collection of TsnListenerStatus objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTsnListenerStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnListenerStatus")]
@@ -19655,26 +18045,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public TsnListenerStatusCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public TsnListenerStatusCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public TsnListenerStatusCollection(IEnumerable<TsnListenerStatus> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator TsnListenerStatusCollection(TsnListenerStatus[] values)
         {
             if (values != null)
@@ -19685,9 +18067,7 @@ namespace Opc.Ua
             return new TsnListenerStatusCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator TsnListenerStatus[](TsnListenerStatusCollection values)
         {
             if (values != null)
@@ -19701,9 +18081,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (TsnListenerStatusCollection)this.MemberwiseClone();
@@ -19730,35 +18108,25 @@ namespace Opc.Ua
 
     #region UnsignedRationalNumber Class
     #if (!OPCUA_EXCLUDE_UnsignedRationalNumber)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UnsignedRationalNumber : IEncodeable
-    {
+    public partial class UnsignedRationalNumber : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UnsignedRationalNumber()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_numerator = (uint)0;
@@ -19801,6 +18169,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UnsignedRationalNumber_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UnsignedRationalNumber_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -19873,9 +18247,7 @@ namespace Opc.Ua
     }
 
     #region UnsignedRationalNumberCollection Class
-    /// <summary>
-    /// A collection of UnsignedRationalNumber objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUnsignedRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UnsignedRationalNumber")]
@@ -19886,26 +18258,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public UnsignedRationalNumberCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public UnsignedRationalNumberCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public UnsignedRationalNumberCollection(IEnumerable<UnsignedRationalNumber> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator UnsignedRationalNumberCollection(UnsignedRationalNumber[] values)
         {
             if (values != null)
@@ -19916,9 +18280,7 @@ namespace Opc.Ua
             return new UnsignedRationalNumberCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator UnsignedRationalNumber[](UnsignedRationalNumberCollection values)
         {
             if (values != null)
@@ -19932,9 +18294,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (UnsignedRationalNumberCollection)this.MemberwiseClone();
@@ -19961,9 +18321,7 @@ namespace Opc.Ua
 
     #region IdType Enumeration
     #if (!OPCUA_EXCLUDE_IdType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -19987,9 +18345,7 @@ namespace Opc.Ua
     }
 
     #region IdTypeCollection Class
-    /// <summary>
-    /// A collection of IdType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfIdType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdType")]
@@ -20000,26 +18356,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public IdTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public IdTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public IdTypeCollection(IEnumerable<IdType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator IdTypeCollection(IdType[] values)
         {
             if (values != null)
@@ -20030,9 +18378,7 @@ namespace Opc.Ua
             return new IdTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator IdType[](IdTypeCollection values)
         {
             if (values != null)
@@ -20046,9 +18392,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (IdTypeCollection)this.MemberwiseClone();
@@ -20075,9 +18419,7 @@ namespace Opc.Ua
 
     #region NodeClass Enumeration
     #if (!OPCUA_EXCLUDE_NodeClass)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -20124,9 +18466,7 @@ namespace Opc.Ua
 
     #region PermissionType Enumeration
     #if (!OPCUA_EXCLUDE_PermissionType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -20209,9 +18549,7 @@ namespace Opc.Ua
 
     #region AccessLevelType Enumeration
     #if (!OPCUA_EXCLUDE_AccessLevelType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -20254,9 +18592,7 @@ namespace Opc.Ua
 
     #region AccessLevelExType Enumeration
     #if (!OPCUA_EXCLUDE_AccessLevelExType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -20315,9 +18651,7 @@ namespace Opc.Ua
 
     #region EventNotifierType Enumeration
     #if (!OPCUA_EXCLUDE_EventNotifierType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -20344,9 +18678,7 @@ namespace Opc.Ua
 
     #region AccessRestrictionType Enumeration
     #if (!OPCUA_EXCLUDE_AccessRestrictionType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -20377,35 +18709,25 @@ namespace Opc.Ua
 
     #region RolePermissionType Class
     #if (!OPCUA_EXCLUDE_RolePermissionType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RolePermissionType : IEncodeable
-    {
+    public partial class RolePermissionType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RolePermissionType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_roleId = null;
@@ -20448,6 +18770,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RolePermissionType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RolePermissionType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -20520,9 +18848,7 @@ namespace Opc.Ua
     }
 
     #region RolePermissionTypeCollection Class
-    /// <summary>
-    /// A collection of RolePermissionType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRolePermissionType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RolePermissionType")]
@@ -20533,26 +18859,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public RolePermissionTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public RolePermissionTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public RolePermissionTypeCollection(IEnumerable<RolePermissionType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator RolePermissionTypeCollection(RolePermissionType[] values)
         {
             if (values != null)
@@ -20563,9 +18881,7 @@ namespace Opc.Ua
             return new RolePermissionTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator RolePermissionType[](RolePermissionTypeCollection values)
         {
             if (values != null)
@@ -20579,9 +18895,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (RolePermissionTypeCollection)this.MemberwiseClone();
@@ -20608,35 +18922,25 @@ namespace Opc.Ua
 
     #region DataTypeDefinition Class
     #if (!OPCUA_EXCLUDE_DataTypeDefinition)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataTypeDefinition : IEncodeable
-    {
+    public partial class DataTypeDefinition : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataTypeDefinition()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -20662,6 +18966,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataTypeDefinition_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataTypeDefinition_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -20724,9 +19034,7 @@ namespace Opc.Ua
     }
 
     #region DataTypeDefinitionCollection Class
-    /// <summary>
-    /// A collection of DataTypeDefinition objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataTypeDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeDefinition")]
@@ -20737,26 +19045,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DataTypeDefinitionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DataTypeDefinitionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DataTypeDefinitionCollection(IEnumerable<DataTypeDefinition> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DataTypeDefinitionCollection(DataTypeDefinition[] values)
         {
             if (values != null)
@@ -20767,9 +19067,7 @@ namespace Opc.Ua
             return new DataTypeDefinitionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DataTypeDefinition[](DataTypeDefinitionCollection values)
         {
             if (values != null)
@@ -20783,9 +19081,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DataTypeDefinitionCollection)this.MemberwiseClone();
@@ -20812,9 +19108,7 @@ namespace Opc.Ua
 
     #region StructureType Enumeration
     #if (!OPCUA_EXCLUDE_StructureType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -20845,35 +19139,25 @@ namespace Opc.Ua
 
     #region StructureField Class
     #if (!OPCUA_EXCLUDE_StructureField)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class StructureField : IEncodeable
-    {
+    public partial class StructureField : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public StructureField()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -20919,9 +19203,7 @@ namespace Opc.Ua
             set { m_valueRank = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 5)]
         public UInt32Collection ArrayDimensions
         {
@@ -20975,6 +19257,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.StructureField_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.StructureField_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -21072,9 +19360,7 @@ namespace Opc.Ua
     }
 
     #region StructureFieldCollection Class
-    /// <summary>
-    /// A collection of StructureField objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfStructureField", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureField")]
@@ -21085,26 +19371,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public StructureFieldCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public StructureFieldCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public StructureFieldCollection(IEnumerable<StructureField> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator StructureFieldCollection(StructureField[] values)
         {
             if (values != null)
@@ -21115,9 +19393,7 @@ namespace Opc.Ua
             return new StructureFieldCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator StructureField[](StructureFieldCollection values)
         {
             if (values != null)
@@ -21131,9 +19407,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (StructureFieldCollection)this.MemberwiseClone();
@@ -21160,35 +19434,25 @@ namespace Opc.Ua
 
     #region StructureDefinition Class
     #if (!OPCUA_EXCLUDE_StructureDefinition)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StructureDefinition : DataTypeDefinition
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public StructureDefinition()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_defaultEncodingId = null;
@@ -21223,9 +19487,7 @@ namespace Opc.Ua
             set { m_structureType = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Fields", IsRequired = false, Order = 4)]
         public StructureFieldCollection Fields
         {
@@ -21263,6 +19525,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.StructureDefinition_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.StructureDefinition_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -21350,9 +19618,7 @@ namespace Opc.Ua
     }
 
     #region StructureDefinitionCollection Class
-    /// <summary>
-    /// A collection of StructureDefinition objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfStructureDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureDefinition")]
@@ -21363,26 +19629,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public StructureDefinitionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public StructureDefinitionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public StructureDefinitionCollection(IEnumerable<StructureDefinition> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator StructureDefinitionCollection(StructureDefinition[] values)
         {
             if (values != null)
@@ -21393,9 +19651,7 @@ namespace Opc.Ua
             return new StructureDefinitionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator StructureDefinition[](StructureDefinitionCollection values)
         {
             if (values != null)
@@ -21409,9 +19665,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (StructureDefinitionCollection)this.MemberwiseClone();
@@ -21438,35 +19692,25 @@ namespace Opc.Ua
 
     #region EnumDefinition Class
     #if (!OPCUA_EXCLUDE_EnumDefinition)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EnumDefinition : DataTypeDefinition
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EnumDefinition()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_fields = new EnumFieldCollection();
@@ -21474,9 +19718,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Fields", IsRequired = false, Order = 1)]
         public EnumFieldCollection Fields
         {
@@ -21514,6 +19756,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EnumDefinition_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EnumDefinition_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -21586,9 +19834,7 @@ namespace Opc.Ua
     }
 
     #region EnumDefinitionCollection Class
-    /// <summary>
-    /// A collection of EnumDefinition objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumDefinition")]
@@ -21599,26 +19845,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public EnumDefinitionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public EnumDefinitionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public EnumDefinitionCollection(IEnumerable<EnumDefinition> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator EnumDefinitionCollection(EnumDefinition[] values)
         {
             if (values != null)
@@ -21629,9 +19867,7 @@ namespace Opc.Ua
             return new EnumDefinitionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator EnumDefinition[](EnumDefinitionCollection values)
         {
             if (values != null)
@@ -21645,9 +19881,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (EnumDefinitionCollection)this.MemberwiseClone();
@@ -21674,35 +19908,25 @@ namespace Opc.Ua
 
     #region Node Class
     #if (!OPCUA_EXCLUDE_Node)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Node : IEncodeable
-    {
+    public partial class Node : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Node()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -21776,9 +20000,7 @@ namespace Opc.Ua
             set { m_userWriteMask = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RolePermissions", IsRequired = false, Order = 8)]
         public RolePermissionTypeCollection RolePermissions
         {
@@ -21798,9 +20020,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "UserRolePermissions", IsRequired = false, Order = 9)]
         public RolePermissionTypeCollection UserRolePermissions
         {
@@ -21828,9 +20048,7 @@ namespace Opc.Ua
             set { m_accessRestrictions = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "References", IsRequired = false, Order = 11)]
         public ReferenceNodeCollection References
         {
@@ -21868,6 +20086,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.Node_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.Node_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -21985,9 +20209,7 @@ namespace Opc.Ua
     }
 
     #region NodeCollection Class
-    /// <summary>
-    /// A collection of Node objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Node")]
@@ -21998,26 +20220,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public NodeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public NodeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public NodeCollection(IEnumerable<Node> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator NodeCollection(Node[] values)
         {
             if (values != null)
@@ -22028,9 +20242,7 @@ namespace Opc.Ua
             return new NodeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator Node[](NodeCollection values)
         {
             if (values != null)
@@ -22044,9 +20256,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (NodeCollection)this.MemberwiseClone();
@@ -22073,35 +20283,25 @@ namespace Opc.Ua
 
     #region InstanceNode Class
     #if (!OPCUA_EXCLUDE_InstanceNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class InstanceNode : Node
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public InstanceNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
         }
@@ -22127,6 +20327,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.InstanceNode_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.InstanceNode_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -22196,35 +20402,25 @@ namespace Opc.Ua
 
     #region TypeNode Class
     #if (!OPCUA_EXCLUDE_TypeNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TypeNode : Node
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TypeNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
         }
@@ -22250,6 +20446,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.TypeNode_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.TypeNode_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -22319,35 +20521,25 @@ namespace Opc.Ua
 
     #region ObjectNode Class
     #if (!OPCUA_EXCLUDE_ObjectNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ObjectNode : InstanceNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ObjectNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_eventNotifier = (byte)0;
@@ -22381,6 +20573,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ObjectNode_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ObjectNode_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -22456,35 +20654,25 @@ namespace Opc.Ua
 
     #region ObjectTypeNode Class
     #if (!OPCUA_EXCLUDE_ObjectTypeNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ObjectTypeNode : TypeNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ObjectTypeNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isAbstract = true;
@@ -22518,6 +20706,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ObjectTypeNode_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ObjectTypeNode_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -22593,35 +20787,25 @@ namespace Opc.Ua
 
     #region VariableNode Class
     #if (!OPCUA_EXCLUDE_VariableNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class VariableNode : InstanceNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public VariableNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_value = Variant.Null;
@@ -22661,9 +20845,7 @@ namespace Opc.Ua
             set { m_valueRank = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 4)]
         public UInt32Collection ArrayDimensions
         {
@@ -22741,6 +20923,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.VariableNode_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.VariableNode_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -22856,35 +21044,25 @@ namespace Opc.Ua
 
     #region VariableTypeNode Class
     #if (!OPCUA_EXCLUDE_VariableTypeNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class VariableTypeNode : TypeNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public VariableTypeNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_value = Variant.Null;
@@ -22920,9 +21098,7 @@ namespace Opc.Ua
             set { m_valueRank = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 4)]
         public UInt32Collection ArrayDimensions
         {
@@ -22968,6 +21144,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.VariableTypeNode_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.VariableTypeNode_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -23063,35 +21245,25 @@ namespace Opc.Ua
 
     #region ReferenceTypeNode Class
     #if (!OPCUA_EXCLUDE_ReferenceTypeNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceTypeNode : TypeNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReferenceTypeNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isAbstract = true;
@@ -23143,6 +21315,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReferenceTypeNode_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReferenceTypeNode_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -23228,35 +21406,25 @@ namespace Opc.Ua
 
     #region MethodNode Class
     #if (!OPCUA_EXCLUDE_MethodNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MethodNode : InstanceNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MethodNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_executable = true;
@@ -23299,6 +21467,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.MethodNode_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.MethodNode_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -23379,35 +21553,25 @@ namespace Opc.Ua
 
     #region ViewNode Class
     #if (!OPCUA_EXCLUDE_ViewNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ViewNode : InstanceNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ViewNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_containsNoLoops = true;
@@ -23450,6 +21614,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ViewNode_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ViewNode_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -23530,35 +21700,25 @@ namespace Opc.Ua
 
     #region DataTypeNode Class
     #if (!OPCUA_EXCLUDE_DataTypeNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeNode : TypeNode
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataTypeNode()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isAbstract = true;
@@ -23601,6 +21761,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataTypeNode_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataTypeNode_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -23681,35 +21847,25 @@ namespace Opc.Ua
 
     #region ReferenceNode Class
     #if (!OPCUA_EXCLUDE_ReferenceNode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReferenceNode : IEncodeable
-    {
+    public partial class ReferenceNode : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReferenceNode()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_referenceTypeId = null;
@@ -23761,6 +21917,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReferenceNode_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReferenceNode_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -23838,9 +22000,7 @@ namespace Opc.Ua
     }
 
     #region ReferenceNodeCollection Class
-    /// <summary>
-    /// A collection of ReferenceNode objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReferenceNode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceNode")]
@@ -23851,26 +22011,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ReferenceNodeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ReferenceNodeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ReferenceNodeCollection(IEnumerable<ReferenceNode> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ReferenceNodeCollection(ReferenceNode[] values)
         {
             if (values != null)
@@ -23881,9 +22033,7 @@ namespace Opc.Ua
             return new ReferenceNodeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ReferenceNode[](ReferenceNodeCollection values)
         {
             if (values != null)
@@ -23897,9 +22047,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ReferenceNodeCollection)this.MemberwiseClone();
@@ -23926,35 +22074,25 @@ namespace Opc.Ua
 
     #region Argument Class
     #if (!OPCUA_EXCLUDE_Argument)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Argument : IEncodeable
-    {
+    public partial class Argument : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Argument()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_name = null;
@@ -23990,9 +22128,7 @@ namespace Opc.Ua
             set { m_valueRank = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 4)]
         public UInt32Collection ArrayDimensions
         {
@@ -24038,6 +22174,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.Argument_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.Argument_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -24125,9 +22267,7 @@ namespace Opc.Ua
     }
 
     #region ArgumentCollection Class
-    /// <summary>
-    /// A collection of Argument objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfArgument", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Argument")]
@@ -24138,26 +22278,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ArgumentCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ArgumentCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ArgumentCollection(IEnumerable<Argument> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ArgumentCollection(Argument[] values)
         {
             if (values != null)
@@ -24168,9 +22300,7 @@ namespace Opc.Ua
             return new ArgumentCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator Argument[](ArgumentCollection values)
         {
             if (values != null)
@@ -24184,9 +22314,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ArgumentCollection)this.MemberwiseClone();
@@ -24213,35 +22341,25 @@ namespace Opc.Ua
 
     #region EnumValueType Class
     #if (!OPCUA_EXCLUDE_EnumValueType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EnumValueType : IEncodeable
-    {
+    public partial class EnumValueType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EnumValueType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_value = (long)0;
@@ -24293,6 +22411,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EnumValueType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EnumValueType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -24370,9 +22494,7 @@ namespace Opc.Ua
     }
 
     #region EnumValueTypeCollection Class
-    /// <summary>
-    /// A collection of EnumValueType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumValueType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumValueType")]
@@ -24383,26 +22505,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public EnumValueTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public EnumValueTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public EnumValueTypeCollection(IEnumerable<EnumValueType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator EnumValueTypeCollection(EnumValueType[] values)
         {
             if (values != null)
@@ -24413,9 +22527,7 @@ namespace Opc.Ua
             return new EnumValueTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator EnumValueType[](EnumValueTypeCollection values)
         {
             if (values != null)
@@ -24429,9 +22541,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (EnumValueTypeCollection)this.MemberwiseClone();
@@ -24458,35 +22568,25 @@ namespace Opc.Ua
 
     #region EnumField Class
     #if (!OPCUA_EXCLUDE_EnumField)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EnumField : EnumValueType
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EnumField()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_name = null;
@@ -24520,6 +22620,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EnumField_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EnumField_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -24592,9 +22698,7 @@ namespace Opc.Ua
     }
 
     #region EnumFieldCollection Class
-    /// <summary>
-    /// A collection of EnumField objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumField", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumField")]
@@ -24605,26 +22709,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public EnumFieldCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public EnumFieldCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public EnumFieldCollection(IEnumerable<EnumField> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator EnumFieldCollection(EnumField[] values)
         {
             if (values != null)
@@ -24635,9 +22731,7 @@ namespace Opc.Ua
             return new EnumFieldCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator EnumField[](EnumFieldCollection values)
         {
             if (values != null)
@@ -24651,9 +22745,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (EnumFieldCollection)this.MemberwiseClone();
@@ -24680,35 +22772,25 @@ namespace Opc.Ua
 
     #region OptionSet Class
     #if (!OPCUA_EXCLUDE_OptionSet)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class OptionSet : IEncodeable
-    {
+    public partial class OptionSet : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public OptionSet()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_value = null;
@@ -24751,6 +22833,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.OptionSet_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.OptionSet_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -24823,9 +22911,7 @@ namespace Opc.Ua
     }
 
     #region OptionSetCollection Class
-    /// <summary>
-    /// A collection of OptionSet objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfOptionSet", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OptionSet")]
@@ -24836,26 +22922,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public OptionSetCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public OptionSetCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public OptionSetCollection(IEnumerable<OptionSet> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator OptionSetCollection(OptionSet[] values)
         {
             if (values != null)
@@ -24866,9 +22944,7 @@ namespace Opc.Ua
             return new OptionSetCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator OptionSet[](OptionSetCollection values)
         {
             if (values != null)
@@ -24882,9 +22958,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (OptionSetCollection)this.MemberwiseClone();
@@ -24911,35 +22985,25 @@ namespace Opc.Ua
 
     #region TimeZoneDataType Class
     #if (!OPCUA_EXCLUDE_TimeZoneDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class TimeZoneDataType : IEncodeable
-    {
+    public partial class TimeZoneDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TimeZoneDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_offset = (short)0;
@@ -24982,6 +23046,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.TimeZoneDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.TimeZoneDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -25054,9 +23124,7 @@ namespace Opc.Ua
     }
 
     #region TimeZoneDataTypeCollection Class
-    /// <summary>
-    /// A collection of TimeZoneDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTimeZoneDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TimeZoneDataType")]
@@ -25067,26 +23135,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public TimeZoneDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public TimeZoneDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public TimeZoneDataTypeCollection(IEnumerable<TimeZoneDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator TimeZoneDataTypeCollection(TimeZoneDataType[] values)
         {
             if (values != null)
@@ -25097,9 +23157,7 @@ namespace Opc.Ua
             return new TimeZoneDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator TimeZoneDataType[](TimeZoneDataTypeCollection values)
         {
             if (values != null)
@@ -25113,9 +23171,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (TimeZoneDataTypeCollection)this.MemberwiseClone();
@@ -25142,9 +23198,7 @@ namespace Opc.Ua
 
     #region ApplicationType Enumeration
     #if (!OPCUA_EXCLUDE_ApplicationType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -25171,35 +23225,25 @@ namespace Opc.Ua
 
     #region ApplicationDescription Class
     #if (!OPCUA_EXCLUDE_ApplicationDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ApplicationDescription : IEncodeable
-    {
+    public partial class ApplicationDescription : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ApplicationDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_applicationUri = null;
@@ -25261,9 +23305,7 @@ namespace Opc.Ua
             set { m_discoveryProfileUri = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiscoveryUrls", IsRequired = false, Order = 7)]
         public StringCollection DiscoveryUrls
         {
@@ -25301,6 +23343,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ApplicationDescription_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ApplicationDescription_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -25398,9 +23446,7 @@ namespace Opc.Ua
     }
 
     #region ApplicationDescriptionCollection Class
-    /// <summary>
-    /// A collection of ApplicationDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfApplicationDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ApplicationDescription")]
@@ -25411,26 +23457,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ApplicationDescriptionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ApplicationDescriptionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ApplicationDescriptionCollection(IEnumerable<ApplicationDescription> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ApplicationDescriptionCollection(ApplicationDescription[] values)
         {
             if (values != null)
@@ -25441,9 +23479,7 @@ namespace Opc.Ua
             return new ApplicationDescriptionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ApplicationDescription[](ApplicationDescriptionCollection values)
         {
             if (values != null)
@@ -25457,9 +23493,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ApplicationDescriptionCollection)this.MemberwiseClone();
@@ -25486,35 +23520,25 @@ namespace Opc.Ua
 
     #region RequestHeader Class
     #if (!OPCUA_EXCLUDE_RequestHeader)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RequestHeader : IEncodeable
-    {
+    public partial class RequestHeader : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RequestHeader()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_authenticationToken = null;
@@ -25602,6 +23626,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RequestHeader_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RequestHeader_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -25702,35 +23732,25 @@ namespace Opc.Ua
 
     #region ResponseHeader Class
     #if (!OPCUA_EXCLUDE_ResponseHeader)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ResponseHeader : IEncodeable
-    {
+    public partial class ResponseHeader : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ResponseHeader()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_timestamp = DateTime.MinValue;
@@ -25775,9 +23795,7 @@ namespace Opc.Ua
             set { m_serviceDiagnostics = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "StringTable", IsRequired = false, Order = 5)]
         public StringCollection StringTable
         {
@@ -25823,6 +23841,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ResponseHeader_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ResponseHeader_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -25918,35 +23942,25 @@ namespace Opc.Ua
 
     #region ServiceFault Class
     #if (!OPCUA_EXCLUDE_ServiceFault)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ServiceFault : IEncodeable
-    {
+    public partial class ServiceFault : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ServiceFault()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -25954,9 +23968,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -25994,6 +24006,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ServiceFault_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ServiceFault_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -26064,35 +24082,25 @@ namespace Opc.Ua
 
     #region SessionlessInvokeRequestType Class
     #if (!OPCUA_EXCLUDE_SessionlessInvokeRequestType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SessionlessInvokeRequestType : IEncodeable
-    {
+    public partial class SessionlessInvokeRequestType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SessionlessInvokeRequestType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_urisVersion = (uint)0;
@@ -26112,9 +24120,7 @@ namespace Opc.Ua
             set { m_urisVersion = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NamespaceUris", IsRequired = false, Order = 2)]
         public StringCollection NamespaceUris
         {
@@ -26134,9 +24140,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ServerUris", IsRequired = false, Order = 3)]
         public StringCollection ServerUris
         {
@@ -26156,9 +24160,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LocaleIds", IsRequired = false, Order = 4)]
         public StringCollection LocaleIds
         {
@@ -26204,6 +24206,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -26294,35 +24302,25 @@ namespace Opc.Ua
 
     #region SessionlessInvokeResponseType Class
     #if (!OPCUA_EXCLUDE_SessionlessInvokeResponseType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SessionlessInvokeResponseType : IEncodeable
-    {
+    public partial class SessionlessInvokeResponseType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SessionlessInvokeResponseType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_namespaceUris = new StringCollection();
@@ -26332,9 +24330,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NamespaceUris", IsRequired = false, Order = 1)]
         public StringCollection NamespaceUris
         {
@@ -26354,9 +24350,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ServerUris", IsRequired = false, Order = 2)]
         public StringCollection ServerUris
         {
@@ -26402,6 +24396,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -26482,35 +24482,25 @@ namespace Opc.Ua
 
     #region FindServersRequest Class
     #if (!OPCUA_EXCLUDE_FindServersRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class FindServersRequest : IEncodeable
-    {
+    public partial class FindServersRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FindServersRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -26521,9 +24511,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -26551,9 +24539,7 @@ namespace Opc.Ua
             set { m_endpointUrl = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LocaleIds", IsRequired = false, Order = 3)]
         public StringCollection LocaleIds
         {
@@ -26573,9 +24559,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ServerUris", IsRequired = false, Order = 4)]
         public StringCollection ServerUris
         {
@@ -26613,6 +24597,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.FindServersRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.FindServersRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -26698,35 +24688,25 @@ namespace Opc.Ua
 
     #region FindServersResponse Class
     #if (!OPCUA_EXCLUDE_FindServersResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class FindServersResponse : IEncodeable
-    {
+    public partial class FindServersResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FindServersResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -26735,9 +24715,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -26757,9 +24735,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Servers", IsRequired = false, Order = 2)]
         public ApplicationDescriptionCollection Servers
         {
@@ -26797,6 +24773,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.FindServersResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.FindServersResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -26872,35 +24854,25 @@ namespace Opc.Ua
 
     #region ServerOnNetwork Class
     #if (!OPCUA_EXCLUDE_ServerOnNetwork)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ServerOnNetwork : IEncodeable
-    {
+    public partial class ServerOnNetwork : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ServerOnNetwork()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_recordId = (uint)0;
@@ -26935,9 +24907,7 @@ namespace Opc.Ua
             set { m_discoveryUrl = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ServerCapabilities", IsRequired = false, Order = 4)]
         public StringCollection ServerCapabilities
         {
@@ -26975,6 +24945,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ServerOnNetwork_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ServerOnNetwork_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -27057,9 +25033,7 @@ namespace Opc.Ua
     }
 
     #region ServerOnNetworkCollection Class
-    /// <summary>
-    /// A collection of ServerOnNetwork objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfServerOnNetwork", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ServerOnNetwork")]
@@ -27070,26 +25044,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ServerOnNetworkCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ServerOnNetworkCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ServerOnNetworkCollection(IEnumerable<ServerOnNetwork> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ServerOnNetworkCollection(ServerOnNetwork[] values)
         {
             if (values != null)
@@ -27100,9 +25066,7 @@ namespace Opc.Ua
             return new ServerOnNetworkCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ServerOnNetwork[](ServerOnNetworkCollection values)
         {
             if (values != null)
@@ -27116,9 +25080,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ServerOnNetworkCollection)this.MemberwiseClone();
@@ -27145,35 +25107,25 @@ namespace Opc.Ua
 
     #region FindServersOnNetworkRequest Class
     #if (!OPCUA_EXCLUDE_FindServersOnNetworkRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class FindServersOnNetworkRequest : IEncodeable
-    {
+    public partial class FindServersOnNetworkRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FindServersOnNetworkRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -27184,9 +25136,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -27222,9 +25172,7 @@ namespace Opc.Ua
             set { m_maxRecordsToReturn = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ServerCapabilityFilter", IsRequired = false, Order = 4)]
         public StringCollection ServerCapabilityFilter
         {
@@ -27262,6 +25210,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -27347,35 +25301,25 @@ namespace Opc.Ua
 
     #region FindServersOnNetworkResponse Class
     #if (!OPCUA_EXCLUDE_FindServersOnNetworkResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class FindServersOnNetworkResponse : IEncodeable
-    {
+    public partial class FindServersOnNetworkResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FindServersOnNetworkResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -27385,9 +25329,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -27415,9 +25357,7 @@ namespace Opc.Ua
             set { m_lastCounterResetTime = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Servers", IsRequired = false, Order = 3)]
         public ServerOnNetworkCollection Servers
         {
@@ -27455,6 +25395,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.FindServersOnNetworkResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.FindServersOnNetworkResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -27535,9 +25481,7 @@ namespace Opc.Ua
 
     #region MessageSecurityMode Enumeration
     #if (!OPCUA_EXCLUDE_MessageSecurityMode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -27564,9 +25508,7 @@ namespace Opc.Ua
 
     #region UserTokenType Enumeration
     #if (!OPCUA_EXCLUDE_UserTokenType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -27593,35 +25535,25 @@ namespace Opc.Ua
 
     #region UserTokenPolicy Class
     #if (!OPCUA_EXCLUDE_UserTokenPolicy)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UserTokenPolicy : IEncodeable
-    {
+    public partial class UserTokenPolicy : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UserTokenPolicy()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_policyId = null;
@@ -27691,6 +25623,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UserTokenPolicy_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UserTokenPolicy_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -27778,9 +25716,7 @@ namespace Opc.Ua
     }
 
     #region UserTokenPolicyCollection Class
-    /// <summary>
-    /// A collection of UserTokenPolicy objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUserTokenPolicy", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserTokenPolicy")]
@@ -27791,26 +25727,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public UserTokenPolicyCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public UserTokenPolicyCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public UserTokenPolicyCollection(IEnumerable<UserTokenPolicy> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator UserTokenPolicyCollection(UserTokenPolicy[] values)
         {
             if (values != null)
@@ -27821,9 +25749,7 @@ namespace Opc.Ua
             return new UserTokenPolicyCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator UserTokenPolicy[](UserTokenPolicyCollection values)
         {
             if (values != null)
@@ -27837,9 +25763,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (UserTokenPolicyCollection)this.MemberwiseClone();
@@ -27866,35 +25790,25 @@ namespace Opc.Ua
 
     #region EndpointDescription Class
     #if (!OPCUA_EXCLUDE_EndpointDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EndpointDescription : IEncodeable
-    {
+    public partial class EndpointDescription : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EndpointDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_endpointUrl = null;
@@ -27917,9 +25831,7 @@ namespace Opc.Ua
             set { m_endpointUrl = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Server", IsRequired = false, Order = 2)]
         public ApplicationDescription Server
         {
@@ -27963,9 +25875,7 @@ namespace Opc.Ua
             set { m_securityPolicyUri = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "UserIdentityTokens", IsRequired = false, Order = 6)]
         public UserTokenPolicyCollection UserIdentityTokens
         {
@@ -28019,6 +25929,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EndpointDescription_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EndpointDescription_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -28121,9 +26037,7 @@ namespace Opc.Ua
     }
 
     #region EndpointDescriptionCollection Class
-    /// <summary>
-    /// A collection of EndpointDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEndpointDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointDescription")]
@@ -28134,26 +26048,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public EndpointDescriptionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public EndpointDescriptionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public EndpointDescriptionCollection(IEnumerable<EndpointDescription> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator EndpointDescriptionCollection(EndpointDescription[] values)
         {
             if (values != null)
@@ -28164,9 +26070,7 @@ namespace Opc.Ua
             return new EndpointDescriptionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator EndpointDescription[](EndpointDescriptionCollection values)
         {
             if (values != null)
@@ -28180,9 +26084,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (EndpointDescriptionCollection)this.MemberwiseClone();
@@ -28209,35 +26111,25 @@ namespace Opc.Ua
 
     #region GetEndpointsRequest Class
     #if (!OPCUA_EXCLUDE_GetEndpointsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class GetEndpointsRequest : IEncodeable
-    {
+    public partial class GetEndpointsRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public GetEndpointsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -28248,9 +26140,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -28278,9 +26168,7 @@ namespace Opc.Ua
             set { m_endpointUrl = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LocaleIds", IsRequired = false, Order = 3)]
         public StringCollection LocaleIds
         {
@@ -28300,9 +26188,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ProfileUris", IsRequired = false, Order = 4)]
         public StringCollection ProfileUris
         {
@@ -28340,6 +26226,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.GetEndpointsRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.GetEndpointsRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -28425,35 +26317,25 @@ namespace Opc.Ua
 
     #region GetEndpointsResponse Class
     #if (!OPCUA_EXCLUDE_GetEndpointsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class GetEndpointsResponse : IEncodeable
-    {
+    public partial class GetEndpointsResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public GetEndpointsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -28462,9 +26344,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -28484,9 +26364,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Endpoints", IsRequired = false, Order = 2)]
         public EndpointDescriptionCollection Endpoints
         {
@@ -28524,6 +26402,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.GetEndpointsResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.GetEndpointsResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -28599,35 +26483,25 @@ namespace Opc.Ua
 
     #region RegisteredServer Class
     #if (!OPCUA_EXCLUDE_RegisteredServer)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RegisteredServer : IEncodeable
-    {
+    public partial class RegisteredServer : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisteredServer()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_serverUri = null;
@@ -28658,9 +26532,7 @@ namespace Opc.Ua
             set { m_productUri = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ServerNames", IsRequired = false, Order = 3)]
         public LocalizedTextCollection ServerNames
         {
@@ -28696,9 +26568,7 @@ namespace Opc.Ua
             set { m_gatewayServerUri = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiscoveryUrls", IsRequired = false, Order = 6)]
         public StringCollection DiscoveryUrls
         {
@@ -28752,6 +26622,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RegisteredServer_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RegisteredServer_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -28854,9 +26730,7 @@ namespace Opc.Ua
     }
 
     #region RegisteredServerCollection Class
-    /// <summary>
-    /// A collection of RegisteredServer objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRegisteredServer", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RegisteredServer")]
@@ -28867,26 +26741,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public RegisteredServerCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public RegisteredServerCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public RegisteredServerCollection(IEnumerable<RegisteredServer> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator RegisteredServerCollection(RegisteredServer[] values)
         {
             if (values != null)
@@ -28897,9 +26763,7 @@ namespace Opc.Ua
             return new RegisteredServerCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator RegisteredServer[](RegisteredServerCollection values)
         {
             if (values != null)
@@ -28913,9 +26777,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (RegisteredServerCollection)this.MemberwiseClone();
@@ -28942,35 +26804,25 @@ namespace Opc.Ua
 
     #region RegisterServerRequest Class
     #if (!OPCUA_EXCLUDE_RegisterServerRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RegisterServerRequest : IEncodeable
-    {
+    public partial class RegisterServerRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisterServerRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -28979,9 +26831,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -29001,9 +26851,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Server", IsRequired = false, Order = 2)]
         public RegisteredServer Server
         {
@@ -29041,6 +26889,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RegisterServerRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RegisterServerRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -29116,35 +26970,25 @@ namespace Opc.Ua
 
     #region RegisterServerResponse Class
     #if (!OPCUA_EXCLUDE_RegisterServerResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RegisterServerResponse : IEncodeable
-    {
+    public partial class RegisterServerResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisterServerResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -29152,9 +26996,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -29192,6 +27034,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RegisterServerResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RegisterServerResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -29262,35 +27110,25 @@ namespace Opc.Ua
 
     #region DiscoveryConfiguration Class
     #if (!OPCUA_EXCLUDE_DiscoveryConfiguration)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DiscoveryConfiguration : IEncodeable
-    {
+    public partial class DiscoveryConfiguration : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DiscoveryConfiguration()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -29316,6 +27154,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DiscoveryConfiguration_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DiscoveryConfiguration_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -29381,35 +27225,25 @@ namespace Opc.Ua
 
     #region MdnsDiscoveryConfiguration Class
     #if (!OPCUA_EXCLUDE_MdnsDiscoveryConfiguration)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MdnsDiscoveryConfiguration : DiscoveryConfiguration
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MdnsDiscoveryConfiguration()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_mdnsServerName = null;
@@ -29426,9 +27260,7 @@ namespace Opc.Ua
             set { m_mdnsServerName = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ServerCapabilities", IsRequired = false, Order = 2)]
         public StringCollection ServerCapabilities
         {
@@ -29466,6 +27298,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.MdnsDiscoveryConfiguration_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.MdnsDiscoveryConfiguration_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -29546,35 +27384,25 @@ namespace Opc.Ua
 
     #region RegisterServer2Request Class
     #if (!OPCUA_EXCLUDE_RegisterServer2Request)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RegisterServer2Request : IEncodeable
-    {
+    public partial class RegisterServer2Request : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisterServer2Request()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -29584,9 +27412,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -29606,9 +27432,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Server", IsRequired = false, Order = 2)]
         public RegisteredServer Server
         {
@@ -29628,9 +27452,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiscoveryConfiguration", IsRequired = false, Order = 3)]
         public ExtensionObjectCollection DiscoveryConfiguration
         {
@@ -29668,6 +27490,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RegisterServer2Request_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RegisterServer2Request_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -29748,35 +27576,25 @@ namespace Opc.Ua
 
     #region RegisterServer2Response Class
     #if (!OPCUA_EXCLUDE_RegisterServer2Response)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RegisterServer2Response : IEncodeable
-    {
+    public partial class RegisterServer2Response : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisterServer2Response()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -29786,9 +27604,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -29808,9 +27624,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ConfigurationResults", IsRequired = false, Order = 2)]
         public StatusCodeCollection ConfigurationResults
         {
@@ -29830,9 +27644,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -29870,6 +27682,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RegisterServer2Response_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RegisterServer2Response_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -29950,9 +27768,7 @@ namespace Opc.Ua
 
     #region SecurityTokenRequestType Enumeration
     #if (!OPCUA_EXCLUDE_SecurityTokenRequestType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -29971,35 +27787,25 @@ namespace Opc.Ua
 
     #region ChannelSecurityToken Class
     #if (!OPCUA_EXCLUDE_ChannelSecurityToken)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ChannelSecurityToken : IEncodeable
-    {
+    public partial class ChannelSecurityToken : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ChannelSecurityToken()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_channelId = (uint)0;
@@ -30060,6 +27866,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ChannelSecurityToken_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ChannelSecurityToken_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -30145,35 +27957,25 @@ namespace Opc.Ua
 
     #region OpenSecureChannelRequest Class
     #if (!OPCUA_EXCLUDE_OpenSecureChannelRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class OpenSecureChannelRequest : IEncodeable
-    {
+    public partial class OpenSecureChannelRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public OpenSecureChannelRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -30186,9 +27988,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -30266,6 +28066,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.OpenSecureChannelRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.OpenSecureChannelRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -30361,35 +28167,25 @@ namespace Opc.Ua
 
     #region OpenSecureChannelResponse Class
     #if (!OPCUA_EXCLUDE_OpenSecureChannelResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class OpenSecureChannelResponse : IEncodeable
-    {
+    public partial class OpenSecureChannelResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public OpenSecureChannelResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -30400,9 +28196,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -30430,9 +28224,7 @@ namespace Opc.Ua
             set { m_serverProtocolVersion = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SecurityToken", IsRequired = false, Order = 3)]
         public ChannelSecurityToken SecurityToken
         {
@@ -30478,6 +28270,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.OpenSecureChannelResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.OpenSecureChannelResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -30563,35 +28361,25 @@ namespace Opc.Ua
 
     #region CloseSecureChannelRequest Class
     #if (!OPCUA_EXCLUDE_CloseSecureChannelRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CloseSecureChannelRequest : IEncodeable
-    {
+    public partial class CloseSecureChannelRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CloseSecureChannelRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -30599,9 +28387,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -30639,6 +28425,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CloseSecureChannelRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CloseSecureChannelRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -30709,35 +28501,25 @@ namespace Opc.Ua
 
     #region CloseSecureChannelResponse Class
     #if (!OPCUA_EXCLUDE_CloseSecureChannelResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CloseSecureChannelResponse : IEncodeable
-    {
+    public partial class CloseSecureChannelResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CloseSecureChannelResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -30745,9 +28527,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -30785,6 +28565,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CloseSecureChannelResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CloseSecureChannelResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -30855,35 +28641,25 @@ namespace Opc.Ua
 
     #region SignedSoftwareCertificate Class
     #if (!OPCUA_EXCLUDE_SignedSoftwareCertificate)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SignedSoftwareCertificate : IEncodeable
-    {
+    public partial class SignedSoftwareCertificate : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SignedSoftwareCertificate()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_certificateData = null;
@@ -30926,6 +28702,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SignedSoftwareCertificate_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SignedSoftwareCertificate_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -30998,9 +28780,7 @@ namespace Opc.Ua
     }
 
     #region SignedSoftwareCertificateCollection Class
-    /// <summary>
-    /// A collection of SignedSoftwareCertificate objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSignedSoftwareCertificate", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SignedSoftwareCertificate")]
@@ -31011,26 +28791,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public SignedSoftwareCertificateCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public SignedSoftwareCertificateCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public SignedSoftwareCertificateCollection(IEnumerable<SignedSoftwareCertificate> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator SignedSoftwareCertificateCollection(SignedSoftwareCertificate[] values)
         {
             if (values != null)
@@ -31041,9 +28813,7 @@ namespace Opc.Ua
             return new SignedSoftwareCertificateCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator SignedSoftwareCertificate[](SignedSoftwareCertificateCollection values)
         {
             if (values != null)
@@ -31057,9 +28827,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (SignedSoftwareCertificateCollection)this.MemberwiseClone();
@@ -31086,35 +28854,25 @@ namespace Opc.Ua
 
     #region SignatureData Class
     #if (!OPCUA_EXCLUDE_SignatureData)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SignatureData : IEncodeable
-    {
+    public partial class SignatureData : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SignatureData()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_algorithm = null;
@@ -31157,6 +28915,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SignatureData_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SignatureData_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -31232,35 +28996,25 @@ namespace Opc.Ua
 
     #region CreateSessionRequest Class
     #if (!OPCUA_EXCLUDE_CreateSessionRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CreateSessionRequest : IEncodeable
-    {
+    public partial class CreateSessionRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CreateSessionRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -31276,9 +29030,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -31298,9 +29050,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ClientDescription", IsRequired = false, Order = 2)]
         public ApplicationDescription ClientDescription
         {
@@ -31394,6 +29144,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CreateSessionRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CreateSessionRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -31504,35 +29260,25 @@ namespace Opc.Ua
 
     #region CreateSessionResponse Class
     #if (!OPCUA_EXCLUDE_CreateSessionResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CreateSessionResponse : IEncodeable
-    {
+    public partial class CreateSessionResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CreateSessionResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -31549,9 +29295,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -31611,9 +29355,7 @@ namespace Opc.Ua
             set { m_serverCertificate = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ServerEndpoints", IsRequired = false, Order = 7)]
         public EndpointDescriptionCollection ServerEndpoints
         {
@@ -31633,9 +29375,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ServerSoftwareCertificates", IsRequired = false, Order = 8)]
         public SignedSoftwareCertificateCollection ServerSoftwareCertificates
         {
@@ -31655,9 +29395,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ServerSignature", IsRequired = false, Order = 9)]
         public SignatureData ServerSignature
         {
@@ -31703,6 +29441,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CreateSessionResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CreateSessionResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -31818,35 +29562,25 @@ namespace Opc.Ua
 
     #region UserIdentityToken Class
     #if (!OPCUA_EXCLUDE_UserIdentityToken)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UserIdentityToken : IEncodeable
-    {
+    public partial class UserIdentityToken : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UserIdentityToken()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_policyId = null;
@@ -31880,6 +29614,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UserIdentityToken_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UserIdentityToken_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -31950,35 +29690,25 @@ namespace Opc.Ua
 
     #region AnonymousIdentityToken Class
     #if (!OPCUA_EXCLUDE_AnonymousIdentityToken)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AnonymousIdentityToken : UserIdentityToken
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AnonymousIdentityToken()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
         }
@@ -32004,6 +29734,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AnonymousIdentityToken_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AnonymousIdentityToken_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -32073,35 +29809,25 @@ namespace Opc.Ua
 
     #region UserNameIdentityToken Class
     #if (!OPCUA_EXCLUDE_UserNameIdentityToken)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UserNameIdentityToken : UserIdentityToken
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UserNameIdentityToken()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_userName = null;
@@ -32153,6 +29879,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UserNameIdentityToken_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UserNameIdentityToken_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -32238,35 +29970,25 @@ namespace Opc.Ua
 
     #region X509IdentityToken Class
     #if (!OPCUA_EXCLUDE_X509IdentityToken)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class X509IdentityToken : UserIdentityToken
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public X509IdentityToken()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_certificateData = null;
@@ -32300,6 +30022,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.X509IdentityToken_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.X509IdentityToken_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -32375,35 +30103,25 @@ namespace Opc.Ua
 
     #region IssuedIdentityToken Class
     #if (!OPCUA_EXCLUDE_IssuedIdentityToken)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class IssuedIdentityToken : UserIdentityToken
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public IssuedIdentityToken()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_tokenData = null;
@@ -32446,6 +30164,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.IssuedIdentityToken_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.IssuedIdentityToken_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -32526,35 +30250,25 @@ namespace Opc.Ua
 
     #region ActivateSessionRequest Class
     #if (!OPCUA_EXCLUDE_ActivateSessionRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ActivateSessionRequest : IEncodeable
-    {
+    public partial class ActivateSessionRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ActivateSessionRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -32567,9 +30281,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -32589,9 +30301,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ClientSignature", IsRequired = false, Order = 2)]
         public SignatureData ClientSignature
         {
@@ -32611,9 +30321,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ClientSoftwareCertificates", IsRequired = false, Order = 3)]
         public SignedSoftwareCertificateCollection ClientSoftwareCertificates
         {
@@ -32633,9 +30341,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LocaleIds", IsRequired = false, Order = 4)]
         public StringCollection LocaleIds
         {
@@ -32663,9 +30369,7 @@ namespace Opc.Ua
             set { m_userIdentityToken = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "UserTokenSignature", IsRequired = false, Order = 6)]
         public SignatureData UserTokenSignature
         {
@@ -32703,6 +30407,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ActivateSessionRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ActivateSessionRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -32798,35 +30508,25 @@ namespace Opc.Ua
 
     #region ActivateSessionResponse Class
     #if (!OPCUA_EXCLUDE_ActivateSessionResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ActivateSessionResponse : IEncodeable
-    {
+    public partial class ActivateSessionResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ActivateSessionResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -32837,9 +30537,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -32867,9 +30565,7 @@ namespace Opc.Ua
             set { m_serverNonce = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 3)]
         public StatusCodeCollection Results
         {
@@ -32889,9 +30585,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 4)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -32929,6 +30623,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ActivateSessionResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ActivateSessionResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -33014,35 +30714,25 @@ namespace Opc.Ua
 
     #region CloseSessionRequest Class
     #if (!OPCUA_EXCLUDE_CloseSessionRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CloseSessionRequest : IEncodeable
-    {
+    public partial class CloseSessionRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CloseSessionRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -33051,9 +30741,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -33099,6 +30787,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CloseSessionRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CloseSessionRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -33174,35 +30868,25 @@ namespace Opc.Ua
 
     #region CloseSessionResponse Class
     #if (!OPCUA_EXCLUDE_CloseSessionResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CloseSessionResponse : IEncodeable
-    {
+    public partial class CloseSessionResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CloseSessionResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -33210,9 +30894,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -33250,6 +30932,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CloseSessionResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CloseSessionResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -33320,35 +31008,25 @@ namespace Opc.Ua
 
     #region CancelRequest Class
     #if (!OPCUA_EXCLUDE_CancelRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CancelRequest : IEncodeable
-    {
+    public partial class CancelRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CancelRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -33357,9 +31035,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -33405,6 +31081,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CancelRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CancelRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -33480,35 +31162,25 @@ namespace Opc.Ua
 
     #region CancelResponse Class
     #if (!OPCUA_EXCLUDE_CancelResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CancelResponse : IEncodeable
-    {
+    public partial class CancelResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CancelResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -33517,9 +31189,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -33565,6 +31235,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CancelResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CancelResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -33640,9 +31316,7 @@ namespace Opc.Ua
 
     #region NodeAttributesMask Enumeration
     #if (!OPCUA_EXCLUDE_NodeAttributesMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -33793,35 +31467,25 @@ namespace Opc.Ua
 
     #region NodeAttributes Class
     #if (!OPCUA_EXCLUDE_NodeAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class NodeAttributes : IEncodeable
-    {
+    public partial class NodeAttributes : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NodeAttributes()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_specifiedAttributes = (uint)0;
@@ -33891,6 +31555,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.NodeAttributes_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.NodeAttributes_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -33981,35 +31651,25 @@ namespace Opc.Ua
 
     #region ObjectAttributes Class
     #if (!OPCUA_EXCLUDE_ObjectAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ObjectAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ObjectAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_eventNotifier = (byte)0;
@@ -34043,6 +31703,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ObjectAttributes_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ObjectAttributes_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -34118,35 +31784,25 @@ namespace Opc.Ua
 
     #region VariableAttributes Class
     #if (!OPCUA_EXCLUDE_VariableAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class VariableAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public VariableAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_value = Variant.Null;
@@ -34185,9 +31841,7 @@ namespace Opc.Ua
             set { m_valueRank = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 4)]
         public UInt32Collection ArrayDimensions
         {
@@ -34257,6 +31911,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.VariableAttributes_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.VariableAttributes_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -34367,35 +32027,25 @@ namespace Opc.Ua
 
     #region MethodAttributes Class
     #if (!OPCUA_EXCLUDE_MethodAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MethodAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MethodAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_executable = true;
@@ -34438,6 +32088,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.MethodAttributes_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.MethodAttributes_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -34518,35 +32174,25 @@ namespace Opc.Ua
 
     #region ObjectTypeAttributes Class
     #if (!OPCUA_EXCLUDE_ObjectTypeAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ObjectTypeAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ObjectTypeAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isAbstract = true;
@@ -34580,6 +32226,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ObjectTypeAttributes_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ObjectTypeAttributes_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -34655,35 +32307,25 @@ namespace Opc.Ua
 
     #region VariableTypeAttributes Class
     #if (!OPCUA_EXCLUDE_VariableTypeAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class VariableTypeAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public VariableTypeAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_value = Variant.Null;
@@ -34719,9 +32361,7 @@ namespace Opc.Ua
             set { m_valueRank = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ArrayDimensions", IsRequired = false, Order = 4)]
         public UInt32Collection ArrayDimensions
         {
@@ -34767,6 +32407,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.VariableTypeAttributes_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.VariableTypeAttributes_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -34862,35 +32508,25 @@ namespace Opc.Ua
 
     #region ReferenceTypeAttributes Class
     #if (!OPCUA_EXCLUDE_ReferenceTypeAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceTypeAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReferenceTypeAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isAbstract = true;
@@ -34942,6 +32578,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReferenceTypeAttributes_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReferenceTypeAttributes_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -35027,35 +32669,25 @@ namespace Opc.Ua
 
     #region DataTypeAttributes Class
     #if (!OPCUA_EXCLUDE_DataTypeAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataTypeAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isAbstract = true;
@@ -35089,6 +32721,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataTypeAttributes_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataTypeAttributes_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -35164,35 +32802,25 @@ namespace Opc.Ua
 
     #region ViewAttributes Class
     #if (!OPCUA_EXCLUDE_ViewAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ViewAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ViewAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_containsNoLoops = true;
@@ -35235,6 +32863,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ViewAttributes_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ViewAttributes_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -35315,35 +32949,25 @@ namespace Opc.Ua
 
     #region GenericAttributeValue Class
     #if (!OPCUA_EXCLUDE_GenericAttributeValue)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class GenericAttributeValue : IEncodeable
-    {
+    public partial class GenericAttributeValue : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public GenericAttributeValue()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_attributeId = (uint)0;
@@ -35386,6 +33010,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.GenericAttributeValue_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.GenericAttributeValue_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -35458,9 +33088,7 @@ namespace Opc.Ua
     }
 
     #region GenericAttributeValueCollection Class
-    /// <summary>
-    /// A collection of GenericAttributeValue objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfGenericAttributeValue", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "GenericAttributeValue")]
@@ -35471,26 +33099,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public GenericAttributeValueCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public GenericAttributeValueCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public GenericAttributeValueCollection(IEnumerable<GenericAttributeValue> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator GenericAttributeValueCollection(GenericAttributeValue[] values)
         {
             if (values != null)
@@ -35501,9 +33121,7 @@ namespace Opc.Ua
             return new GenericAttributeValueCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator GenericAttributeValue[](GenericAttributeValueCollection values)
         {
             if (values != null)
@@ -35517,9 +33135,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (GenericAttributeValueCollection)this.MemberwiseClone();
@@ -35546,35 +33162,25 @@ namespace Opc.Ua
 
     #region GenericAttributes Class
     #if (!OPCUA_EXCLUDE_GenericAttributes)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class GenericAttributes : NodeAttributes
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public GenericAttributes()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_attributeValues = new GenericAttributeValueCollection();
@@ -35582,9 +33188,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "AttributeValues", IsRequired = false, Order = 1)]
         public GenericAttributeValueCollection AttributeValues
         {
@@ -35622,6 +33226,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.GenericAttributes_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.GenericAttributes_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -35697,35 +33307,25 @@ namespace Opc.Ua
 
     #region AddNodesItem Class
     #if (!OPCUA_EXCLUDE_AddNodesItem)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AddNodesItem : IEncodeable
-    {
+    public partial class AddNodesItem : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddNodesItem()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_parentNodeId = null;
@@ -35813,6 +33413,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AddNodesItem_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AddNodesItem_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -35910,9 +33516,7 @@ namespace Opc.Ua
     }
 
     #region AddNodesItemCollection Class
-    /// <summary>
-    /// A collection of AddNodesItem objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfAddNodesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddNodesItem")]
@@ -35923,26 +33527,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public AddNodesItemCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public AddNodesItemCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public AddNodesItemCollection(IEnumerable<AddNodesItem> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator AddNodesItemCollection(AddNodesItem[] values)
         {
             if (values != null)
@@ -35953,9 +33549,7 @@ namespace Opc.Ua
             return new AddNodesItemCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator AddNodesItem[](AddNodesItemCollection values)
         {
             if (values != null)
@@ -35969,9 +33563,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (AddNodesItemCollection)this.MemberwiseClone();
@@ -35998,35 +33590,25 @@ namespace Opc.Ua
 
     #region AddNodesResult Class
     #if (!OPCUA_EXCLUDE_AddNodesResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AddNodesResult : IEncodeable
-    {
+    public partial class AddNodesResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddNodesResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -36069,6 +33651,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AddNodesResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AddNodesResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -36141,9 +33729,7 @@ namespace Opc.Ua
     }
 
     #region AddNodesResultCollection Class
-    /// <summary>
-    /// A collection of AddNodesResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfAddNodesResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddNodesResult")]
@@ -36154,26 +33740,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public AddNodesResultCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public AddNodesResultCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public AddNodesResultCollection(IEnumerable<AddNodesResult> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator AddNodesResultCollection(AddNodesResult[] values)
         {
             if (values != null)
@@ -36184,9 +33762,7 @@ namespace Opc.Ua
             return new AddNodesResultCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator AddNodesResult[](AddNodesResultCollection values)
         {
             if (values != null)
@@ -36200,9 +33776,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (AddNodesResultCollection)this.MemberwiseClone();
@@ -36229,35 +33803,25 @@ namespace Opc.Ua
 
     #region AddNodesRequest Class
     #if (!OPCUA_EXCLUDE_AddNodesRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AddNodesRequest : IEncodeable
-    {
+    public partial class AddNodesRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddNodesRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -36266,9 +33830,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -36288,9 +33850,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NodesToAdd", IsRequired = false, Order = 2)]
         public AddNodesItemCollection NodesToAdd
         {
@@ -36328,6 +33888,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AddNodesRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AddNodesRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -36403,35 +33969,25 @@ namespace Opc.Ua
 
     #region AddNodesResponse Class
     #if (!OPCUA_EXCLUDE_AddNodesResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AddNodesResponse : IEncodeable
-    {
+    public partial class AddNodesResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddNodesResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -36441,9 +33997,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -36463,9 +34017,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public AddNodesResultCollection Results
         {
@@ -36485,9 +34037,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -36525,6 +34075,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AddNodesResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AddNodesResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -36605,35 +34161,25 @@ namespace Opc.Ua
 
     #region AddReferencesItem Class
     #if (!OPCUA_EXCLUDE_AddReferencesItem)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AddReferencesItem : IEncodeable
-    {
+    public partial class AddReferencesItem : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddReferencesItem()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_sourceNodeId = null;
@@ -36712,6 +34258,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AddReferencesItem_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AddReferencesItem_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -36804,9 +34356,7 @@ namespace Opc.Ua
     }
 
     #region AddReferencesItemCollection Class
-    /// <summary>
-    /// A collection of AddReferencesItem objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfAddReferencesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddReferencesItem")]
@@ -36817,26 +34367,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public AddReferencesItemCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public AddReferencesItemCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public AddReferencesItemCollection(IEnumerable<AddReferencesItem> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator AddReferencesItemCollection(AddReferencesItem[] values)
         {
             if (values != null)
@@ -36847,9 +34389,7 @@ namespace Opc.Ua
             return new AddReferencesItemCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator AddReferencesItem[](AddReferencesItemCollection values)
         {
             if (values != null)
@@ -36863,9 +34403,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (AddReferencesItemCollection)this.MemberwiseClone();
@@ -36892,35 +34430,25 @@ namespace Opc.Ua
 
     #region AddReferencesRequest Class
     #if (!OPCUA_EXCLUDE_AddReferencesRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AddReferencesRequest : IEncodeable
-    {
+    public partial class AddReferencesRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddReferencesRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -36929,9 +34457,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -36951,9 +34477,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ReferencesToAdd", IsRequired = false, Order = 2)]
         public AddReferencesItemCollection ReferencesToAdd
         {
@@ -36991,6 +34515,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AddReferencesRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AddReferencesRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -37066,35 +34596,25 @@ namespace Opc.Ua
 
     #region AddReferencesResponse Class
     #if (!OPCUA_EXCLUDE_AddReferencesResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AddReferencesResponse : IEncodeable
-    {
+    public partial class AddReferencesResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AddReferencesResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -37104,9 +34624,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -37126,9 +34644,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public StatusCodeCollection Results
         {
@@ -37148,9 +34664,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -37188,6 +34702,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AddReferencesResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AddReferencesResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -37268,35 +34788,25 @@ namespace Opc.Ua
 
     #region DeleteNodesItem Class
     #if (!OPCUA_EXCLUDE_DeleteNodesItem)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteNodesItem : IEncodeable
-    {
+    public partial class DeleteNodesItem : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteNodesItem()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -37339,6 +34849,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteNodesItem_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteNodesItem_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -37411,9 +34927,7 @@ namespace Opc.Ua
     }
 
     #region DeleteNodesItemCollection Class
-    /// <summary>
-    /// A collection of DeleteNodesItem objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDeleteNodesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DeleteNodesItem")]
@@ -37424,26 +34938,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DeleteNodesItemCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DeleteNodesItemCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DeleteNodesItemCollection(IEnumerable<DeleteNodesItem> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DeleteNodesItemCollection(DeleteNodesItem[] values)
         {
             if (values != null)
@@ -37454,9 +34960,7 @@ namespace Opc.Ua
             return new DeleteNodesItemCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DeleteNodesItem[](DeleteNodesItemCollection values)
         {
             if (values != null)
@@ -37470,9 +34974,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DeleteNodesItemCollection)this.MemberwiseClone();
@@ -37499,35 +35001,25 @@ namespace Opc.Ua
 
     #region DeleteNodesRequest Class
     #if (!OPCUA_EXCLUDE_DeleteNodesRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteNodesRequest : IEncodeable
-    {
+    public partial class DeleteNodesRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteNodesRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -37536,9 +35028,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -37558,9 +35048,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NodesToDelete", IsRequired = false, Order = 2)]
         public DeleteNodesItemCollection NodesToDelete
         {
@@ -37598,6 +35086,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteNodesRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteNodesRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -37673,35 +35167,25 @@ namespace Opc.Ua
 
     #region DeleteNodesResponse Class
     #if (!OPCUA_EXCLUDE_DeleteNodesResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteNodesResponse : IEncodeable
-    {
+    public partial class DeleteNodesResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteNodesResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -37711,9 +35195,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -37733,9 +35215,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public StatusCodeCollection Results
         {
@@ -37755,9 +35235,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -37795,6 +35273,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteNodesResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteNodesResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -37875,35 +35359,25 @@ namespace Opc.Ua
 
     #region DeleteReferencesItem Class
     #if (!OPCUA_EXCLUDE_DeleteReferencesItem)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteReferencesItem : IEncodeable
-    {
+    public partial class DeleteReferencesItem : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteReferencesItem()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_sourceNodeId = null;
@@ -37973,6 +35447,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteReferencesItem_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteReferencesItem_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -38060,9 +35540,7 @@ namespace Opc.Ua
     }
 
     #region DeleteReferencesItemCollection Class
-    /// <summary>
-    /// A collection of DeleteReferencesItem objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDeleteReferencesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DeleteReferencesItem")]
@@ -38073,26 +35551,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public DeleteReferencesItemCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public DeleteReferencesItemCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public DeleteReferencesItemCollection(IEnumerable<DeleteReferencesItem> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator DeleteReferencesItemCollection(DeleteReferencesItem[] values)
         {
             if (values != null)
@@ -38103,9 +35573,7 @@ namespace Opc.Ua
             return new DeleteReferencesItemCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator DeleteReferencesItem[](DeleteReferencesItemCollection values)
         {
             if (values != null)
@@ -38119,9 +35587,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (DeleteReferencesItemCollection)this.MemberwiseClone();
@@ -38148,35 +35614,25 @@ namespace Opc.Ua
 
     #region DeleteReferencesRequest Class
     #if (!OPCUA_EXCLUDE_DeleteReferencesRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteReferencesRequest : IEncodeable
-    {
+    public partial class DeleteReferencesRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteReferencesRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -38185,9 +35641,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -38207,9 +35661,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ReferencesToDelete", IsRequired = false, Order = 2)]
         public DeleteReferencesItemCollection ReferencesToDelete
         {
@@ -38247,6 +35699,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteReferencesRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteReferencesRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -38322,35 +35780,25 @@ namespace Opc.Ua
 
     #region DeleteReferencesResponse Class
     #if (!OPCUA_EXCLUDE_DeleteReferencesResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteReferencesResponse : IEncodeable
-    {
+    public partial class DeleteReferencesResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteReferencesResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -38360,9 +35808,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -38382,9 +35828,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public StatusCodeCollection Results
         {
@@ -38404,9 +35848,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -38444,6 +35886,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteReferencesResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteReferencesResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -38524,9 +35972,7 @@ namespace Opc.Ua
 
     #region AttributeWriteMask Enumeration
     #if (!OPCUA_EXCLUDE_AttributeWriteMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
@@ -38645,9 +36091,7 @@ namespace Opc.Ua
 
     #region BrowseDirection Enumeration
     #if (!OPCUA_EXCLUDE_BrowseDirection)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -38674,35 +36118,25 @@ namespace Opc.Ua
 
     #region ViewDescription Class
     #if (!OPCUA_EXCLUDE_ViewDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ViewDescription : IEncodeable
-    {
+    public partial class ViewDescription : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ViewDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_viewId = null;
@@ -38754,6 +36188,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ViewDescription_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ViewDescription_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -38834,35 +36274,25 @@ namespace Opc.Ua
 
     #region BrowseDescription Class
     #if (!OPCUA_EXCLUDE_BrowseDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrowseDescription : IEncodeable
-    {
+    public partial class BrowseDescription : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowseDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -38941,6 +36371,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrowseDescription_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrowseDescription_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -39033,9 +36469,7 @@ namespace Opc.Ua
     }
 
     #region BrowseDescriptionCollection Class
-    /// <summary>
-    /// A collection of BrowseDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowseDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowseDescription")]
@@ -39046,26 +36480,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public BrowseDescriptionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public BrowseDescriptionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public BrowseDescriptionCollection(IEnumerable<BrowseDescription> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator BrowseDescriptionCollection(BrowseDescription[] values)
         {
             if (values != null)
@@ -39076,9 +36502,7 @@ namespace Opc.Ua
             return new BrowseDescriptionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator BrowseDescription[](BrowseDescriptionCollection values)
         {
             if (values != null)
@@ -39092,9 +36516,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (BrowseDescriptionCollection)this.MemberwiseClone();
@@ -39121,9 +36543,7 @@ namespace Opc.Ua
 
     #region BrowseResultMask Enumeration
     #if (!OPCUA_EXCLUDE_BrowseResultMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -39174,35 +36594,25 @@ namespace Opc.Ua
 
     #region ReferenceDescription Class
     #if (!OPCUA_EXCLUDE_ReferenceDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReferenceDescription : IEncodeable
-    {
+    public partial class ReferenceDescription : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReferenceDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_referenceTypeId = null;
@@ -39290,6 +36700,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReferenceDescription_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReferenceDescription_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -39387,9 +36803,7 @@ namespace Opc.Ua
     }
 
     #region ReferenceDescriptionCollection Class
-    /// <summary>
-    /// A collection of ReferenceDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReferenceDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceDescription")]
@@ -39400,26 +36814,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ReferenceDescriptionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ReferenceDescriptionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ReferenceDescriptionCollection(IEnumerable<ReferenceDescription> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ReferenceDescriptionCollection(ReferenceDescription[] values)
         {
             if (values != null)
@@ -39430,9 +36836,7 @@ namespace Opc.Ua
             return new ReferenceDescriptionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ReferenceDescription[](ReferenceDescriptionCollection values)
         {
             if (values != null)
@@ -39446,9 +36850,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ReferenceDescriptionCollection)this.MemberwiseClone();
@@ -39475,35 +36877,25 @@ namespace Opc.Ua
 
     #region BrowseResult Class
     #if (!OPCUA_EXCLUDE_BrowseResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrowseResult : IEncodeable
-    {
+    public partial class BrowseResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowseResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -39529,9 +36921,7 @@ namespace Opc.Ua
             set { m_continuationPoint = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "References", IsRequired = false, Order = 3)]
         public ReferenceDescriptionCollection References
         {
@@ -39569,6 +36959,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrowseResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrowseResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -39646,9 +37042,7 @@ namespace Opc.Ua
     }
 
     #region BrowseResultCollection Class
-    /// <summary>
-    /// A collection of BrowseResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowseResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowseResult")]
@@ -39659,26 +37053,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public BrowseResultCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public BrowseResultCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public BrowseResultCollection(IEnumerable<BrowseResult> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator BrowseResultCollection(BrowseResult[] values)
         {
             if (values != null)
@@ -39689,9 +37075,7 @@ namespace Opc.Ua
             return new BrowseResultCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator BrowseResult[](BrowseResultCollection values)
         {
             if (values != null)
@@ -39705,9 +37089,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (BrowseResultCollection)this.MemberwiseClone();
@@ -39734,35 +37116,25 @@ namespace Opc.Ua
 
     #region BrowseRequest Class
     #if (!OPCUA_EXCLUDE_BrowseRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrowseRequest : IEncodeable
-    {
+    public partial class BrowseRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowseRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -39773,9 +37145,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -39795,9 +37165,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "View", IsRequired = false, Order = 2)]
         public ViewDescription View
         {
@@ -39825,9 +37193,7 @@ namespace Opc.Ua
             set { m_requestedMaxReferencesPerNode = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NodesToBrowse", IsRequired = false, Order = 4)]
         public BrowseDescriptionCollection NodesToBrowse
         {
@@ -39865,6 +37231,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrowseRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrowseRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -39950,35 +37322,25 @@ namespace Opc.Ua
 
     #region BrowseResponse Class
     #if (!OPCUA_EXCLUDE_BrowseResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrowseResponse : IEncodeable
-    {
+    public partial class BrowseResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowseResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -39988,9 +37350,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -40010,9 +37370,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public BrowseResultCollection Results
         {
@@ -40032,9 +37390,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -40072,6 +37428,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrowseResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrowseResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -40152,35 +37514,25 @@ namespace Opc.Ua
 
     #region BrowseNextRequest Class
     #if (!OPCUA_EXCLUDE_BrowseNextRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrowseNextRequest : IEncodeable
-    {
+    public partial class BrowseNextRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowseNextRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -40190,9 +37542,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -40220,9 +37570,7 @@ namespace Opc.Ua
             set { m_releaseContinuationPoints = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ContinuationPoints", IsRequired = false, Order = 3)]
         public ByteStringCollection ContinuationPoints
         {
@@ -40260,6 +37608,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrowseNextRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrowseNextRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -40340,35 +37694,25 @@ namespace Opc.Ua
 
     #region BrowseNextResponse Class
     #if (!OPCUA_EXCLUDE_BrowseNextResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrowseNextResponse : IEncodeable
-    {
+    public partial class BrowseNextResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowseNextResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -40378,9 +37722,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -40400,9 +37742,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public BrowseResultCollection Results
         {
@@ -40422,9 +37762,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -40462,6 +37800,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrowseNextResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrowseNextResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -40542,35 +37886,25 @@ namespace Opc.Ua
 
     #region RelativePathElement Class
     #if (!OPCUA_EXCLUDE_RelativePathElement)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RelativePathElement : IEncodeable
-    {
+    public partial class RelativePathElement : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RelativePathElement()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_referenceTypeId = null;
@@ -40631,6 +37965,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RelativePathElement_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RelativePathElement_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -40713,9 +38053,7 @@ namespace Opc.Ua
     }
 
     #region RelativePathElementCollection Class
-    /// <summary>
-    /// A collection of RelativePathElement objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRelativePathElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RelativePathElement")]
@@ -40726,26 +38064,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public RelativePathElementCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public RelativePathElementCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public RelativePathElementCollection(IEnumerable<RelativePathElement> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator RelativePathElementCollection(RelativePathElement[] values)
         {
             if (values != null)
@@ -40756,9 +38086,7 @@ namespace Opc.Ua
             return new RelativePathElementCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator RelativePathElement[](RelativePathElementCollection values)
         {
             if (values != null)
@@ -40772,9 +38100,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (RelativePathElementCollection)this.MemberwiseClone();
@@ -40801,35 +38127,25 @@ namespace Opc.Ua
 
     #region RelativePath Class
     #if (!OPCUA_EXCLUDE_RelativePath)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RelativePath : IEncodeable
-    {
+    public partial class RelativePath : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RelativePath()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_elements = new RelativePathElementCollection();
@@ -40837,9 +38153,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Elements", IsRequired = false, Order = 1)]
         public RelativePathElementCollection Elements
         {
@@ -40877,6 +38191,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RelativePath_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RelativePath_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -40947,35 +38267,25 @@ namespace Opc.Ua
 
     #region BrowsePath Class
     #if (!OPCUA_EXCLUDE_BrowsePath)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrowsePath : IEncodeable
-    {
+    public partial class BrowsePath : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowsePath()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_startingNode = null;
@@ -40992,9 +38302,7 @@ namespace Opc.Ua
             set { m_startingNode = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RelativePath", IsRequired = false, Order = 2)]
         public RelativePath RelativePath
         {
@@ -41032,6 +38340,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrowsePath_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrowsePath_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -41104,9 +38418,7 @@ namespace Opc.Ua
     }
 
     #region BrowsePathCollection Class
-    /// <summary>
-    /// A collection of BrowsePath objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowsePath", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePath")]
@@ -41117,26 +38429,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public BrowsePathCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public BrowsePathCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public BrowsePathCollection(IEnumerable<BrowsePath> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator BrowsePathCollection(BrowsePath[] values)
         {
             if (values != null)
@@ -41147,9 +38451,7 @@ namespace Opc.Ua
             return new BrowsePathCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator BrowsePath[](BrowsePathCollection values)
         {
             if (values != null)
@@ -41163,9 +38465,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (BrowsePathCollection)this.MemberwiseClone();
@@ -41192,35 +38492,25 @@ namespace Opc.Ua
 
     #region BrowsePathTarget Class
     #if (!OPCUA_EXCLUDE_BrowsePathTarget)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrowsePathTarget : IEncodeable
-    {
+    public partial class BrowsePathTarget : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowsePathTarget()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_targetId = null;
@@ -41263,6 +38553,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrowsePathTarget_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrowsePathTarget_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -41335,9 +38631,7 @@ namespace Opc.Ua
     }
 
     #region BrowsePathTargetCollection Class
-    /// <summary>
-    /// A collection of BrowsePathTarget objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowsePathTarget", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePathTarget")]
@@ -41348,26 +38642,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public BrowsePathTargetCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public BrowsePathTargetCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public BrowsePathTargetCollection(IEnumerable<BrowsePathTarget> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator BrowsePathTargetCollection(BrowsePathTarget[] values)
         {
             if (values != null)
@@ -41378,9 +38664,7 @@ namespace Opc.Ua
             return new BrowsePathTargetCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator BrowsePathTarget[](BrowsePathTargetCollection values)
         {
             if (values != null)
@@ -41394,9 +38678,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (BrowsePathTargetCollection)this.MemberwiseClone();
@@ -41423,35 +38705,25 @@ namespace Opc.Ua
 
     #region BrowsePathResult Class
     #if (!OPCUA_EXCLUDE_BrowsePathResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrowsePathResult : IEncodeable
-    {
+    public partial class BrowsePathResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BrowsePathResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -41468,9 +38740,7 @@ namespace Opc.Ua
             set { m_statusCode = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Targets", IsRequired = false, Order = 2)]
         public BrowsePathTargetCollection Targets
         {
@@ -41508,6 +38778,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BrowsePathResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BrowsePathResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -41580,9 +38856,7 @@ namespace Opc.Ua
     }
 
     #region BrowsePathResultCollection Class
-    /// <summary>
-    /// A collection of BrowsePathResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowsePathResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePathResult")]
@@ -41593,26 +38867,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public BrowsePathResultCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public BrowsePathResultCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public BrowsePathResultCollection(IEnumerable<BrowsePathResult> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator BrowsePathResultCollection(BrowsePathResult[] values)
         {
             if (values != null)
@@ -41623,9 +38889,7 @@ namespace Opc.Ua
             return new BrowsePathResultCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator BrowsePathResult[](BrowsePathResultCollection values)
         {
             if (values != null)
@@ -41639,9 +38903,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (BrowsePathResultCollection)this.MemberwiseClone();
@@ -41668,35 +38930,25 @@ namespace Opc.Ua
 
     #region TranslateBrowsePathsToNodeIdsRequest Class
     #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIdsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class TranslateBrowsePathsToNodeIdsRequest : IEncodeable
-    {
+    public partial class TranslateBrowsePathsToNodeIdsRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TranslateBrowsePathsToNodeIdsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -41705,9 +38957,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -41727,9 +38977,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "BrowsePaths", IsRequired = false, Order = 2)]
         public BrowsePathCollection BrowsePaths
         {
@@ -41767,6 +39015,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -41842,35 +39096,25 @@ namespace Opc.Ua
 
     #region TranslateBrowsePathsToNodeIdsResponse Class
     #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIdsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class TranslateBrowsePathsToNodeIdsResponse : IEncodeable
-    {
+    public partial class TranslateBrowsePathsToNodeIdsResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TranslateBrowsePathsToNodeIdsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -41880,9 +39124,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -41902,9 +39144,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public BrowsePathResultCollection Results
         {
@@ -41924,9 +39164,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -41964,6 +39202,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -42044,35 +39288,25 @@ namespace Opc.Ua
 
     #region RegisterNodesRequest Class
     #if (!OPCUA_EXCLUDE_RegisterNodesRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RegisterNodesRequest : IEncodeable
-    {
+    public partial class RegisterNodesRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisterNodesRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -42081,9 +39315,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -42103,9 +39335,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NodesToRegister", IsRequired = false, Order = 2)]
         public NodeIdCollection NodesToRegister
         {
@@ -42143,6 +39373,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RegisterNodesRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RegisterNodesRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -42218,35 +39454,25 @@ namespace Opc.Ua
 
     #region RegisterNodesResponse Class
     #if (!OPCUA_EXCLUDE_RegisterNodesResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RegisterNodesResponse : IEncodeable
-    {
+    public partial class RegisterNodesResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RegisterNodesResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -42255,9 +39481,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -42277,9 +39501,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RegisteredNodeIds", IsRequired = false, Order = 2)]
         public NodeIdCollection RegisteredNodeIds
         {
@@ -42317,6 +39539,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RegisterNodesResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RegisterNodesResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -42392,35 +39620,25 @@ namespace Opc.Ua
 
     #region UnregisterNodesRequest Class
     #if (!OPCUA_EXCLUDE_UnregisterNodesRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UnregisterNodesRequest : IEncodeable
-    {
+    public partial class UnregisterNodesRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UnregisterNodesRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -42429,9 +39647,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -42451,9 +39667,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NodesToUnregister", IsRequired = false, Order = 2)]
         public NodeIdCollection NodesToUnregister
         {
@@ -42491,6 +39705,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UnregisterNodesRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UnregisterNodesRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -42566,35 +39786,25 @@ namespace Opc.Ua
 
     #region UnregisterNodesResponse Class
     #if (!OPCUA_EXCLUDE_UnregisterNodesResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UnregisterNodesResponse : IEncodeable
-    {
+    public partial class UnregisterNodesResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UnregisterNodesResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -42602,9 +39812,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -42642,6 +39850,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UnregisterNodesResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UnregisterNodesResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -42712,35 +39926,25 @@ namespace Opc.Ua
 
     #region EndpointConfiguration Class
     #if (!OPCUA_EXCLUDE_EndpointConfiguration)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EndpointConfiguration : IEncodeable
-    {
+    public partial class EndpointConfiguration : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EndpointConfiguration()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_operationTimeout = (int)0;
@@ -42848,6 +40052,12 @@ namespace Opc.Ua
             get { return ObjectIds.EndpointConfiguration_Encoding_DefaultXml; }
         }
 
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EndpointConfiguration_Encoding_DefaultJson; }
+        }
+
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
         {
@@ -42953,9 +40163,7 @@ namespace Opc.Ua
     }
 
     #region EndpointConfigurationCollection Class
-    /// <summary>
-    /// A collection of EndpointConfiguration objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEndpointConfiguration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointConfiguration")]
@@ -42966,26 +40174,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public EndpointConfigurationCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public EndpointConfigurationCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public EndpointConfigurationCollection(IEnumerable<EndpointConfiguration> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator EndpointConfigurationCollection(EndpointConfiguration[] values)
         {
             if (values != null)
@@ -42996,9 +40196,7 @@ namespace Opc.Ua
             return new EndpointConfigurationCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator EndpointConfiguration[](EndpointConfigurationCollection values)
         {
             if (values != null)
@@ -43012,9 +40210,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (EndpointConfigurationCollection)this.MemberwiseClone();
@@ -43041,35 +40237,25 @@ namespace Opc.Ua
 
     #region QueryDataDescription Class
     #if (!OPCUA_EXCLUDE_QueryDataDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class QueryDataDescription : IEncodeable
-    {
+    public partial class QueryDataDescription : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public QueryDataDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_relativePath = new RelativePath();
@@ -43079,9 +40265,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RelativePath", IsRequired = false, Order = 1)]
         public RelativePath RelativePath
         {
@@ -43135,6 +40319,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.QueryDataDescription_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.QueryDataDescription_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -43212,9 +40402,7 @@ namespace Opc.Ua
     }
 
     #region QueryDataDescriptionCollection Class
-    /// <summary>
-    /// A collection of QueryDataDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfQueryDataDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QueryDataDescription")]
@@ -43225,26 +40413,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public QueryDataDescriptionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public QueryDataDescriptionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public QueryDataDescriptionCollection(IEnumerable<QueryDataDescription> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator QueryDataDescriptionCollection(QueryDataDescription[] values)
         {
             if (values != null)
@@ -43255,9 +40435,7 @@ namespace Opc.Ua
             return new QueryDataDescriptionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator QueryDataDescription[](QueryDataDescriptionCollection values)
         {
             if (values != null)
@@ -43271,9 +40449,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (QueryDataDescriptionCollection)this.MemberwiseClone();
@@ -43300,35 +40476,25 @@ namespace Opc.Ua
 
     #region NodeTypeDescription Class
     #if (!OPCUA_EXCLUDE_NodeTypeDescription)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class NodeTypeDescription : IEncodeable
-    {
+    public partial class NodeTypeDescription : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NodeTypeDescription()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_typeDefinitionNode = null;
@@ -43354,9 +40520,7 @@ namespace Opc.Ua
             set { m_includeSubTypes = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DataToReturn", IsRequired = false, Order = 3)]
         public QueryDataDescriptionCollection DataToReturn
         {
@@ -43394,6 +40558,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.NodeTypeDescription_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.NodeTypeDescription_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -43471,9 +40641,7 @@ namespace Opc.Ua
     }
 
     #region NodeTypeDescriptionCollection Class
-    /// <summary>
-    /// A collection of NodeTypeDescription objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNodeTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NodeTypeDescription")]
@@ -43484,26 +40652,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public NodeTypeDescriptionCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public NodeTypeDescriptionCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public NodeTypeDescriptionCollection(IEnumerable<NodeTypeDescription> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator NodeTypeDescriptionCollection(NodeTypeDescription[] values)
         {
             if (values != null)
@@ -43514,9 +40674,7 @@ namespace Opc.Ua
             return new NodeTypeDescriptionCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator NodeTypeDescription[](NodeTypeDescriptionCollection values)
         {
             if (values != null)
@@ -43530,9 +40688,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (NodeTypeDescriptionCollection)this.MemberwiseClone();
@@ -43559,9 +40715,7 @@ namespace Opc.Ua
 
     #region FilterOperator Enumeration
     #if (!OPCUA_EXCLUDE_FilterOperator)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -43644,35 +40798,25 @@ namespace Opc.Ua
 
     #region QueryDataSet Class
     #if (!OPCUA_EXCLUDE_QueryDataSet)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class QueryDataSet : IEncodeable
-    {
+    public partial class QueryDataSet : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public QueryDataSet()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -43698,9 +40842,7 @@ namespace Opc.Ua
             set { m_typeDefinitionNode = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Values", IsRequired = false, Order = 3)]
         public VariantCollection Values
         {
@@ -43738,6 +40880,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.QueryDataSet_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.QueryDataSet_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -43815,9 +40963,7 @@ namespace Opc.Ua
     }
 
     #region QueryDataSetCollection Class
-    /// <summary>
-    /// A collection of QueryDataSet objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfQueryDataSet", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QueryDataSet")]
@@ -43828,26 +40974,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public QueryDataSetCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public QueryDataSetCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public QueryDataSetCollection(IEnumerable<QueryDataSet> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator QueryDataSetCollection(QueryDataSet[] values)
         {
             if (values != null)
@@ -43858,9 +40996,7 @@ namespace Opc.Ua
             return new QueryDataSetCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator QueryDataSet[](QueryDataSetCollection values)
         {
             if (values != null)
@@ -43874,9 +41010,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (QueryDataSetCollection)this.MemberwiseClone();
@@ -43903,35 +41037,25 @@ namespace Opc.Ua
 
     #region NodeReference Class
     #if (!OPCUA_EXCLUDE_NodeReference)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class NodeReference : IEncodeable
-    {
+    public partial class NodeReference : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NodeReference()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -43966,9 +41090,7 @@ namespace Opc.Ua
             set { m_isForward = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ReferencedNodeIds", IsRequired = false, Order = 4)]
         public NodeIdCollection ReferencedNodeIds
         {
@@ -44006,6 +41128,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.NodeReference_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.NodeReference_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -44088,9 +41216,7 @@ namespace Opc.Ua
     }
 
     #region NodeReferenceCollection Class
-    /// <summary>
-    /// A collection of NodeReference objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNodeReference", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NodeReference")]
@@ -44101,26 +41227,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public NodeReferenceCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public NodeReferenceCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public NodeReferenceCollection(IEnumerable<NodeReference> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator NodeReferenceCollection(NodeReference[] values)
         {
             if (values != null)
@@ -44131,9 +41249,7 @@ namespace Opc.Ua
             return new NodeReferenceCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator NodeReference[](NodeReferenceCollection values)
         {
             if (values != null)
@@ -44147,9 +41263,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (NodeReferenceCollection)this.MemberwiseClone();
@@ -44176,35 +41290,25 @@ namespace Opc.Ua
 
     #region ContentFilterElement Class
     #if (!OPCUA_EXCLUDE_ContentFilterElement)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ContentFilterElement : IEncodeable
-    {
+    public partial class ContentFilterElement : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ContentFilterElement()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_filterOperator = FilterOperator.Equals;
@@ -44221,9 +41325,7 @@ namespace Opc.Ua
             set { m_filterOperator = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "FilterOperands", IsRequired = false, Order = 2)]
         public ExtensionObjectCollection FilterOperands
         {
@@ -44261,6 +41363,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ContentFilterElement_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ContentFilterElement_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -44333,9 +41441,7 @@ namespace Opc.Ua
     }
 
     #region ContentFilterElementCollection Class
-    /// <summary>
-    /// A collection of ContentFilterElement objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfContentFilterElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilterElement")]
@@ -44346,26 +41452,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ContentFilterElementCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ContentFilterElementCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ContentFilterElementCollection(IEnumerable<ContentFilterElement> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ContentFilterElementCollection(ContentFilterElement[] values)
         {
             if (values != null)
@@ -44376,9 +41474,7 @@ namespace Opc.Ua
             return new ContentFilterElementCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ContentFilterElement[](ContentFilterElementCollection values)
         {
             if (values != null)
@@ -44392,9 +41488,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ContentFilterElementCollection)this.MemberwiseClone();
@@ -44421,35 +41515,25 @@ namespace Opc.Ua
 
     #region ContentFilter Class
     #if (!OPCUA_EXCLUDE_ContentFilter)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ContentFilter : IEncodeable
-    {
+    public partial class ContentFilter : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ContentFilter()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_elements = new ContentFilterElementCollection();
@@ -44457,9 +41541,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Elements", IsRequired = false, Order = 1)]
         public ContentFilterElementCollection Elements
         {
@@ -44497,6 +41579,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ContentFilter_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ContentFilter_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -44564,9 +41652,7 @@ namespace Opc.Ua
     }
 
     #region ContentFilterCollection Class
-    /// <summary>
-    /// A collection of ContentFilter objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfContentFilter", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilter")]
@@ -44577,26 +41663,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ContentFilterCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ContentFilterCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ContentFilterCollection(IEnumerable<ContentFilter> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ContentFilterCollection(ContentFilter[] values)
         {
             if (values != null)
@@ -44607,9 +41685,7 @@ namespace Opc.Ua
             return new ContentFilterCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ContentFilter[](ContentFilterCollection values)
         {
             if (values != null)
@@ -44623,9 +41699,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ContentFilterCollection)this.MemberwiseClone();
@@ -44652,35 +41726,25 @@ namespace Opc.Ua
 
     #region FilterOperand Class
     #if (!OPCUA_EXCLUDE_FilterOperand)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class FilterOperand : IEncodeable
-    {
+    public partial class FilterOperand : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public FilterOperand()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -44706,6 +41770,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.FilterOperand_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.FilterOperand_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -44771,35 +41841,25 @@ namespace Opc.Ua
 
     #region ElementOperand Class
     #if (!OPCUA_EXCLUDE_ElementOperand)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ElementOperand : FilterOperand
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ElementOperand()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_index = (uint)0;
@@ -44833,6 +41893,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ElementOperand_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ElementOperand_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -44908,35 +41974,25 @@ namespace Opc.Ua
 
     #region LiteralOperand Class
     #if (!OPCUA_EXCLUDE_LiteralOperand)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class LiteralOperand : FilterOperand
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public LiteralOperand()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_value = Variant.Null;
@@ -44970,6 +42026,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.LiteralOperand_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.LiteralOperand_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -45045,35 +42107,25 @@ namespace Opc.Ua
 
     #region AttributeOperand Class
     #if (!OPCUA_EXCLUDE_AttributeOperand)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AttributeOperand : FilterOperand
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AttributeOperand()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_nodeId = null;
@@ -45101,9 +42153,7 @@ namespace Opc.Ua
             set { m_alias = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "BrowsePath", IsRequired = false, Order = 3)]
         public RelativePath BrowsePath
         {
@@ -45157,6 +42207,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AttributeOperand_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AttributeOperand_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -45252,35 +42308,25 @@ namespace Opc.Ua
 
     #region SimpleAttributeOperand Class
     #if (!OPCUA_EXCLUDE_SimpleAttributeOperand)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SimpleAttributeOperand : FilterOperand
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SimpleAttributeOperand()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_typeDefinitionId = null;
@@ -45299,9 +42345,7 @@ namespace Opc.Ua
             set { m_typeDefinitionId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "BrowsePath", IsRequired = false, Order = 2)]
         public QualifiedNameCollection BrowsePath
         {
@@ -45355,6 +42399,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SimpleAttributeOperand_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SimpleAttributeOperand_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -45442,9 +42492,7 @@ namespace Opc.Ua
     }
 
     #region SimpleAttributeOperandCollection Class
-    /// <summary>
-    /// A collection of SimpleAttributeOperand objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSimpleAttributeOperand", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SimpleAttributeOperand")]
@@ -45455,26 +42503,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public SimpleAttributeOperandCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public SimpleAttributeOperandCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public SimpleAttributeOperandCollection(IEnumerable<SimpleAttributeOperand> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator SimpleAttributeOperandCollection(SimpleAttributeOperand[] values)
         {
             if (values != null)
@@ -45485,9 +42525,7 @@ namespace Opc.Ua
             return new SimpleAttributeOperandCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator SimpleAttributeOperand[](SimpleAttributeOperandCollection values)
         {
             if (values != null)
@@ -45501,9 +42539,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (SimpleAttributeOperandCollection)this.MemberwiseClone();
@@ -45530,35 +42566,25 @@ namespace Opc.Ua
 
     #region ContentFilterElementResult Class
     #if (!OPCUA_EXCLUDE_ContentFilterElementResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ContentFilterElementResult : IEncodeable
-    {
+    public partial class ContentFilterElementResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ContentFilterElementResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -45576,9 +42602,7 @@ namespace Opc.Ua
             set { m_statusCode = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "OperandStatusCodes", IsRequired = false, Order = 2)]
         public StatusCodeCollection OperandStatusCodes
         {
@@ -45598,9 +42622,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "OperandDiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection OperandDiagnosticInfos
         {
@@ -45638,6 +42660,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ContentFilterElementResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ContentFilterElementResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -45715,9 +42743,7 @@ namespace Opc.Ua
     }
 
     #region ContentFilterElementResultCollection Class
-    /// <summary>
-    /// A collection of ContentFilterElementResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfContentFilterElementResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilterElementResult")]
@@ -45728,26 +42754,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ContentFilterElementResultCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ContentFilterElementResultCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ContentFilterElementResultCollection(IEnumerable<ContentFilterElementResult> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ContentFilterElementResultCollection(ContentFilterElementResult[] values)
         {
             if (values != null)
@@ -45758,9 +42776,7 @@ namespace Opc.Ua
             return new ContentFilterElementResultCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ContentFilterElementResult[](ContentFilterElementResultCollection values)
         {
             if (values != null)
@@ -45774,9 +42790,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ContentFilterElementResultCollection)this.MemberwiseClone();
@@ -45803,35 +42817,25 @@ namespace Opc.Ua
 
     #region ContentFilterResult Class
     #if (!OPCUA_EXCLUDE_ContentFilterResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ContentFilterResult : IEncodeable
-    {
+    public partial class ContentFilterResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ContentFilterResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_elementResults = new ContentFilterElementResultCollection();
@@ -45840,9 +42844,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ElementResults", IsRequired = false, Order = 1)]
         public ContentFilterElementResultCollection ElementResults
         {
@@ -45862,9 +42864,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ElementDiagnosticInfos", IsRequired = false, Order = 2)]
         public DiagnosticInfoCollection ElementDiagnosticInfos
         {
@@ -45902,6 +42902,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ContentFilterResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ContentFilterResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -45977,35 +42983,25 @@ namespace Opc.Ua
 
     #region ParsingResult Class
     #if (!OPCUA_EXCLUDE_ParsingResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ParsingResult : IEncodeable
-    {
+    public partial class ParsingResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ParsingResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -46023,9 +43019,7 @@ namespace Opc.Ua
             set { m_statusCode = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DataStatusCodes", IsRequired = false, Order = 2)]
         public StatusCodeCollection DataStatusCodes
         {
@@ -46045,9 +43039,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DataDiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DataDiagnosticInfos
         {
@@ -46085,6 +43077,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ParsingResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ParsingResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -46162,9 +43160,7 @@ namespace Opc.Ua
     }
 
     #region ParsingResultCollection Class
-    /// <summary>
-    /// A collection of ParsingResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfParsingResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ParsingResult")]
@@ -46175,26 +43171,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ParsingResultCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ParsingResultCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ParsingResultCollection(IEnumerable<ParsingResult> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ParsingResultCollection(ParsingResult[] values)
         {
             if (values != null)
@@ -46205,9 +43193,7 @@ namespace Opc.Ua
             return new ParsingResultCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ParsingResult[](ParsingResultCollection values)
         {
             if (values != null)
@@ -46221,9 +43207,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ParsingResultCollection)this.MemberwiseClone();
@@ -46250,35 +43234,25 @@ namespace Opc.Ua
 
     #region QueryFirstRequest Class
     #if (!OPCUA_EXCLUDE_QueryFirstRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class QueryFirstRequest : IEncodeable
-    {
+    public partial class QueryFirstRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public QueryFirstRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -46291,9 +43265,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -46313,9 +43285,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "View", IsRequired = false, Order = 2)]
         public ViewDescription View
         {
@@ -46335,9 +43305,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NodeTypes", IsRequired = false, Order = 3)]
         public NodeTypeDescriptionCollection NodeTypes
         {
@@ -46357,9 +43325,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Filter", IsRequired = false, Order = 4)]
         public ContentFilter Filter
         {
@@ -46413,6 +43379,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.QueryFirstRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.QueryFirstRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -46508,35 +43480,25 @@ namespace Opc.Ua
 
     #region QueryFirstResponse Class
     #if (!OPCUA_EXCLUDE_QueryFirstResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class QueryFirstResponse : IEncodeable
-    {
+    public partial class QueryFirstResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public QueryFirstResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -46549,9 +43511,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -46571,9 +43531,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "QueryDataSets", IsRequired = false, Order = 2)]
         public QueryDataSetCollection QueryDataSets
         {
@@ -46601,9 +43559,7 @@ namespace Opc.Ua
             set { m_continuationPoint = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ParsingResults", IsRequired = false, Order = 4)]
         public ParsingResultCollection ParsingResults
         {
@@ -46623,9 +43579,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 5)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -46645,9 +43599,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "FilterResult", IsRequired = false, Order = 6)]
         public ContentFilterResult FilterResult
         {
@@ -46685,6 +43637,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.QueryFirstResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.QueryFirstResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -46780,35 +43738,25 @@ namespace Opc.Ua
 
     #region QueryNextRequest Class
     #if (!OPCUA_EXCLUDE_QueryNextRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class QueryNextRequest : IEncodeable
-    {
+    public partial class QueryNextRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public QueryNextRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -46818,9 +43766,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -46874,6 +43820,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.QueryNextRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.QueryNextRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -46954,35 +43906,25 @@ namespace Opc.Ua
 
     #region QueryNextResponse Class
     #if (!OPCUA_EXCLUDE_QueryNextResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class QueryNextResponse : IEncodeable
-    {
+    public partial class QueryNextResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public QueryNextResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -46992,9 +43934,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -47014,9 +43954,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "QueryDataSets", IsRequired = false, Order = 2)]
         public QueryDataSetCollection QueryDataSets
         {
@@ -47062,6 +44000,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.QueryNextResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.QueryNextResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -47142,9 +44086,7 @@ namespace Opc.Ua
 
     #region TimestampsToReturn Enumeration
     #if (!OPCUA_EXCLUDE_TimestampsToReturn)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -47175,35 +44117,25 @@ namespace Opc.Ua
 
     #region ReadValueId Class
     #if (!OPCUA_EXCLUDE_ReadValueId)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReadValueId : IEncodeable
-    {
+    public partial class ReadValueId : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadValueId()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -47264,6 +44196,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReadValueId_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReadValueId_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -47346,9 +44284,7 @@ namespace Opc.Ua
     }
 
     #region ReadValueIdCollection Class
-    /// <summary>
-    /// A collection of ReadValueId objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReadValueId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReadValueId")]
@@ -47359,26 +44295,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ReadValueIdCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ReadValueIdCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ReadValueIdCollection(IEnumerable<ReadValueId> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ReadValueIdCollection(ReadValueId[] values)
         {
             if (values != null)
@@ -47389,9 +44317,7 @@ namespace Opc.Ua
             return new ReadValueIdCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ReadValueId[](ReadValueIdCollection values)
         {
             if (values != null)
@@ -47405,9 +44331,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ReadValueIdCollection)this.MemberwiseClone();
@@ -47434,35 +44358,25 @@ namespace Opc.Ua
 
     #region ReadRequest Class
     #if (!OPCUA_EXCLUDE_ReadRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReadRequest : IEncodeable
-    {
+    public partial class ReadRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -47473,9 +44387,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -47511,9 +44423,7 @@ namespace Opc.Ua
             set { m_timestampsToReturn = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NodesToRead", IsRequired = false, Order = 4)]
         public ReadValueIdCollection NodesToRead
         {
@@ -47551,6 +44461,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReadRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReadRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -47636,35 +44552,25 @@ namespace Opc.Ua
 
     #region ReadResponse Class
     #if (!OPCUA_EXCLUDE_ReadResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReadResponse : IEncodeable
-    {
+    public partial class ReadResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -47674,9 +44580,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -47696,9 +44600,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public DataValueCollection Results
         {
@@ -47718,9 +44620,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -47758,6 +44658,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReadResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReadResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -47838,35 +44744,25 @@ namespace Opc.Ua
 
     #region HistoryReadValueId Class
     #if (!OPCUA_EXCLUDE_HistoryReadValueId)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryReadValueId : IEncodeable
-    {
+    public partial class HistoryReadValueId : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryReadValueId()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -47927,6 +44823,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryReadValueId_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryReadValueId_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -48009,9 +44911,7 @@ namespace Opc.Ua
     }
 
     #region HistoryReadValueIdCollection Class
-    /// <summary>
-    /// A collection of HistoryReadValueId objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfHistoryReadValueId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryReadValueId")]
@@ -48022,26 +44922,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public HistoryReadValueIdCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public HistoryReadValueIdCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public HistoryReadValueIdCollection(IEnumerable<HistoryReadValueId> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator HistoryReadValueIdCollection(HistoryReadValueId[] values)
         {
             if (values != null)
@@ -48052,9 +44944,7 @@ namespace Opc.Ua
             return new HistoryReadValueIdCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator HistoryReadValueId[](HistoryReadValueIdCollection values)
         {
             if (values != null)
@@ -48068,9 +44958,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (HistoryReadValueIdCollection)this.MemberwiseClone();
@@ -48097,35 +44985,25 @@ namespace Opc.Ua
 
     #region HistoryReadResult Class
     #if (!OPCUA_EXCLUDE_HistoryReadResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryReadResult : IEncodeable
-    {
+    public partial class HistoryReadResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryReadResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -48177,6 +45055,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryReadResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryReadResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -48254,9 +45138,7 @@ namespace Opc.Ua
     }
 
     #region HistoryReadResultCollection Class
-    /// <summary>
-    /// A collection of HistoryReadResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfHistoryReadResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryReadResult")]
@@ -48267,26 +45149,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public HistoryReadResultCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public HistoryReadResultCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public HistoryReadResultCollection(IEnumerable<HistoryReadResult> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator HistoryReadResultCollection(HistoryReadResult[] values)
         {
             if (values != null)
@@ -48297,9 +45171,7 @@ namespace Opc.Ua
             return new HistoryReadResultCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator HistoryReadResult[](HistoryReadResultCollection values)
         {
             if (values != null)
@@ -48313,9 +45185,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (HistoryReadResultCollection)this.MemberwiseClone();
@@ -48342,35 +45212,25 @@ namespace Opc.Ua
 
     #region HistoryReadDetails Class
     #if (!OPCUA_EXCLUDE_HistoryReadDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryReadDetails : IEncodeable
-    {
+    public partial class HistoryReadDetails : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryReadDetails()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -48396,6 +45256,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryReadDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryReadDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -48461,35 +45327,25 @@ namespace Opc.Ua
 
     #region ReadEventDetails Class
     #if (!OPCUA_EXCLUDE_ReadEventDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadEventDetails : HistoryReadDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadEventDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_numValuesPerNode = (uint)0;
@@ -48524,9 +45380,7 @@ namespace Opc.Ua
             set { m_endTime = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Filter", IsRequired = false, Order = 4)]
         public EventFilter Filter
         {
@@ -48564,6 +45418,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReadEventDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReadEventDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -48654,35 +45514,25 @@ namespace Opc.Ua
 
     #region ReadRawModifiedDetails Class
     #if (!OPCUA_EXCLUDE_ReadRawModifiedDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadRawModifiedDetails : HistoryReadDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadRawModifiedDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isReadModified = true;
@@ -48752,6 +45602,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReadRawModifiedDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReadRawModifiedDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -48847,35 +45703,25 @@ namespace Opc.Ua
 
     #region ReadProcessedDetails Class
     #if (!OPCUA_EXCLUDE_ReadProcessedDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadProcessedDetails : HistoryReadDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadProcessedDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_startTime = DateTime.MinValue;
@@ -48911,9 +45757,7 @@ namespace Opc.Ua
             set { m_processingInterval = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "AggregateType", IsRequired = false, Order = 4)]
         public NodeIdCollection AggregateType
         {
@@ -48933,9 +45777,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "AggregateConfiguration", IsRequired = false, Order = 5)]
         public AggregateConfiguration AggregateConfiguration
         {
@@ -48973,6 +45815,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReadProcessedDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReadProcessedDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -49068,35 +45916,25 @@ namespace Opc.Ua
 
     #region ReadAtTimeDetails Class
     #if (!OPCUA_EXCLUDE_ReadAtTimeDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadAtTimeDetails : HistoryReadDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadAtTimeDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_reqTimes = new DateTimeCollection();
@@ -49105,9 +45943,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ReqTimes", IsRequired = false, Order = 1)]
         public DateTimeCollection ReqTimes
         {
@@ -49153,6 +45989,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReadAtTimeDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReadAtTimeDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -49233,35 +46075,25 @@ namespace Opc.Ua
 
     #region ReadAnnotationDataDetails Class
     #if (!OPCUA_EXCLUDE_ReadAnnotationDataDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadAnnotationDataDetails : HistoryReadDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ReadAnnotationDataDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_reqTimes = new DateTimeCollection();
@@ -49269,9 +46101,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ReqTimes", IsRequired = false, Order = 1)]
         public DateTimeCollection ReqTimes
         {
@@ -49309,6 +46139,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -49384,35 +46220,25 @@ namespace Opc.Ua
 
     #region HistoryData Class
     #if (!OPCUA_EXCLUDE_HistoryData)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryData : IEncodeable
-    {
+    public partial class HistoryData : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryData()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_dataValues = new DataValueCollection();
@@ -49420,9 +46246,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DataValues", IsRequired = false, Order = 1)]
         public DataValueCollection DataValues
         {
@@ -49460,6 +46284,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryData_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryData_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -49530,35 +46360,25 @@ namespace Opc.Ua
 
     #region ModificationInfo Class
     #if (!OPCUA_EXCLUDE_ModificationInfo)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ModificationInfo : IEncodeable
-    {
+    public partial class ModificationInfo : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ModificationInfo()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_modificationTime = DateTime.MinValue;
@@ -49610,6 +46430,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ModificationInfo_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ModificationInfo_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -49687,9 +46513,7 @@ namespace Opc.Ua
     }
 
     #region ModificationInfoCollection Class
-    /// <summary>
-    /// A collection of ModificationInfo objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfModificationInfo", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ModificationInfo")]
@@ -49700,26 +46524,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ModificationInfoCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ModificationInfoCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ModificationInfoCollection(IEnumerable<ModificationInfo> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ModificationInfoCollection(ModificationInfo[] values)
         {
             if (values != null)
@@ -49730,9 +46546,7 @@ namespace Opc.Ua
             return new ModificationInfoCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ModificationInfo[](ModificationInfoCollection values)
         {
             if (values != null)
@@ -49746,9 +46560,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ModificationInfoCollection)this.MemberwiseClone();
@@ -49775,35 +46587,25 @@ namespace Opc.Ua
 
     #region HistoryModifiedData Class
     #if (!OPCUA_EXCLUDE_HistoryModifiedData)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryModifiedData : HistoryData
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryModifiedData()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_modificationInfos = new ModificationInfoCollection();
@@ -49811,9 +46613,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ModificationInfos", IsRequired = false, Order = 1)]
         public ModificationInfoCollection ModificationInfos
         {
@@ -49851,6 +46651,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryModifiedData_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryModifiedData_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -49926,35 +46732,25 @@ namespace Opc.Ua
 
     #region HistoryEvent Class
     #if (!OPCUA_EXCLUDE_HistoryEvent)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryEvent : IEncodeable
-    {
+    public partial class HistoryEvent : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryEvent()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_events = new HistoryEventFieldListCollection();
@@ -49962,9 +46758,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Events", IsRequired = false, Order = 1)]
         public HistoryEventFieldListCollection Events
         {
@@ -50002,6 +46796,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryEvent_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryEvent_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -50072,35 +46872,25 @@ namespace Opc.Ua
 
     #region HistoryReadRequest Class
     #if (!OPCUA_EXCLUDE_HistoryReadRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryReadRequest : IEncodeable
-    {
+    public partial class HistoryReadRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryReadRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -50112,9 +46902,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -50158,9 +46946,7 @@ namespace Opc.Ua
             set { m_releaseContinuationPoints = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NodesToRead", IsRequired = false, Order = 5)]
         public HistoryReadValueIdCollection NodesToRead
         {
@@ -50198,6 +46984,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryReadRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryReadRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -50288,35 +47080,25 @@ namespace Opc.Ua
 
     #region HistoryReadResponse Class
     #if (!OPCUA_EXCLUDE_HistoryReadResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryReadResponse : IEncodeable
-    {
+    public partial class HistoryReadResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryReadResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -50326,9 +47108,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -50348,9 +47128,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public HistoryReadResultCollection Results
         {
@@ -50370,9 +47148,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -50410,6 +47186,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryReadResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryReadResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -50490,35 +47272,25 @@ namespace Opc.Ua
 
     #region WriteValue Class
     #if (!OPCUA_EXCLUDE_WriteValue)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class WriteValue : IEncodeable
-    {
+    public partial class WriteValue : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public WriteValue()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -50579,6 +47351,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.WriteValue_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.WriteValue_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -50661,9 +47439,7 @@ namespace Opc.Ua
     }
 
     #region WriteValueCollection Class
-    /// <summary>
-    /// A collection of WriteValue objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWriteValue", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriteValue")]
@@ -50674,26 +47450,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public WriteValueCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public WriteValueCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public WriteValueCollection(IEnumerable<WriteValue> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator WriteValueCollection(WriteValue[] values)
         {
             if (values != null)
@@ -50704,9 +47472,7 @@ namespace Opc.Ua
             return new WriteValueCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator WriteValue[](WriteValueCollection values)
         {
             if (values != null)
@@ -50720,9 +47486,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (WriteValueCollection)this.MemberwiseClone();
@@ -50749,35 +47513,25 @@ namespace Opc.Ua
 
     #region WriteRequest Class
     #if (!OPCUA_EXCLUDE_WriteRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class WriteRequest : IEncodeable
-    {
+    public partial class WriteRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public WriteRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -50786,9 +47540,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -50808,9 +47560,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NodesToWrite", IsRequired = false, Order = 2)]
         public WriteValueCollection NodesToWrite
         {
@@ -50848,6 +47598,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.WriteRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.WriteRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -50923,35 +47679,25 @@ namespace Opc.Ua
 
     #region WriteResponse Class
     #if (!OPCUA_EXCLUDE_WriteResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class WriteResponse : IEncodeable
-    {
+    public partial class WriteResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public WriteResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -50961,9 +47707,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -50983,9 +47727,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public StatusCodeCollection Results
         {
@@ -51005,9 +47747,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -51045,6 +47785,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.WriteResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.WriteResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -51125,35 +47871,25 @@ namespace Opc.Ua
 
     #region HistoryUpdateDetails Class
     #if (!OPCUA_EXCLUDE_HistoryUpdateDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryUpdateDetails : IEncodeable
-    {
+    public partial class HistoryUpdateDetails : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryUpdateDetails()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_nodeId = null;
@@ -51187,6 +47923,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryUpdateDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryUpdateDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -51257,9 +47999,7 @@ namespace Opc.Ua
 
     #region HistoryUpdateType Enumeration
     #if (!OPCUA_EXCLUDE_HistoryUpdateType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -51286,9 +48026,7 @@ namespace Opc.Ua
 
     #region PerformUpdateType Enumeration
     #if (!OPCUA_EXCLUDE_PerformUpdateType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -51315,35 +48053,25 @@ namespace Opc.Ua
 
     #region UpdateDataDetails Class
     #if (!OPCUA_EXCLUDE_UpdateDataDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UpdateDataDetails : HistoryUpdateDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UpdateDataDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_performInsertReplace = PerformUpdateType.Insert;
@@ -51360,9 +48088,7 @@ namespace Opc.Ua
             set { m_performInsertReplace = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "UpdateValues", IsRequired = false, Order = 2)]
         public DataValueCollection UpdateValues
         {
@@ -51400,6 +48126,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UpdateDataDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UpdateDataDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -51480,35 +48212,25 @@ namespace Opc.Ua
 
     #region UpdateStructureDataDetails Class
     #if (!OPCUA_EXCLUDE_UpdateStructureDataDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UpdateStructureDataDetails : HistoryUpdateDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UpdateStructureDataDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_performInsertReplace = PerformUpdateType.Insert;
@@ -51525,9 +48247,7 @@ namespace Opc.Ua
             set { m_performInsertReplace = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "UpdateValues", IsRequired = false, Order = 2)]
         public DataValueCollection UpdateValues
         {
@@ -51565,6 +48285,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UpdateStructureDataDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UpdateStructureDataDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -51645,35 +48371,25 @@ namespace Opc.Ua
 
     #region UpdateEventDetails Class
     #if (!OPCUA_EXCLUDE_UpdateEventDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UpdateEventDetails : HistoryUpdateDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public UpdateEventDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_performInsertReplace = PerformUpdateType.Insert;
@@ -51691,9 +48407,7 @@ namespace Opc.Ua
             set { m_performInsertReplace = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Filter", IsRequired = false, Order = 2)]
         public EventFilter Filter
         {
@@ -51713,9 +48427,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "EventData", IsRequired = false, Order = 3)]
         public HistoryEventFieldListCollection EventData
         {
@@ -51753,6 +48465,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UpdateEventDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.UpdateEventDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -51838,35 +48556,25 @@ namespace Opc.Ua
 
     #region DeleteRawModifiedDetails Class
     #if (!OPCUA_EXCLUDE_DeleteRawModifiedDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteRawModifiedDetails : HistoryUpdateDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteRawModifiedDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_isDeleteModified = true;
@@ -51918,6 +48626,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteRawModifiedDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteRawModifiedDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -52003,35 +48717,25 @@ namespace Opc.Ua
 
     #region DeleteAtTimeDetails Class
     #if (!OPCUA_EXCLUDE_DeleteAtTimeDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteAtTimeDetails : HistoryUpdateDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteAtTimeDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_reqTimes = new DateTimeCollection();
@@ -52039,9 +48743,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ReqTimes", IsRequired = false, Order = 1)]
         public DateTimeCollection ReqTimes
         {
@@ -52079,6 +48781,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteAtTimeDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteAtTimeDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -52154,35 +48862,25 @@ namespace Opc.Ua
 
     #region DeleteEventDetails Class
     #if (!OPCUA_EXCLUDE_DeleteEventDetails)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteEventDetails : HistoryUpdateDetails
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteEventDetails()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_eventIds = new ByteStringCollection();
@@ -52190,9 +48888,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "EventIds", IsRequired = false, Order = 1)]
         public ByteStringCollection EventIds
         {
@@ -52230,6 +48926,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteEventDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteEventDetails_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -52305,35 +49007,25 @@ namespace Opc.Ua
 
     #region HistoryUpdateResult Class
     #if (!OPCUA_EXCLUDE_HistoryUpdateResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryUpdateResult : IEncodeable
-    {
+    public partial class HistoryUpdateResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryUpdateResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -52351,9 +49043,7 @@ namespace Opc.Ua
             set { m_statusCode = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "OperationResults", IsRequired = false, Order = 2)]
         public StatusCodeCollection OperationResults
         {
@@ -52373,9 +49063,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -52413,6 +49101,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryUpdateResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryUpdateResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -52490,9 +49184,7 @@ namespace Opc.Ua
     }
 
     #region HistoryUpdateResultCollection Class
-    /// <summary>
-    /// A collection of HistoryUpdateResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfHistoryUpdateResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryUpdateResult")]
@@ -52503,26 +49195,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public HistoryUpdateResultCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public HistoryUpdateResultCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public HistoryUpdateResultCollection(IEnumerable<HistoryUpdateResult> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator HistoryUpdateResultCollection(HistoryUpdateResult[] values)
         {
             if (values != null)
@@ -52533,9 +49217,7 @@ namespace Opc.Ua
             return new HistoryUpdateResultCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator HistoryUpdateResult[](HistoryUpdateResultCollection values)
         {
             if (values != null)
@@ -52549,9 +49231,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (HistoryUpdateResultCollection)this.MemberwiseClone();
@@ -52578,35 +49258,25 @@ namespace Opc.Ua
 
     #region HistoryUpdateRequest Class
     #if (!OPCUA_EXCLUDE_HistoryUpdateRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryUpdateRequest : IEncodeable
-    {
+    public partial class HistoryUpdateRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryUpdateRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -52615,9 +49285,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -52637,9 +49305,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "HistoryUpdateDetails", IsRequired = false, Order = 2)]
         public ExtensionObjectCollection HistoryUpdateDetails
         {
@@ -52677,6 +49343,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryUpdateRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryUpdateRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -52752,35 +49424,25 @@ namespace Opc.Ua
 
     #region HistoryUpdateResponse Class
     #if (!OPCUA_EXCLUDE_HistoryUpdateResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryUpdateResponse : IEncodeable
-    {
+    public partial class HistoryUpdateResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryUpdateResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -52790,9 +49452,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -52812,9 +49472,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public HistoryUpdateResultCollection Results
         {
@@ -52834,9 +49492,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -52874,6 +49530,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryUpdateResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryUpdateResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -52954,35 +49616,25 @@ namespace Opc.Ua
 
     #region CallMethodRequest Class
     #if (!OPCUA_EXCLUDE_CallMethodRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CallMethodRequest : IEncodeable
-    {
+    public partial class CallMethodRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CallMethodRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_objectId = null;
@@ -53008,9 +49660,7 @@ namespace Opc.Ua
             set { m_methodId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "InputArguments", IsRequired = false, Order = 3)]
         public VariantCollection InputArguments
         {
@@ -53048,6 +49698,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CallMethodRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CallMethodRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -53125,9 +49781,7 @@ namespace Opc.Ua
     }
 
     #region CallMethodRequestCollection Class
-    /// <summary>
-    /// A collection of CallMethodRequest objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCallMethodRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CallMethodRequest")]
@@ -53138,26 +49792,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public CallMethodRequestCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public CallMethodRequestCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public CallMethodRequestCollection(IEnumerable<CallMethodRequest> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator CallMethodRequestCollection(CallMethodRequest[] values)
         {
             if (values != null)
@@ -53168,9 +49814,7 @@ namespace Opc.Ua
             return new CallMethodRequestCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator CallMethodRequest[](CallMethodRequestCollection values)
         {
             if (values != null)
@@ -53184,9 +49828,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (CallMethodRequestCollection)this.MemberwiseClone();
@@ -53213,35 +49855,25 @@ namespace Opc.Ua
 
     #region CallMethodResult Class
     #if (!OPCUA_EXCLUDE_CallMethodResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CallMethodResult : IEncodeable
-    {
+    public partial class CallMethodResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CallMethodResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -53260,9 +49892,7 @@ namespace Opc.Ua
             set { m_statusCode = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "InputArgumentResults", IsRequired = false, Order = 2)]
         public StatusCodeCollection InputArgumentResults
         {
@@ -53282,9 +49912,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "InputArgumentDiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection InputArgumentDiagnosticInfos
         {
@@ -53304,9 +49932,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "OutputArguments", IsRequired = false, Order = 4)]
         public VariantCollection OutputArguments
         {
@@ -53344,6 +49970,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CallMethodResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CallMethodResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -53426,9 +50058,7 @@ namespace Opc.Ua
     }
 
     #region CallMethodResultCollection Class
-    /// <summary>
-    /// A collection of CallMethodResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCallMethodResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CallMethodResult")]
@@ -53439,26 +50069,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public CallMethodResultCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public CallMethodResultCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public CallMethodResultCollection(IEnumerable<CallMethodResult> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator CallMethodResultCollection(CallMethodResult[] values)
         {
             if (values != null)
@@ -53469,9 +50091,7 @@ namespace Opc.Ua
             return new CallMethodResultCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator CallMethodResult[](CallMethodResultCollection values)
         {
             if (values != null)
@@ -53485,9 +50105,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (CallMethodResultCollection)this.MemberwiseClone();
@@ -53514,35 +50132,25 @@ namespace Opc.Ua
 
     #region CallRequest Class
     #if (!OPCUA_EXCLUDE_CallRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CallRequest : IEncodeable
-    {
+    public partial class CallRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CallRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -53551,9 +50159,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -53573,9 +50179,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "MethodsToCall", IsRequired = false, Order = 2)]
         public CallMethodRequestCollection MethodsToCall
         {
@@ -53613,6 +50217,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CallRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CallRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -53688,35 +50298,25 @@ namespace Opc.Ua
 
     #region CallResponse Class
     #if (!OPCUA_EXCLUDE_CallResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CallResponse : IEncodeable
-    {
+    public partial class CallResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CallResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -53726,9 +50326,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -53748,9 +50346,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public CallMethodResultCollection Results
         {
@@ -53770,9 +50366,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -53810,6 +50404,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CallResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CallResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -53890,9 +50490,7 @@ namespace Opc.Ua
 
     #region MonitoringMode Enumeration
     #if (!OPCUA_EXCLUDE_MonitoringMode)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -53915,9 +50513,7 @@ namespace Opc.Ua
 
     #region DataChangeTrigger Enumeration
     #if (!OPCUA_EXCLUDE_DataChangeTrigger)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -53940,9 +50536,7 @@ namespace Opc.Ua
 
     #region DeadbandType Enumeration
     #if (!OPCUA_EXCLUDE_DeadbandType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -53965,35 +50559,25 @@ namespace Opc.Ua
 
     #region MonitoringFilter Class
     #if (!OPCUA_EXCLUDE_MonitoringFilter)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class MonitoringFilter : IEncodeable
-    {
+    public partial class MonitoringFilter : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoringFilter()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -54019,6 +50603,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.MonitoringFilter_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.MonitoringFilter_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -54084,35 +50674,25 @@ namespace Opc.Ua
 
     #region DataChangeFilter Class
     #if (!OPCUA_EXCLUDE_DataChangeFilter)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataChangeFilter : MonitoringFilter
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataChangeFilter()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_trigger = DataChangeTrigger.Status;
@@ -54164,6 +50744,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataChangeFilter_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataChangeFilter_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -54249,35 +50835,25 @@ namespace Opc.Ua
 
     #region EventFilter Class
     #if (!OPCUA_EXCLUDE_EventFilter)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EventFilter : MonitoringFilter
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EventFilter()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_selectClauses = new SimpleAttributeOperandCollection();
@@ -54286,9 +50862,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SelectClauses", IsRequired = false, Order = 1)]
         public SimpleAttributeOperandCollection SelectClauses
         {
@@ -54308,9 +50882,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "WhereClause", IsRequired = false, Order = 2)]
         public ContentFilter WhereClause
         {
@@ -54348,6 +50920,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EventFilter_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EventFilter_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -54428,35 +51006,25 @@ namespace Opc.Ua
 
     #region AggregateConfiguration Class
     #if (!OPCUA_EXCLUDE_AggregateConfiguration)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AggregateConfiguration : IEncodeable
-    {
+    public partial class AggregateConfiguration : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AggregateConfiguration()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_useServerCapabilitiesDefaults = true;
@@ -54526,6 +51094,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AggregateConfiguration_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AggregateConfiguration_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -54616,35 +51190,25 @@ namespace Opc.Ua
 
     #region AggregateFilter Class
     #if (!OPCUA_EXCLUDE_AggregateFilter)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AggregateFilter : MonitoringFilter
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AggregateFilter()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_startTime = DateTime.MinValue;
@@ -54679,9 +51243,7 @@ namespace Opc.Ua
             set { m_processingInterval = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "AggregateConfiguration", IsRequired = false, Order = 4)]
         public AggregateConfiguration AggregateConfiguration
         {
@@ -54719,6 +51281,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AggregateFilter_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AggregateFilter_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -54809,35 +51377,25 @@ namespace Opc.Ua
 
     #region MonitoringFilterResult Class
     #if (!OPCUA_EXCLUDE_MonitoringFilterResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class MonitoringFilterResult : IEncodeable
-    {
+    public partial class MonitoringFilterResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoringFilterResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -54863,6 +51421,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.MonitoringFilterResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.MonitoringFilterResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -54928,35 +51492,25 @@ namespace Opc.Ua
 
     #region EventFilterResult Class
     #if (!OPCUA_EXCLUDE_EventFilterResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EventFilterResult : MonitoringFilterResult
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EventFilterResult()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_selectClauseResults = new StatusCodeCollection();
@@ -54966,9 +51520,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SelectClauseResults", IsRequired = false, Order = 1)]
         public StatusCodeCollection SelectClauseResults
         {
@@ -54988,9 +51540,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SelectClauseDiagnosticInfos", IsRequired = false, Order = 2)]
         public DiagnosticInfoCollection SelectClauseDiagnosticInfos
         {
@@ -55010,9 +51560,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "WhereClauseResult", IsRequired = false, Order = 3)]
         public ContentFilterResult WhereClauseResult
         {
@@ -55050,6 +51598,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EventFilterResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EventFilterResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -55135,35 +51689,25 @@ namespace Opc.Ua
 
     #region AggregateFilterResult Class
     #if (!OPCUA_EXCLUDE_AggregateFilterResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AggregateFilterResult : MonitoringFilterResult
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AggregateFilterResult()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_revisedStartTime = DateTime.MinValue;
@@ -55189,9 +51733,7 @@ namespace Opc.Ua
             set { m_revisedProcessingInterval = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RevisedAggregateConfiguration", IsRequired = false, Order = 3)]
         public AggregateConfiguration RevisedAggregateConfiguration
         {
@@ -55229,6 +51771,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AggregateFilterResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AggregateFilterResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -55314,35 +51862,25 @@ namespace Opc.Ua
 
     #region MonitoringParameters Class
     #if (!OPCUA_EXCLUDE_MonitoringParameters)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class MonitoringParameters : IEncodeable
-    {
+    public partial class MonitoringParameters : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoringParameters()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_clientHandle = (uint)0;
@@ -55412,6 +51950,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.MonitoringParameters_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.MonitoringParameters_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -55502,35 +52046,25 @@ namespace Opc.Ua
 
     #region MonitoredItemCreateRequest Class
     #if (!OPCUA_EXCLUDE_MonitoredItemCreateRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class MonitoredItemCreateRequest : IEncodeable
-    {
+    public partial class MonitoredItemCreateRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemCreateRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_itemToMonitor = new ReadValueId();
@@ -55540,9 +52074,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ItemToMonitor", IsRequired = false, Order = 1)]
         public ReadValueId ItemToMonitor
         {
@@ -55570,9 +52102,7 @@ namespace Opc.Ua
             set { m_monitoringMode = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestedParameters", IsRequired = false, Order = 3)]
         public MonitoringParameters RequestedParameters
         {
@@ -55610,6 +52140,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.MonitoredItemCreateRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.MonitoredItemCreateRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -55687,9 +52223,7 @@ namespace Opc.Ua
     }
 
     #region MonitoredItemCreateRequestCollection Class
-    /// <summary>
-    /// A collection of MonitoredItemCreateRequest objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemCreateRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemCreateRequest")]
@@ -55700,26 +52234,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemCreateRequestCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemCreateRequestCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemCreateRequestCollection(IEnumerable<MonitoredItemCreateRequest> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator MonitoredItemCreateRequestCollection(MonitoredItemCreateRequest[] values)
         {
             if (values != null)
@@ -55730,9 +52256,7 @@ namespace Opc.Ua
             return new MonitoredItemCreateRequestCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator MonitoredItemCreateRequest[](MonitoredItemCreateRequestCollection values)
         {
             if (values != null)
@@ -55746,9 +52270,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (MonitoredItemCreateRequestCollection)this.MemberwiseClone();
@@ -55775,35 +52297,25 @@ namespace Opc.Ua
 
     #region MonitoredItemCreateResult Class
     #if (!OPCUA_EXCLUDE_MonitoredItemCreateResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class MonitoredItemCreateResult : IEncodeable
-    {
+    public partial class MonitoredItemCreateResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemCreateResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -55873,6 +52385,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.MonitoredItemCreateResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.MonitoredItemCreateResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -55960,9 +52478,7 @@ namespace Opc.Ua
     }
 
     #region MonitoredItemCreateResultCollection Class
-    /// <summary>
-    /// A collection of MonitoredItemCreateResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemCreateResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemCreateResult")]
@@ -55973,26 +52489,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemCreateResultCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemCreateResultCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemCreateResultCollection(IEnumerable<MonitoredItemCreateResult> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator MonitoredItemCreateResultCollection(MonitoredItemCreateResult[] values)
         {
             if (values != null)
@@ -56003,9 +52511,7 @@ namespace Opc.Ua
             return new MonitoredItemCreateResultCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator MonitoredItemCreateResult[](MonitoredItemCreateResultCollection values)
         {
             if (values != null)
@@ -56019,9 +52525,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (MonitoredItemCreateResultCollection)this.MemberwiseClone();
@@ -56048,35 +52552,25 @@ namespace Opc.Ua
 
     #region CreateMonitoredItemsRequest Class
     #if (!OPCUA_EXCLUDE_CreateMonitoredItemsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CreateMonitoredItemsRequest : IEncodeable
-    {
+    public partial class CreateMonitoredItemsRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CreateMonitoredItemsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -56087,9 +52581,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -56125,9 +52617,7 @@ namespace Opc.Ua
             set { m_timestampsToReturn = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ItemsToCreate", IsRequired = false, Order = 4)]
         public MonitoredItemCreateRequestCollection ItemsToCreate
         {
@@ -56165,6 +52655,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CreateMonitoredItemsRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CreateMonitoredItemsRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -56250,35 +52746,25 @@ namespace Opc.Ua
 
     #region CreateMonitoredItemsResponse Class
     #if (!OPCUA_EXCLUDE_CreateMonitoredItemsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CreateMonitoredItemsResponse : IEncodeable
-    {
+    public partial class CreateMonitoredItemsResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CreateMonitoredItemsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -56288,9 +52774,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -56310,9 +52794,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public MonitoredItemCreateResultCollection Results
         {
@@ -56332,9 +52814,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -56372,6 +52852,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CreateMonitoredItemsResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CreateMonitoredItemsResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -56452,35 +52938,25 @@ namespace Opc.Ua
 
     #region MonitoredItemModifyRequest Class
     #if (!OPCUA_EXCLUDE_MonitoredItemModifyRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class MonitoredItemModifyRequest : IEncodeable
-    {
+    public partial class MonitoredItemModifyRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemModifyRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_monitoredItemId = (uint)0;
@@ -56497,9 +52973,7 @@ namespace Opc.Ua
             set { m_monitoredItemId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestedParameters", IsRequired = false, Order = 2)]
         public MonitoringParameters RequestedParameters
         {
@@ -56537,6 +53011,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.MonitoredItemModifyRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.MonitoredItemModifyRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -56609,9 +53089,7 @@ namespace Opc.Ua
     }
 
     #region MonitoredItemModifyRequestCollection Class
-    /// <summary>
-    /// A collection of MonitoredItemModifyRequest objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemModifyRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemModifyRequest")]
@@ -56622,26 +53100,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemModifyRequestCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemModifyRequestCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemModifyRequestCollection(IEnumerable<MonitoredItemModifyRequest> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator MonitoredItemModifyRequestCollection(MonitoredItemModifyRequest[] values)
         {
             if (values != null)
@@ -56652,9 +53122,7 @@ namespace Opc.Ua
             return new MonitoredItemModifyRequestCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator MonitoredItemModifyRequest[](MonitoredItemModifyRequestCollection values)
         {
             if (values != null)
@@ -56668,9 +53136,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (MonitoredItemModifyRequestCollection)this.MemberwiseClone();
@@ -56697,35 +53163,25 @@ namespace Opc.Ua
 
     #region MonitoredItemModifyResult Class
     #if (!OPCUA_EXCLUDE_MonitoredItemModifyResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class MonitoredItemModifyResult : IEncodeable
-    {
+    public partial class MonitoredItemModifyResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemModifyResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -56786,6 +53242,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.MonitoredItemModifyResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.MonitoredItemModifyResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -56868,9 +53330,7 @@ namespace Opc.Ua
     }
 
     #region MonitoredItemModifyResultCollection Class
-    /// <summary>
-    /// A collection of MonitoredItemModifyResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemModifyResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemModifyResult")]
@@ -56881,26 +53341,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemModifyResultCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemModifyResultCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemModifyResultCollection(IEnumerable<MonitoredItemModifyResult> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator MonitoredItemModifyResultCollection(MonitoredItemModifyResult[] values)
         {
             if (values != null)
@@ -56911,9 +53363,7 @@ namespace Opc.Ua
             return new MonitoredItemModifyResultCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator MonitoredItemModifyResult[](MonitoredItemModifyResultCollection values)
         {
             if (values != null)
@@ -56927,9 +53377,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (MonitoredItemModifyResultCollection)this.MemberwiseClone();
@@ -56956,35 +53404,25 @@ namespace Opc.Ua
 
     #region ModifyMonitoredItemsRequest Class
     #if (!OPCUA_EXCLUDE_ModifyMonitoredItemsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ModifyMonitoredItemsRequest : IEncodeable
-    {
+    public partial class ModifyMonitoredItemsRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ModifyMonitoredItemsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -56995,9 +53433,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -57033,9 +53469,7 @@ namespace Opc.Ua
             set { m_timestampsToReturn = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ItemsToModify", IsRequired = false, Order = 4)]
         public MonitoredItemModifyRequestCollection ItemsToModify
         {
@@ -57073,6 +53507,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ModifyMonitoredItemsRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ModifyMonitoredItemsRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -57158,35 +53598,25 @@ namespace Opc.Ua
 
     #region ModifyMonitoredItemsResponse Class
     #if (!OPCUA_EXCLUDE_ModifyMonitoredItemsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ModifyMonitoredItemsResponse : IEncodeable
-    {
+    public partial class ModifyMonitoredItemsResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ModifyMonitoredItemsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -57196,9 +53626,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -57218,9 +53646,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public MonitoredItemModifyResultCollection Results
         {
@@ -57240,9 +53666,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -57280,6 +53704,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ModifyMonitoredItemsResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ModifyMonitoredItemsResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -57360,35 +53790,25 @@ namespace Opc.Ua
 
     #region SetMonitoringModeRequest Class
     #if (!OPCUA_EXCLUDE_SetMonitoringModeRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SetMonitoringModeRequest : IEncodeable
-    {
+    public partial class SetMonitoringModeRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SetMonitoringModeRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -57399,9 +53819,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -57437,9 +53855,7 @@ namespace Opc.Ua
             set { m_monitoringMode = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "MonitoredItemIds", IsRequired = false, Order = 4)]
         public UInt32Collection MonitoredItemIds
         {
@@ -57477,6 +53893,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SetMonitoringModeRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SetMonitoringModeRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -57562,35 +53984,25 @@ namespace Opc.Ua
 
     #region SetMonitoringModeResponse Class
     #if (!OPCUA_EXCLUDE_SetMonitoringModeResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SetMonitoringModeResponse : IEncodeable
-    {
+    public partial class SetMonitoringModeResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SetMonitoringModeResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -57600,9 +54012,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -57622,9 +54032,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public StatusCodeCollection Results
         {
@@ -57644,9 +54052,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -57684,6 +54090,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SetMonitoringModeResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SetMonitoringModeResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -57764,35 +54176,25 @@ namespace Opc.Ua
 
     #region SetTriggeringRequest Class
     #if (!OPCUA_EXCLUDE_SetTriggeringRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SetTriggeringRequest : IEncodeable
-    {
+    public partial class SetTriggeringRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SetTriggeringRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -57804,9 +54206,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -57842,9 +54242,7 @@ namespace Opc.Ua
             set { m_triggeringItemId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LinksToAdd", IsRequired = false, Order = 4)]
         public UInt32Collection LinksToAdd
         {
@@ -57864,9 +54262,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LinksToRemove", IsRequired = false, Order = 5)]
         public UInt32Collection LinksToRemove
         {
@@ -57904,6 +54300,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SetTriggeringRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SetTriggeringRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -57994,35 +54396,25 @@ namespace Opc.Ua
 
     #region SetTriggeringResponse Class
     #if (!OPCUA_EXCLUDE_SetTriggeringResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SetTriggeringResponse : IEncodeable
-    {
+    public partial class SetTriggeringResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SetTriggeringResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -58034,9 +54426,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -58056,9 +54446,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "AddResults", IsRequired = false, Order = 2)]
         public StatusCodeCollection AddResults
         {
@@ -58078,9 +54466,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "AddDiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection AddDiagnosticInfos
         {
@@ -58100,9 +54486,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RemoveResults", IsRequired = false, Order = 4)]
         public StatusCodeCollection RemoveResults
         {
@@ -58122,9 +54506,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RemoveDiagnosticInfos", IsRequired = false, Order = 5)]
         public DiagnosticInfoCollection RemoveDiagnosticInfos
         {
@@ -58162,6 +54544,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SetTriggeringResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SetTriggeringResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -58252,35 +54640,25 @@ namespace Opc.Ua
 
     #region DeleteMonitoredItemsRequest Class
     #if (!OPCUA_EXCLUDE_DeleteMonitoredItemsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteMonitoredItemsRequest : IEncodeable
-    {
+    public partial class DeleteMonitoredItemsRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteMonitoredItemsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -58290,9 +54668,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -58320,9 +54696,7 @@ namespace Opc.Ua
             set { m_subscriptionId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "MonitoredItemIds", IsRequired = false, Order = 3)]
         public UInt32Collection MonitoredItemIds
         {
@@ -58360,6 +54734,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteMonitoredItemsRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteMonitoredItemsRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -58440,35 +54820,25 @@ namespace Opc.Ua
 
     #region DeleteMonitoredItemsResponse Class
     #if (!OPCUA_EXCLUDE_DeleteMonitoredItemsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteMonitoredItemsResponse : IEncodeable
-    {
+    public partial class DeleteMonitoredItemsResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteMonitoredItemsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -58478,9 +54848,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -58500,9 +54868,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public StatusCodeCollection Results
         {
@@ -58522,9 +54888,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -58562,6 +54926,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteMonitoredItemsResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteMonitoredItemsResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -58642,35 +55012,25 @@ namespace Opc.Ua
 
     #region CreateSubscriptionRequest Class
     #if (!OPCUA_EXCLUDE_CreateSubscriptionRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CreateSubscriptionRequest : IEncodeable
-    {
+    public partial class CreateSubscriptionRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CreateSubscriptionRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -58684,9 +55044,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -58772,6 +55130,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CreateSubscriptionRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CreateSubscriptionRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -58872,35 +55236,25 @@ namespace Opc.Ua
 
     #region CreateSubscriptionResponse Class
     #if (!OPCUA_EXCLUDE_CreateSubscriptionResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CreateSubscriptionResponse : IEncodeable
-    {
+    public partial class CreateSubscriptionResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public CreateSubscriptionResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -58912,9 +55266,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -58984,6 +55336,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CreateSubscriptionResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.CreateSubscriptionResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -59074,35 +55432,25 @@ namespace Opc.Ua
 
     #region ModifySubscriptionRequest Class
     #if (!OPCUA_EXCLUDE_ModifySubscriptionRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ModifySubscriptionRequest : IEncodeable
-    {
+    public partial class ModifySubscriptionRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ModifySubscriptionRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -59116,9 +55464,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -59204,6 +55550,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ModifySubscriptionRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ModifySubscriptionRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -59304,35 +55656,25 @@ namespace Opc.Ua
 
     #region ModifySubscriptionResponse Class
     #if (!OPCUA_EXCLUDE_ModifySubscriptionResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ModifySubscriptionResponse : IEncodeable
-    {
+    public partial class ModifySubscriptionResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ModifySubscriptionResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -59343,9 +55685,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -59407,6 +55747,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ModifySubscriptionResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ModifySubscriptionResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -59492,35 +55838,25 @@ namespace Opc.Ua
 
     #region SetPublishingModeRequest Class
     #if (!OPCUA_EXCLUDE_SetPublishingModeRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SetPublishingModeRequest : IEncodeable
-    {
+    public partial class SetPublishingModeRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SetPublishingModeRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -59530,9 +55866,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -59560,9 +55894,7 @@ namespace Opc.Ua
             set { m_publishingEnabled = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SubscriptionIds", IsRequired = false, Order = 3)]
         public UInt32Collection SubscriptionIds
         {
@@ -59600,6 +55932,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SetPublishingModeRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SetPublishingModeRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -59680,35 +56018,25 @@ namespace Opc.Ua
 
     #region SetPublishingModeResponse Class
     #if (!OPCUA_EXCLUDE_SetPublishingModeResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SetPublishingModeResponse : IEncodeable
-    {
+    public partial class SetPublishingModeResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SetPublishingModeResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -59718,9 +56046,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -59740,9 +56066,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public StatusCodeCollection Results
         {
@@ -59762,9 +56086,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -59802,6 +56124,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SetPublishingModeResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SetPublishingModeResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -59882,35 +56210,25 @@ namespace Opc.Ua
 
     #region NotificationMessage Class
     #if (!OPCUA_EXCLUDE_NotificationMessage)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class NotificationMessage : IEncodeable
-    {
+    public partial class NotificationMessage : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NotificationMessage()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_sequenceNumber = (uint)0;
@@ -59936,9 +56254,7 @@ namespace Opc.Ua
             set { m_publishTime = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NotificationData", IsRequired = false, Order = 3)]
         public ExtensionObjectCollection NotificationData
         {
@@ -59976,6 +56292,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.NotificationMessage_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.NotificationMessage_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -60056,35 +56378,25 @@ namespace Opc.Ua
 
     #region NotificationData Class
     #if (!OPCUA_EXCLUDE_NotificationData)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class NotificationData : IEncodeable
-    {
+    public partial class NotificationData : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NotificationData()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
         }
@@ -60110,6 +56422,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.NotificationData_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.NotificationData_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -60175,35 +56493,25 @@ namespace Opc.Ua
 
     #region DataChangeNotification Class
     #if (!OPCUA_EXCLUDE_DataChangeNotification)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataChangeNotification : NotificationData
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DataChangeNotification()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_monitoredItems = new MonitoredItemNotificationCollection();
@@ -60212,9 +56520,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "MonitoredItems", IsRequired = false, Order = 1)]
         public MonitoredItemNotificationCollection MonitoredItems
         {
@@ -60234,9 +56540,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 2)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -60274,6 +56578,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DataChangeNotification_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DataChangeNotification_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -60354,35 +56664,25 @@ namespace Opc.Ua
 
     #region MonitoredItemNotification Class
     #if (!OPCUA_EXCLUDE_MonitoredItemNotification)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class MonitoredItemNotification : IEncodeable
-    {
+    public partial class MonitoredItemNotification : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemNotification()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_clientHandle = (uint)0;
@@ -60425,6 +56725,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.MonitoredItemNotification_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.MonitoredItemNotification_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -60497,9 +56803,7 @@ namespace Opc.Ua
     }
 
     #region MonitoredItemNotificationCollection Class
-    /// <summary>
-    /// A collection of MonitoredItemNotification objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemNotification", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemNotification")]
@@ -60510,26 +56814,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemNotificationCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemNotificationCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public MonitoredItemNotificationCollection(IEnumerable<MonitoredItemNotification> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator MonitoredItemNotificationCollection(MonitoredItemNotification[] values)
         {
             if (values != null)
@@ -60540,9 +56836,7 @@ namespace Opc.Ua
             return new MonitoredItemNotificationCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator MonitoredItemNotification[](MonitoredItemNotificationCollection values)
         {
             if (values != null)
@@ -60556,9 +56850,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (MonitoredItemNotificationCollection)this.MemberwiseClone();
@@ -60585,35 +56877,25 @@ namespace Opc.Ua
 
     #region EventNotificationList Class
     #if (!OPCUA_EXCLUDE_EventNotificationList)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EventNotificationList : NotificationData
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EventNotificationList()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_events = new EventFieldListCollection();
@@ -60621,9 +56903,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Events", IsRequired = false, Order = 1)]
         public EventFieldListCollection Events
         {
@@ -60661,6 +56941,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EventNotificationList_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EventNotificationList_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -60736,35 +57022,25 @@ namespace Opc.Ua
 
     #region EventFieldList Class
     #if (!OPCUA_EXCLUDE_EventFieldList)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EventFieldList : IEncodeable
-    {
+    public partial class EventFieldList : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EventFieldList()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_clientHandle = (uint)0;
@@ -60781,9 +57057,7 @@ namespace Opc.Ua
             set { m_clientHandle = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "EventFields", IsRequired = false, Order = 2)]
         public VariantCollection EventFields
         {
@@ -60821,6 +57095,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EventFieldList_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EventFieldList_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -60893,9 +57173,7 @@ namespace Opc.Ua
     }
 
     #region EventFieldListCollection Class
-    /// <summary>
-    /// A collection of EventFieldList objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEventFieldList", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EventFieldList")]
@@ -60906,26 +57184,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public EventFieldListCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public EventFieldListCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public EventFieldListCollection(IEnumerable<EventFieldList> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator EventFieldListCollection(EventFieldList[] values)
         {
             if (values != null)
@@ -60936,9 +57206,7 @@ namespace Opc.Ua
             return new EventFieldListCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator EventFieldList[](EventFieldListCollection values)
         {
             if (values != null)
@@ -60952,9 +57220,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (EventFieldListCollection)this.MemberwiseClone();
@@ -60981,35 +57247,25 @@ namespace Opc.Ua
 
     #region HistoryEventFieldList Class
     #if (!OPCUA_EXCLUDE_HistoryEventFieldList)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryEventFieldList : IEncodeable
-    {
+    public partial class HistoryEventFieldList : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public HistoryEventFieldList()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_eventFields = new VariantCollection();
@@ -61017,9 +57273,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "EventFields", IsRequired = false, Order = 1)]
         public VariantCollection EventFields
         {
@@ -61057,6 +57311,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.HistoryEventFieldList_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.HistoryEventFieldList_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -61124,9 +57384,7 @@ namespace Opc.Ua
     }
 
     #region HistoryEventFieldListCollection Class
-    /// <summary>
-    /// A collection of HistoryEventFieldList objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfHistoryEventFieldList", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryEventFieldList")]
@@ -61137,26 +57395,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public HistoryEventFieldListCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public HistoryEventFieldListCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public HistoryEventFieldListCollection(IEnumerable<HistoryEventFieldList> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator HistoryEventFieldListCollection(HistoryEventFieldList[] values)
         {
             if (values != null)
@@ -61167,9 +57417,7 @@ namespace Opc.Ua
             return new HistoryEventFieldListCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator HistoryEventFieldList[](HistoryEventFieldListCollection values)
         {
             if (values != null)
@@ -61183,9 +57431,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (HistoryEventFieldListCollection)this.MemberwiseClone();
@@ -61212,35 +57458,25 @@ namespace Opc.Ua
 
     #region StatusChangeNotification Class
     #if (!OPCUA_EXCLUDE_StatusChangeNotification)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StatusChangeNotification : NotificationData
     {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public StatusChangeNotification()
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
         private void Initialize()
         {
             m_status = StatusCodes.Good;
@@ -61283,6 +57519,12 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.StatusChangeNotification_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.StatusChangeNotification_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -61363,35 +57605,25 @@ namespace Opc.Ua
 
     #region SubscriptionAcknowledgement Class
     #if (!OPCUA_EXCLUDE_SubscriptionAcknowledgement)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SubscriptionAcknowledgement : IEncodeable
-    {
+    public partial class SubscriptionAcknowledgement : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SubscriptionAcknowledgement()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_subscriptionId = (uint)0;
@@ -61434,6 +57666,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SubscriptionAcknowledgement_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SubscriptionAcknowledgement_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -61506,9 +57744,7 @@ namespace Opc.Ua
     }
 
     #region SubscriptionAcknowledgementCollection Class
-    /// <summary>
-    /// A collection of SubscriptionAcknowledgement objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSubscriptionAcknowledgement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscriptionAcknowledgement")]
@@ -61519,26 +57755,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public SubscriptionAcknowledgementCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public SubscriptionAcknowledgementCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public SubscriptionAcknowledgementCollection(IEnumerable<SubscriptionAcknowledgement> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator SubscriptionAcknowledgementCollection(SubscriptionAcknowledgement[] values)
         {
             if (values != null)
@@ -61549,9 +57777,7 @@ namespace Opc.Ua
             return new SubscriptionAcknowledgementCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator SubscriptionAcknowledgement[](SubscriptionAcknowledgementCollection values)
         {
             if (values != null)
@@ -61565,9 +57791,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (SubscriptionAcknowledgementCollection)this.MemberwiseClone();
@@ -61594,35 +57818,25 @@ namespace Opc.Ua
 
     #region PublishRequest Class
     #if (!OPCUA_EXCLUDE_PublishRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class PublishRequest : IEncodeable
-    {
+    public partial class PublishRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -61631,9 +57845,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -61653,9 +57865,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SubscriptionAcknowledgements", IsRequired = false, Order = 2)]
         public SubscriptionAcknowledgementCollection SubscriptionAcknowledgements
         {
@@ -61693,6 +57903,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.PublishRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.PublishRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -61768,35 +57984,25 @@ namespace Opc.Ua
 
     #region PublishResponse Class
     #if (!OPCUA_EXCLUDE_PublishResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class PublishResponse : IEncodeable
-    {
+    public partial class PublishResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public PublishResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -61810,9 +58016,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -61840,9 +58044,7 @@ namespace Opc.Ua
             set { m_subscriptionId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "AvailableSequenceNumbers", IsRequired = false, Order = 3)]
         public UInt32Collection AvailableSequenceNumbers
         {
@@ -61870,9 +58072,7 @@ namespace Opc.Ua
             set { m_moreNotifications = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NotificationMessage", IsRequired = false, Order = 5)]
         public NotificationMessage NotificationMessage
         {
@@ -61892,9 +58092,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 6)]
         public StatusCodeCollection Results
         {
@@ -61914,9 +58112,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 7)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -61954,6 +58150,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.PublishResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.PublishResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -62054,35 +58256,25 @@ namespace Opc.Ua
 
     #region RepublishRequest Class
     #if (!OPCUA_EXCLUDE_RepublishRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RepublishRequest : IEncodeable
-    {
+    public partial class RepublishRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RepublishRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -62092,9 +58284,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -62148,6 +58338,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RepublishRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RepublishRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -62228,35 +58424,25 @@ namespace Opc.Ua
 
     #region RepublishResponse Class
     #if (!OPCUA_EXCLUDE_RepublishResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RepublishResponse : IEncodeable
-    {
+    public partial class RepublishResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RepublishResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -62265,9 +58451,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -62287,9 +58471,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NotificationMessage", IsRequired = false, Order = 2)]
         public NotificationMessage NotificationMessage
         {
@@ -62327,6 +58509,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RepublishResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RepublishResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -62402,35 +58590,25 @@ namespace Opc.Ua
 
     #region TransferResult Class
     #if (!OPCUA_EXCLUDE_TransferResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class TransferResult : IEncodeable
-    {
+    public partial class TransferResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TransferResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -62447,9 +58625,7 @@ namespace Opc.Ua
             set { m_statusCode = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "AvailableSequenceNumbers", IsRequired = false, Order = 2)]
         public UInt32Collection AvailableSequenceNumbers
         {
@@ -62487,6 +58663,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.TransferResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.TransferResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -62559,9 +58741,7 @@ namespace Opc.Ua
     }
 
     #region TransferResultCollection Class
-    /// <summary>
-    /// A collection of TransferResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTransferResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransferResult")]
@@ -62572,26 +58752,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public TransferResultCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public TransferResultCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public TransferResultCollection(IEnumerable<TransferResult> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator TransferResultCollection(TransferResult[] values)
         {
             if (values != null)
@@ -62602,9 +58774,7 @@ namespace Opc.Ua
             return new TransferResultCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator TransferResult[](TransferResultCollection values)
         {
             if (values != null)
@@ -62618,9 +58788,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (TransferResultCollection)this.MemberwiseClone();
@@ -62647,35 +58815,25 @@ namespace Opc.Ua
 
     #region TransferSubscriptionsRequest Class
     #if (!OPCUA_EXCLUDE_TransferSubscriptionsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class TransferSubscriptionsRequest : IEncodeable
-    {
+    public partial class TransferSubscriptionsRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TransferSubscriptionsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -62685,9 +58843,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -62707,9 +58863,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SubscriptionIds", IsRequired = false, Order = 2)]
         public UInt32Collection SubscriptionIds
         {
@@ -62755,6 +58909,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.TransferSubscriptionsRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.TransferSubscriptionsRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -62835,35 +58995,25 @@ namespace Opc.Ua
 
     #region TransferSubscriptionsResponse Class
     #if (!OPCUA_EXCLUDE_TransferSubscriptionsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class TransferSubscriptionsResponse : IEncodeable
-    {
+    public partial class TransferSubscriptionsResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public TransferSubscriptionsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -62873,9 +59023,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -62895,9 +59043,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public TransferResultCollection Results
         {
@@ -62917,9 +59063,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -62957,6 +59101,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -63037,35 +59187,25 @@ namespace Opc.Ua
 
     #region DeleteSubscriptionsRequest Class
     #if (!OPCUA_EXCLUDE_DeleteSubscriptionsRequest)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteSubscriptionsRequest : IEncodeable
-    {
+    public partial class DeleteSubscriptionsRequest : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteSubscriptionsRequest()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_requestHeader = new RequestHeader();
@@ -63074,9 +59214,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RequestHeader", IsRequired = false, Order = 1)]
         public RequestHeader RequestHeader
         {
@@ -63096,9 +59234,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SubscriptionIds", IsRequired = false, Order = 2)]
         public UInt32Collection SubscriptionIds
         {
@@ -63136,6 +59272,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteSubscriptionsRequest_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteSubscriptionsRequest_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -63211,35 +59353,25 @@ namespace Opc.Ua
 
     #region DeleteSubscriptionsResponse Class
     #if (!OPCUA_EXCLUDE_DeleteSubscriptionsResponse)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteSubscriptionsResponse : IEncodeable
-    {
+    public partial class DeleteSubscriptionsResponse : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DeleteSubscriptionsResponse()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_responseHeader = new ResponseHeader();
@@ -63249,9 +59381,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ResponseHeader", IsRequired = false, Order = 1)]
         public ResponseHeader ResponseHeader
         {
@@ -63271,9 +59401,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "Results", IsRequired = false, Order = 2)]
         public StatusCodeCollection Results
         {
@@ -63293,9 +59421,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DiagnosticInfos", IsRequired = false, Order = 3)]
         public DiagnosticInfoCollection DiagnosticInfos
         {
@@ -63333,6 +59459,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DeleteSubscriptionsResponse_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DeleteSubscriptionsResponse_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -63413,35 +59545,25 @@ namespace Opc.Ua
 
     #region BuildInfo Class
     #if (!OPCUA_EXCLUDE_BuildInfo)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BuildInfo : IEncodeable
-    {
+    public partial class BuildInfo : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public BuildInfo()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_productUri = null;
@@ -63520,6 +59642,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.BuildInfo_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.BuildInfo_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -63615,9 +59743,7 @@ namespace Opc.Ua
 
     #region RedundancySupport Enumeration
     #if (!OPCUA_EXCLUDE_RedundancySupport)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -63652,9 +59778,7 @@ namespace Opc.Ua
 
     #region ServerState Enumeration
     #if (!OPCUA_EXCLUDE_ServerState)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -63697,35 +59821,25 @@ namespace Opc.Ua
 
     #region RedundantServerDataType Class
     #if (!OPCUA_EXCLUDE_RedundantServerDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class RedundantServerDataType : IEncodeable
-    {
+    public partial class RedundantServerDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public RedundantServerDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_serverId = null;
@@ -63777,6 +59891,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.RedundantServerDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.RedundantServerDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -63854,9 +59974,7 @@ namespace Opc.Ua
     }
 
     #region RedundantServerDataTypeCollection Class
-    /// <summary>
-    /// A collection of RedundantServerDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRedundantServerDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RedundantServerDataType")]
@@ -63867,26 +59985,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public RedundantServerDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public RedundantServerDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public RedundantServerDataTypeCollection(IEnumerable<RedundantServerDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator RedundantServerDataTypeCollection(RedundantServerDataType[] values)
         {
             if (values != null)
@@ -63897,9 +60007,7 @@ namespace Opc.Ua
             return new RedundantServerDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator RedundantServerDataType[](RedundantServerDataTypeCollection values)
         {
             if (values != null)
@@ -63913,9 +60021,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (RedundantServerDataTypeCollection)this.MemberwiseClone();
@@ -63942,35 +60048,25 @@ namespace Opc.Ua
 
     #region EndpointUrlListDataType Class
     #if (!OPCUA_EXCLUDE_EndpointUrlListDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EndpointUrlListDataType : IEncodeable
-    {
+    public partial class EndpointUrlListDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EndpointUrlListDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_endpointUrlList = new StringCollection();
@@ -63978,9 +60074,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "EndpointUrlList", IsRequired = false, Order = 1)]
         public StringCollection EndpointUrlList
         {
@@ -64018,6 +60112,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EndpointUrlListDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EndpointUrlListDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -64085,9 +60185,7 @@ namespace Opc.Ua
     }
 
     #region EndpointUrlListDataTypeCollection Class
-    /// <summary>
-    /// A collection of EndpointUrlListDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEndpointUrlListDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointUrlListDataType")]
@@ -64098,26 +60196,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public EndpointUrlListDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public EndpointUrlListDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public EndpointUrlListDataTypeCollection(IEnumerable<EndpointUrlListDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator EndpointUrlListDataTypeCollection(EndpointUrlListDataType[] values)
         {
             if (values != null)
@@ -64128,9 +60218,7 @@ namespace Opc.Ua
             return new EndpointUrlListDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator EndpointUrlListDataType[](EndpointUrlListDataTypeCollection values)
         {
             if (values != null)
@@ -64144,9 +60232,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (EndpointUrlListDataTypeCollection)this.MemberwiseClone();
@@ -64173,35 +60259,25 @@ namespace Opc.Ua
 
     #region NetworkGroupDataType Class
     #if (!OPCUA_EXCLUDE_NetworkGroupDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class NetworkGroupDataType : IEncodeable
-    {
+    public partial class NetworkGroupDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public NetworkGroupDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_serverUri = null;
@@ -64218,9 +60294,7 @@ namespace Opc.Ua
             set { m_serverUri = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NetworkPaths", IsRequired = false, Order = 2)]
         public EndpointUrlListDataTypeCollection NetworkPaths
         {
@@ -64258,6 +60332,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.NetworkGroupDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.NetworkGroupDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -64330,9 +60410,7 @@ namespace Opc.Ua
     }
 
     #region NetworkGroupDataTypeCollection Class
-    /// <summary>
-    /// A collection of NetworkGroupDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNetworkGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkGroupDataType")]
@@ -64343,26 +60421,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public NetworkGroupDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public NetworkGroupDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public NetworkGroupDataTypeCollection(IEnumerable<NetworkGroupDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator NetworkGroupDataTypeCollection(NetworkGroupDataType[] values)
         {
             if (values != null)
@@ -64373,9 +60443,7 @@ namespace Opc.Ua
             return new NetworkGroupDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator NetworkGroupDataType[](NetworkGroupDataTypeCollection values)
         {
             if (values != null)
@@ -64389,9 +60457,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (NetworkGroupDataTypeCollection)this.MemberwiseClone();
@@ -64418,35 +60484,25 @@ namespace Opc.Ua
 
     #region SamplingIntervalDiagnosticsDataType Class
     #if (!OPCUA_EXCLUDE_SamplingIntervalDiagnosticsDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SamplingIntervalDiagnosticsDataType : IEncodeable
-    {
+    public partial class SamplingIntervalDiagnosticsDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SamplingIntervalDiagnosticsDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_samplingInterval = (double)0;
@@ -64507,6 +60563,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -64589,9 +60651,7 @@ namespace Opc.Ua
     }
 
     #region SamplingIntervalDiagnosticsDataTypeCollection Class
-    /// <summary>
-    /// A collection of SamplingIntervalDiagnosticsDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSamplingIntervalDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SamplingIntervalDiagnosticsDataType")]
@@ -64602,26 +60662,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public SamplingIntervalDiagnosticsDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public SamplingIntervalDiagnosticsDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public SamplingIntervalDiagnosticsDataTypeCollection(IEnumerable<SamplingIntervalDiagnosticsDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator SamplingIntervalDiagnosticsDataTypeCollection(SamplingIntervalDiagnosticsDataType[] values)
         {
             if (values != null)
@@ -64632,9 +60684,7 @@ namespace Opc.Ua
             return new SamplingIntervalDiagnosticsDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator SamplingIntervalDiagnosticsDataType[](SamplingIntervalDiagnosticsDataTypeCollection values)
         {
             if (values != null)
@@ -64648,9 +60698,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (SamplingIntervalDiagnosticsDataTypeCollection)this.MemberwiseClone();
@@ -64677,35 +60725,25 @@ namespace Opc.Ua
 
     #region ServerDiagnosticsSummaryDataType Class
     #if (!OPCUA_EXCLUDE_ServerDiagnosticsSummaryDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ServerDiagnosticsSummaryDataType : IEncodeable
-    {
+    public partial class ServerDiagnosticsSummaryDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ServerDiagnosticsSummaryDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_serverViewCount = (uint)0;
@@ -64840,6 +60878,12 @@ namespace Opc.Ua
             get { return ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultXml; }
         }
 
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultJson; }
+        }
+
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
         {
@@ -64963,35 +61007,25 @@ namespace Opc.Ua
 
     #region ServerStatusDataType Class
     #if (!OPCUA_EXCLUDE_ServerStatusDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ServerStatusDataType : IEncodeable
-    {
+    public partial class ServerStatusDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ServerStatusDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_startTime = DateTime.MinValue;
@@ -65028,9 +61062,7 @@ namespace Opc.Ua
             set { m_state = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "BuildInfo", IsRequired = false, Order = 4)]
         public BuildInfo BuildInfo
         {
@@ -65084,6 +61116,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ServerStatusDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ServerStatusDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -65179,35 +61217,25 @@ namespace Opc.Ua
 
     #region SessionDiagnosticsDataType Class
     #if (!OPCUA_EXCLUDE_SessionDiagnosticsDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SessionDiagnosticsDataType : IEncodeable
-    {
+    public partial class SessionDiagnosticsDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SessionDiagnosticsDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_sessionId = null;
@@ -65273,9 +61301,7 @@ namespace Opc.Ua
             set { m_sessionName = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ClientDescription", IsRequired = false, Order = 3)]
         public ApplicationDescription ClientDescription
         {
@@ -65311,9 +61337,7 @@ namespace Opc.Ua
             set { m_endpointUrl = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LocaleIds", IsRequired = false, Order = 6)]
         public StringCollection LocaleIds
         {
@@ -65389,9 +61413,7 @@ namespace Opc.Ua
             set { m_currentPublishRequestsInQueue = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "TotalRequestCount", IsRequired = false, Order = 14)]
         public ServiceCounterDataType TotalRequestCount
         {
@@ -65419,9 +61441,7 @@ namespace Opc.Ua
             set { m_unauthorizedRequestCount = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ReadCount", IsRequired = false, Order = 16)]
         public ServiceCounterDataType ReadCount
         {
@@ -65441,9 +61461,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "HistoryReadCount", IsRequired = false, Order = 17)]
         public ServiceCounterDataType HistoryReadCount
         {
@@ -65463,9 +61481,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "WriteCount", IsRequired = false, Order = 18)]
         public ServiceCounterDataType WriteCount
         {
@@ -65485,9 +61501,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "HistoryUpdateCount", IsRequired = false, Order = 19)]
         public ServiceCounterDataType HistoryUpdateCount
         {
@@ -65507,9 +61521,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "CallCount", IsRequired = false, Order = 20)]
         public ServiceCounterDataType CallCount
         {
@@ -65529,9 +61541,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "CreateMonitoredItemsCount", IsRequired = false, Order = 21)]
         public ServiceCounterDataType CreateMonitoredItemsCount
         {
@@ -65551,9 +61561,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ModifyMonitoredItemsCount", IsRequired = false, Order = 22)]
         public ServiceCounterDataType ModifyMonitoredItemsCount
         {
@@ -65573,9 +61581,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SetMonitoringModeCount", IsRequired = false, Order = 23)]
         public ServiceCounterDataType SetMonitoringModeCount
         {
@@ -65595,9 +61601,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SetTriggeringCount", IsRequired = false, Order = 24)]
         public ServiceCounterDataType SetTriggeringCount
         {
@@ -65617,9 +61621,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DeleteMonitoredItemsCount", IsRequired = false, Order = 25)]
         public ServiceCounterDataType DeleteMonitoredItemsCount
         {
@@ -65639,9 +61641,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "CreateSubscriptionCount", IsRequired = false, Order = 26)]
         public ServiceCounterDataType CreateSubscriptionCount
         {
@@ -65661,9 +61661,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ModifySubscriptionCount", IsRequired = false, Order = 27)]
         public ServiceCounterDataType ModifySubscriptionCount
         {
@@ -65683,9 +61681,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "SetPublishingModeCount", IsRequired = false, Order = 28)]
         public ServiceCounterDataType SetPublishingModeCount
         {
@@ -65705,9 +61701,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "PublishCount", IsRequired = false, Order = 29)]
         public ServiceCounterDataType PublishCount
         {
@@ -65727,9 +61721,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RepublishCount", IsRequired = false, Order = 30)]
         public ServiceCounterDataType RepublishCount
         {
@@ -65749,9 +61741,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "TransferSubscriptionsCount", IsRequired = false, Order = 31)]
         public ServiceCounterDataType TransferSubscriptionsCount
         {
@@ -65771,9 +61761,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DeleteSubscriptionsCount", IsRequired = false, Order = 32)]
         public ServiceCounterDataType DeleteSubscriptionsCount
         {
@@ -65793,9 +61781,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "AddNodesCount", IsRequired = false, Order = 33)]
         public ServiceCounterDataType AddNodesCount
         {
@@ -65815,9 +61801,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "AddReferencesCount", IsRequired = false, Order = 34)]
         public ServiceCounterDataType AddReferencesCount
         {
@@ -65837,9 +61821,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DeleteNodesCount", IsRequired = false, Order = 35)]
         public ServiceCounterDataType DeleteNodesCount
         {
@@ -65859,9 +61841,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "DeleteReferencesCount", IsRequired = false, Order = 36)]
         public ServiceCounterDataType DeleteReferencesCount
         {
@@ -65881,9 +61861,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "BrowseCount", IsRequired = false, Order = 37)]
         public ServiceCounterDataType BrowseCount
         {
@@ -65903,9 +61881,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "BrowseNextCount", IsRequired = false, Order = 38)]
         public ServiceCounterDataType BrowseNextCount
         {
@@ -65925,9 +61901,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "TranslateBrowsePathsToNodeIdsCount", IsRequired = false, Order = 39)]
         public ServiceCounterDataType TranslateBrowsePathsToNodeIdsCount
         {
@@ -65947,9 +61921,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "QueryFirstCount", IsRequired = false, Order = 40)]
         public ServiceCounterDataType QueryFirstCount
         {
@@ -65969,9 +61941,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "QueryNextCount", IsRequired = false, Order = 41)]
         public ServiceCounterDataType QueryNextCount
         {
@@ -65991,9 +61961,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "RegisterNodesCount", IsRequired = false, Order = 42)]
         public ServiceCounterDataType RegisterNodesCount
         {
@@ -66013,9 +61981,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "UnregisterNodesCount", IsRequired = false, Order = 43)]
         public ServiceCounterDataType UnregisterNodesCount
         {
@@ -66053,6 +62019,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SessionDiagnosticsDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SessionDiagnosticsDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -66330,9 +62302,7 @@ namespace Opc.Ua
     }
 
     #region SessionDiagnosticsDataTypeCollection Class
-    /// <summary>
-    /// A collection of SessionDiagnosticsDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSessionDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SessionDiagnosticsDataType")]
@@ -66343,26 +62313,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public SessionDiagnosticsDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public SessionDiagnosticsDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public SessionDiagnosticsDataTypeCollection(IEnumerable<SessionDiagnosticsDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator SessionDiagnosticsDataTypeCollection(SessionDiagnosticsDataType[] values)
         {
             if (values != null)
@@ -66373,9 +62335,7 @@ namespace Opc.Ua
             return new SessionDiagnosticsDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator SessionDiagnosticsDataType[](SessionDiagnosticsDataTypeCollection values)
         {
             if (values != null)
@@ -66389,9 +62349,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (SessionDiagnosticsDataTypeCollection)this.MemberwiseClone();
@@ -66418,35 +62376,25 @@ namespace Opc.Ua
 
     #region SessionSecurityDiagnosticsDataType Class
     #if (!OPCUA_EXCLUDE_SessionSecurityDiagnosticsDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SessionSecurityDiagnosticsDataType : IEncodeable
-    {
+    public partial class SessionSecurityDiagnosticsDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SessionSecurityDiagnosticsDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_sessionId = null;
@@ -66478,9 +62426,7 @@ namespace Opc.Ua
             set { m_clientUserIdOfSession = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ClientUserIdHistory", IsRequired = false, Order = 3)]
         public StringCollection ClientUserIdHistory
         {
@@ -66566,6 +62512,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -66673,9 +62625,7 @@ namespace Opc.Ua
     }
 
     #region SessionSecurityDiagnosticsDataTypeCollection Class
-    /// <summary>
-    /// A collection of SessionSecurityDiagnosticsDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSessionSecurityDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SessionSecurityDiagnosticsDataType")]
@@ -66686,26 +62636,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public SessionSecurityDiagnosticsDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public SessionSecurityDiagnosticsDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public SessionSecurityDiagnosticsDataTypeCollection(IEnumerable<SessionSecurityDiagnosticsDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator SessionSecurityDiagnosticsDataTypeCollection(SessionSecurityDiagnosticsDataType[] values)
         {
             if (values != null)
@@ -66716,9 +62658,7 @@ namespace Opc.Ua
             return new SessionSecurityDiagnosticsDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator SessionSecurityDiagnosticsDataType[](SessionSecurityDiagnosticsDataTypeCollection values)
         {
             if (values != null)
@@ -66732,9 +62672,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (SessionSecurityDiagnosticsDataTypeCollection)this.MemberwiseClone();
@@ -66761,35 +62699,25 @@ namespace Opc.Ua
 
     #region ServiceCounterDataType Class
     #if (!OPCUA_EXCLUDE_ServiceCounterDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ServiceCounterDataType : IEncodeable
-    {
+    public partial class ServiceCounterDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ServiceCounterDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_totalCount = (uint)0;
@@ -66832,6 +62760,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ServiceCounterDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ServiceCounterDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -66907,35 +62841,25 @@ namespace Opc.Ua
 
     #region StatusResult Class
     #if (!OPCUA_EXCLUDE_StatusResult)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class StatusResult : IEncodeable
-    {
+    public partial class StatusResult : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public StatusResult()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_statusCode = StatusCodes.Good;
@@ -66978,6 +62902,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.StatusResult_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.StatusResult_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -67050,9 +62980,7 @@ namespace Opc.Ua
     }
 
     #region StatusResultCollection Class
-    /// <summary>
-    /// A collection of StatusResult objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfStatusResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StatusResult")]
@@ -67063,26 +62991,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public StatusResultCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public StatusResultCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public StatusResultCollection(IEnumerable<StatusResult> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator StatusResultCollection(StatusResult[] values)
         {
             if (values != null)
@@ -67093,9 +63013,7 @@ namespace Opc.Ua
             return new StatusResultCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator StatusResult[](StatusResultCollection values)
         {
             if (values != null)
@@ -67109,9 +63027,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (StatusResultCollection)this.MemberwiseClone();
@@ -67138,35 +63054,25 @@ namespace Opc.Ua
 
     #region SubscriptionDiagnosticsDataType Class
     #if (!OPCUA_EXCLUDE_SubscriptionDiagnosticsDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SubscriptionDiagnosticsDataType : IEncodeable
-    {
+    public partial class SubscriptionDiagnosticsDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SubscriptionDiagnosticsDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_sessionId = null;
@@ -67472,6 +63378,12 @@ namespace Opc.Ua
             get { return ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultXml; }
         }
 
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultJson; }
+        }
+
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
         {
@@ -67687,9 +63599,7 @@ namespace Opc.Ua
     }
 
     #region SubscriptionDiagnosticsDataTypeCollection Class
-    /// <summary>
-    /// A collection of SubscriptionDiagnosticsDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSubscriptionDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscriptionDiagnosticsDataType")]
@@ -67700,26 +63610,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public SubscriptionDiagnosticsDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public SubscriptionDiagnosticsDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public SubscriptionDiagnosticsDataTypeCollection(IEnumerable<SubscriptionDiagnosticsDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator SubscriptionDiagnosticsDataTypeCollection(SubscriptionDiagnosticsDataType[] values)
         {
             if (values != null)
@@ -67730,9 +63632,7 @@ namespace Opc.Ua
             return new SubscriptionDiagnosticsDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator SubscriptionDiagnosticsDataType[](SubscriptionDiagnosticsDataTypeCollection values)
         {
             if (values != null)
@@ -67746,9 +63646,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (SubscriptionDiagnosticsDataTypeCollection)this.MemberwiseClone();
@@ -67775,9 +63673,7 @@ namespace Opc.Ua
 
     #region ModelChangeStructureVerbMask Enumeration
     #if (!OPCUA_EXCLUDE_ModelChangeStructureVerbMask)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -67808,35 +63704,25 @@ namespace Opc.Ua
 
     #region ModelChangeStructureDataType Class
     #if (!OPCUA_EXCLUDE_ModelChangeStructureDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ModelChangeStructureDataType : IEncodeable
-    {
+    public partial class ModelChangeStructureDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ModelChangeStructureDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_affected = null;
@@ -67888,6 +63774,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ModelChangeStructureDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ModelChangeStructureDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -67965,9 +63857,7 @@ namespace Opc.Ua
     }
 
     #region ModelChangeStructureDataTypeCollection Class
-    /// <summary>
-    /// A collection of ModelChangeStructureDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfModelChangeStructureDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ModelChangeStructureDataType")]
@@ -67978,26 +63868,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public ModelChangeStructureDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public ModelChangeStructureDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public ModelChangeStructureDataTypeCollection(IEnumerable<ModelChangeStructureDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator ModelChangeStructureDataTypeCollection(ModelChangeStructureDataType[] values)
         {
             if (values != null)
@@ -68008,9 +63890,7 @@ namespace Opc.Ua
             return new ModelChangeStructureDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator ModelChangeStructureDataType[](ModelChangeStructureDataTypeCollection values)
         {
             if (values != null)
@@ -68024,9 +63904,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (ModelChangeStructureDataTypeCollection)this.MemberwiseClone();
@@ -68053,35 +63931,25 @@ namespace Opc.Ua
 
     #region SemanticChangeStructureDataType Class
     #if (!OPCUA_EXCLUDE_SemanticChangeStructureDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SemanticChangeStructureDataType : IEncodeable
-    {
+    public partial class SemanticChangeStructureDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public SemanticChangeStructureDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_affected = null;
@@ -68124,6 +63992,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -68196,9 +64070,7 @@ namespace Opc.Ua
     }
 
     #region SemanticChangeStructureDataTypeCollection Class
-    /// <summary>
-    /// A collection of SemanticChangeStructureDataType objects.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSemanticChangeStructureDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SemanticChangeStructureDataType")]
@@ -68209,26 +64081,18 @@ namespace Opc.Ua
     #endif
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
+        /// <remarks />
         public SemanticChangeStructureDataTypeCollection() {}
 
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
+        /// <remarks />
         public SemanticChangeStructureDataTypeCollection(int capacity) : base(capacity) {}
 
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
+        /// <remarks />
         public SemanticChangeStructureDataTypeCollection(IEnumerable<SemanticChangeStructureDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
+        /// <remarks />
         public static implicit operator SemanticChangeStructureDataTypeCollection(SemanticChangeStructureDataType[] values)
         {
             if (values != null)
@@ -68239,9 +64103,7 @@ namespace Opc.Ua
             return new SemanticChangeStructureDataTypeCollection();
         }
 
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
+        /// <remarks />
         public static explicit operator SemanticChangeStructureDataType[](SemanticChangeStructureDataTypeCollection values)
         {
             if (values != null)
@@ -68255,9 +64117,7 @@ namespace Opc.Ua
 
         #if !NET_STANDARD
         #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <remarks />
         public object Clone()
         {
             return (SemanticChangeStructureDataTypeCollection)this.MemberwiseClone();
@@ -68284,35 +64144,25 @@ namespace Opc.Ua
 
     #region Range Class
     #if (!OPCUA_EXCLUDE_Range)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Range : IEncodeable
-    {
+    public partial class Range : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Range()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_low = (double)0;
@@ -68355,6 +64205,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.Range_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.Range_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -68430,35 +64286,25 @@ namespace Opc.Ua
 
     #region EUInformation Class
     #if (!OPCUA_EXCLUDE_EUInformation)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EUInformation : IEncodeable
-    {
+    public partial class EUInformation : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public EUInformation()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_namespaceUri = null;
@@ -68519,6 +64365,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.EUInformation_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.EUInformation_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -68604,9 +64456,7 @@ namespace Opc.Ua
 
     #region AxisScaleEnumeration Enumeration
     #if (!OPCUA_EXCLUDE_AxisScaleEnumeration)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
@@ -68629,35 +64479,25 @@ namespace Opc.Ua
 
     #region ComplexNumberType Class
     #if (!OPCUA_EXCLUDE_ComplexNumberType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ComplexNumberType : IEncodeable
-    {
+    public partial class ComplexNumberType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ComplexNumberType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_real = (float)0;
@@ -68700,6 +64540,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ComplexNumberType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ComplexNumberType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -68775,35 +64621,25 @@ namespace Opc.Ua
 
     #region DoubleComplexNumberType Class
     #if (!OPCUA_EXCLUDE_DoubleComplexNumberType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DoubleComplexNumberType : IEncodeable
-    {
+    public partial class DoubleComplexNumberType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public DoubleComplexNumberType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_real = (double)0;
@@ -68846,6 +64682,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.DoubleComplexNumberType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.DoubleComplexNumberType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -68921,35 +64763,25 @@ namespace Opc.Ua
 
     #region AxisInformation Class
     #if (!OPCUA_EXCLUDE_AxisInformation)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AxisInformation : IEncodeable
-    {
+    public partial class AxisInformation : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public AxisInformation()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_engineeringUnits = new EUInformation();
@@ -68961,9 +64793,7 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "EngineeringUnits", IsRequired = false, Order = 1)]
         public EUInformation EngineeringUnits
         {
@@ -68983,9 +64813,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "EURange", IsRequired = false, Order = 2)]
         public Range EURange
         {
@@ -69021,9 +64849,7 @@ namespace Opc.Ua
             set { m_axisScaleType = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "AxisSteps", IsRequired = false, Order = 5)]
         public DoubleCollection AxisSteps
         {
@@ -69061,6 +64887,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.AxisInformation_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.AxisInformation_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -69151,35 +64983,25 @@ namespace Opc.Ua
 
     #region XVType Class
     #if (!OPCUA_EXCLUDE_XVType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class XVType : IEncodeable
-    {
+    public partial class XVType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public XVType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_x = (double)0;
@@ -69222,6 +65044,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.XVType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.XVType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -69297,35 +65125,25 @@ namespace Opc.Ua
 
     #region ProgramDiagnosticDataType Class
     #if (!OPCUA_EXCLUDE_ProgramDiagnosticDataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ProgramDiagnosticDataType : IEncodeable
-    {
+    public partial class ProgramDiagnosticDataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ProgramDiagnosticDataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_createSessionId = null;
@@ -69390,9 +65208,7 @@ namespace Opc.Ua
             set { m_lastMethodSessionId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LastMethodInputArguments", IsRequired = false, Order = 7)]
         public ArgumentCollection LastMethodInputArguments
         {
@@ -69412,9 +65228,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LastMethodOutputArguments", IsRequired = false, Order = 8)]
         public ArgumentCollection LastMethodOutputArguments
         {
@@ -69442,9 +65256,7 @@ namespace Opc.Ua
             set { m_lastMethodCallTime = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LastMethodReturnStatus", IsRequired = false, Order = 10)]
         public StatusResult LastMethodReturnStatus
         {
@@ -69482,6 +65294,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -69597,35 +65415,25 @@ namespace Opc.Ua
 
     #region ProgramDiagnostic2DataType Class
     #if (!OPCUA_EXCLUDE_ProgramDiagnostic2DataType)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ProgramDiagnostic2DataType : IEncodeable
-    {
+    public partial class ProgramDiagnostic2DataType : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public ProgramDiagnostic2DataType()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_createSessionId = null;
@@ -69692,9 +65500,7 @@ namespace Opc.Ua
             set { m_lastMethodSessionId = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LastMethodInputArguments", IsRequired = false, Order = 7)]
         public ArgumentCollection LastMethodInputArguments
         {
@@ -69714,9 +65520,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LastMethodOutputArguments", IsRequired = false, Order = 8)]
         public ArgumentCollection LastMethodOutputArguments
         {
@@ -69736,9 +65540,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LastMethodInputValues", IsRequired = false, Order = 9)]
         public VariantCollection LastMethodInputValues
         {
@@ -69758,9 +65560,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LastMethodOutputValues", IsRequired = false, Order = 10)]
         public VariantCollection LastMethodOutputValues
         {
@@ -69814,6 +65614,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.ProgramDiagnostic2DataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ProgramDiagnostic2DataType_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -69939,35 +65745,25 @@ namespace Opc.Ua
 
     #region Annotation Class
     #if (!OPCUA_EXCLUDE_Annotation)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Annotation : IEncodeable
-    {
+    public partial class Annotation : IEncodeable, IJsonEncodeable
+        {
         #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
+        /// <remarks />
         public Annotation()
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
+            
         private void Initialize()
         {
             m_message = null;
@@ -70019,6 +65815,12 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.Annotation_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.Annotation_Encoding_DefaultJson; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
@@ -70099,9 +65901,7 @@ namespace Opc.Ua
 
     #region ExceptionDeviationFormat Enumeration
     #if (!OPCUA_EXCLUDE_ExceptionDeviationFormat)
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]

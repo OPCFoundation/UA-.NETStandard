@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -45,7 +46,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public partial class Session : SessionClientBatched, IDisposable
+    public partial class Session : SessionClientBatched, ISession, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -64,7 +65,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
+        /// Constructs a new instance of the <see cref="ISession"/> class.
         /// </summary>
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
@@ -96,7 +97,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Session"/> class.
+        /// Initializes a new instance of the <see cref="ISession"/> class.
         /// </summary>
         /// <param name="channel">The channel.</param>
         /// <param name="template">The template session.</param>
@@ -105,18 +106,19 @@ namespace Opc.Ua.Client
         :
             base(channel)
         {
-            Initialize(channel, template.m_configuration, template.m_endpoint, template.m_instanceCertificate);
+            Initialize(channel, template.m_configuration, template.ConfiguredEndpoint, template.m_instanceCertificate);
 
+            m_sessionFactory = template.m_sessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
             m_deleteSubscriptionsOnClose = template.m_deleteSubscriptionsOnClose;
             m_transferSubscriptionsOnReconnect = template.m_transferSubscriptionsOnReconnect;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
-            m_preferredLocales = template.m_preferredLocales;
-            m_sessionName = template.m_sessionName;
-            m_handle = template.m_handle;
-            m_identity = template.m_identity;
-            m_keepAliveInterval = template.m_keepAliveInterval;
+            m_preferredLocales = template.PreferredLocales;
+            m_sessionName = template.SessionName;
+            m_handle = template.Handle;
+            m_identity = template.Identity;
+            m_keepAliveInterval = template.KeepAliveInterval;
             m_checkDomain = template.m_checkDomain;
             if (template.OperationTimeout > 0)
             {
@@ -249,6 +251,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void Initialize()
         {
+            m_sessionFactory = new DefaultSessionFactory();
             m_sessionTimeout = 0;
             m_namespaceUris = new NamespaceTable();
             m_serverUris = new StringTable();
@@ -505,6 +508,15 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// A session factory that was used to create the session.
+        /// </summary>
+        public ISessionFactory SessionFactory
+        {
+            get => m_sessionFactory;
+            set => m_sessionFactory = value;
+        }
+
         /// <summary>
         /// Gets the endpoint used to connect to the server.
         /// </summary>
@@ -1033,8 +1045,8 @@ namespace Opc.Ua.Client
             // create the channel object used to connect to the server.
             ITransportChannel channel = SessionChannel.Create(
                 template.m_configuration,
-                template.m_endpoint.Description,
-                template.m_endpoint.Configuration,
+                template.ConfiguredEndpoint.Description,
+                template.ConfiguredEndpoint.Configuration,
                 template.m_instanceCertificate,
                 template.m_configuration.SecurityConfiguration.SendCertificateChain ?
                     template.m_instanceCertificateChain : null,
@@ -1047,10 +1059,10 @@ namespace Opc.Ua.Client
             {
                 // open the session.
                 session.Open(
-                    template.m_sessionName,
-                    (uint)template.m_sessionTimeout,
-                    template.m_identity,
-                    template.m_preferredLocales,
+                    template.SessionName,
+                    (uint)template.SessionTimeout,
+                    template.Identity,
+                    template.PreferredLocales,
                     template.m_checkDomain);
 
                 session.RecreateSubscriptions(template.Subscriptions);
@@ -1058,7 +1070,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
+                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.SessionName);
             }
 
             return session;
@@ -1150,12 +1162,7 @@ namespace Opc.Ua.Client
         }
         #endregion
 
-        #region Delegates and Events
-        /// <summary>
-        /// Used to handle renews of user identity tokens before reconnect.
-        /// </summary>
-        public delegate IUserIdentity RenewUserIdentityEventHandler(Session session, IUserIdentity identity);
-
+        #region Events
         /// <summary>
         /// Raised before a reconnect operation completes.
         /// </summary>
@@ -1176,6 +1183,12 @@ namespace Opc.Ua.Client
         {
             Reconnect(null, null);
         }
+
+        /// <summary>
+        /// Reconnects to the server after a network failure using a waiting connection.
+        /// </summary>
+        public void Reconnect(ITransportWaitingConnection connection)
+            => Reconnect(connection, null);
 
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.
@@ -1694,16 +1707,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            // find the dictionary for the description.
-            Browser browser = new Browser(this);
-
-            browser.BrowseDirection = BrowseDirection.Inverse;
-            browser.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            browser.IncludeSubtypes = false;
-            browser.NodeClassMask = 0;
-
-            ReferenceDescriptionCollection references = browser.Browse(descriptionId);
-
+            IList<INode> references = this.NodeCache.FindReferences(descriptionId, ReferenceTypeIds.HasComponent, true, false);
             if (references.Count == 0)
             {
                 throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Description does not refer to a valid data dictionary.");
@@ -1756,25 +1760,56 @@ namespace Opc.Ua.Client
                 dataTypeSystem = ObjectIds.OPCBinarySchema_TypeSystem;
             }
             else
-            if (!Utils.Equals(dataTypeSystem, ObjectIds.OPCBinarySchema_TypeSystem) &&
-                !Utils.Equals(dataTypeSystem, ObjectIds.XmlSchema_TypeSystem))
+            if (!Utils.IsEqual(dataTypeSystem, ObjectIds.OPCBinarySchema_TypeSystem) &&
+                !Utils.IsEqual(dataTypeSystem, ObjectIds.XmlSchema_TypeSystem))
             {
                 throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, $"{nameof(dataTypeSystem)} does not refer to a valid data dictionary.");
             }
 
             // find the dictionary for the description.
-            Browser browser = new Browser(this);
-
-            browser.BrowseDirection = BrowseDirection.Forward;
-            browser.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            browser.IncludeSubtypes = false;
-            browser.NodeClassMask = 0;
-
-            ReferenceDescriptionCollection references = browser.Browse(dataTypeSystem);
+            IList<INode> references = this.NodeCache.FindReferences(dataTypeSystem, ReferenceTypeIds.HasComponent, false, false);
 
             if (references.Count == 0)
             {
                 throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Type system does not contain a valid data dictionary.");
+            }
+
+            // batch read all encodings and namespaces
+            var referenceNodeIds = references.Select(r => r.NodeId).ToList();
+
+            // find namespace properties
+            var namespaceNodes = this.NodeCache.FindReferences(referenceNodeIds, new NodeIdCollection { ReferenceTypeIds.HasProperty }, false, false)
+                .Where(n => n.BrowseName == BrowseNames.NamespaceUri).ToList();
+            var namespaceNodeIds = namespaceNodes.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, this.NamespaceUris)).ToList();
+
+            // read all schema definitions
+            var referenceExpandedNodeIds = references
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, this.NamespaceUris))
+                .Where(n => n.NamespaceIndex != 0).ToList();
+            IDictionary<NodeId, byte[]> schemas = await DataDictionary.ReadDictionaries(this, referenceExpandedNodeIds).ConfigureAwait(false);
+
+            // read namespace property values
+            var namespaces = new Dictionary<NodeId, string>();
+            ReadValues(namespaceNodeIds, Enumerable.Repeat(typeof(string), namespaceNodeIds.Count).ToList(), out var nameSpaceValues, out var errors);
+
+            // build the namespace dictionary
+            for (int ii = 0; ii < nameSpaceValues.Count; ii++)
+            {
+                if (StatusCode.IsNotBad(errors[ii].StatusCode))
+                {
+                    namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
+                }
+            }
+
+            // build the namespace/schema import dictionary
+            var imports = new Dictionary<string, byte[]>();
+            foreach (var r in references)
+            {
+                NodeId nodeId = ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris);
+                if (schemas.TryGetValue(nodeId, out var schema))
+                {
+                    imports[namespaces[nodeId]] = schema;
+                }
             }
 
             // read all type dictionaries in the type system
@@ -1788,7 +1823,14 @@ namespace Opc.Ua.Client
                     try
                     {
                         dictionaryToLoad = new DataDictionary(this);
-                        await dictionaryToLoad.Load(r).ConfigureAwait(false);
+                        if (schemas.TryGetValue(dictionaryId, out var schema))
+                        {
+                            await dictionaryToLoad.Load(dictionaryId, dictionaryId.ToString(), schema, imports).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await dictionaryToLoad.Load(dictionaryId, dictionaryId.ToString()).ConfigureAwait(false);
+                        }
                         m_dictionaries[dictionaryId] = dictionaryToLoad;
                     }
                     catch (Exception ex)
@@ -1821,18 +1863,23 @@ namespace Opc.Ua.Client
             out IList<ServiceResult> errors,
             bool optionalAttributes = false)
         {
+            if (nodeIds.Count == 0)
+            {
+                nodeCollection = new NodeCollection();
+                errors = new List<ServiceResult>();
+                return;
+            }
+
             if (nodeClass == NodeClass.Unspecified)
             {
                 ReadNodes(nodeIds, out nodeCollection, out errors, optionalAttributes);
                 return;
             }
 
-            nodeCollection = new NodeCollection(nodeIds.Count);
-            errors = new ServiceResult[nodeIds.Count].ToList();
-
             // determine attributes to read for nodeclass
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[nodeIds.Count].ToList();
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(nodeIds.Count);
             var attributesToRead = new ReadValueIdCollection();
+            nodeCollection = new NodeCollection(nodeIds.Count);
 
             CreateNodeClassAttributesReadNodesRequest(
                 nodeIds, nodeClass,
@@ -1850,6 +1897,7 @@ namespace Opc.Ua.Client
             ClientBase.ValidateResponse(values, attributesToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
+            errors = new ServiceResult[nodeIds.Count].ToList();
             ProcessAttributesReadNodesResponse(
                 responseHeader,
                 attributesToRead, attributesPerNodeId,
@@ -1874,10 +1922,10 @@ namespace Opc.Ua.Client
         {
             int count = nodeIds.Count;
             nodeCollection = new NodeCollection(count);
+            errors = new List<ServiceResult>(count);
 
             if (count == 0)
             {
-                errors = new List<ServiceResult>();
                 return;
             }
 
@@ -1916,8 +1964,7 @@ namespace Opc.Ua.Client
             }
 
             // second determine attributes to read per nodeclass
-            errors = new ServiceResult[count].ToList();
-            var attributesPerNodeId = new IDictionary<uint, DataValue>[count].ToList();
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(count);
             var attributesToRead = new ReadValueIdCollection();
 
             CreateAttributesReadNodesRequest(
@@ -1927,22 +1974,25 @@ namespace Opc.Ua.Client
                 nodeCollection, errors,
                 optionalAttributes);
 
-            responseHeader = Read(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                attributesToRead,
-                out DataValueCollection values,
-                out diagnosticInfos);
+            if (attributesToRead.Count > 0)
+            {
+                responseHeader = Read(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    attributesToRead,
+                    out DataValueCollection values,
+                    out diagnosticInfos);
 
-            ClientBase.ValidateResponse(values, attributesToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
+                ClientBase.ValidateResponse(values, attributesToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
-            ProcessAttributesReadNodesResponse(
-                responseHeader,
-                attributesToRead, attributesPerNodeId,
-                values, diagnosticInfos,
-                nodeCollection, errors);
+                ProcessAttributesReadNodesResponse(
+                    responseHeader,
+                    attributesToRead, attributesPerNodeId,
+                    values, diagnosticInfos,
+                    nodeCollection, errors);
+            }
         }
 
         /// <summary>
@@ -2413,7 +2463,7 @@ namespace Opc.Ua.Client
                 //first try to connect with client certificate NULL
                 try
                 {
-                    CreateSession(
+                    base.CreateSession(
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
@@ -2444,7 +2494,7 @@ namespace Opc.Ua.Client
 
             if (!successCreateSession)
             {
-                CreateSession(
+                base.CreateSession(
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
@@ -3199,7 +3249,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Disconnects from the server and frees any network resources with the specified timeout.
         /// </summary>
-        public virtual StatusCode Close(int timeout, bool closeChannel = true)
+        public StatusCode Close(int timeout)
+            => Close(timeout, true);
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        public virtual StatusCode Close(int timeout, bool closeChannel)
         {
             // check if already called.
             if (Disposed)
@@ -3371,7 +3427,7 @@ namespace Opc.Ua.Client
         /// is transferred to obtain ownership. Internal.
         /// </summary>
         /// <param name="subscription">The subscription to remove.</param>
-        internal bool RemoveTransferredSubscription(Subscription subscription)
+        public bool RemoveTransferredSubscription(Subscription subscription)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
@@ -3768,7 +3824,7 @@ namespace Opc.Ua.Client
                     errors.Add(ServiceResult.Good);
                 }
                 revisedContinuationPoints.Add(result.ContinuationPoint);
-                referencesList.Add(results[0].References);
+                referencesList.Add(result.References);
                 ii++;
             }
 
@@ -4286,7 +4342,7 @@ namespace Opc.Ua.Client
                 }
 
                 nodeCollection.Add(node);
-                attributesPerNodeId[ii] = attributes;
+                attributesPerNodeId.Add(attributes);
             }
         }
 
@@ -4313,7 +4369,8 @@ namespace Opc.Ua.Client
                 if (!DataValue.IsGood(nodeClassValues[ii]))
                 {
                     nodeCollection.Add(node);
-                    errors[ii] = new ServiceResult(nodeClassValues[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable);
+                    errors.Add(new ServiceResult(nodeClassValues[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable));
+                    attributesPerNodeId.Add(null);
                     continue;
                 }
 
@@ -4323,8 +4380,9 @@ namespace Opc.Ua.Client
                 if (nodeClass == null)
                 {
                     nodeCollection.Add(node);
-                    errors[ii] = ServiceResult.Create(StatusCodes.BadUnexpectedError,
-                        "Node does not have a valid value for NodeClass: {0}.", nodeClassValues[ii].Value);
+                    errors.Add(ServiceResult.Create(StatusCodes.BadUnexpectedError,
+                        "Node does not have a valid value for NodeClass: {0}.", nodeClassValues[ii].Value));
+                    attributesPerNodeId.Add(null);
                     continue;
                 }
 
@@ -4341,8 +4399,8 @@ namespace Opc.Ua.Client
                 }
 
                 nodeCollection.Add(node);
-                errors[ii] = ServiceResult.Good;
-                attributesPerNodeId[ii] = attributes;
+                errors.Add(ServiceResult.Good);
+                attributesPerNodeId.Add(attributes);
             }
         }
 
@@ -5663,6 +5721,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
+        private ISessionFactory m_sessionFactory;
         private SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
         private Dictionary<uint, uint> m_latestAcknowledgementsSent;
         private List<Subscription> m_subscriptions;
@@ -5766,11 +5825,6 @@ namespace Opc.Ua.Client
         private bool m_cancelKeepAlive;
         #endregion
     }
-
-    /// <summary>
-    /// The delegate used to receive keep alive notifications.
-    /// </summary>
-    public delegate void KeepAliveEventHandler(Session session, KeepAliveEventArgs e);
     #endregion
 
     #region NotificationEventArgs Class
@@ -5817,11 +5871,6 @@ namespace Opc.Ua.Client
         private readonly IList<string> m_stringTable;
         #endregion
     }
-
-    /// <summary>
-    /// The delegate used to receive publish notifications.
-    /// </summary>
-    public delegate void NotificationEventHandler(Session session, NotificationEventArgs e);
     #endregion
 
     #region PublishErrorEventArgs Class
@@ -5873,10 +5922,5 @@ namespace Opc.Ua.Client
         private readonly ServiceResult m_status;
         #endregion
     }
-
-    /// <summary>
-    /// The delegate used to receive pubish error notifications.
-    /// </summary>
-    public delegate void PublishErrorEventHandler(Session session, PublishErrorEventArgs e);
     #endregion
 }

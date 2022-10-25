@@ -23,6 +23,7 @@
     <None Remove="Schema\Opc.Ua.NodeSet2.xml" />
     <None Remove="Schema\Opc.Ua.Types.bsd" />
     <None Remove="Schema\Opc.Ua.Types.xsd" />
+    <None Remove="Schema\UANodeSet.xsd" />
     <None Remove="Types\Schemas\BuiltInTypes.bsd" />
     <None Remove="Types\Schemas\BuiltInTypes.xsd" />
     <None Remove="Types\Schemas\StandardTypes.bsd" />
@@ -32,6 +33,7 @@
     <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
+    <EmbeddedResource Include="Schema\UANodeSet.xsd" />
     <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes" />
     <EmbeddedResource Include="Types\Schemas\BuiltInTypes.xsd" />
     <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
@@ -45,12 +47,12 @@
          use latest versions only on .NET 5/6, otherwise 3.1.x -->
     <When Condition="'$(TargetFramework)' == 'net5.0' OR '$(TargetFramework)' == 'net6.0'">
       <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.1" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.2" />
       </ItemGroup>
     </When>
     <Otherwise>
       <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.27" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.28" />
       </ItemGroup>
     </Otherwise>
   </Choose>

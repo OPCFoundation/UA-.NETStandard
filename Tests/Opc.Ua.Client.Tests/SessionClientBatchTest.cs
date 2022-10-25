@@ -62,21 +62,24 @@ namespace Opc.Ua.Client.Tests
         {
             SupportsExternalServerUrl = true;
             await base.OneTimeSetUp();
-            Session.OperationLimits = null;
-            Session.OperationLimits = new OperationLimits() {
-                MaxMonitoredItemsPerCall = kOperationLimit,
-                MaxNodesPerBrowse = kOperationLimit,
-                MaxNodesPerHistoryReadData = kOperationLimit,
-                MaxNodesPerHistoryReadEvents = kOperationLimit,
-                MaxNodesPerHistoryUpdateData = kOperationLimit,
-                MaxNodesPerHistoryUpdateEvents = kOperationLimit,
-                MaxNodesPerMethodCall = kOperationLimit,
-                MaxNodesPerNodeManagement = kOperationLimit,
-                MaxNodesPerRead = kOperationLimit,
-                MaxNodesPerRegisterNodes = kOperationLimit,
-                MaxNodesPerTranslateBrowsePathsToNodeIds = kOperationLimit,
-                MaxNodesPerWrite = kOperationLimit
-            };
+            if(Session is Session session)
+            {
+                session.OperationLimits = null;
+                session.OperationLimits = new OperationLimits() {
+                    MaxMonitoredItemsPerCall = kOperationLimit,
+                    MaxNodesPerBrowse = kOperationLimit,
+                    MaxNodesPerHistoryReadData = kOperationLimit,
+                    MaxNodesPerHistoryReadEvents = kOperationLimit,
+                    MaxNodesPerHistoryUpdateData = kOperationLimit,
+                    MaxNodesPerHistoryUpdateEvents = kOperationLimit,
+                    MaxNodesPerMethodCall = kOperationLimit,
+                    MaxNodesPerNodeManagement = kOperationLimit,
+                    MaxNodesPerRead = kOperationLimit,
+                    MaxNodesPerRegisterNodes = kOperationLimit,
+                    MaxNodesPerTranslateBrowsePathsToNodeIds = kOperationLimit,
+                    MaxNodesPerWrite = kOperationLimit
+                };
+            }
         }
 
         /// <summary>
@@ -344,7 +347,7 @@ namespace Opc.Ua.Client.Tests
 
             while (browseDescriptionCollection.Any())
             {
-                requestHeader.Timestamp = DateTime.UtcNow;
+                TestContext.Out.WriteLine("Browse {0} Nodes...", browseDescriptionCollection.Count);
                 BrowseResultCollection allResults = new BrowseResultCollection();
                 var responseHeader = Session.Browse(
                     requestHeader, null, 5,
@@ -360,7 +363,7 @@ namespace Opc.Ua.Client.Tests
                 var continuationPoints = ServerFixtureUtils.PrepareBrowseNext(results);
                 while (continuationPoints.Any())
                 {
-                    requestHeader.Timestamp = DateTime.UtcNow;
+                    TestContext.Out.WriteLine("BrowseNext {0} Nodes...", continuationPoints.Count);
                     responseHeader = Session.BrowseNext(requestHeader, false, continuationPoints,
                         out var browseNextResultCollection, out diagnosticInfos);
                     ServerFixtureUtils.ValidateResponse(responseHeader);
@@ -391,14 +394,17 @@ namespace Opc.Ua.Client.Tests
                     AttributeId = Attributes.Value
                 }));
 
+            TestContext.Out.WriteLine("Test Read Nodes...");
             var readResponse = Session.Read(requestHeader, 0, TimestampsToReturn.Neither, nodesToRead, out var valueResults, out _);
 
             // test register
+            TestContext.Out.WriteLine("Test Register Nodes...");
             var nodesToRegister = new NodeIdCollection(nodesToRead.Select(n => n.NodeId));
             response = Session.RegisterNodes(requestHeader, nodesToRegister, out var registeredNodeIds);
             response = Session.UnregisterNodes(requestHeader, registeredNodeIds);
 
             // write values
+            TestContext.Out.WriteLine("Test Writes...");
             var nodesToWrite = new WriteValueCollection();
             int ii = 0;
             foreach (var result in valueResults)
@@ -447,7 +453,7 @@ namespace Opc.Ua.Client.Tests
                 browseTemplate);
             while (browseDescriptionCollection.Any())
             {
-                requestHeader.Timestamp = DateTime.UtcNow;
+                TestContext.Out.WriteLine("Browse {0} Nodes...", browseDescriptionCollection.Count);
                 BrowseResultCollection allResults = new BrowseResultCollection();
                 var response = await Session.BrowseAsync(
                     requestHeader, null, 5,
@@ -462,7 +468,7 @@ namespace Opc.Ua.Client.Tests
                 var continuationPoints = ServerFixtureUtils.PrepareBrowseNext(results);
                 while (continuationPoints.Any())
                 {
-                    requestHeader.Timestamp = DateTime.UtcNow;
+                    TestContext.Out.WriteLine("BrowseNext {0} Nodes...", continuationPoints.Count);
                     var nextResponse = await Session.BrowseNextAsync(requestHeader, false, continuationPoints, CancellationToken.None);
                     BrowseResultCollection browseNextResultCollection = nextResponse.Results;
                     diagnosticInfos = nextResponse.DiagnosticInfos;
@@ -495,9 +501,11 @@ namespace Opc.Ua.Client.Tests
                 }));
 
             // test reads
+            TestContext.Out.WriteLine("Test Read Nodes...");
             var readResponse = await Session.ReadAsync(requestHeader, 0, TimestampsToReturn.Neither, nodesToRead, CancellationToken.None).ConfigureAwait(false);
 
             // test register nodes
+            TestContext.Out.WriteLine("Test Register Nodes...");
             var nodesToRegister = new NodeIdCollection(nodesToRead.Select(n => n.NodeId));
             var registerResponse = await Session.RegisterNodesAsync(requestHeader, nodesToRegister, CancellationToken.None).ConfigureAwait(false);
             var unregisterResponse = await Session.UnregisterNodesAsync(requestHeader, registerResponse.RegisteredNodeIds, CancellationToken.None).ConfigureAwait(false);
@@ -518,6 +526,8 @@ namespace Opc.Ua.Client.Tests
                 }
                 ii++;
             }
+
+            TestContext.Out.WriteLine("Test Writes...");
             var writeResponse = await Session.WriteAsync(requestHeader, nodesToWrite, CancellationToken.None).ConfigureAwait(false);
 
             TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
@@ -603,8 +613,8 @@ namespace Opc.Ua.Client.Tests
                 out results,
                 out diagnosticInfos);
 
-            Session.ValidateResponse(results, nodesToRead);
-            Session.ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
+            ClientBase.ValidateResponse(results, nodesToRead);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
         }
 
         [Theory]
@@ -624,8 +634,8 @@ namespace Opc.Ua.Client.Tests
                 false,
                 nodesToRead, CancellationToken.None).ConfigureAwait(false);
 
-            Session.ValidateResponse(response.Results, nodesToRead);
-            Session.ValidateDiagnosticInfos(response.DiagnosticInfos, nodesToRead);
+            ClientBase.ValidateResponse(response.Results, nodesToRead);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, nodesToRead);
         }
 
         [Theory]
@@ -664,8 +674,8 @@ namespace Opc.Ua.Client.Tests
                 out results,
                 out diagnosticInfos);
 
-            Session.ValidateResponse(results, historyUpdateDetails);
-            Session.ValidateDiagnosticInfos(diagnosticInfos, historyUpdateDetails);
+            ClientBase.ValidateResponse(results, historyUpdateDetails);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, historyUpdateDetails);
         }
 
         [Theory]
@@ -700,8 +710,8 @@ namespace Opc.Ua.Client.Tests
                 historyUpdateDetails,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Session.ValidateResponse(response.Results, historyUpdateDetails);
-            Session.ValidateDiagnosticInfos(response.DiagnosticInfos, historyUpdateDetails);
+            ClientBase.ValidateResponse(response.Results, historyUpdateDetails);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, historyUpdateDetails);
         }
         #endregion
 

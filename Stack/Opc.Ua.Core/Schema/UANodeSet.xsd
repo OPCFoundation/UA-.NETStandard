@@ -34,6 +34,12 @@
     xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
 >
+  <xs:annotation>
+    <xs:appinfo>
+      <Model ModelUri="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" Version="1.05.02" PublicationDate="2022-10-01T00:00:00Z" />
+    </xs:appinfo>
+  </xs:annotation>
+
   <xs:element name="UANodeSet">
     <xs:complexType>
       <xs:sequence>
@@ -168,6 +174,12 @@
       <xs:element name="Model" type="ModelTableEntry" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
   </xs:complexType>
+
+  <xs:simpleType name="ModelVersion">
+    <xs:restriction base="xs:token">
+      <xs:pattern value="^(0|[1-9]+[0-9]*)\.(0|[1-9]+[0-9]*)\.(0|[1-9]+[0-9]*)(-(0|[1-9A-Za-z-][0-9A-Za-z-]*)(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$" />
+    </xs:restriction>
+  </xs:simpleType>
 
   <xs:simpleType name="NodeId">
     <xs:restriction base="xs:string" />

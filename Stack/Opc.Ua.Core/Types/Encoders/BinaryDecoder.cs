@@ -170,7 +170,7 @@ namespace Opc.Ua
 
                 if (actualType == null || actualType != typeof(SessionlessInvokeRequestType))
                 {
-                    throw new ServiceResultException(StatusCodes.BadEncodingError, Utils.Format("Cannot decode session-less service message with type id: {0}.", absoluteId));
+                    throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Cannot decode session-less service message with type id: {0}.", absoluteId));
                 }
 
                 // decode the actual message.
@@ -224,7 +224,7 @@ namespace Opc.Ua
 
             if (actualType == null)
             {
-                throw new ServiceResultException(StatusCodes.BadEncodingError, Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
+                throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
             }
 
             // read the message.
@@ -1425,10 +1425,13 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an array with the specified valueRank and the specified BuiltInType
-        /// </summary>
-        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
+        /// <inheritdoc/>
+        public Array ReadArray(
+            string fieldName,
+            int valueRank,
+            BuiltInType builtInType,
+            Type systemType = null,
+            ExpandedNodeId encodeableTypeId = null)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -1444,8 +1447,17 @@ namespace Opc.Ua
                         return ReadInt16Array(fieldName).ToArray();
                     case BuiltInType.UInt16:
                         return ReadUInt16Array(fieldName).ToArray();
-                    case BuiltInType.Int32:
                     case BuiltInType.Enumeration:
+                    {
+                        DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
+                        if (systemType?.IsEnum == true)
+                        {
+                            return ReadEnumeratedArray(fieldName, systemType);
+                        }
+                        // if system type is not known or not an enum, fall back to Int32
+                        goto case BuiltInType.Int32;
+                    }
+                    case BuiltInType.Int32:
                         return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.UInt32:
                         return ReadUInt32Array(fieldName).ToArray();
@@ -1480,83 +1492,52 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         return ReadDataValueArray(fieldName).ToArray();
                     case BuiltInType.Variant:
-                        if (encodeableTypeId != null)
+                    {
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
-                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                            if (systemType != null)
-                            {
-                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                            }
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
                         return ReadVariantArray(fieldName).ToArray();
+                    }
                     case BuiltInType.ExtensionObject:
                         return ReadExtensionObjectArray(fieldName).ToArray();
                     case BuiltInType.DiagnosticInfo:
                         return ReadDiagnosticInfoArray(fieldName).ToArray();
                     default:
                     {
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
+                        {
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                        }
                         throw new ServiceResultException(
                             StatusCodes.BadDecodingError,
                             Utils.Format("Cannot decode unknown type in Array object with BuiltInType: {0}.", builtInType));
                     }
                 }
             }
+
             // two or more dimensions
-            if (valueRank > ValueRanks.OneDimension)
+            if (valueRank >= ValueRanks.TwoDimensions)
             {
                 // read dimensions array
                 Int32Collection dimensions = ReadInt32Array(null);
                 if (dimensions != null && dimensions.Count > 0)
                 {
-                    int length = 1;
+                    //int length;
+                    (_, int length) = Matrix.ValidateDimensions(false, dimensions, Context.MaxArrayLength);
 
-                    for (int ii = 0; ii < dimensions.Count; ii++)
-                    {
-                        if (dimensions[ii] <= 0)
-                        {
-                            /* The number of values is 0 if one or more dimension is less than or equal to 0.*/
-                            Utils.LogTrace("ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.", ii, dimensions[ii]);
-                            dimensions[ii] = 0;
-                            length = 0;
-                            break;
-                        }
-                        else if (dimensions[ii] > m_context.MaxArrayLength)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingLimitsExceeded,
-                                "ArrayDimensions [{0}] = {1} is greater than MaxArrayLength {2}.",
-                                ii,
-                                dimensions[ii],
-                                m_context.MaxArrayLength);
-                        }
-
-                        length *= dimensions[ii];
-                    }
-                    if (length > m_context.MaxArrayLength)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingLimitsExceeded,
-                            "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
-                            m_context.MaxArrayLength,
-                            length
-                            );
-                    }
                     // read the elements
                     Array elements = null;
-                    if (encodeableTypeId != null)
+                    if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                     {
-                        Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
-                        if (systemType != null)
+                        elements = Array.CreateInstance(systemType, length);
+                        for (int i = 0; i < length; i++)
                         {
-                            elements = Array.CreateInstance(systemType, length);
-                            for (int i = 0; i < length; i++)
-                            {
-                                IEncodeable element = ReadEncodeable(null, systemType, encodeableTypeId);
-
-                                elements.SetValue(Convert.ChangeType(element, systemType), i);
-                            }
+                            IEncodeable element = ReadEncodeable(null, systemType, encodeableTypeId);
+                            elements.SetValue(Convert.ChangeType(element, systemType), i);
                         }
                     }
+
                     if (elements == null)
                     {
                         elements = ReadArrayElements(length, builtInType);
@@ -1564,22 +1545,48 @@ namespace Opc.Ua
 
                     if (elements == null)
                     {
-                        throw new ServiceResultException(
-                               StatusCodes.BadDecodingError,
-                               Utils.Format("Unexpected null Array for multidimensional matrix with {0} elements.", length));
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Unexpected null Array for multidimensional matrix with {0} elements.", length);
                     }
-                    return new Matrix(elements, builtInType, dimensions.ToArray());
+
+                    if (builtInType == BuiltInType.Enumeration && systemType?.IsEnum == true)
+                    {
+                        var newElements = Array.CreateInstance(systemType, elements.Length);
+                        int ii = 0;
+                        foreach (var element in elements)
+                        {
+                            newElements.SetValue(Enum.ToObject(systemType, element), ii++);
+                        }
+                        elements = newElements;
+                    }
+
+                    return new Matrix(elements, builtInType, dimensions.ToArray()).ToArray();
                 }
-                throw new ServiceResultException(
-                               StatusCodes.BadDecodingError,
-                               "Unexpected null or empty Dimensions for multidimensional matrix.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Unexpected null or empty Dimensions for multidimensional matrix.");
             }
             return null;
         }
-
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Get the system type from the type factory if not specified by caller.
+        /// </summary>
+        /// <param name="systemType">The reference to the system type, or null</param>
+        /// <param name="encodeableTypeId">The encodeable type id of the system type.</param>
+        /// <returns>If the system type is assignable to <see cref="IEncodeable"/> </returns>
+        private bool DetermineIEncodeableSystemType(ref Type systemType, ExpandedNodeId encodeableTypeId)
+        {
+            if (encodeableTypeId != null && systemType == null)
+            {
+                systemType = Context.Factory.GetSystemType(encodeableTypeId);
+            }
+            return typeof(IEncodeable).IsAssignableFrom(systemType);
+        }
+
         /// <summary>
         /// Reads and returns an array of elements of the specified length and builtInType 
         /// </summary>
@@ -1662,7 +1669,6 @@ namespace Opc.Ua
                     {
                         values[ii] = ReadInt32(null);
                     }
-
                     array = values;
                     break;
                 }
@@ -2183,7 +2189,7 @@ namespace Opc.Ua
 
                 if (array == null)
                 {
-                    value = new Variant(StatusCodes.BadEncodingError);
+                    value = new Variant(StatusCodes.BadDecodingError);
                 }
                 else
                 {
@@ -2201,27 +2207,9 @@ namespace Opc.Ua
                         }
 
                         int[] dimensionsArray = dimensions.ToArray();
-                        int matrixLength = 1;
+                        (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensionsArray, length, Context.MaxArrayLength);
 
-                        for (int ii = 0; ii < dimensionsArray.Length; ii++)
-                        {
-                            if (dimensionsArray[ii] == 0 && length > 0)
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadDecodingError,
-                                    Utils.Format("ArrayDimensions [{0}] is zero in Variant object.", ii));
-                            }
-                            else if (dimensionsArray[ii] > length && length > 0)
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadDecodingError,
-                                    Utils.Format("ArrayDimensions [{0}] = {1} is greater than length {2}.", ii, dimensionsArray[ii], length));
-                            }
-
-                            matrixLength *= dimensionsArray[ii];
-                        }
-
-                        if (matrixLength != length)
+                        if (!valid || (matrixLength != length))
                         {
                             throw new ServiceResultException(StatusCodes.BadDecodingError, "ArrayDimensions does not match with the ArrayLength in Variant object.");
                         }
@@ -2344,7 +2332,7 @@ namespace Opc.Ua
                         catch (Exception ex)
                         {
                             Utils.LogError(ex, "Error reading xml element for variant.");
-                            value.Set(StatusCodes.BadEncodingError);
+                            value.Set(StatusCodes.BadDecodingError);
                         }
                         break;
                     }

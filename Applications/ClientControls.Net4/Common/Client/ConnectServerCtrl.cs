@@ -411,7 +411,7 @@ namespace Opc.Ua.Client.Controls
         /// <param name="serverUrl">The URL of a server endpoint.</param>
         /// <param name="useSecurity">Whether to use security.</param>
         /// <returns>The new session object.</returns>
-        public async Task<Session> ConnectAsync(
+        public Task<Session> ConnectAsync(
             string serverUrl = null,
             bool useSecurity = false,
             uint sessionTimeout = 0
@@ -434,7 +434,9 @@ namespace Opc.Ua.Client.Controls
                 UseSecurityCK.Checked = useSecurity;
             }
 
-            return await Connect(serverUrl, useSecurity, sessionTimeout);
+            UpdateStatus(false, DateTime.Now, "Connecting [{0}]", serverUrl);
+
+            return Connect(serverUrl, useSecurity, sessionTimeout);
         }
 
         /// <summary>
@@ -599,7 +601,7 @@ namespace Opc.Ua.Client.Controls
 
             if (m_StatusUpateTimeLB != null)
             {
-                m_StatusUpateTimeLB.Text = time.ToLocalTime().ToString("hh:mm:ss");
+                m_StatusUpateTimeLB.Text = time.ToLocalTime().ToString("T");
                 m_StatusUpateTimeLB.ForeColor = (error) ? Color.Red : Color.Empty;
             }
         }
@@ -607,7 +609,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Handles a keep alive event from a session.
         /// </summary>
-        private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (this.InvokeRequired)
             {
@@ -666,26 +668,44 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Handles a click on the connect button.
         /// </summary>
-        private async void Server_ConnectMI_Click(object sender, EventArgs e)
+        private void Server_ConnectMI_Click(object sender, EventArgs e)
         {
-            try
+            string serverUrl = UrlCB.Text;
+
+            if (UrlCB.SelectedIndex >= 0)
             {
-                await ConnectAsync();
+                serverUrl = (string)UrlCB.SelectedItem;
             }
-            catch (ServiceResultException sre)
-            {
-                if (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
+
+            bool useSecurity = UseSecurityCK.Checked;
+
+            UpdateStatus(false, DateTime.Now, "Connecting [{0}]", serverUrl);
+
+            Task.Run(() => {
+                try
                 {
-                    if (GuiUtils.HandleDomainCheckError(this.FindForm().Text, sre.Result))
-                    {
-                        DisableDomainCheck = true;
-                    };
+                    Connect(serverUrl, useSecurity).GetAwaiter().GetResult();
                 }
-            }
-            catch (Exception exception)
-            {
-                ClientUtils.HandleException(this.Text, exception);
-            }
+                catch (ServiceResultException sre)
+                {
+                    if (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
+                    {
+                        if (GuiUtils.HandleDomainCheckError(this.FindForm().Text, sre.Result))
+                        {
+                            DisableDomainCheck = true;
+                        };
+                    }
+                    else
+                    {
+                        // update status.
+                        UpdateStatus(true, DateTime.Now, "Connection failed! [{0}]", sre.Message);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    ClientUtils.HandleException(this.Text, exception);
+                }
+            });
         }
 
         /// <summary>
@@ -710,7 +730,7 @@ namespace Opc.Ua.Client.Controls
                 // only apply session if reconnect was required
                 if (m_reconnectHandler.Session != null)
                 {
-                    m_session = m_reconnectHandler.Session;
+                    m_session = m_reconnectHandler.Session as Session;
                 }
 
                 m_reconnectHandler.Dispose();
