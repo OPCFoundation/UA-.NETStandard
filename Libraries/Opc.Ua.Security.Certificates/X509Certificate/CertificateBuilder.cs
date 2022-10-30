@@ -453,8 +453,9 @@ namespace Opc.Ua.Security.Certificates
             // Basic constraints
             if (!m_isCA && IssuerCAKeyCert == null)
             {
-                // self signed
-                return new X509BasicConstraintsExtension(true, true, 0, true);
+                // see Mantis https://mantis.opcfoundation.org/view.php?id=8370
+                // self signed application certificates shall set the CA bit to false
+                return new X509BasicConstraintsExtension(false, false, 0, true);
             }
             else if (m_isCA && m_pathLengthConstraint >= 0)
             {

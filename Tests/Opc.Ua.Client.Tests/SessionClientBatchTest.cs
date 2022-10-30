@@ -62,21 +62,24 @@ namespace Opc.Ua.Client.Tests
         {
             SupportsExternalServerUrl = true;
             await base.OneTimeSetUp();
-            Session.OperationLimits = null;
-            Session.OperationLimits = new OperationLimits() {
-                MaxMonitoredItemsPerCall = kOperationLimit,
-                MaxNodesPerBrowse = kOperationLimit,
-                MaxNodesPerHistoryReadData = kOperationLimit,
-                MaxNodesPerHistoryReadEvents = kOperationLimit,
-                MaxNodesPerHistoryUpdateData = kOperationLimit,
-                MaxNodesPerHistoryUpdateEvents = kOperationLimit,
-                MaxNodesPerMethodCall = kOperationLimit,
-                MaxNodesPerNodeManagement = kOperationLimit,
-                MaxNodesPerRead = kOperationLimit,
-                MaxNodesPerRegisterNodes = kOperationLimit,
-                MaxNodesPerTranslateBrowsePathsToNodeIds = kOperationLimit,
-                MaxNodesPerWrite = kOperationLimit
-            };
+            if(Session is Session session)
+            {
+                session.OperationLimits = null;
+                session.OperationLimits = new OperationLimits() {
+                    MaxMonitoredItemsPerCall = kOperationLimit,
+                    MaxNodesPerBrowse = kOperationLimit,
+                    MaxNodesPerHistoryReadData = kOperationLimit,
+                    MaxNodesPerHistoryReadEvents = kOperationLimit,
+                    MaxNodesPerHistoryUpdateData = kOperationLimit,
+                    MaxNodesPerHistoryUpdateEvents = kOperationLimit,
+                    MaxNodesPerMethodCall = kOperationLimit,
+                    MaxNodesPerNodeManagement = kOperationLimit,
+                    MaxNodesPerRead = kOperationLimit,
+                    MaxNodesPerRegisterNodes = kOperationLimit,
+                    MaxNodesPerTranslateBrowsePathsToNodeIds = kOperationLimit,
+                    MaxNodesPerWrite = kOperationLimit
+                };
+            }
         }
 
         /// <summary>
@@ -610,8 +613,8 @@ namespace Opc.Ua.Client.Tests
                 out results,
                 out diagnosticInfos);
 
-            Session.ValidateResponse(results, nodesToRead);
-            Session.ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
+            ClientBase.ValidateResponse(results, nodesToRead);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
         }
 
         [Theory]
@@ -631,8 +634,8 @@ namespace Opc.Ua.Client.Tests
                 false,
                 nodesToRead, CancellationToken.None).ConfigureAwait(false);
 
-            Session.ValidateResponse(response.Results, nodesToRead);
-            Session.ValidateDiagnosticInfos(response.DiagnosticInfos, nodesToRead);
+            ClientBase.ValidateResponse(response.Results, nodesToRead);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, nodesToRead);
         }
 
         [Theory]
@@ -671,8 +674,8 @@ namespace Opc.Ua.Client.Tests
                 out results,
                 out diagnosticInfos);
 
-            Session.ValidateResponse(results, historyUpdateDetails);
-            Session.ValidateDiagnosticInfos(diagnosticInfos, historyUpdateDetails);
+            ClientBase.ValidateResponse(results, historyUpdateDetails);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, historyUpdateDetails);
         }
 
         [Theory]
@@ -707,8 +710,8 @@ namespace Opc.Ua.Client.Tests
                 historyUpdateDetails,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Session.ValidateResponse(response.Results, historyUpdateDetails);
-            Session.ValidateDiagnosticInfos(response.DiagnosticInfos, historyUpdateDetails);
+            ClientBase.ValidateResponse(response.Results, historyUpdateDetails);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, historyUpdateDetails);
         }
         #endregion
 

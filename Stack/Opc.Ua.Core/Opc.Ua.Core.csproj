@@ -39,6 +39,7 @@
     <None Remove="Schema\Opc.Ua.NodeSet2.xml" />
     <None Remove="Schema\Opc.Ua.Types.bsd" />
     <None Remove="Schema\Opc.Ua.Types.xsd" />
+    <None Remove="Schema\UANodeSet.xsd" />
     <None Remove="Types\Schemas\BuiltInTypes.bsd" />
     <None Remove="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
@@ -47,6 +48,7 @@
     <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
+    <EmbeddedResource Include="Schema\UANodeSet.xsd" />
     <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes" />
     <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
     <EmbeddedResource Include="Schema\ServerCapabilities.csv" />

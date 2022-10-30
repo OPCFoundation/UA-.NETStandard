@@ -346,8 +346,7 @@ namespace Opc.Ua.Gds.Server
             bool isCACert = X509Utils.IsCertificateAuthority(certificate);
 
             // find the authority key identifier.
-            X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
-
+            var authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(certificate);
             if (authority != null)
             {
                 keyId = authority.KeyIdentifier;

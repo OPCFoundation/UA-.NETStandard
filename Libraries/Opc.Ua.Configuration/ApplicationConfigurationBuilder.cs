@@ -348,6 +348,13 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetUseValidatedCertificates(bool useValidatedCertificates)
+        {
+            ApplicationConfiguration.SecurityConfiguration.UseValidatedCertificates = useValidatedCertificates;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions SetSuppressNonceValidationErrors(bool suppressNonceValidationErrors)
         {
             ApplicationConfiguration.SecurityConfiguration.SuppressNonceValidationErrors = suppressNonceValidationErrors;

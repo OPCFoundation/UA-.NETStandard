@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -45,7 +46,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public partial class Session : SessionClientBatched, IDisposable
+    public partial class Session : SessionClientBatched, ISession, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -64,7 +65,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
+        /// Constructs a new instance of the <see cref="ISession"/> class.
         /// </summary>
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
@@ -96,7 +97,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Session"/> class.
+        /// Initializes a new instance of the <see cref="ISession"/> class.
         /// </summary>
         /// <param name="channel">The channel.</param>
         /// <param name="template">The template session.</param>
@@ -105,18 +106,19 @@ namespace Opc.Ua.Client
         :
             base(channel)
         {
-            Initialize(channel, template.m_configuration, template.m_endpoint, template.m_instanceCertificate);
+            Initialize(channel, template.m_configuration, template.ConfiguredEndpoint, template.m_instanceCertificate);
 
+            m_sessionFactory = template.m_sessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
             m_deleteSubscriptionsOnClose = template.m_deleteSubscriptionsOnClose;
             m_transferSubscriptionsOnReconnect = template.m_transferSubscriptionsOnReconnect;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
-            m_preferredLocales = template.m_preferredLocales;
-            m_sessionName = template.m_sessionName;
-            m_handle = template.m_handle;
-            m_identity = template.m_identity;
-            m_keepAliveInterval = template.m_keepAliveInterval;
+            m_preferredLocales = template.PreferredLocales;
+            m_sessionName = template.SessionName;
+            m_handle = template.Handle;
+            m_identity = template.Identity;
+            m_keepAliveInterval = template.KeepAliveInterval;
             m_checkDomain = template.m_checkDomain;
             if (template.OperationTimeout > 0)
             {
@@ -244,6 +246,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void Initialize()
         {
+            m_sessionFactory = new DefaultSessionFactory();
             m_sessionTimeout = 0;
             m_namespaceUris = new NamespaceTable();
             m_serverUris = new StringTable();
@@ -500,6 +503,15 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// A session factory that was used to create the session.
+        /// </summary>
+        public ISessionFactory SessionFactory
+        {
+            get => m_sessionFactory;
+            set => m_sessionFactory = value;
+        }
+
         /// <summary>
         /// Gets the endpoint used to connect to the server.
         /// </summary>
@@ -1028,8 +1040,8 @@ namespace Opc.Ua.Client
             // create the channel object used to connect to the server.
             ITransportChannel channel = SessionChannel.Create(
                 template.m_configuration,
-                template.m_endpoint.Description,
-                template.m_endpoint.Configuration,
+                template.ConfiguredEndpoint.Description,
+                template.ConfiguredEndpoint.Configuration,
                 template.m_instanceCertificate,
                 template.m_configuration.SecurityConfiguration.SendCertificateChain ?
                     template.m_instanceCertificateChain : null,
@@ -1042,10 +1054,10 @@ namespace Opc.Ua.Client
             {
                 // open the session.
                 session.Open(
-                    template.m_sessionName,
-                    (uint)template.m_sessionTimeout,
-                    template.m_identity,
-                    template.m_preferredLocales,
+                    template.SessionName,
+                    (uint)template.SessionTimeout,
+                    template.Identity,
+                    template.PreferredLocales,
                     template.m_checkDomain);
 
                 session.RecreateSubscriptions(template.Subscriptions);
@@ -1053,7 +1065,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
+                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.SessionName);
             }
 
             return session;
@@ -1145,12 +1157,7 @@ namespace Opc.Ua.Client
         }
         #endregion
 
-        #region Delegates and Events
-        /// <summary>
-        /// Used to handle renews of user identity tokens before reconnect.
-        /// </summary>
-        public delegate IUserIdentity RenewUserIdentityEventHandler(Session session, IUserIdentity identity);
-
+        #region Events
         /// <summary>
         /// Raised before a reconnect operation completes.
         /// </summary>
@@ -1171,6 +1178,12 @@ namespace Opc.Ua.Client
         {
             Reconnect(null, null);
         }
+
+        /// <summary>
+        /// Reconnects to the server after a network failure using a waiting connection.
+        /// </summary>
+        public void Reconnect(ITransportWaitingConnection connection)
+            => Reconnect(connection, null);
 
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.
@@ -2445,7 +2458,7 @@ namespace Opc.Ua.Client
                 //first try to connect with client certificate NULL
                 try
                 {
-                    CreateSession(
+                    base.CreateSession(
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
@@ -2476,7 +2489,7 @@ namespace Opc.Ua.Client
 
             if (!successCreateSession)
             {
-                CreateSession(
+                base.CreateSession(
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
@@ -3231,7 +3244,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Disconnects from the server and frees any network resources with the specified timeout.
         /// </summary>
-        public virtual StatusCode Close(int timeout, bool closeChannel = true)
+        public StatusCode Close(int timeout)
+            => Close(timeout, true);
+
+        /// <summary>
+        /// Disconnects from the server and frees any network resources with the specified timeout.
+        /// </summary>
+        public virtual StatusCode Close(int timeout, bool closeChannel)
         {
             // check if already called.
             if (Disposed)
@@ -3403,7 +3422,7 @@ namespace Opc.Ua.Client
         /// is transferred to obtain ownership. Internal.
         /// </summary>
         /// <param name="subscription">The subscription to remove.</param>
-        internal bool RemoveTransferredSubscription(Subscription subscription)
+        public bool RemoveTransferredSubscription(Subscription subscription)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
@@ -5695,6 +5714,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
+        private ISessionFactory m_sessionFactory;
         private SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
         private Dictionary<uint, uint> m_latestAcknowledgementsSent;
         private List<Subscription> m_subscriptions;
@@ -5798,11 +5818,6 @@ namespace Opc.Ua.Client
         private bool m_cancelKeepAlive;
         #endregion
     }
-
-    /// <summary>
-    /// The delegate used to receive keep alive notifications.
-    /// </summary>
-    public delegate void KeepAliveEventHandler(Session session, KeepAliveEventArgs e);
     #endregion
 
     #region NotificationEventArgs Class
@@ -5849,11 +5864,6 @@ namespace Opc.Ua.Client
         private readonly IList<string> m_stringTable;
         #endregion
     }
-
-    /// <summary>
-    /// The delegate used to receive publish notifications.
-    /// </summary>
-    public delegate void NotificationEventHandler(Session session, NotificationEventArgs e);
     #endregion
 
     #region PublishErrorEventArgs Class
@@ -5905,10 +5915,5 @@ namespace Opc.Ua.Client
         private readonly ServiceResult m_status;
         #endregion
     }
-
-    /// <summary>
-    /// The delegate used to receive pubish error notifications.
-    /// </summary>
-    public delegate void PublishErrorEventHandler(Session session, PublishErrorEventArgs e);
     #endregion
 }

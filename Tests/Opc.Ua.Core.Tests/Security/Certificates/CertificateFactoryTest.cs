@@ -297,9 +297,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             else
             {
-                Assert.True(constraints.CertificateAuthority);
-                Assert.True(constraints.HasPathLengthConstraint);
-                Assert.AreEqual(0, constraints.PathLengthConstraint);
+                Assert.False(constraints.CertificateAuthority);
+                Assert.False(constraints.HasPathLengthConstraint);
             }
 
             // key usage
@@ -324,7 +323,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.True(enhancedKeyUsage.Critical);
 
             // test for authority key
-            X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(cert);
+            var authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(cert);
             Assert.NotNull(authority);
             TestContext.Out.WriteLine(authority.Format(true));
             Assert.NotNull(authority.SerialNumber);
@@ -422,7 +421,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.Null(enhancedKeyUsage);
 
             // test for authority key
-            X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(cert);
+            var authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(cert);
             Assert.NotNull(authority);
             TestContext.Out.WriteLine(authority.Format(true));
             Assert.NotNull(authority.SerialNumber);

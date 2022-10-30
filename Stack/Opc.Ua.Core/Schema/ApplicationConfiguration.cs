@@ -987,12 +987,26 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the Validator skips the full chain validation
+        /// for already validated or accepted certificates.
+        /// </summary>
+        /// <remarks>
+        /// This flag can be set to true by applications.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 130)]
+        public bool UseValidatedCertificates
+        {
+            get { return m_useValidatedCertificates; }
+            set { m_useValidatedCertificates = value; }
+        }
+
+        /// <summary>
         /// Gets or sets a value indicating whether the application cert should be copied to the trusted store.
         /// </summary>
         /// <remarks>
         /// It is useful for client/server applications running on the same host  and sharing the cert store to autotrust.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 130)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 140)]
         public bool AddAppCertToTrustedStore
         {
             get { return m_addAppCertToTrustedStore; }
@@ -1005,7 +1019,7 @@ namespace Opc.Ua
         /// <remarks>
         /// If set to true the complete certificate chain will be sent for CA signed certificates.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 140)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 150)]
         public bool SendCertificateChain
         {
             get { return m_sendCertificateChain; }
@@ -1015,7 +1029,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional user issuer certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 150)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 160)]
         public CertificateTrustList UserIssuerCertificates
         {
             get
@@ -1037,7 +1051,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted user certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 160)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 170)]
         public CertificateTrustList TrustedUserCertificates
         {
             get
@@ -1059,7 +1073,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional Https issuer certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 170)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 180)]
         public CertificateTrustList HttpsIssuerCertificates
         {
             get
@@ -1081,7 +1095,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted Https certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 180)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 190)]
         public CertificateTrustList TrustedHttpsCertificates
         {
             get
@@ -1108,7 +1122,7 @@ namespace Opc.Ua
         /// If set to true the server nonce validation errors are suppressed.
         /// Please set this flag to true only in close and secured networks since it can cause security vulnerabilities.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 190)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 200)]
         public bool SuppressNonceValidationErrors
         {
             get { return m_suppressNonceValidationErrors; }
@@ -1132,6 +1146,7 @@ namespace Opc.Ua
         private bool m_rejectSHA1SignedCertificates;
         private bool m_rejectUnknownRevocationStatus;
         private ushort m_minCertificateKeySize;
+        private bool m_useValidatedCertificates;
         private bool m_addAppCertToTrustedStore;
         private bool m_sendCertificateChain;
         private bool m_suppressNonceValidationErrors;

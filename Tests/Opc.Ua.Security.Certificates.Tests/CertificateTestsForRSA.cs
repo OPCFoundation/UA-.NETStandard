@@ -136,9 +136,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(X509Defaults.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
             Assert.GreaterOrEqual(DateTime.UtcNow, cert.NotBefore);
             Assert.GreaterOrEqual(DateTime.UtcNow.AddMonths(X509Defaults.LifeTime), cert.NotAfter.ToUniversalTime());
-            var basicConstraintsExtension = X509Extensions.FindExtension<X509BasicConstraintsExtension>(cert.Extensions);
-            Assert.NotNull(basicConstraintsExtension);
-            Assert.True(basicConstraintsExtension.CertificateAuthority);
+            TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
             Assert.True(X509Utils.VerifySelfSigned(cert));
         }
@@ -156,9 +154,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(Subject, cert.Subject);
             Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
             Assert.AreEqual(X509Defaults.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
-            var basicConstraintsExtension = X509Extensions.FindExtension<X509BasicConstraintsExtension>(cert.Extensions);
-            Assert.NotNull(basicConstraintsExtension);
-            Assert.True(basicConstraintsExtension.CertificateAuthority);
+            TestUtils.ValidateSelSignedBasicConstraints(cert);
             Assert.AreEqual(cert.SubjectName.Name, cert.IssuerName.Name);
             Assert.AreEqual(cert.SubjectName.RawData, cert.IssuerName.RawData);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
@@ -179,9 +175,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(Subject, cert.Subject);
             Assert.AreEqual(X509Defaults.RSAKeySize, cert.GetRSAPublicKey().KeySize);
             Assert.AreEqual(keyHashPair.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
-            var basicConstraintsExtension = X509Extensions.FindExtension<X509BasicConstraintsExtension>(cert.Extensions);
-            Assert.NotNull(basicConstraintsExtension);
-            Assert.True(basicConstraintsExtension.CertificateAuthority);
+            TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
             Assert.True(X509Utils.VerifySelfSigned(cert));
         }
@@ -217,9 +211,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
             Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
             Assert.AreEqual(keyHashPair.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
-            var basicConstraintsExtension = X509Extensions.FindExtension<X509BasicConstraintsExtension>(cert.Extensions);
-            Assert.NotNull(basicConstraintsExtension);
-            Assert.True(basicConstraintsExtension.CertificateAuthority);
+            TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
             Assert.True(X509Utils.VerifySelfSigned(cert));
             CheckPEMWriter(cert);
