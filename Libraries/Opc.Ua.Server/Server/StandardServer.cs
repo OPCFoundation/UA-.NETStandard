@@ -2827,18 +2827,21 @@ namespace Opc.Ua.Server
             }
 
             // set server description.
-            serverDescription = new ApplicationDescription();
-
-            serverDescription.ApplicationUri = configuration.ApplicationUri;
-            serverDescription.ApplicationName = new LocalizedText("en-US", configuration.ApplicationName);
-            serverDescription.ApplicationType = configuration.ApplicationType;
-            serverDescription.ProductUri = configuration.ProductUri;
-            serverDescription.DiscoveryUrls = GetDiscoveryUrls();
+            serverDescription = new ApplicationDescription {
+                ApplicationUri = configuration.ApplicationUri,
+                ApplicationName = new LocalizedText("en-US", configuration.ApplicationName),
+                ApplicationType = configuration.ApplicationType,
+                ProductUri = configuration.ProductUri,
+                DiscoveryUrls = GetDiscoveryUrls()
+            };
 
             endpoints = new EndpointDescriptionCollection();
             IList<EndpointDescription> endpointsForHost = null;
 
-            foreach (var scheme in Utils.DefaultUriSchemes)
+            var baseAddresses = configuration.ServerConfiguration.BaseAddresses;
+            var requiredSchemes = Utils.DefaultUriSchemes.Where(scheme => baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal)));
+
+            foreach (var scheme in requiredSchemes)
             {
                 var binding = bindingFactory.GetBinding(scheme);
                 if (binding != null)
