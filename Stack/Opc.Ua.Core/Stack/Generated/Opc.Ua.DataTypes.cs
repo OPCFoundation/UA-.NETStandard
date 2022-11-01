@@ -219,7 +219,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Union : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public Union()
@@ -243,28 +243,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.Union; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.Union; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.Union_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Union_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.Union_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.Union_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Union_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Union_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -405,7 +393,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class KeyValuePair : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public KeyValuePair()
@@ -446,28 +434,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.KeyValuePair; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.KeyValuePair; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.KeyValuePair_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.KeyValuePair_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.KeyValuePair_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.KeyValuePair_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.KeyValuePair_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.KeyValuePair_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -618,7 +594,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AdditionalParametersType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public AdditionalParametersType()
@@ -662,28 +638,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AdditionalParametersType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.AdditionalParametersType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AdditionalParametersType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AdditionalParametersType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AdditionalParametersType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AdditionalParametersType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AdditionalParametersType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AdditionalParametersType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -758,7 +722,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EphemeralKeyType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public EphemeralKeyType()
@@ -799,28 +763,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EphemeralKeyType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.EphemeralKeyType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EphemeralKeyType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EphemeralKeyType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EphemeralKeyType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EphemeralKeyType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EphemeralKeyType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EphemeralKeyType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -900,7 +852,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public EndpointType()
@@ -959,28 +911,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EndpointType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.EndpointType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EndpointType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EndpointType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EndpointType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EndpointType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EndpointType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EndpointType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -1141,7 +1081,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RationalNumber : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RationalNumber()
@@ -1182,28 +1122,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RationalNumber; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RationalNumber; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RationalNumber_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RationalNumber_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RationalNumber_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RationalNumber_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RationalNumber_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RationalNumber_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -1354,7 +1282,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Vector : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public Vector()
@@ -1378,28 +1306,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.Vector; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.Vector; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.Vector_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Vector_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.Vector_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.Vector_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Vector_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Vector_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -1590,28 +1506,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ThreeDVector; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ThreeDVector; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ThreeDVector_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ThreeDVector_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ThreeDVector_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ThreeDVector_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ThreeDVector_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ThreeDVector_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -1772,7 +1676,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CartesianCoordinates : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CartesianCoordinates()
@@ -1796,28 +1700,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CartesianCoordinates; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CartesianCoordinates; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CartesianCoordinates_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CartesianCoordinates_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CartesianCoordinates_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CartesianCoordinates_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CartesianCoordinates_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CartesianCoordinates_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2008,28 +1900,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ThreeDCartesianCoordinates; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ThreeDCartesianCoordinates; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ThreeDCartesianCoordinates_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ThreeDCartesianCoordinates_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ThreeDCartesianCoordinates_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ThreeDCartesianCoordinates_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ThreeDCartesianCoordinates_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ThreeDCartesianCoordinates_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -2190,7 +2070,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Orientation : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public Orientation()
@@ -2214,28 +2094,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.Orientation; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.Orientation; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.Orientation_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Orientation_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.Orientation_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.Orientation_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Orientation_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Orientation_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2426,28 +2294,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ThreeDOrientation; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ThreeDOrientation; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ThreeDOrientation_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ThreeDOrientation_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ThreeDOrientation_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ThreeDOrientation_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ThreeDOrientation_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ThreeDOrientation_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -2608,7 +2464,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Frame : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public Frame()
@@ -2632,28 +2488,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.Frame; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.Frame; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.Frame_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Frame_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.Frame_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.Frame_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Frame_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Frame_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2859,28 +2703,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ThreeDFrame; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ThreeDFrame; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ThreeDFrame_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ThreeDFrame_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ThreeDFrame_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ThreeDFrame_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ThreeDFrame_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ThreeDFrame_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -3162,6 +2994,10 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "Application_7")]
         Application = 7,
+
+        /// <remarks />
+        [EnumMember(Value = "X509Subject_8")]
+        X509Subject = 8,
     }
 
     #region IdentityCriteriaTypeCollection Class
@@ -3244,7 +3080,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class IdentityMappingRuleType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public IdentityMappingRuleType()
@@ -3285,28 +3121,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.IdentityMappingRuleType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.IdentityMappingRuleType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.IdentityMappingRuleType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.IdentityMappingRuleType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.IdentityMappingRuleType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.IdentityMappingRuleType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.IdentityMappingRuleType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.IdentityMappingRuleType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3457,7 +3281,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CurrencyUnitType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CurrencyUnitType()
@@ -3516,28 +3340,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CurrencyUnitType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CurrencyUnitType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CurrencyUnitType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CurrencyUnitType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CurrencyUnitType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CurrencyUnitType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CurrencyUnitType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CurrencyUnitType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3691,6 +3503,147 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region AlarmMask Enumeration
+    #if (!OPCUA_EXCLUDE_AlarmMask)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
+    public enum AlarmMask : UInt16
+    {
+        /// <remarks />
+        [EnumMember(Value = "None_0")]
+        None = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Active_1")]
+        Active = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "Unacknowledged_2")]
+        Unacknowledged = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "Unconfirmed_4")]
+        Unconfirmed = 4,
+    }
+
+    #region AlarmMaskCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfAlarmMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AlarmMask")]
+    #if !NET_STANDARD
+    public partial class AlarmMaskCollection : List<AlarmMask>, ICloneable
+    #else
+    public partial class AlarmMaskCollection : List<AlarmMask>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public AlarmMaskCollection() {}
+
+        /// <remarks />
+        public AlarmMaskCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public AlarmMaskCollection(IEnumerable<AlarmMask> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator AlarmMaskCollection(AlarmMask[] values)
+        {
+            if (values != null)
+            {
+                return new AlarmMaskCollection(values);
+            }
+
+            return new AlarmMaskCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator AlarmMask[](AlarmMaskCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (AlarmMaskCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            AlarmMaskCollection clone = new AlarmMaskCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((AlarmMask)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TrustListValidationOptions Enumeration
+    #if (!OPCUA_EXCLUDE_TrustListValidationOptions)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
+    public enum TrustListValidationOptions : UInt32
+    {
+        /// <remarks />
+        [EnumMember(Value = "None_0")]
+        None = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "SuppressCertificateExpired_1")]
+        SuppressCertificateExpired = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "SuppressHostNameInvalid_2")]
+        SuppressHostNameInvalid = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "SuppressRevocationStatusUnknown_4")]
+        SuppressRevocationStatusUnknown = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "SuppressIssuerCertificateExpired_8")]
+        SuppressIssuerCertificateExpired = 8,
+
+        /// <remarks />
+        [EnumMember(Value = "SuppressIssuerRevocationStatusUnknown_16")]
+        SuppressIssuerRevocationStatusUnknown = 16,
+
+        /// <remarks />
+        [EnumMember(Value = "CheckRevocationStatusOnline_32")]
+        CheckRevocationStatusOnline = 32,
+
+        /// <remarks />
+        [EnumMember(Value = "CheckRevocationStatusOffline_64")]
+        CheckRevocationStatusOffline = 64,
+    }
+    #endif
+    #endregion
+
     #region TrustListMasks Enumeration
     #if (!OPCUA_EXCLUDE_TrustListMasks)
     /// <remarks />
@@ -3733,7 +3686,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TrustListDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public TrustListDataType()
@@ -3849,28 +3802,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.TrustListDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TrustListDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.TrustListDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TrustListDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.TrustListDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.TrustListDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TrustListDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TrustListDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -4029,6 +3970,221 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region TransactionErrorType Class
+    #if (!OPCUA_EXCLUDE_TransactionErrorType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TransactionErrorType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public TransactionErrorType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_targetId = null;
+            m_error = StatusCodes.Good;
+            m_message = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "TargetId", IsRequired = false, Order = 1)]
+        public NodeId TargetId
+        {
+            get { return m_targetId;  }
+            set { m_targetId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Error", IsRequired = false, Order = 2)]
+        public StatusCode Error
+        {
+            get { return m_error;  }
+            set { m_error = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Message", IsRequired = false, Order = 3)]
+        public LocalizedText Message
+        {
+            get { return m_message;  }
+            set { m_message = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TransactionErrorType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TransactionErrorType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransactionErrorType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TransactionErrorType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteNodeId("TargetId", TargetId);
+            encoder.WriteStatusCode("Error", Error);
+            encoder.WriteLocalizedText("Message", Message);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            TargetId = decoder.ReadNodeId("TargetId");
+            Error = decoder.ReadStatusCode("Error");
+            Message = decoder.ReadLocalizedText("Message");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TransactionErrorType value = encodeable as TransactionErrorType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_targetId, value.m_targetId)) return false;
+            if (!Utils.IsEqual(m_error, value.m_error)) return false;
+            if (!Utils.IsEqual(m_message, value.m_message)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (TransactionErrorType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransactionErrorType clone = (TransactionErrorType)base.MemberwiseClone();
+
+            clone.m_targetId = (NodeId)Utils.Clone(this.m_targetId);
+            clone.m_error = (StatusCode)Utils.Clone(this.m_error);
+            clone.m_message = (LocalizedText)Utils.Clone(this.m_message);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private NodeId m_targetId;
+        private StatusCode m_error;
+        private LocalizedText m_message;
+        #endregion
+    }
+
+    #region TransactionErrorTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTransactionErrorType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransactionErrorType")]
+    #if !NET_STANDARD
+    public partial class TransactionErrorTypeCollection : List<TransactionErrorType>, ICloneable
+    #else
+    public partial class TransactionErrorTypeCollection : List<TransactionErrorType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public TransactionErrorTypeCollection() {}
+
+        /// <remarks />
+        public TransactionErrorTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public TransactionErrorTypeCollection(IEnumerable<TransactionErrorType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator TransactionErrorTypeCollection(TransactionErrorType[] values)
+        {
+            if (values != null)
+            {
+                return new TransactionErrorTypeCollection(values);
+            }
+
+            return new TransactionErrorTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator TransactionErrorType[](TransactionErrorTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (TransactionErrorTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransactionErrorTypeCollection clone = new TransactionErrorTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TransactionErrorType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region DecimalDataType Class
     #if (!OPCUA_EXCLUDE_DecimalDataType)
     /// <remarks />
@@ -4036,7 +4192,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DecimalDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DecimalDataType()
@@ -4077,28 +4233,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DecimalDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DecimalDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DecimalDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DecimalDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DecimalDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DecimalDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DecimalDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DecimalDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -4178,7 +4322,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeSchemaHeader : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DataTypeSchemaHeader()
@@ -4285,28 +4429,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataTypeSchemaHeader; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DataTypeSchemaHeader; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataTypeSchemaHeader_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataTypeSchemaHeader_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataTypeSchemaHeader_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataTypeSchemaHeader_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeSchemaHeader_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataTypeSchemaHeader_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -4467,7 +4599,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeDescription : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DataTypeDescription()
@@ -4508,28 +4640,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataTypeDescription; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DataTypeDescription; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataTypeDescription_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataTypeDescription_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataTypeDescription_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataTypeDescription_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeDescription_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataTypeDescription_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -4724,28 +4844,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.StructureDescription; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.StructureDescription; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.StructureDescription_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.StructureDescription_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.StructureDescription_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.StructureDescription_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.StructureDescription_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.StructureDescription_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -4949,28 +5057,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EnumDescription; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.EnumDescription; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EnumDescription_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.EnumDescription_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EnumDescription_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EnumDescription_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.EnumDescription_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.EnumDescription_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -5167,28 +5263,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SimpleTypeDescription; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.SimpleTypeDescription; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SimpleTypeDescription_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.SimpleTypeDescription_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SimpleTypeDescription_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SimpleTypeDescription_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.SimpleTypeDescription_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.SimpleTypeDescription_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -5406,28 +5490,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UABinaryFileDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.UABinaryFileDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UABinaryFileDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.UABinaryFileDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UABinaryFileDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UABinaryFileDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.UABinaryFileDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.UABinaryFileDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -5572,6 +5644,609 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((UABinaryFileDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PortableQualifiedName Class
+    #if (!OPCUA_EXCLUDE_PortableQualifiedName)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class PortableQualifiedName : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public PortableQualifiedName()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_namespaceUri = null;
+            m_name = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "NamespaceUri", IsRequired = false, Order = 1)]
+        public string NamespaceUri
+        {
+            get { return m_namespaceUri;  }
+            set { m_namespaceUri = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Name", IsRequired = false, Order = 2)]
+        public string Name
+        {
+            get { return m_name;  }
+            set { m_name = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PortableQualifiedName; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PortableQualifiedName_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PortableQualifiedName_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PortableQualifiedName_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("NamespaceUri", NamespaceUri);
+            encoder.WriteString("Name", Name);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            NamespaceUri = decoder.ReadString("NamespaceUri");
+            Name = decoder.ReadString("Name");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            PortableQualifiedName value = encodeable as PortableQualifiedName;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_namespaceUri, value.m_namespaceUri)) return false;
+            if (!Utils.IsEqual(m_name, value.m_name)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (PortableQualifiedName)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PortableQualifiedName clone = (PortableQualifiedName)base.MemberwiseClone();
+
+            clone.m_namespaceUri = (string)Utils.Clone(this.m_namespaceUri);
+            clone.m_name = (string)Utils.Clone(this.m_name);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_namespaceUri;
+        private string m_name;
+        #endregion
+    }
+
+    #region PortableQualifiedNameCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPortableQualifiedName", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PortableQualifiedName")]
+    #if !NET_STANDARD
+    public partial class PortableQualifiedNameCollection : List<PortableQualifiedName>, ICloneable
+    #else
+    public partial class PortableQualifiedNameCollection : List<PortableQualifiedName>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public PortableQualifiedNameCollection() {}
+
+        /// <remarks />
+        public PortableQualifiedNameCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PortableQualifiedNameCollection(IEnumerable<PortableQualifiedName> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PortableQualifiedNameCollection(PortableQualifiedName[] values)
+        {
+            if (values != null)
+            {
+                return new PortableQualifiedNameCollection(values);
+            }
+
+            return new PortableQualifiedNameCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PortableQualifiedName[](PortableQualifiedNameCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PortableQualifiedNameCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PortableQualifiedNameCollection clone = new PortableQualifiedNameCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PortableQualifiedName)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PortableNodeId Class
+    #if (!OPCUA_EXCLUDE_PortableNodeId)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class PortableNodeId : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public PortableNodeId()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_namespaceUri = null;
+            m_identifier = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "NamespaceUri", IsRequired = false, Order = 1)]
+        public string NamespaceUri
+        {
+            get { return m_namespaceUri;  }
+            set { m_namespaceUri = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Identifier", IsRequired = false, Order = 2)]
+        public NodeId Identifier
+        {
+            get { return m_identifier;  }
+            set { m_identifier = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PortableNodeId; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PortableNodeId_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PortableNodeId_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PortableNodeId_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("NamespaceUri", NamespaceUri);
+            encoder.WriteNodeId("Identifier", Identifier);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            NamespaceUri = decoder.ReadString("NamespaceUri");
+            Identifier = decoder.ReadNodeId("Identifier");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            PortableNodeId value = encodeable as PortableNodeId;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_namespaceUri, value.m_namespaceUri)) return false;
+            if (!Utils.IsEqual(m_identifier, value.m_identifier)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (PortableNodeId)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PortableNodeId clone = (PortableNodeId)base.MemberwiseClone();
+
+            clone.m_namespaceUri = (string)Utils.Clone(this.m_namespaceUri);
+            clone.m_identifier = (NodeId)Utils.Clone(this.m_identifier);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_namespaceUri;
+        private NodeId m_identifier;
+        #endregion
+    }
+
+    #region PortableNodeIdCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPortableNodeId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PortableNodeId")]
+    #if !NET_STANDARD
+    public partial class PortableNodeIdCollection : List<PortableNodeId>, ICloneable
+    #else
+    public partial class PortableNodeIdCollection : List<PortableNodeId>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public PortableNodeIdCollection() {}
+
+        /// <remarks />
+        public PortableNodeIdCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PortableNodeIdCollection(IEnumerable<PortableNodeId> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PortableNodeIdCollection(PortableNodeId[] values)
+        {
+            if (values != null)
+            {
+                return new PortableNodeIdCollection(values);
+            }
+
+            return new PortableNodeIdCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PortableNodeId[](PortableNodeIdCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PortableNodeIdCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PortableNodeIdCollection clone = new PortableNodeIdCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PortableNodeId)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region UnsignedRationalNumber Class
+    #if (!OPCUA_EXCLUDE_UnsignedRationalNumber)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class UnsignedRationalNumber : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public UnsignedRationalNumber()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_numerator = (uint)0;
+            m_denominator = (uint)0;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "Numerator", IsRequired = false, Order = 1)]
+        public uint Numerator
+        {
+            get { return m_numerator;  }
+            set { m_numerator = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Denominator", IsRequired = false, Order = 2)]
+        public uint Denominator
+        {
+            get { return m_denominator;  }
+            set { m_denominator = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.UnsignedRationalNumber; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UnsignedRationalNumber_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UnsignedRationalNumber_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UnsignedRationalNumber_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt32("Numerator", Numerator);
+            encoder.WriteUInt32("Denominator", Denominator);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            Numerator = decoder.ReadUInt32("Numerator");
+            Denominator = decoder.ReadUInt32("Denominator");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            UnsignedRationalNumber value = encodeable as UnsignedRationalNumber;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_numerator, value.m_numerator)) return false;
+            if (!Utils.IsEqual(m_denominator, value.m_denominator)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (UnsignedRationalNumber)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            UnsignedRationalNumber clone = (UnsignedRationalNumber)base.MemberwiseClone();
+
+            clone.m_numerator = (uint)Utils.Clone(this.m_numerator);
+            clone.m_denominator = (uint)Utils.Clone(this.m_denominator);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_numerator;
+        private uint m_denominator;
+        #endregion
+    }
+
+    #region UnsignedRationalNumberCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfUnsignedRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UnsignedRationalNumber")]
+    #if !NET_STANDARD
+    public partial class UnsignedRationalNumberCollection : List<UnsignedRationalNumber>, ICloneable
+    #else
+    public partial class UnsignedRationalNumberCollection : List<UnsignedRationalNumber>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public UnsignedRationalNumberCollection() {}
+
+        /// <remarks />
+        public UnsignedRationalNumberCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public UnsignedRationalNumberCollection(IEnumerable<UnsignedRationalNumber> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator UnsignedRationalNumberCollection(UnsignedRationalNumber[] values)
+        {
+            if (values != null)
+            {
+                return new UnsignedRationalNumberCollection(values);
+            }
+
+            return new UnsignedRationalNumberCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator UnsignedRationalNumber[](UnsignedRationalNumberCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (UnsignedRationalNumberCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            UnsignedRationalNumberCollection clone = new UnsignedRationalNumberCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((UnsignedRationalNumber)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -5782,28 +6457,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataSetMetaDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.DataSetMetaDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataSetMetaDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetMetaDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataSetMetaDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataSetMetaDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DataSetMetaDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DataSetMetaDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -5974,7 +6637,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FieldMetaData : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public FieldMetaData()
@@ -6111,28 +6774,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.FieldMetaData; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.FieldMetaData; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.FieldMetaData_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FieldMetaData_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.FieldMetaData_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.FieldMetaData_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FieldMetaData_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FieldMetaData_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -6342,7 +6993,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ConfigurationVersionDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ConfigurationVersionDataType()
@@ -6383,28 +7034,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ConfigurationVersionDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ConfigurationVersionDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ConfigurationVersionDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ConfigurationVersionDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ConfigurationVersionDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ConfigurationVersionDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ConfigurationVersionDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ConfigurationVersionDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -6555,7 +7194,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedDataSetDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public PublishedDataSetDataType()
@@ -6659,28 +7298,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.PublishedDataSetDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PublishedDataSetDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.PublishedDataSetDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedDataSetDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.PublishedDataSetDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.PublishedDataSetDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataSetDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PublishedDataSetDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -6846,7 +7473,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedDataSetSourceDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public PublishedDataSetSourceDataType()
@@ -6870,28 +7497,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.PublishedDataSetSourceDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PublishedDataSetSourceDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -7032,7 +7647,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishedVariableDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public PublishedVariableDataType()
@@ -7139,28 +7754,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.PublishedVariableDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PublishedVariableDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.PublishedVariableDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedVariableDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.PublishedVariableDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.PublishedVariableDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishedVariableDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PublishedVariableDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -7385,28 +7988,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.PublishedDataItemsDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.PublishedDataItemsDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.PublishedDataItemsDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedDataItemsDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.PublishedDataItemsDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.PublishedDataItemsDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataItemsDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedDataItemsDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -7631,28 +8222,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.PublishedEventsDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.PublishedEventsDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.PublishedEventsDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedEventsDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.PublishedEventsDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.PublishedEventsDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedEventsDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedEventsDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -7806,6 +8385,198 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region PublishedDataSetCustomSourceDataType Class
+    #if (!OPCUA_EXCLUDE_PublishedDataSetCustomSourceDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class PublishedDataSetCustomSourceDataType : PublishedDataSetSourceDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public PublishedDataSetCustomSourceDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_cyclicDataSet = true;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "CyclicDataSet", IsRequired = false, Order = 1)]
+        public bool CyclicDataSet
+        {
+            get { return m_cyclicDataSet;  }
+            set { m_cyclicDataSet = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.PublishedDataSetCustomSourceDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteBoolean("CyclicDataSet", CyclicDataSet);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            CyclicDataSet = decoder.ReadBoolean("CyclicDataSet");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            PublishedDataSetCustomSourceDataType value = encodeable as PublishedDataSetCustomSourceDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_cyclicDataSet, value.m_cyclicDataSet)) return false;
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (PublishedDataSetCustomSourceDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PublishedDataSetCustomSourceDataType clone = (PublishedDataSetCustomSourceDataType)base.MemberwiseClone();
+
+            clone.m_cyclicDataSet = (bool)Utils.Clone(this.m_cyclicDataSet);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private bool m_cyclicDataSet;
+        #endregion
+    }
+
+    #region PublishedDataSetCustomSourceDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPublishedDataSetCustomSourceDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetCustomSourceDataType")]
+    #if !NET_STANDARD
+    public partial class PublishedDataSetCustomSourceDataTypeCollection : List<PublishedDataSetCustomSourceDataType>, ICloneable
+    #else
+    public partial class PublishedDataSetCustomSourceDataTypeCollection : List<PublishedDataSetCustomSourceDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public PublishedDataSetCustomSourceDataTypeCollection() {}
+
+        /// <remarks />
+        public PublishedDataSetCustomSourceDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PublishedDataSetCustomSourceDataTypeCollection(IEnumerable<PublishedDataSetCustomSourceDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PublishedDataSetCustomSourceDataTypeCollection(PublishedDataSetCustomSourceDataType[] values)
+        {
+            if (values != null)
+            {
+                return new PublishedDataSetCustomSourceDataTypeCollection(values);
+            }
+
+            return new PublishedDataSetCustomSourceDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PublishedDataSetCustomSourceDataType[](PublishedDataSetCustomSourceDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PublishedDataSetCustomSourceDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PublishedDataSetCustomSourceDataTypeCollection clone = new PublishedDataSetCustomSourceDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PublishedDataSetCustomSourceDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region DataSetFieldContentMask Enumeration
     #if (!OPCUA_EXCLUDE_DataSetFieldContentMask)
     /// <remarks />
@@ -7923,7 +8694,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetWriterDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DataSetWriterDataType()
@@ -8039,28 +8810,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataSetWriterDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetWriterDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataSetWriterDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetWriterDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataSetWriterDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataSetWriterDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetWriterDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataSetWriterDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -8246,7 +9005,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetWriterTransportDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DataSetWriterTransportDataType()
@@ -8270,28 +9029,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataSetWriterTransportDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetWriterTransportDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -8432,7 +9179,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetWriterMessageDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DataSetWriterMessageDataType()
@@ -8456,28 +9203,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataSetWriterMessageDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetWriterMessageDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataSetWriterMessageDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetWriterMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataSetWriterMessageDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataSetWriterMessageDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetWriterMessageDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataSetWriterMessageDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -8618,7 +9353,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubGroupDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public PubSubGroupDataType()
@@ -8728,28 +9463,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.PubSubGroupDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubGroupDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.PubSubGroupDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubGroupDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.PubSubGroupDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.PubSubGroupDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubGroupDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PubSubGroupDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -9053,28 +9776,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.WriterGroupDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.WriterGroupDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.WriterGroupDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.WriterGroupDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.WriterGroupDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.WriterGroupDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.WriterGroupDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.WriterGroupDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -9265,7 +9976,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriterGroupTransportDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public WriterGroupTransportDataType()
@@ -9289,28 +10000,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.WriterGroupTransportDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.WriterGroupTransportDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.WriterGroupTransportDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WriterGroupTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.WriterGroupTransportDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.WriterGroupTransportDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriterGroupTransportDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WriterGroupTransportDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -9451,7 +10150,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriterGroupMessageDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public WriterGroupMessageDataType()
@@ -9475,28 +10174,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.WriterGroupMessageDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.WriterGroupMessageDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.WriterGroupMessageDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WriterGroupMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.WriterGroupMessageDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.WriterGroupMessageDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriterGroupMessageDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WriterGroupMessageDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -9637,7 +10324,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubConnectionDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public PubSubConnectionDataType()
@@ -9777,28 +10464,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.PubSubConnectionDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubConnectionDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.PubSubConnectionDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConnectionDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.PubSubConnectionDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.PubSubConnectionDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConnectionDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PubSubConnectionDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -9984,7 +10659,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ConnectionTransportDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ConnectionTransportDataType()
@@ -10008,28 +10683,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ConnectionTransportDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ConnectionTransportDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ConnectionTransportDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ConnectionTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ConnectionTransportDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ConnectionTransportDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ConnectionTransportDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ConnectionTransportDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -10170,7 +10833,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NetworkAddressDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public NetworkAddressDataType()
@@ -10202,28 +10865,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.NetworkAddressDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.NetworkAddressDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.NetworkAddressDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NetworkAddressDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.NetworkAddressDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.NetworkAddressDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NetworkAddressDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NetworkAddressDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -10401,28 +11052,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.NetworkAddressUrlDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.NetworkAddressUrlDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.NetworkAddressUrlDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.NetworkAddressUrlDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.NetworkAddressUrlDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.NetworkAddressUrlDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.NetworkAddressUrlDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.NetworkAddressUrlDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -10635,28 +11274,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReaderGroupDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ReaderGroupDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReaderGroupDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReaderGroupDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReaderGroupDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReaderGroupDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReaderGroupDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ReaderGroupDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -10817,7 +11444,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReaderGroupTransportDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ReaderGroupTransportDataType()
@@ -10841,28 +11468,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReaderGroupTransportDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ReaderGroupTransportDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReaderGroupTransportDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReaderGroupTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReaderGroupTransportDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReaderGroupTransportDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReaderGroupTransportDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReaderGroupTransportDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -11003,7 +11618,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReaderGroupMessageDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ReaderGroupMessageDataType()
@@ -11027,28 +11642,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReaderGroupMessageDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ReaderGroupMessageDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReaderGroupMessageDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReaderGroupMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReaderGroupMessageDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReaderGroupMessageDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReaderGroupMessageDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReaderGroupMessageDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -11189,7 +11792,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetReaderDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DataSetReaderDataType()
@@ -11401,28 +12004,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataSetReaderDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetReaderDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataSetReaderDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetReaderDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataSetReaderDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataSetReaderDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetReaderDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataSetReaderDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -11648,7 +12239,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetReaderTransportDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DataSetReaderTransportDataType()
@@ -11672,28 +12263,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataSetReaderTransportDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetReaderTransportDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -11834,7 +12413,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataSetReaderMessageDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DataSetReaderMessageDataType()
@@ -11858,28 +12437,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataSetReaderMessageDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetReaderMessageDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataSetReaderMessageDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetReaderMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataSetReaderMessageDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataSetReaderMessageDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetReaderMessageDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataSetReaderMessageDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -12020,7 +12587,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SubscribedDataSetDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SubscribedDataSetDataType()
@@ -12044,28 +12611,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SubscribedDataSetDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SubscribedDataSetDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SubscribedDataSetDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SubscribedDataSetDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SubscribedDataSetDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SubscribedDataSetDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SubscribedDataSetDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SubscribedDataSetDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -12250,28 +12805,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.TargetVariablesDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.TargetVariablesDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.TargetVariablesDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.TargetVariablesDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.TargetVariablesDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.TargetVariablesDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.TargetVariablesDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.TargetVariablesDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -12422,7 +12965,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FieldTargetDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public FieldTargetDataType()
@@ -12508,28 +13051,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.FieldTargetDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.FieldTargetDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.FieldTargetDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FieldTargetDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.FieldTargetDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.FieldTargetDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FieldTargetDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FieldTargetDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -12852,28 +13383,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SubscribedDataSetMirrorDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.SubscribedDataSetMirrorDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -13029,7 +13548,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PubSubConfigurationDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public PubSubConfigurationDataType()
@@ -13103,28 +13622,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.PubSubConfigurationDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubConfigurationDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.PubSubConfigurationDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConfigurationDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.PubSubConfigurationDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.PubSubConfigurationDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfigurationDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PubSubConfigurationDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -13264,6 +13771,1486 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((PubSubConfigurationDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region StandaloneSubscribedDataSetRefDataType Class
+    #if (!OPCUA_EXCLUDE_StandaloneSubscribedDataSetRefDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class StandaloneSubscribedDataSetRefDataType : SubscribedDataSetDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public StandaloneSubscribedDataSetRefDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_dataSetName = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "DataSetName", IsRequired = false, Order = 1)]
+        public string DataSetName
+        {
+            get { return m_dataSetName;  }
+            set { m_dataSetName = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.StandaloneSubscribedDataSetRefDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("DataSetName", DataSetName);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            DataSetName = decoder.ReadString("DataSetName");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            StandaloneSubscribedDataSetRefDataType value = encodeable as StandaloneSubscribedDataSetRefDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_dataSetName, value.m_dataSetName)) return false;
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (StandaloneSubscribedDataSetRefDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            StandaloneSubscribedDataSetRefDataType clone = (StandaloneSubscribedDataSetRefDataType)base.MemberwiseClone();
+
+            clone.m_dataSetName = (string)Utils.Clone(this.m_dataSetName);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_dataSetName;
+        #endregion
+    }
+
+    #region StandaloneSubscribedDataSetRefDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfStandaloneSubscribedDataSetRefDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StandaloneSubscribedDataSetRefDataType")]
+    #if !NET_STANDARD
+    public partial class StandaloneSubscribedDataSetRefDataTypeCollection : List<StandaloneSubscribedDataSetRefDataType>, ICloneable
+    #else
+    public partial class StandaloneSubscribedDataSetRefDataTypeCollection : List<StandaloneSubscribedDataSetRefDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public StandaloneSubscribedDataSetRefDataTypeCollection() {}
+
+        /// <remarks />
+        public StandaloneSubscribedDataSetRefDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public StandaloneSubscribedDataSetRefDataTypeCollection(IEnumerable<StandaloneSubscribedDataSetRefDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator StandaloneSubscribedDataSetRefDataTypeCollection(StandaloneSubscribedDataSetRefDataType[] values)
+        {
+            if (values != null)
+            {
+                return new StandaloneSubscribedDataSetRefDataTypeCollection(values);
+            }
+
+            return new StandaloneSubscribedDataSetRefDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator StandaloneSubscribedDataSetRefDataType[](StandaloneSubscribedDataSetRefDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (StandaloneSubscribedDataSetRefDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            StandaloneSubscribedDataSetRefDataTypeCollection clone = new StandaloneSubscribedDataSetRefDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((StandaloneSubscribedDataSetRefDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region StandaloneSubscribedDataSetDataType Class
+    #if (!OPCUA_EXCLUDE_StandaloneSubscribedDataSetDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class StandaloneSubscribedDataSetDataType : SubscribedDataSetDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public StandaloneSubscribedDataSetDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_name = null;
+            m_dataSetFolder = new StringCollection();
+            m_dataSetMetaData = new DataSetMetaDataType();
+            m_subscribedDataSet = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "Name", IsRequired = false, Order = 1)]
+        public string Name
+        {
+            get { return m_name;  }
+            set { m_name = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetFolder", IsRequired = false, Order = 2)]
+        public StringCollection DataSetFolder
+        {
+            get
+            {
+                return m_dataSetFolder;
+            }
+
+            set
+            {
+                m_dataSetFolder = value;
+
+                if (value == null)
+                {
+                    m_dataSetFolder = new StringCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetMetaData", IsRequired = false, Order = 3)]
+        public DataSetMetaDataType DataSetMetaData
+        {
+            get
+            {
+                return m_dataSetMetaData;
+            }
+
+            set
+            {
+                m_dataSetMetaData = value;
+
+                if (value == null)
+                {
+                    m_dataSetMetaData = new DataSetMetaDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "SubscribedDataSet", IsRequired = false, Order = 4)]
+        public ExtensionObject SubscribedDataSet
+        {
+            get { return m_subscribedDataSet;  }
+            set { m_subscribedDataSet = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.StandaloneSubscribedDataSetDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("Name", Name);
+            encoder.WriteStringArray("DataSetFolder", DataSetFolder);
+            encoder.WriteEncodeable("DataSetMetaData", DataSetMetaData, typeof(DataSetMetaDataType));
+            encoder.WriteExtensionObject("SubscribedDataSet", SubscribedDataSet);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            Name = decoder.ReadString("Name");
+            DataSetFolder = decoder.ReadStringArray("DataSetFolder");
+            DataSetMetaData = (DataSetMetaDataType)decoder.ReadEncodeable("DataSetMetaData", typeof(DataSetMetaDataType));
+            SubscribedDataSet = decoder.ReadExtensionObject("SubscribedDataSet");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            StandaloneSubscribedDataSetDataType value = encodeable as StandaloneSubscribedDataSetDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_name, value.m_name)) return false;
+            if (!Utils.IsEqual(m_dataSetFolder, value.m_dataSetFolder)) return false;
+            if (!Utils.IsEqual(m_dataSetMetaData, value.m_dataSetMetaData)) return false;
+            if (!Utils.IsEqual(m_subscribedDataSet, value.m_subscribedDataSet)) return false;
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (StandaloneSubscribedDataSetDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            StandaloneSubscribedDataSetDataType clone = (StandaloneSubscribedDataSetDataType)base.MemberwiseClone();
+
+            clone.m_name = (string)Utils.Clone(this.m_name);
+            clone.m_dataSetFolder = (StringCollection)Utils.Clone(this.m_dataSetFolder);
+            clone.m_dataSetMetaData = (DataSetMetaDataType)Utils.Clone(this.m_dataSetMetaData);
+            clone.m_subscribedDataSet = (ExtensionObject)Utils.Clone(this.m_subscribedDataSet);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_name;
+        private StringCollection m_dataSetFolder;
+        private DataSetMetaDataType m_dataSetMetaData;
+        private ExtensionObject m_subscribedDataSet;
+        #endregion
+    }
+
+    #region StandaloneSubscribedDataSetDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfStandaloneSubscribedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StandaloneSubscribedDataSetDataType")]
+    #if !NET_STANDARD
+    public partial class StandaloneSubscribedDataSetDataTypeCollection : List<StandaloneSubscribedDataSetDataType>, ICloneable
+    #else
+    public partial class StandaloneSubscribedDataSetDataTypeCollection : List<StandaloneSubscribedDataSetDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public StandaloneSubscribedDataSetDataTypeCollection() {}
+
+        /// <remarks />
+        public StandaloneSubscribedDataSetDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public StandaloneSubscribedDataSetDataTypeCollection(IEnumerable<StandaloneSubscribedDataSetDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator StandaloneSubscribedDataSetDataTypeCollection(StandaloneSubscribedDataSetDataType[] values)
+        {
+            if (values != null)
+            {
+                return new StandaloneSubscribedDataSetDataTypeCollection(values);
+            }
+
+            return new StandaloneSubscribedDataSetDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator StandaloneSubscribedDataSetDataType[](StandaloneSubscribedDataSetDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (StandaloneSubscribedDataSetDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            StandaloneSubscribedDataSetDataTypeCollection clone = new StandaloneSubscribedDataSetDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((StandaloneSubscribedDataSetDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region SecurityGroupDataType Class
+    #if (!OPCUA_EXCLUDE_SecurityGroupDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class SecurityGroupDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public SecurityGroupDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_name = null;
+            m_securityGroupFolder = new StringCollection();
+            m_keyLifetime = (double)0;
+            m_securityPolicyUri = null;
+            m_maxFutureKeyCount = (uint)0;
+            m_maxPastKeyCount = (uint)0;
+            m_securityGroupId = null;
+            m_rolePermissions = new RolePermissionTypeCollection();
+            m_groupProperties = new KeyValuePairCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "Name", IsRequired = false, Order = 1)]
+        public string Name
+        {
+            get { return m_name;  }
+            set { m_name = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "SecurityGroupFolder", IsRequired = false, Order = 2)]
+        public StringCollection SecurityGroupFolder
+        {
+            get
+            {
+                return m_securityGroupFolder;
+            }
+
+            set
+            {
+                m_securityGroupFolder = value;
+
+                if (value == null)
+                {
+                    m_securityGroupFolder = new StringCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "KeyLifetime", IsRequired = false, Order = 3)]
+        public double KeyLifetime
+        {
+            get { return m_keyLifetime;  }
+            set { m_keyLifetime = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "SecurityPolicyUri", IsRequired = false, Order = 4)]
+        public string SecurityPolicyUri
+        {
+            get { return m_securityPolicyUri;  }
+            set { m_securityPolicyUri = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MaxFutureKeyCount", IsRequired = false, Order = 5)]
+        public uint MaxFutureKeyCount
+        {
+            get { return m_maxFutureKeyCount;  }
+            set { m_maxFutureKeyCount = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MaxPastKeyCount", IsRequired = false, Order = 6)]
+        public uint MaxPastKeyCount
+        {
+            get { return m_maxPastKeyCount;  }
+            set { m_maxPastKeyCount = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "SecurityGroupId", IsRequired = false, Order = 7)]
+        public string SecurityGroupId
+        {
+            get { return m_securityGroupId;  }
+            set { m_securityGroupId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "RolePermissions", IsRequired = false, Order = 8)]
+        public RolePermissionTypeCollection RolePermissions
+        {
+            get
+            {
+                return m_rolePermissions;
+            }
+
+            set
+            {
+                m_rolePermissions = value;
+
+                if (value == null)
+                {
+                    m_rolePermissions = new RolePermissionTypeCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "GroupProperties", IsRequired = false, Order = 9)]
+        public KeyValuePairCollection GroupProperties
+        {
+            get
+            {
+                return m_groupProperties;
+            }
+
+            set
+            {
+                m_groupProperties = value;
+
+                if (value == null)
+                {
+                    m_groupProperties = new KeyValuePairCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SecurityGroupDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SecurityGroupDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SecurityGroupDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SecurityGroupDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("Name", Name);
+            encoder.WriteStringArray("SecurityGroupFolder", SecurityGroupFolder);
+            encoder.WriteDouble("KeyLifetime", KeyLifetime);
+            encoder.WriteString("SecurityPolicyUri", SecurityPolicyUri);
+            encoder.WriteUInt32("MaxFutureKeyCount", MaxFutureKeyCount);
+            encoder.WriteUInt32("MaxPastKeyCount", MaxPastKeyCount);
+            encoder.WriteString("SecurityGroupId", SecurityGroupId);
+            encoder.WriteEncodeableArray("RolePermissions", RolePermissions.ToArray(), typeof(RolePermissionType));
+            encoder.WriteEncodeableArray("GroupProperties", GroupProperties.ToArray(), typeof(KeyValuePair));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            Name = decoder.ReadString("Name");
+            SecurityGroupFolder = decoder.ReadStringArray("SecurityGroupFolder");
+            KeyLifetime = decoder.ReadDouble("KeyLifetime");
+            SecurityPolicyUri = decoder.ReadString("SecurityPolicyUri");
+            MaxFutureKeyCount = decoder.ReadUInt32("MaxFutureKeyCount");
+            MaxPastKeyCount = decoder.ReadUInt32("MaxPastKeyCount");
+            SecurityGroupId = decoder.ReadString("SecurityGroupId");
+            RolePermissions = (RolePermissionTypeCollection)decoder.ReadEncodeableArray("RolePermissions", typeof(RolePermissionType));
+            GroupProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("GroupProperties", typeof(KeyValuePair));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            SecurityGroupDataType value = encodeable as SecurityGroupDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_name, value.m_name)) return false;
+            if (!Utils.IsEqual(m_securityGroupFolder, value.m_securityGroupFolder)) return false;
+            if (!Utils.IsEqual(m_keyLifetime, value.m_keyLifetime)) return false;
+            if (!Utils.IsEqual(m_securityPolicyUri, value.m_securityPolicyUri)) return false;
+            if (!Utils.IsEqual(m_maxFutureKeyCount, value.m_maxFutureKeyCount)) return false;
+            if (!Utils.IsEqual(m_maxPastKeyCount, value.m_maxPastKeyCount)) return false;
+            if (!Utils.IsEqual(m_securityGroupId, value.m_securityGroupId)) return false;
+            if (!Utils.IsEqual(m_rolePermissions, value.m_rolePermissions)) return false;
+            if (!Utils.IsEqual(m_groupProperties, value.m_groupProperties)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (SecurityGroupDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            SecurityGroupDataType clone = (SecurityGroupDataType)base.MemberwiseClone();
+
+            clone.m_name = (string)Utils.Clone(this.m_name);
+            clone.m_securityGroupFolder = (StringCollection)Utils.Clone(this.m_securityGroupFolder);
+            clone.m_keyLifetime = (double)Utils.Clone(this.m_keyLifetime);
+            clone.m_securityPolicyUri = (string)Utils.Clone(this.m_securityPolicyUri);
+            clone.m_maxFutureKeyCount = (uint)Utils.Clone(this.m_maxFutureKeyCount);
+            clone.m_maxPastKeyCount = (uint)Utils.Clone(this.m_maxPastKeyCount);
+            clone.m_securityGroupId = (string)Utils.Clone(this.m_securityGroupId);
+            clone.m_rolePermissions = (RolePermissionTypeCollection)Utils.Clone(this.m_rolePermissions);
+            clone.m_groupProperties = (KeyValuePairCollection)Utils.Clone(this.m_groupProperties);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_name;
+        private StringCollection m_securityGroupFolder;
+        private double m_keyLifetime;
+        private string m_securityPolicyUri;
+        private uint m_maxFutureKeyCount;
+        private uint m_maxPastKeyCount;
+        private string m_securityGroupId;
+        private RolePermissionTypeCollection m_rolePermissions;
+        private KeyValuePairCollection m_groupProperties;
+        #endregion
+    }
+
+    #region SecurityGroupDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfSecurityGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SecurityGroupDataType")]
+    #if !NET_STANDARD
+    public partial class SecurityGroupDataTypeCollection : List<SecurityGroupDataType>, ICloneable
+    #else
+    public partial class SecurityGroupDataTypeCollection : List<SecurityGroupDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public SecurityGroupDataTypeCollection() {}
+
+        /// <remarks />
+        public SecurityGroupDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public SecurityGroupDataTypeCollection(IEnumerable<SecurityGroupDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator SecurityGroupDataTypeCollection(SecurityGroupDataType[] values)
+        {
+            if (values != null)
+            {
+                return new SecurityGroupDataTypeCollection(values);
+            }
+
+            return new SecurityGroupDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator SecurityGroupDataType[](SecurityGroupDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (SecurityGroupDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            SecurityGroupDataTypeCollection clone = new SecurityGroupDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((SecurityGroupDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PubSubKeyPushTargetDataType Class
+    #if (!OPCUA_EXCLUDE_PubSubKeyPushTargetDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class PubSubKeyPushTargetDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public PubSubKeyPushTargetDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_applicationUri = null;
+            m_pushTargetFolder = new StringCollection();
+            m_endpointUrl = null;
+            m_securityPolicyUri = null;
+            m_userTokenType = new UserTokenPolicy();
+            m_requestedKeyCount = (ushort)0;
+            m_retryInterval = (double)0;
+            m_pushTargetProperties = new KeyValuePairCollection();
+            m_securityGroups = new StringCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ApplicationUri", IsRequired = false, Order = 1)]
+        public string ApplicationUri
+        {
+            get { return m_applicationUri;  }
+            set { m_applicationUri = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PushTargetFolder", IsRequired = false, Order = 2)]
+        public StringCollection PushTargetFolder
+        {
+            get
+            {
+                return m_pushTargetFolder;
+            }
+
+            set
+            {
+                m_pushTargetFolder = value;
+
+                if (value == null)
+                {
+                    m_pushTargetFolder = new StringCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "EndpointUrl", IsRequired = false, Order = 3)]
+        public string EndpointUrl
+        {
+            get { return m_endpointUrl;  }
+            set { m_endpointUrl = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "SecurityPolicyUri", IsRequired = false, Order = 4)]
+        public string SecurityPolicyUri
+        {
+            get { return m_securityPolicyUri;  }
+            set { m_securityPolicyUri = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "UserTokenType", IsRequired = false, Order = 5)]
+        public UserTokenPolicy UserTokenType
+        {
+            get
+            {
+                return m_userTokenType;
+            }
+
+            set
+            {
+                m_userTokenType = value;
+
+                if (value == null)
+                {
+                    m_userTokenType = new UserTokenPolicy();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "RequestedKeyCount", IsRequired = false, Order = 6)]
+        public ushort RequestedKeyCount
+        {
+            get { return m_requestedKeyCount;  }
+            set { m_requestedKeyCount = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "RetryInterval", IsRequired = false, Order = 7)]
+        public double RetryInterval
+        {
+            get { return m_retryInterval;  }
+            set { m_retryInterval = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PushTargetProperties", IsRequired = false, Order = 8)]
+        public KeyValuePairCollection PushTargetProperties
+        {
+            get
+            {
+                return m_pushTargetProperties;
+            }
+
+            set
+            {
+                m_pushTargetProperties = value;
+
+                if (value == null)
+                {
+                    m_pushTargetProperties = new KeyValuePairCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "SecurityGroups", IsRequired = false, Order = 9)]
+        public StringCollection SecurityGroups
+        {
+            get
+            {
+                return m_securityGroups;
+            }
+
+            set
+            {
+                m_securityGroups = value;
+
+                if (value == null)
+                {
+                    m_securityGroups = new StringCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubKeyPushTargetDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubKeyPushTargetDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubKeyPushTargetDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PubSubKeyPushTargetDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("ApplicationUri", ApplicationUri);
+            encoder.WriteStringArray("PushTargetFolder", PushTargetFolder);
+            encoder.WriteString("EndpointUrl", EndpointUrl);
+            encoder.WriteString("SecurityPolicyUri", SecurityPolicyUri);
+            encoder.WriteEncodeable("UserTokenType", UserTokenType, typeof(UserTokenPolicy));
+            encoder.WriteUInt16("RequestedKeyCount", RequestedKeyCount);
+            encoder.WriteDouble("RetryInterval", RetryInterval);
+            encoder.WriteEncodeableArray("PushTargetProperties", PushTargetProperties.ToArray(), typeof(KeyValuePair));
+            encoder.WriteStringArray("SecurityGroups", SecurityGroups);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ApplicationUri = decoder.ReadString("ApplicationUri");
+            PushTargetFolder = decoder.ReadStringArray("PushTargetFolder");
+            EndpointUrl = decoder.ReadString("EndpointUrl");
+            SecurityPolicyUri = decoder.ReadString("SecurityPolicyUri");
+            UserTokenType = (UserTokenPolicy)decoder.ReadEncodeable("UserTokenType", typeof(UserTokenPolicy));
+            RequestedKeyCount = decoder.ReadUInt16("RequestedKeyCount");
+            RetryInterval = decoder.ReadDouble("RetryInterval");
+            PushTargetProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("PushTargetProperties", typeof(KeyValuePair));
+            SecurityGroups = decoder.ReadStringArray("SecurityGroups");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            PubSubKeyPushTargetDataType value = encodeable as PubSubKeyPushTargetDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_applicationUri, value.m_applicationUri)) return false;
+            if (!Utils.IsEqual(m_pushTargetFolder, value.m_pushTargetFolder)) return false;
+            if (!Utils.IsEqual(m_endpointUrl, value.m_endpointUrl)) return false;
+            if (!Utils.IsEqual(m_securityPolicyUri, value.m_securityPolicyUri)) return false;
+            if (!Utils.IsEqual(m_userTokenType, value.m_userTokenType)) return false;
+            if (!Utils.IsEqual(m_requestedKeyCount, value.m_requestedKeyCount)) return false;
+            if (!Utils.IsEqual(m_retryInterval, value.m_retryInterval)) return false;
+            if (!Utils.IsEqual(m_pushTargetProperties, value.m_pushTargetProperties)) return false;
+            if (!Utils.IsEqual(m_securityGroups, value.m_securityGroups)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (PubSubKeyPushTargetDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PubSubKeyPushTargetDataType clone = (PubSubKeyPushTargetDataType)base.MemberwiseClone();
+
+            clone.m_applicationUri = (string)Utils.Clone(this.m_applicationUri);
+            clone.m_pushTargetFolder = (StringCollection)Utils.Clone(this.m_pushTargetFolder);
+            clone.m_endpointUrl = (string)Utils.Clone(this.m_endpointUrl);
+            clone.m_securityPolicyUri = (string)Utils.Clone(this.m_securityPolicyUri);
+            clone.m_userTokenType = (UserTokenPolicy)Utils.Clone(this.m_userTokenType);
+            clone.m_requestedKeyCount = (ushort)Utils.Clone(this.m_requestedKeyCount);
+            clone.m_retryInterval = (double)Utils.Clone(this.m_retryInterval);
+            clone.m_pushTargetProperties = (KeyValuePairCollection)Utils.Clone(this.m_pushTargetProperties);
+            clone.m_securityGroups = (StringCollection)Utils.Clone(this.m_securityGroups);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_applicationUri;
+        private StringCollection m_pushTargetFolder;
+        private string m_endpointUrl;
+        private string m_securityPolicyUri;
+        private UserTokenPolicy m_userTokenType;
+        private ushort m_requestedKeyCount;
+        private double m_retryInterval;
+        private KeyValuePairCollection m_pushTargetProperties;
+        private StringCollection m_securityGroups;
+        #endregion
+    }
+
+    #region PubSubKeyPushTargetDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPubSubKeyPushTargetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubKeyPushTargetDataType")]
+    #if !NET_STANDARD
+    public partial class PubSubKeyPushTargetDataTypeCollection : List<PubSubKeyPushTargetDataType>, ICloneable
+    #else
+    public partial class PubSubKeyPushTargetDataTypeCollection : List<PubSubKeyPushTargetDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public PubSubKeyPushTargetDataTypeCollection() {}
+
+        /// <remarks />
+        public PubSubKeyPushTargetDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PubSubKeyPushTargetDataTypeCollection(IEnumerable<PubSubKeyPushTargetDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PubSubKeyPushTargetDataTypeCollection(PubSubKeyPushTargetDataType[] values)
+        {
+            if (values != null)
+            {
+                return new PubSubKeyPushTargetDataTypeCollection(values);
+            }
+
+            return new PubSubKeyPushTargetDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PubSubKeyPushTargetDataType[](PubSubKeyPushTargetDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PubSubKeyPushTargetDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PubSubKeyPushTargetDataTypeCollection clone = new PubSubKeyPushTargetDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PubSubKeyPushTargetDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PubSubConfiguration2DataType Class
+    #if (!OPCUA_EXCLUDE_PubSubConfiguration2DataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class PubSubConfiguration2DataType : PubSubConfigurationDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public PubSubConfiguration2DataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_subscribedDataSets = new StandaloneSubscribedDataSetDataTypeCollection();
+            m_dataSetClasses = new DataSetMetaDataTypeCollection();
+            m_defaultSecurityKeyServices = new EndpointDescriptionCollection();
+            m_securityGroups = new SecurityGroupDataTypeCollection();
+            m_pubSubKeyPushTargets = new PubSubKeyPushTargetDataTypeCollection();
+            m_configurationVersion = (uint)0;
+            m_configurationProperties = new KeyValuePairCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "SubscribedDataSets", IsRequired = false, Order = 1)]
+        public StandaloneSubscribedDataSetDataTypeCollection SubscribedDataSets
+        {
+            get
+            {
+                return m_subscribedDataSets;
+            }
+
+            set
+            {
+                m_subscribedDataSets = value;
+
+                if (value == null)
+                {
+                    m_subscribedDataSets = new StandaloneSubscribedDataSetDataTypeCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetClasses", IsRequired = false, Order = 2)]
+        public DataSetMetaDataTypeCollection DataSetClasses
+        {
+            get
+            {
+                return m_dataSetClasses;
+            }
+
+            set
+            {
+                m_dataSetClasses = value;
+
+                if (value == null)
+                {
+                    m_dataSetClasses = new DataSetMetaDataTypeCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DefaultSecurityKeyServices", IsRequired = false, Order = 3)]
+        public EndpointDescriptionCollection DefaultSecurityKeyServices
+        {
+            get
+            {
+                return m_defaultSecurityKeyServices;
+            }
+
+            set
+            {
+                m_defaultSecurityKeyServices = value;
+
+                if (value == null)
+                {
+                    m_defaultSecurityKeyServices = new EndpointDescriptionCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "SecurityGroups", IsRequired = false, Order = 4)]
+        public SecurityGroupDataTypeCollection SecurityGroups
+        {
+            get
+            {
+                return m_securityGroups;
+            }
+
+            set
+            {
+                m_securityGroups = value;
+
+                if (value == null)
+                {
+                    m_securityGroups = new SecurityGroupDataTypeCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PubSubKeyPushTargets", IsRequired = false, Order = 5)]
+        public PubSubKeyPushTargetDataTypeCollection PubSubKeyPushTargets
+        {
+            get
+            {
+                return m_pubSubKeyPushTargets;
+            }
+
+            set
+            {
+                m_pubSubKeyPushTargets = value;
+
+                if (value == null)
+                {
+                    m_pubSubKeyPushTargets = new PubSubKeyPushTargetDataTypeCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ConfigurationVersion", IsRequired = false, Order = 6)]
+        public uint ConfigurationVersion
+        {
+            get { return m_configurationVersion;  }
+            set { m_configurationVersion = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ConfigurationProperties", IsRequired = false, Order = 7)]
+        public KeyValuePairCollection ConfigurationProperties
+        {
+            get
+            {
+                return m_configurationProperties;
+            }
+
+            set
+            {
+                m_configurationProperties = value;
+
+                if (value == null)
+                {
+                    m_configurationProperties = new KeyValuePairCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.PubSubConfiguration2DataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConfiguration2DataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfiguration2DataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.PubSubConfiguration2DataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteEncodeableArray("SubscribedDataSets", SubscribedDataSets.ToArray(), typeof(StandaloneSubscribedDataSetDataType));
+            encoder.WriteEncodeableArray("DataSetClasses", DataSetClasses.ToArray(), typeof(DataSetMetaDataType));
+            encoder.WriteEncodeableArray("DefaultSecurityKeyServices", DefaultSecurityKeyServices.ToArray(), typeof(EndpointDescription));
+            encoder.WriteEncodeableArray("SecurityGroups", SecurityGroups.ToArray(), typeof(SecurityGroupDataType));
+            encoder.WriteEncodeableArray("PubSubKeyPushTargets", PubSubKeyPushTargets.ToArray(), typeof(PubSubKeyPushTargetDataType));
+            encoder.WriteUInt32("ConfigurationVersion", ConfigurationVersion);
+            encoder.WriteEncodeableArray("ConfigurationProperties", ConfigurationProperties.ToArray(), typeof(KeyValuePair));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            SubscribedDataSets = (StandaloneSubscribedDataSetDataTypeCollection)decoder.ReadEncodeableArray("SubscribedDataSets", typeof(StandaloneSubscribedDataSetDataType));
+            DataSetClasses = (DataSetMetaDataTypeCollection)decoder.ReadEncodeableArray("DataSetClasses", typeof(DataSetMetaDataType));
+            DefaultSecurityKeyServices = (EndpointDescriptionCollection)decoder.ReadEncodeableArray("DefaultSecurityKeyServices", typeof(EndpointDescription));
+            SecurityGroups = (SecurityGroupDataTypeCollection)decoder.ReadEncodeableArray("SecurityGroups", typeof(SecurityGroupDataType));
+            PubSubKeyPushTargets = (PubSubKeyPushTargetDataTypeCollection)decoder.ReadEncodeableArray("PubSubKeyPushTargets", typeof(PubSubKeyPushTargetDataType));
+            ConfigurationVersion = decoder.ReadUInt32("ConfigurationVersion");
+            ConfigurationProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("ConfigurationProperties", typeof(KeyValuePair));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            PubSubConfiguration2DataType value = encodeable as PubSubConfiguration2DataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_subscribedDataSets, value.m_subscribedDataSets)) return false;
+            if (!Utils.IsEqual(m_dataSetClasses, value.m_dataSetClasses)) return false;
+            if (!Utils.IsEqual(m_defaultSecurityKeyServices, value.m_defaultSecurityKeyServices)) return false;
+            if (!Utils.IsEqual(m_securityGroups, value.m_securityGroups)) return false;
+            if (!Utils.IsEqual(m_pubSubKeyPushTargets, value.m_pubSubKeyPushTargets)) return false;
+            if (!Utils.IsEqual(m_configurationVersion, value.m_configurationVersion)) return false;
+            if (!Utils.IsEqual(m_configurationProperties, value.m_configurationProperties)) return false;
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (PubSubConfiguration2DataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PubSubConfiguration2DataType clone = (PubSubConfiguration2DataType)base.MemberwiseClone();
+
+            clone.m_subscribedDataSets = (StandaloneSubscribedDataSetDataTypeCollection)Utils.Clone(this.m_subscribedDataSets);
+            clone.m_dataSetClasses = (DataSetMetaDataTypeCollection)Utils.Clone(this.m_dataSetClasses);
+            clone.m_defaultSecurityKeyServices = (EndpointDescriptionCollection)Utils.Clone(this.m_defaultSecurityKeyServices);
+            clone.m_securityGroups = (SecurityGroupDataTypeCollection)Utils.Clone(this.m_securityGroups);
+            clone.m_pubSubKeyPushTargets = (PubSubKeyPushTargetDataTypeCollection)Utils.Clone(this.m_pubSubKeyPushTargets);
+            clone.m_configurationVersion = (uint)Utils.Clone(this.m_configurationVersion);
+            clone.m_configurationProperties = (KeyValuePairCollection)Utils.Clone(this.m_configurationProperties);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private StandaloneSubscribedDataSetDataTypeCollection m_subscribedDataSets;
+        private DataSetMetaDataTypeCollection m_dataSetClasses;
+        private EndpointDescriptionCollection m_defaultSecurityKeyServices;
+        private SecurityGroupDataTypeCollection m_securityGroups;
+        private PubSubKeyPushTargetDataTypeCollection m_pubSubKeyPushTargets;
+        private uint m_configurationVersion;
+        private KeyValuePairCollection m_configurationProperties;
+        #endregion
+    }
+
+    #region PubSubConfiguration2DataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPubSubConfiguration2DataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfiguration2DataType")]
+    #if !NET_STANDARD
+    public partial class PubSubConfiguration2DataTypeCollection : List<PubSubConfiguration2DataType>, ICloneable
+    #else
+    public partial class PubSubConfiguration2DataTypeCollection : List<PubSubConfiguration2DataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public PubSubConfiguration2DataTypeCollection() {}
+
+        /// <remarks />
+        public PubSubConfiguration2DataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PubSubConfiguration2DataTypeCollection(IEnumerable<PubSubConfiguration2DataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PubSubConfiguration2DataTypeCollection(PubSubConfiguration2DataType[] values)
+        {
+            if (values != null)
+            {
+                return new PubSubConfiguration2DataTypeCollection(values);
+            }
+
+            return new PubSubConfiguration2DataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PubSubConfiguration2DataType[](PubSubConfiguration2DataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PubSubConfiguration2DataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PubSubConfiguration2DataTypeCollection clone = new PubSubConfiguration2DataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PubSubConfiguration2DataType)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -13584,28 +15571,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UadpWriterGroupMessageDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.UadpWriterGroupMessageDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -13945,28 +15920,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UadpDataSetWriterMessageDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.UadpDataSetWriterMessageDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -14236,28 +16199,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UadpDataSetReaderMessageDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.UadpDataSetReaderMessageDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -14590,28 +16541,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.JsonWriterGroupMessageDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.JsonWriterGroupMessageDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -14790,6 +16729,14 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "MessageType_32")]
         MessageType = 32,
+
+        /// <remarks />
+        [EnumMember(Value = "DataSetWriterName_64")]
+        DataSetWriterName = 64,
+
+        /// <remarks />
+        [EnumMember(Value = "ReversibleFieldEncoding_128")]
+        ReversibleFieldEncoding = 128,
     }
 
     #region JsonDataSetMessageContentMaskCollection Class
@@ -14904,28 +16851,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.JsonDataSetWriterMessageDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.JsonDataSetWriterMessageDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -15117,28 +17052,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.JsonDataSetReaderMessageDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.JsonDataSetReaderMessageDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -15287,6 +17210,920 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region QosDataType Class
+    #if (!OPCUA_EXCLUDE_QosDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class QosDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public QosDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.QosDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QosDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QosDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QosDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            QosDataType value = encodeable as QosDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (QosDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            QosDataType clone = (QosDataType)base.MemberwiseClone();
+
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    #region QosDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfQosDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QosDataType")]
+    #if !NET_STANDARD
+    public partial class QosDataTypeCollection : List<QosDataType>, ICloneable
+    #else
+    public partial class QosDataTypeCollection : List<QosDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public QosDataTypeCollection() {}
+
+        /// <remarks />
+        public QosDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public QosDataTypeCollection(IEnumerable<QosDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator QosDataTypeCollection(QosDataType[] values)
+        {
+            if (values != null)
+            {
+                return new QosDataTypeCollection(values);
+            }
+
+            return new QosDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator QosDataType[](QosDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (QosDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            QosDataTypeCollection clone = new QosDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((QosDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TransmitQosDataType Class
+    #if (!OPCUA_EXCLUDE_TransmitQosDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TransmitQosDataType : QosDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public TransmitQosDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.TransmitQosDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.TransmitQosDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.TransmitQosDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.TransmitQosDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TransmitQosDataType value = encodeable as TransmitQosDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (TransmitQosDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransmitQosDataType clone = (TransmitQosDataType)base.MemberwiseClone();
+
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    #region TransmitQosDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTransmitQosDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransmitQosDataType")]
+    #if !NET_STANDARD
+    public partial class TransmitQosDataTypeCollection : List<TransmitQosDataType>, ICloneable
+    #else
+    public partial class TransmitQosDataTypeCollection : List<TransmitQosDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public TransmitQosDataTypeCollection() {}
+
+        /// <remarks />
+        public TransmitQosDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public TransmitQosDataTypeCollection(IEnumerable<TransmitQosDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator TransmitQosDataTypeCollection(TransmitQosDataType[] values)
+        {
+            if (values != null)
+            {
+                return new TransmitQosDataTypeCollection(values);
+            }
+
+            return new TransmitQosDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator TransmitQosDataType[](TransmitQosDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (TransmitQosDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransmitQosDataTypeCollection clone = new TransmitQosDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TransmitQosDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TransmitQosPriorityDataType Class
+    #if (!OPCUA_EXCLUDE_TransmitQosPriorityDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TransmitQosPriorityDataType : TransmitQosDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public TransmitQosPriorityDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_priorityLabel = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "PriorityLabel", IsRequired = false, Order = 1)]
+        public string PriorityLabel
+        {
+            get { return m_priorityLabel;  }
+            set { m_priorityLabel = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.TransmitQosPriorityDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.TransmitQosPriorityDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.TransmitQosPriorityDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.TransmitQosPriorityDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("PriorityLabel", PriorityLabel);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            PriorityLabel = decoder.ReadString("PriorityLabel");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TransmitQosPriorityDataType value = encodeable as TransmitQosPriorityDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_priorityLabel, value.m_priorityLabel)) return false;
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (TransmitQosPriorityDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransmitQosPriorityDataType clone = (TransmitQosPriorityDataType)base.MemberwiseClone();
+
+            clone.m_priorityLabel = (string)Utils.Clone(this.m_priorityLabel);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_priorityLabel;
+        #endregion
+    }
+
+    #region TransmitQosPriorityDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTransmitQosPriorityDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransmitQosPriorityDataType")]
+    #if !NET_STANDARD
+    public partial class TransmitQosPriorityDataTypeCollection : List<TransmitQosPriorityDataType>, ICloneable
+    #else
+    public partial class TransmitQosPriorityDataTypeCollection : List<TransmitQosPriorityDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public TransmitQosPriorityDataTypeCollection() {}
+
+        /// <remarks />
+        public TransmitQosPriorityDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public TransmitQosPriorityDataTypeCollection(IEnumerable<TransmitQosPriorityDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator TransmitQosPriorityDataTypeCollection(TransmitQosPriorityDataType[] values)
+        {
+            if (values != null)
+            {
+                return new TransmitQosPriorityDataTypeCollection(values);
+            }
+
+            return new TransmitQosPriorityDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator TransmitQosPriorityDataType[](TransmitQosPriorityDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (TransmitQosPriorityDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TransmitQosPriorityDataTypeCollection clone = new TransmitQosPriorityDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TransmitQosPriorityDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ReceiveQosDataType Class
+    #if (!OPCUA_EXCLUDE_ReceiveQosDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ReceiveQosDataType : QosDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public ReceiveQosDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.ReceiveQosDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReceiveQosDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReceiveQosDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ReceiveQosDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ReceiveQosDataType value = encodeable as ReceiveQosDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (ReceiveQosDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReceiveQosDataType clone = (ReceiveQosDataType)base.MemberwiseClone();
+
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    #region ReceiveQosDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfReceiveQosDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReceiveQosDataType")]
+    #if !NET_STANDARD
+    public partial class ReceiveQosDataTypeCollection : List<ReceiveQosDataType>, ICloneable
+    #else
+    public partial class ReceiveQosDataTypeCollection : List<ReceiveQosDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public ReceiveQosDataTypeCollection() {}
+
+        /// <remarks />
+        public ReceiveQosDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ReceiveQosDataTypeCollection(IEnumerable<ReceiveQosDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ReceiveQosDataTypeCollection(ReceiveQosDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ReceiveQosDataTypeCollection(values);
+            }
+
+            return new ReceiveQosDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ReceiveQosDataType[](ReceiveQosDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ReceiveQosDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReceiveQosDataTypeCollection clone = new ReceiveQosDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ReceiveQosDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ReceiveQosPriorityDataType Class
+    #if (!OPCUA_EXCLUDE_ReceiveQosPriorityDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ReceiveQosPriorityDataType : ReceiveQosDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public ReceiveQosPriorityDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_priorityLabel = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "PriorityLabel", IsRequired = false, Order = 1)]
+        public string PriorityLabel
+        {
+            get { return m_priorityLabel;  }
+            set { m_priorityLabel = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.ReceiveQosPriorityDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReceiveQosPriorityDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReceiveQosPriorityDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ReceiveQosPriorityDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("PriorityLabel", PriorityLabel);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            PriorityLabel = decoder.ReadString("PriorityLabel");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ReceiveQosPriorityDataType value = encodeable as ReceiveQosPriorityDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_priorityLabel, value.m_priorityLabel)) return false;
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (ReceiveQosPriorityDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReceiveQosPriorityDataType clone = (ReceiveQosPriorityDataType)base.MemberwiseClone();
+
+            clone.m_priorityLabel = (string)Utils.Clone(this.m_priorityLabel);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_priorityLabel;
+        #endregion
+    }
+
+    #region ReceiveQosPriorityDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfReceiveQosPriorityDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReceiveQosPriorityDataType")]
+    #if !NET_STANDARD
+    public partial class ReceiveQosPriorityDataTypeCollection : List<ReceiveQosPriorityDataType>, ICloneable
+    #else
+    public partial class ReceiveQosPriorityDataTypeCollection : List<ReceiveQosPriorityDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public ReceiveQosPriorityDataTypeCollection() {}
+
+        /// <remarks />
+        public ReceiveQosPriorityDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ReceiveQosPriorityDataTypeCollection(IEnumerable<ReceiveQosPriorityDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ReceiveQosPriorityDataTypeCollection(ReceiveQosPriorityDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ReceiveQosPriorityDataTypeCollection(values);
+            }
+
+            return new ReceiveQosPriorityDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ReceiveQosPriorityDataType[](ReceiveQosPriorityDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ReceiveQosPriorityDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReceiveQosPriorityDataTypeCollection clone = new ReceiveQosPriorityDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ReceiveQosPriorityDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region DatagramConnectionTransportDataType Class
     #if (!OPCUA_EXCLUDE_DatagramConnectionTransportDataType)
     /// <remarks />
@@ -15326,28 +18163,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DatagramConnectionTransportDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.DatagramConnectionTransportDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -15491,6 +18316,240 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region DatagramConnectionTransport2DataType Class
+    #if (!OPCUA_EXCLUDE_DatagramConnectionTransport2DataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class DatagramConnectionTransport2DataType : DatagramConnectionTransportDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public DatagramConnectionTransport2DataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_discoveryAnnounceRate = (uint)0;
+            m_discoveryMaxMessageSize = (uint)0;
+            m_qosCategory = null;
+            m_datagramQos = new ExtensionObjectCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "DiscoveryAnnounceRate", IsRequired = false, Order = 1)]
+        public uint DiscoveryAnnounceRate
+        {
+            get { return m_discoveryAnnounceRate;  }
+            set { m_discoveryAnnounceRate = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DiscoveryMaxMessageSize", IsRequired = false, Order = 2)]
+        public uint DiscoveryMaxMessageSize
+        {
+            get { return m_discoveryMaxMessageSize;  }
+            set { m_discoveryMaxMessageSize = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "QosCategory", IsRequired = false, Order = 3)]
+        public string QosCategory
+        {
+            get { return m_qosCategory;  }
+            set { m_qosCategory = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DatagramQos", IsRequired = false, Order = 4)]
+        public ExtensionObjectCollection DatagramQos
+        {
+            get { return m_datagramQos;  }
+            set { m_datagramQos = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.DatagramConnectionTransport2DataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt32("DiscoveryAnnounceRate", DiscoveryAnnounceRate);
+            encoder.WriteUInt32("DiscoveryMaxMessageSize", DiscoveryMaxMessageSize);
+            encoder.WriteString("QosCategory", QosCategory);
+            encoder.WriteExtensionObjectArray("DatagramQos", DatagramQos);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            DiscoveryAnnounceRate = decoder.ReadUInt32("DiscoveryAnnounceRate");
+            DiscoveryMaxMessageSize = decoder.ReadUInt32("DiscoveryMaxMessageSize");
+            QosCategory = decoder.ReadString("QosCategory");
+            DatagramQos = decoder.ReadExtensionObjectArray("DatagramQos");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            DatagramConnectionTransport2DataType value = encodeable as DatagramConnectionTransport2DataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_discoveryAnnounceRate, value.m_discoveryAnnounceRate)) return false;
+            if (!Utils.IsEqual(m_discoveryMaxMessageSize, value.m_discoveryMaxMessageSize)) return false;
+            if (!Utils.IsEqual(m_qosCategory, value.m_qosCategory)) return false;
+            if (!Utils.IsEqual(m_datagramQos, value.m_datagramQos)) return false;
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (DatagramConnectionTransport2DataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DatagramConnectionTransport2DataType clone = (DatagramConnectionTransport2DataType)base.MemberwiseClone();
+
+            clone.m_discoveryAnnounceRate = (uint)Utils.Clone(this.m_discoveryAnnounceRate);
+            clone.m_discoveryMaxMessageSize = (uint)Utils.Clone(this.m_discoveryMaxMessageSize);
+            clone.m_qosCategory = (string)Utils.Clone(this.m_qosCategory);
+            clone.m_datagramQos = (ExtensionObjectCollection)Utils.Clone(this.m_datagramQos);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_discoveryAnnounceRate;
+        private uint m_discoveryMaxMessageSize;
+        private string m_qosCategory;
+        private ExtensionObjectCollection m_datagramQos;
+        #endregion
+    }
+
+    #region DatagramConnectionTransport2DataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfDatagramConnectionTransport2DataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramConnectionTransport2DataType")]
+    #if !NET_STANDARD
+    public partial class DatagramConnectionTransport2DataTypeCollection : List<DatagramConnectionTransport2DataType>, ICloneable
+    #else
+    public partial class DatagramConnectionTransport2DataTypeCollection : List<DatagramConnectionTransport2DataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public DatagramConnectionTransport2DataTypeCollection() {}
+
+        /// <remarks />
+        public DatagramConnectionTransport2DataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public DatagramConnectionTransport2DataTypeCollection(IEnumerable<DatagramConnectionTransport2DataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator DatagramConnectionTransport2DataTypeCollection(DatagramConnectionTransport2DataType[] values)
+        {
+            if (values != null)
+            {
+                return new DatagramConnectionTransport2DataTypeCollection(values);
+            }
+
+            return new DatagramConnectionTransport2DataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator DatagramConnectionTransport2DataType[](DatagramConnectionTransport2DataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (DatagramConnectionTransport2DataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DatagramConnectionTransport2DataTypeCollection clone = new DatagramConnectionTransport2DataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((DatagramConnectionTransport2DataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region DatagramWriterGroupTransportDataType Class
     #if (!OPCUA_EXCLUDE_DatagramWriterGroupTransportDataType)
     /// <remarks />
@@ -15539,28 +18598,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DatagramWriterGroupTransportDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.DatagramWriterGroupTransportDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -15709,6 +18756,488 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region DatagramWriterGroupTransport2DataType Class
+    #if (!OPCUA_EXCLUDE_DatagramWriterGroupTransport2DataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class DatagramWriterGroupTransport2DataType : DatagramWriterGroupTransportDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public DatagramWriterGroupTransport2DataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_address = null;
+            m_qosCategory = null;
+            m_datagramQos = new ExtensionObjectCollection();
+            m_discoveryAnnounceRate = (uint)0;
+            m_topic = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "Address", IsRequired = false, Order = 1)]
+        public ExtensionObject Address
+        {
+            get { return m_address;  }
+            set { m_address = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "QosCategory", IsRequired = false, Order = 2)]
+        public string QosCategory
+        {
+            get { return m_qosCategory;  }
+            set { m_qosCategory = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DatagramQos", IsRequired = false, Order = 3)]
+        public ExtensionObjectCollection DatagramQos
+        {
+            get { return m_datagramQos;  }
+            set { m_datagramQos = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DiscoveryAnnounceRate", IsRequired = false, Order = 4)]
+        public uint DiscoveryAnnounceRate
+        {
+            get { return m_discoveryAnnounceRate;  }
+            set { m_discoveryAnnounceRate = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Topic", IsRequired = false, Order = 5)]
+        public string Topic
+        {
+            get { return m_topic;  }
+            set { m_topic = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.DatagramWriterGroupTransport2DataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteExtensionObject("Address", Address);
+            encoder.WriteString("QosCategory", QosCategory);
+            encoder.WriteExtensionObjectArray("DatagramQos", DatagramQos);
+            encoder.WriteUInt32("DiscoveryAnnounceRate", DiscoveryAnnounceRate);
+            encoder.WriteString("Topic", Topic);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            Address = decoder.ReadExtensionObject("Address");
+            QosCategory = decoder.ReadString("QosCategory");
+            DatagramQos = decoder.ReadExtensionObjectArray("DatagramQos");
+            DiscoveryAnnounceRate = decoder.ReadUInt32("DiscoveryAnnounceRate");
+            Topic = decoder.ReadString("Topic");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            DatagramWriterGroupTransport2DataType value = encodeable as DatagramWriterGroupTransport2DataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_address, value.m_address)) return false;
+            if (!Utils.IsEqual(m_qosCategory, value.m_qosCategory)) return false;
+            if (!Utils.IsEqual(m_datagramQos, value.m_datagramQos)) return false;
+            if (!Utils.IsEqual(m_discoveryAnnounceRate, value.m_discoveryAnnounceRate)) return false;
+            if (!Utils.IsEqual(m_topic, value.m_topic)) return false;
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (DatagramWriterGroupTransport2DataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DatagramWriterGroupTransport2DataType clone = (DatagramWriterGroupTransport2DataType)base.MemberwiseClone();
+
+            clone.m_address = (ExtensionObject)Utils.Clone(this.m_address);
+            clone.m_qosCategory = (string)Utils.Clone(this.m_qosCategory);
+            clone.m_datagramQos = (ExtensionObjectCollection)Utils.Clone(this.m_datagramQos);
+            clone.m_discoveryAnnounceRate = (uint)Utils.Clone(this.m_discoveryAnnounceRate);
+            clone.m_topic = (string)Utils.Clone(this.m_topic);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private ExtensionObject m_address;
+        private string m_qosCategory;
+        private ExtensionObjectCollection m_datagramQos;
+        private uint m_discoveryAnnounceRate;
+        private string m_topic;
+        #endregion
+    }
+
+    #region DatagramWriterGroupTransport2DataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfDatagramWriterGroupTransport2DataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramWriterGroupTransport2DataType")]
+    #if !NET_STANDARD
+    public partial class DatagramWriterGroupTransport2DataTypeCollection : List<DatagramWriterGroupTransport2DataType>, ICloneable
+    #else
+    public partial class DatagramWriterGroupTransport2DataTypeCollection : List<DatagramWriterGroupTransport2DataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public DatagramWriterGroupTransport2DataTypeCollection() {}
+
+        /// <remarks />
+        public DatagramWriterGroupTransport2DataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public DatagramWriterGroupTransport2DataTypeCollection(IEnumerable<DatagramWriterGroupTransport2DataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator DatagramWriterGroupTransport2DataTypeCollection(DatagramWriterGroupTransport2DataType[] values)
+        {
+            if (values != null)
+            {
+                return new DatagramWriterGroupTransport2DataTypeCollection(values);
+            }
+
+            return new DatagramWriterGroupTransport2DataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator DatagramWriterGroupTransport2DataType[](DatagramWriterGroupTransport2DataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (DatagramWriterGroupTransport2DataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DatagramWriterGroupTransport2DataTypeCollection clone = new DatagramWriterGroupTransport2DataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((DatagramWriterGroupTransport2DataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region DatagramDataSetReaderTransportDataType Class
+    #if (!OPCUA_EXCLUDE_DatagramDataSetReaderTransportDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class DatagramDataSetReaderTransportDataType : DataSetReaderTransportDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public DatagramDataSetReaderTransportDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_address = null;
+            m_qosCategory = null;
+            m_datagramQos = new ExtensionObjectCollection();
+            m_topic = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "Address", IsRequired = false, Order = 1)]
+        public ExtensionObject Address
+        {
+            get { return m_address;  }
+            set { m_address = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "QosCategory", IsRequired = false, Order = 2)]
+        public string QosCategory
+        {
+            get { return m_qosCategory;  }
+            set { m_qosCategory = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DatagramQos", IsRequired = false, Order = 3)]
+        public ExtensionObjectCollection DatagramQos
+        {
+            get { return m_datagramQos;  }
+            set { m_datagramQos = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Topic", IsRequired = false, Order = 4)]
+        public string Topic
+        {
+            get { return m_topic;  }
+            set { m_topic = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.DatagramDataSetReaderTransportDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteExtensionObject("Address", Address);
+            encoder.WriteString("QosCategory", QosCategory);
+            encoder.WriteExtensionObjectArray("DatagramQos", DatagramQos);
+            encoder.WriteString("Topic", Topic);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            Address = decoder.ReadExtensionObject("Address");
+            QosCategory = decoder.ReadString("QosCategory");
+            DatagramQos = decoder.ReadExtensionObjectArray("DatagramQos");
+            Topic = decoder.ReadString("Topic");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            DatagramDataSetReaderTransportDataType value = encodeable as DatagramDataSetReaderTransportDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_address, value.m_address)) return false;
+            if (!Utils.IsEqual(m_qosCategory, value.m_qosCategory)) return false;
+            if (!Utils.IsEqual(m_datagramQos, value.m_datagramQos)) return false;
+            if (!Utils.IsEqual(m_topic, value.m_topic)) return false;
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (DatagramDataSetReaderTransportDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DatagramDataSetReaderTransportDataType clone = (DatagramDataSetReaderTransportDataType)base.MemberwiseClone();
+
+            clone.m_address = (ExtensionObject)Utils.Clone(this.m_address);
+            clone.m_qosCategory = (string)Utils.Clone(this.m_qosCategory);
+            clone.m_datagramQos = (ExtensionObjectCollection)Utils.Clone(this.m_datagramQos);
+            clone.m_topic = (string)Utils.Clone(this.m_topic);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private ExtensionObject m_address;
+        private string m_qosCategory;
+        private ExtensionObjectCollection m_datagramQos;
+        private string m_topic;
+        #endregion
+    }
+
+    #region DatagramDataSetReaderTransportDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfDatagramDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramDataSetReaderTransportDataType")]
+    #if !NET_STANDARD
+    public partial class DatagramDataSetReaderTransportDataTypeCollection : List<DatagramDataSetReaderTransportDataType>, ICloneable
+    #else
+    public partial class DatagramDataSetReaderTransportDataTypeCollection : List<DatagramDataSetReaderTransportDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public DatagramDataSetReaderTransportDataTypeCollection() {}
+
+        /// <remarks />
+        public DatagramDataSetReaderTransportDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public DatagramDataSetReaderTransportDataTypeCollection(IEnumerable<DatagramDataSetReaderTransportDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator DatagramDataSetReaderTransportDataTypeCollection(DatagramDataSetReaderTransportDataType[] values)
+        {
+            if (values != null)
+            {
+                return new DatagramDataSetReaderTransportDataTypeCollection(values);
+            }
+
+            return new DatagramDataSetReaderTransportDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator DatagramDataSetReaderTransportDataType[](DatagramDataSetReaderTransportDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (DatagramDataSetReaderTransportDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DatagramDataSetReaderTransportDataTypeCollection clone = new DatagramDataSetReaderTransportDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((DatagramDataSetReaderTransportDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region BrokerConnectionTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerConnectionTransportDataType)
     /// <remarks />
@@ -15757,28 +19286,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrokerConnectionTransportDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.BrokerConnectionTransportDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -16095,28 +19612,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrokerWriterGroupTransportDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.BrokerWriterGroupTransportDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -16359,28 +19864,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrokerDataSetWriterTransportDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.BrokerDataSetWriterTransportDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -16624,28 +20117,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrokerDataSetReaderTransportDataType; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.BrokerDataSetReaderTransportDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -16800,6 +20281,600 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((BrokerDataSetReaderTransportDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PubSubConfigurationRefMask Enumeration
+    #if (!OPCUA_EXCLUDE_PubSubConfigurationRefMask)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
+    public enum PubSubConfigurationRefMask : UInt32
+    {
+        /// <remarks />
+        [EnumMember(Value = "None_0")]
+        None = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "ElementAdd_1")]
+        ElementAdd = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "ElementMatch_2")]
+        ElementMatch = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "ElementModify_4")]
+        ElementModify = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "ElementRemove_8")]
+        ElementRemove = 8,
+
+        /// <remarks />
+        [EnumMember(Value = "ReferenceWriter_16")]
+        ReferenceWriter = 16,
+
+        /// <remarks />
+        [EnumMember(Value = "ReferenceReader_32")]
+        ReferenceReader = 32,
+
+        /// <remarks />
+        [EnumMember(Value = "ReferenceWriterGroup_64")]
+        ReferenceWriterGroup = 64,
+
+        /// <remarks />
+        [EnumMember(Value = "ReferenceReaderGroup_128")]
+        ReferenceReaderGroup = 128,
+
+        /// <remarks />
+        [EnumMember(Value = "ReferenceConnection_256")]
+        ReferenceConnection = 256,
+
+        /// <remarks />
+        [EnumMember(Value = "ReferencePubDataset_512")]
+        ReferencePubDataset = 512,
+
+        /// <remarks />
+        [EnumMember(Value = "ReferenceSubDataset_1024")]
+        ReferenceSubDataset = 1024,
+
+        /// <remarks />
+        [EnumMember(Value = "ReferenceSecurityGroup_2048")]
+        ReferenceSecurityGroup = 2048,
+
+        /// <remarks />
+        [EnumMember(Value = "ReferencePushTarget_4096")]
+        ReferencePushTarget = 4096,
+    }
+
+    #region PubSubConfigurationRefMaskCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPubSubConfigurationRefMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationRefMask")]
+    #if !NET_STANDARD
+    public partial class PubSubConfigurationRefMaskCollection : List<PubSubConfigurationRefMask>, ICloneable
+    #else
+    public partial class PubSubConfigurationRefMaskCollection : List<PubSubConfigurationRefMask>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public PubSubConfigurationRefMaskCollection() {}
+
+        /// <remarks />
+        public PubSubConfigurationRefMaskCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PubSubConfigurationRefMaskCollection(IEnumerable<PubSubConfigurationRefMask> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PubSubConfigurationRefMaskCollection(PubSubConfigurationRefMask[] values)
+        {
+            if (values != null)
+            {
+                return new PubSubConfigurationRefMaskCollection(values);
+            }
+
+            return new PubSubConfigurationRefMaskCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PubSubConfigurationRefMask[](PubSubConfigurationRefMaskCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PubSubConfigurationRefMaskCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PubSubConfigurationRefMaskCollection clone = new PubSubConfigurationRefMaskCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PubSubConfigurationRefMask)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PubSubConfigurationRefDataType Class
+    #if (!OPCUA_EXCLUDE_PubSubConfigurationRefDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class PubSubConfigurationRefDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public PubSubConfigurationRefDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_configurationMask = 0;
+            m_elementIndex = (ushort)0;
+            m_connectionIndex = (ushort)0;
+            m_groupIndex = (ushort)0;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ConfigurationMask", IsRequired = false, Order = 1)]
+        public uint ConfigurationMask
+        {
+            get { return m_configurationMask;  }
+            set { m_configurationMask = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ElementIndex", IsRequired = false, Order = 2)]
+        public ushort ElementIndex
+        {
+            get { return m_elementIndex;  }
+            set { m_elementIndex = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ConnectionIndex", IsRequired = false, Order = 3)]
+        public ushort ConnectionIndex
+        {
+            get { return m_connectionIndex;  }
+            set { m_connectionIndex = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "GroupIndex", IsRequired = false, Order = 4)]
+        public ushort GroupIndex
+        {
+            get { return m_groupIndex;  }
+            set { m_groupIndex = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubConfigurationRefDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConfigurationRefDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfigurationRefDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PubSubConfigurationRefDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt32("ConfigurationMask", ConfigurationMask);
+            encoder.WriteUInt16("ElementIndex", ElementIndex);
+            encoder.WriteUInt16("ConnectionIndex", ConnectionIndex);
+            encoder.WriteUInt16("GroupIndex", GroupIndex);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ConfigurationMask = decoder.ReadUInt32("ConfigurationMask");
+            ElementIndex = decoder.ReadUInt16("ElementIndex");
+            ConnectionIndex = decoder.ReadUInt16("ConnectionIndex");
+            GroupIndex = decoder.ReadUInt16("GroupIndex");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            PubSubConfigurationRefDataType value = encodeable as PubSubConfigurationRefDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_configurationMask, value.m_configurationMask)) return false;
+            if (!Utils.IsEqual(m_elementIndex, value.m_elementIndex)) return false;
+            if (!Utils.IsEqual(m_connectionIndex, value.m_connectionIndex)) return false;
+            if (!Utils.IsEqual(m_groupIndex, value.m_groupIndex)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (PubSubConfigurationRefDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PubSubConfigurationRefDataType clone = (PubSubConfigurationRefDataType)base.MemberwiseClone();
+
+            clone.m_configurationMask = (uint)Utils.Clone(this.m_configurationMask);
+            clone.m_elementIndex = (ushort)Utils.Clone(this.m_elementIndex);
+            clone.m_connectionIndex = (ushort)Utils.Clone(this.m_connectionIndex);
+            clone.m_groupIndex = (ushort)Utils.Clone(this.m_groupIndex);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_configurationMask;
+        private ushort m_elementIndex;
+        private ushort m_connectionIndex;
+        private ushort m_groupIndex;
+        #endregion
+    }
+
+    #region PubSubConfigurationRefDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPubSubConfigurationRefDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationRefDataType")]
+    #if !NET_STANDARD
+    public partial class PubSubConfigurationRefDataTypeCollection : List<PubSubConfigurationRefDataType>, ICloneable
+    #else
+    public partial class PubSubConfigurationRefDataTypeCollection : List<PubSubConfigurationRefDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public PubSubConfigurationRefDataTypeCollection() {}
+
+        /// <remarks />
+        public PubSubConfigurationRefDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PubSubConfigurationRefDataTypeCollection(IEnumerable<PubSubConfigurationRefDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PubSubConfigurationRefDataTypeCollection(PubSubConfigurationRefDataType[] values)
+        {
+            if (values != null)
+            {
+                return new PubSubConfigurationRefDataTypeCollection(values);
+            }
+
+            return new PubSubConfigurationRefDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PubSubConfigurationRefDataType[](PubSubConfigurationRefDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PubSubConfigurationRefDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PubSubConfigurationRefDataTypeCollection clone = new PubSubConfigurationRefDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PubSubConfigurationRefDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PubSubConfigurationValueDataType Class
+    #if (!OPCUA_EXCLUDE_PubSubConfigurationValueDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class PubSubConfigurationValueDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public PubSubConfigurationValueDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_configurationElement = new PubSubConfigurationRefDataType();
+            m_name = null;
+            m_identifier = Variant.Null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ConfigurationElement", IsRequired = false, Order = 1)]
+        public PubSubConfigurationRefDataType ConfigurationElement
+        {
+            get
+            {
+                return m_configurationElement;
+            }
+
+            set
+            {
+                m_configurationElement = value;
+
+                if (value == null)
+                {
+                    m_configurationElement = new PubSubConfigurationRefDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Name", IsRequired = false, Order = 2)]
+        public string Name
+        {
+            get { return m_name;  }
+            set { m_name = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Identifier", IsRequired = false, Order = 3)]
+        public Variant Identifier
+        {
+            get { return m_identifier;  }
+            set { m_identifier = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubConfigurationValueDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConfigurationValueDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfigurationValueDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PubSubConfigurationValueDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteEncodeable("ConfigurationElement", ConfigurationElement, typeof(PubSubConfigurationRefDataType));
+            encoder.WriteString("Name", Name);
+            encoder.WriteVariant("Identifier", Identifier);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ConfigurationElement = (PubSubConfigurationRefDataType)decoder.ReadEncodeable("ConfigurationElement", typeof(PubSubConfigurationRefDataType));
+            Name = decoder.ReadString("Name");
+            Identifier = decoder.ReadVariant("Identifier");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            PubSubConfigurationValueDataType value = encodeable as PubSubConfigurationValueDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_configurationElement, value.m_configurationElement)) return false;
+            if (!Utils.IsEqual(m_name, value.m_name)) return false;
+            if (!Utils.IsEqual(m_identifier, value.m_identifier)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (PubSubConfigurationValueDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PubSubConfigurationValueDataType clone = (PubSubConfigurationValueDataType)base.MemberwiseClone();
+
+            clone.m_configurationElement = (PubSubConfigurationRefDataType)Utils.Clone(this.m_configurationElement);
+            clone.m_name = (string)Utils.Clone(this.m_name);
+            clone.m_identifier = (Variant)Utils.Clone(this.m_identifier);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private PubSubConfigurationRefDataType m_configurationElement;
+        private string m_name;
+        private Variant m_identifier;
+        #endregion
+    }
+
+    #region PubSubConfigurationValueDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPubSubConfigurationValueDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationValueDataType")]
+    #if !NET_STANDARD
+    public partial class PubSubConfigurationValueDataTypeCollection : List<PubSubConfigurationValueDataType>, ICloneable
+    #else
+    public partial class PubSubConfigurationValueDataTypeCollection : List<PubSubConfigurationValueDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public PubSubConfigurationValueDataTypeCollection() {}
+
+        /// <remarks />
+        public PubSubConfigurationValueDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PubSubConfigurationValueDataTypeCollection(IEnumerable<PubSubConfigurationValueDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PubSubConfigurationValueDataTypeCollection(PubSubConfigurationValueDataType[] values)
+        {
+            if (values != null)
+            {
+                return new PubSubConfigurationValueDataTypeCollection(values);
+            }
+
+            return new PubSubConfigurationValueDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PubSubConfigurationValueDataType[](PubSubConfigurationValueDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PubSubConfigurationValueDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PubSubConfigurationValueDataTypeCollection clone = new PubSubConfigurationValueDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PubSubConfigurationValueDataType)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -17008,7 +21083,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AliasNameDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public AliasNameDataType()
@@ -17061,28 +21136,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AliasNameDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.AliasNameDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AliasNameDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AliasNameDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AliasNameDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AliasNameDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AliasNameDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AliasNameDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -17217,6 +21280,445 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((AliasNameDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PasswordOptionsMask Enumeration
+    #if (!OPCUA_EXCLUDE_PasswordOptionsMask)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
+    public enum PasswordOptionsMask : UInt32
+    {
+        /// <remarks />
+        [EnumMember(Value = "None_0")]
+        None = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "SupportInitialPasswordChange_1")]
+        SupportInitialPasswordChange = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "SupportDisableUser_2")]
+        SupportDisableUser = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "SupportDisableDeleteForUser_4")]
+        SupportDisableDeleteForUser = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "SupportNoChangeForUser_8")]
+        SupportNoChangeForUser = 8,
+
+        /// <remarks />
+        [EnumMember(Value = "SupportDescriptionForUser_16")]
+        SupportDescriptionForUser = 16,
+
+        /// <remarks />
+        [EnumMember(Value = "RequiresUpperCaseCharacters_32")]
+        RequiresUpperCaseCharacters = 32,
+
+        /// <remarks />
+        [EnumMember(Value = "RequiresLowerCaseCharacters_64")]
+        RequiresLowerCaseCharacters = 64,
+
+        /// <remarks />
+        [EnumMember(Value = "RequiresDigitCharacters_128")]
+        RequiresDigitCharacters = 128,
+
+        /// <remarks />
+        [EnumMember(Value = "RequiresSpecialCharacters_256")]
+        RequiresSpecialCharacters = 256,
+    }
+
+    #region PasswordOptionsMaskCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPasswordOptionsMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PasswordOptionsMask")]
+    #if !NET_STANDARD
+    public partial class PasswordOptionsMaskCollection : List<PasswordOptionsMask>, ICloneable
+    #else
+    public partial class PasswordOptionsMaskCollection : List<PasswordOptionsMask>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public PasswordOptionsMaskCollection() {}
+
+        /// <remarks />
+        public PasswordOptionsMaskCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PasswordOptionsMaskCollection(IEnumerable<PasswordOptionsMask> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PasswordOptionsMaskCollection(PasswordOptionsMask[] values)
+        {
+            if (values != null)
+            {
+                return new PasswordOptionsMaskCollection(values);
+            }
+
+            return new PasswordOptionsMaskCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PasswordOptionsMask[](PasswordOptionsMaskCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PasswordOptionsMaskCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PasswordOptionsMaskCollection clone = new PasswordOptionsMaskCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PasswordOptionsMask)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region UserConfigurationMask Enumeration
+    #if (!OPCUA_EXCLUDE_UserConfigurationMask)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
+    public enum UserConfigurationMask : UInt32
+    {
+        /// <remarks />
+        [EnumMember(Value = "None_0")]
+        None = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "NoDelete_1")]
+        NoDelete = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "Disabled_2")]
+        Disabled = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "NoChangeByUser_4")]
+        NoChangeByUser = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "MustChangePassword_8")]
+        MustChangePassword = 8,
+    }
+
+    #region UserConfigurationMaskCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfUserConfigurationMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserConfigurationMask")]
+    #if !NET_STANDARD
+    public partial class UserConfigurationMaskCollection : List<UserConfigurationMask>, ICloneable
+    #else
+    public partial class UserConfigurationMaskCollection : List<UserConfigurationMask>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public UserConfigurationMaskCollection() {}
+
+        /// <remarks />
+        public UserConfigurationMaskCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public UserConfigurationMaskCollection(IEnumerable<UserConfigurationMask> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator UserConfigurationMaskCollection(UserConfigurationMask[] values)
+        {
+            if (values != null)
+            {
+                return new UserConfigurationMaskCollection(values);
+            }
+
+            return new UserConfigurationMaskCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator UserConfigurationMask[](UserConfigurationMaskCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (UserConfigurationMaskCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            UserConfigurationMaskCollection clone = new UserConfigurationMaskCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((UserConfigurationMask)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region UserManagementDataType Class
+    #if (!OPCUA_EXCLUDE_UserManagementDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class UserManagementDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public UserManagementDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_userName = null;
+            m_userConfiguration = 0;
+            m_description = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "UserName", IsRequired = false, Order = 1)]
+        public string UserName
+        {
+            get { return m_userName;  }
+            set { m_userName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "UserConfiguration", IsRequired = false, Order = 2)]
+        public uint UserConfiguration
+        {
+            get { return m_userConfiguration;  }
+            set { m_userConfiguration = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Description", IsRequired = false, Order = 3)]
+        public string Description
+        {
+            get { return m_description;  }
+            set { m_description = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.UserManagementDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UserManagementDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserManagementDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserManagementDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("UserName", UserName);
+            encoder.WriteUInt32("UserConfiguration", UserConfiguration);
+            encoder.WriteString("Description", Description);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            UserName = decoder.ReadString("UserName");
+            UserConfiguration = decoder.ReadUInt32("UserConfiguration");
+            Description = decoder.ReadString("Description");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            UserManagementDataType value = encodeable as UserManagementDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_userName, value.m_userName)) return false;
+            if (!Utils.IsEqual(m_userConfiguration, value.m_userConfiguration)) return false;
+            if (!Utils.IsEqual(m_description, value.m_description)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (UserManagementDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            UserManagementDataType clone = (UserManagementDataType)base.MemberwiseClone();
+
+            clone.m_userName = (string)Utils.Clone(this.m_userName);
+            clone.m_userConfiguration = (uint)Utils.Clone(this.m_userConfiguration);
+            clone.m_description = (string)Utils.Clone(this.m_description);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_userName;
+        private uint m_userConfiguration;
+        private string m_description;
+        #endregion
+    }
+
+    #region UserManagementDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfUserManagementDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserManagementDataType")]
+    #if !NET_STANDARD
+    public partial class UserManagementDataTypeCollection : List<UserManagementDataType>, ICloneable
+    #else
+    public partial class UserManagementDataTypeCollection : List<UserManagementDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public UserManagementDataTypeCollection() {}
+
+        /// <remarks />
+        public UserManagementDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public UserManagementDataTypeCollection(IEnumerable<UserManagementDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator UserManagementDataTypeCollection(UserManagementDataType[] values)
+        {
+            if (values != null)
+            {
+                return new UserManagementDataTypeCollection(values);
+            }
+
+            return new UserManagementDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator UserManagementDataType[](UserManagementDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (UserManagementDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            UserManagementDataTypeCollection clone = new UserManagementDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((UserManagementDataType)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -18106,17 +22608,17 @@ namespace Opc.Ua
     #endif
     #endregion
 
-    #region UnsignedRationalNumber Class
-    #if (!OPCUA_EXCLUDE_UnsignedRationalNumber)
+    #region PriorityMappingEntryType Class
+    #if (!OPCUA_EXCLUDE_PriorityMappingEntryType)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UnsignedRationalNumber : IEncodeable, IJsonEncodeable
-        {
+    public partial class PriorityMappingEntryType : IEncodeable, IJsonEncodeable
+    {
         #region Constructors
         /// <remarks />
-        public UnsignedRationalNumber()
+        public PriorityMappingEntryType()
         {
             Initialize();
         }
@@ -18129,61 +22631,69 @@ namespace Opc.Ua
             
         private void Initialize()
         {
-            m_numerator = (uint)0;
-            m_denominator = (uint)0;
+            m_mappingUri = null;
+            m_priorityLabel = null;
+            m_priorityValue_PCP = (byte)0;
+            m_priorityValue_DSCP = (uint)0;
         }
         #endregion
 
         #region Public Properties
         /// <remarks />
-        [DataMember(Name = "Numerator", IsRequired = false, Order = 1)]
-        public uint Numerator
+        [DataMember(Name = "MappingUri", IsRequired = false, Order = 1)]
+        public string MappingUri
         {
-            get { return m_numerator;  }
-            set { m_numerator = value; }
+            get { return m_mappingUri;  }
+            set { m_mappingUri = value; }
         }
 
         /// <remarks />
-        [DataMember(Name = "Denominator", IsRequired = false, Order = 2)]
-        public uint Denominator
+        [DataMember(Name = "PriorityLabel", IsRequired = false, Order = 2)]
+        public string PriorityLabel
         {
-            get { return m_denominator;  }
-            set { m_denominator = value; }
+            get { return m_priorityLabel;  }
+            set { m_priorityLabel = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PriorityValue_PCP", IsRequired = false, Order = 3)]
+        public byte PriorityValue_PCP
+        {
+            get { return m_priorityValue_PCP;  }
+            set { m_priorityValue_PCP = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PriorityValue_DSCP", IsRequired = false, Order = 4)]
+        public uint PriorityValue_DSCP
+        {
+            get { return m_priorityValue_DSCP;  }
+            set { m_priorityValue_DSCP = value; }
         }
         #endregion
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UnsignedRationalNumber; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PriorityMappingEntryType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UnsignedRationalNumber_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PriorityMappingEntryType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UnsignedRationalNumber_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UnsignedRationalNumber_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PriorityMappingEntryType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PriorityMappingEntryType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteUInt32("Numerator", Numerator);
-            encoder.WriteUInt32("Denominator", Denominator);
+            encoder.WriteString("MappingUri", MappingUri);
+            encoder.WriteString("PriorityLabel", PriorityLabel);
+            encoder.WriteByte("PriorityValue_PCP", PriorityValue_PCP);
+            encoder.WriteUInt32("PriorityValue_DSCP", PriorityValue_DSCP);
 
             encoder.PopNamespace();
         }
@@ -18193,8 +22703,10 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            Numerator = decoder.ReadUInt32("Numerator");
-            Denominator = decoder.ReadUInt32("Denominator");
+            MappingUri = decoder.ReadString("MappingUri");
+            PriorityLabel = decoder.ReadString("PriorityLabel");
+            PriorityValue_PCP = decoder.ReadByte("PriorityValue_PCP");
+            PriorityValue_DSCP = decoder.ReadUInt32("PriorityValue_DSCP");
 
             decoder.PopNamespace();
         }
@@ -18207,15 +22719,17 @@ namespace Opc.Ua
                 return true;
             }
 
-            UnsignedRationalNumber value = encodeable as UnsignedRationalNumber;
+            PriorityMappingEntryType value = encodeable as PriorityMappingEntryType;
 
             if (value == null)
             {
                 return false;
             }
 
-            if (!Utils.IsEqual(m_numerator, value.m_numerator)) return false;
-            if (!Utils.IsEqual(m_denominator, value.m_denominator)) return false;
+            if (!Utils.IsEqual(m_mappingUri, value.m_mappingUri)) return false;
+            if (!Utils.IsEqual(m_priorityLabel, value.m_priorityLabel)) return false;
+            if (!Utils.IsEqual(m_priorityValue_PCP, value.m_priorityValue_PCP)) return false;
+            if (!Utils.IsEqual(m_priorityValue_DSCP, value.m_priorityValue_DSCP)) return false;
 
             return true;
         }
@@ -18224,64 +22738,68 @@ namespace Opc.Ua
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
-            return (UnsignedRationalNumber)this.MemberwiseClone();
+            return (PriorityMappingEntryType)this.MemberwiseClone();
         }
         #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            UnsignedRationalNumber clone = (UnsignedRationalNumber)base.MemberwiseClone();
+            PriorityMappingEntryType clone = (PriorityMappingEntryType)base.MemberwiseClone();
 
-            clone.m_numerator = (uint)Utils.Clone(this.m_numerator);
-            clone.m_denominator = (uint)Utils.Clone(this.m_denominator);
+            clone.m_mappingUri = (string)Utils.Clone(this.m_mappingUri);
+            clone.m_priorityLabel = (string)Utils.Clone(this.m_priorityLabel);
+            clone.m_priorityValue_PCP = (byte)Utils.Clone(this.m_priorityValue_PCP);
+            clone.m_priorityValue_DSCP = (uint)Utils.Clone(this.m_priorityValue_DSCP);
 
             return clone;
         }
         #endregion
 
         #region Private Fields
-        private uint m_numerator;
-        private uint m_denominator;
+        private string m_mappingUri;
+        private string m_priorityLabel;
+        private byte m_priorityValue_PCP;
+        private uint m_priorityValue_DSCP;
         #endregion
     }
 
-    #region UnsignedRationalNumberCollection Class
+    #region PriorityMappingEntryTypeCollection Class
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUnsignedRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UnsignedRationalNumber")]
+    [CollectionDataContract(Name = "ListOfPriorityMappingEntryType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PriorityMappingEntryType")]
     #if !NET_STANDARD
-    public partial class UnsignedRationalNumberCollection : List<UnsignedRationalNumber>, ICloneable
+    public partial class PriorityMappingEntryTypeCollection : List<PriorityMappingEntryType>, ICloneable
     #else
-    public partial class UnsignedRationalNumberCollection : List<UnsignedRationalNumber>
+    public partial class PriorityMappingEntryTypeCollection : List<PriorityMappingEntryType>
     #endif
     {
         #region Constructors
         /// <remarks />
-        public UnsignedRationalNumberCollection() {}
+        public PriorityMappingEntryTypeCollection() {}
 
         /// <remarks />
-        public UnsignedRationalNumberCollection(int capacity) : base(capacity) {}
+        public PriorityMappingEntryTypeCollection(int capacity) : base(capacity) {}
 
         /// <remarks />
-        public UnsignedRationalNumberCollection(IEnumerable<UnsignedRationalNumber> collection) : base(collection) {}
+        public PriorityMappingEntryTypeCollection(IEnumerable<PriorityMappingEntryType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator UnsignedRationalNumberCollection(UnsignedRationalNumber[] values)
+        public static implicit operator PriorityMappingEntryTypeCollection(PriorityMappingEntryType[] values)
         {
             if (values != null)
             {
-                return new UnsignedRationalNumberCollection(values);
+                return new PriorityMappingEntryTypeCollection(values);
             }
 
-            return new UnsignedRationalNumberCollection();
+            return new PriorityMappingEntryTypeCollection();
         }
 
         /// <remarks />
-        public static explicit operator UnsignedRationalNumber[](UnsignedRationalNumberCollection values)
+        public static explicit operator PriorityMappingEntryType[](PriorityMappingEntryTypeCollection values)
         {
             if (values != null)
             {
@@ -18297,7 +22815,7 @@ namespace Opc.Ua
         /// <remarks />
         public object Clone()
         {
-            return (UnsignedRationalNumberCollection)this.MemberwiseClone();
+            return (PriorityMappingEntryTypeCollection)this.MemberwiseClone();
         }
         #endregion
         #endif
@@ -18305,11 +22823,455 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            UnsignedRationalNumberCollection clone = new UnsignedRationalNumberCollection(this.Count);
+            PriorityMappingEntryTypeCollection clone = new PriorityMappingEntryTypeCollection(this.Count);
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                clone.Add((UnsignedRationalNumber)Utils.Clone(this[ii]));
+                clone.Add((PriorityMappingEntryType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ReferenceDescriptionDataType Class
+    #if (!OPCUA_EXCLUDE_ReferenceDescriptionDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ReferenceDescriptionDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public ReferenceDescriptionDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_sourceNode = null;
+            m_referenceType = null;
+            m_isForward = true;
+            m_targetNode = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "SourceNode", IsRequired = false, Order = 1)]
+        public NodeId SourceNode
+        {
+            get { return m_sourceNode;  }
+            set { m_sourceNode = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ReferenceType", IsRequired = false, Order = 2)]
+        public NodeId ReferenceType
+        {
+            get { return m_referenceType;  }
+            set { m_referenceType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IsForward", IsRequired = false, Order = 3)]
+        public bool IsForward
+        {
+            get { return m_isForward;  }
+            set { m_isForward = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "TargetNode", IsRequired = false, Order = 4)]
+        public ExpandedNodeId TargetNode
+        {
+            get { return m_targetNode;  }
+            set { m_targetNode = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ReferenceDescriptionDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReferenceDescriptionDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceDescriptionDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceDescriptionDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteNodeId("SourceNode", SourceNode);
+            encoder.WriteNodeId("ReferenceType", ReferenceType);
+            encoder.WriteBoolean("IsForward", IsForward);
+            encoder.WriteExpandedNodeId("TargetNode", TargetNode);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            SourceNode = decoder.ReadNodeId("SourceNode");
+            ReferenceType = decoder.ReadNodeId("ReferenceType");
+            IsForward = decoder.ReadBoolean("IsForward");
+            TargetNode = decoder.ReadExpandedNodeId("TargetNode");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ReferenceDescriptionDataType value = encodeable as ReferenceDescriptionDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_sourceNode, value.m_sourceNode)) return false;
+            if (!Utils.IsEqual(m_referenceType, value.m_referenceType)) return false;
+            if (!Utils.IsEqual(m_isForward, value.m_isForward)) return false;
+            if (!Utils.IsEqual(m_targetNode, value.m_targetNode)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (ReferenceDescriptionDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReferenceDescriptionDataType clone = (ReferenceDescriptionDataType)base.MemberwiseClone();
+
+            clone.m_sourceNode = (NodeId)Utils.Clone(this.m_sourceNode);
+            clone.m_referenceType = (NodeId)Utils.Clone(this.m_referenceType);
+            clone.m_isForward = (bool)Utils.Clone(this.m_isForward);
+            clone.m_targetNode = (ExpandedNodeId)Utils.Clone(this.m_targetNode);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private NodeId m_sourceNode;
+        private NodeId m_referenceType;
+        private bool m_isForward;
+        private ExpandedNodeId m_targetNode;
+        #endregion
+    }
+
+    #region ReferenceDescriptionDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfReferenceDescriptionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceDescriptionDataType")]
+    #if !NET_STANDARD
+    public partial class ReferenceDescriptionDataTypeCollection : List<ReferenceDescriptionDataType>, ICloneable
+    #else
+    public partial class ReferenceDescriptionDataTypeCollection : List<ReferenceDescriptionDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public ReferenceDescriptionDataTypeCollection() {}
+
+        /// <remarks />
+        public ReferenceDescriptionDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ReferenceDescriptionDataTypeCollection(IEnumerable<ReferenceDescriptionDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ReferenceDescriptionDataTypeCollection(ReferenceDescriptionDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ReferenceDescriptionDataTypeCollection(values);
+            }
+
+            return new ReferenceDescriptionDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ReferenceDescriptionDataType[](ReferenceDescriptionDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ReferenceDescriptionDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReferenceDescriptionDataTypeCollection clone = new ReferenceDescriptionDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ReferenceDescriptionDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ReferenceListEntryDataType Class
+    #if (!OPCUA_EXCLUDE_ReferenceListEntryDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ReferenceListEntryDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public ReferenceListEntryDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_referenceType = null;
+            m_isForward = true;
+            m_targetNode = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ReferenceType", IsRequired = false, Order = 1)]
+        public NodeId ReferenceType
+        {
+            get { return m_referenceType;  }
+            set { m_referenceType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IsForward", IsRequired = false, Order = 2)]
+        public bool IsForward
+        {
+            get { return m_isForward;  }
+            set { m_isForward = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "TargetNode", IsRequired = false, Order = 3)]
+        public ExpandedNodeId TargetNode
+        {
+            get { return m_targetNode;  }
+            set { m_targetNode = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ReferenceListEntryDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReferenceListEntryDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceListEntryDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceListEntryDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteNodeId("ReferenceType", ReferenceType);
+            encoder.WriteBoolean("IsForward", IsForward);
+            encoder.WriteExpandedNodeId("TargetNode", TargetNode);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ReferenceType = decoder.ReadNodeId("ReferenceType");
+            IsForward = decoder.ReadBoolean("IsForward");
+            TargetNode = decoder.ReadExpandedNodeId("TargetNode");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ReferenceListEntryDataType value = encodeable as ReferenceListEntryDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_referenceType, value.m_referenceType)) return false;
+            if (!Utils.IsEqual(m_isForward, value.m_isForward)) return false;
+            if (!Utils.IsEqual(m_targetNode, value.m_targetNode)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (ReferenceListEntryDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReferenceListEntryDataType clone = (ReferenceListEntryDataType)base.MemberwiseClone();
+
+            clone.m_referenceType = (NodeId)Utils.Clone(this.m_referenceType);
+            clone.m_isForward = (bool)Utils.Clone(this.m_isForward);
+            clone.m_targetNode = (ExpandedNodeId)Utils.Clone(this.m_targetNode);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private NodeId m_referenceType;
+        private bool m_isForward;
+        private ExpandedNodeId m_targetNode;
+        #endregion
+    }
+
+    #region ReferenceListEntryDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfReferenceListEntryDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceListEntryDataType")]
+    #if !NET_STANDARD
+    public partial class ReferenceListEntryDataTypeCollection : List<ReferenceListEntryDataType>, ICloneable
+    #else
+    public partial class ReferenceListEntryDataTypeCollection : List<ReferenceListEntryDataType>
+    #endif
+    {
+        #region Constructors
+        /// <remarks />
+        public ReferenceListEntryDataTypeCollection() {}
+
+        /// <remarks />
+        public ReferenceListEntryDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ReferenceListEntryDataTypeCollection(IEnumerable<ReferenceListEntryDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ReferenceListEntryDataTypeCollection(ReferenceListEntryDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ReferenceListEntryDataTypeCollection(values);
+            }
+
+            return new ReferenceListEntryDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ReferenceListEntryDataType[](ReferenceListEntryDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ReferenceListEntryDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReferenceListEntryDataTypeCollection clone = new ReferenceListEntryDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ReferenceListEntryDataType)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -18645,6 +23607,14 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "NoSubDataTypes_2048")]
         NoSubDataTypes = 2048,
+
+        /// <remarks />
+        [EnumMember(Value = "NonVolatile_4096")]
+        NonVolatile = 4096,
+
+        /// <remarks />
+        [EnumMember(Value = "Constant_8192")]
+        Constant = 8192,
     }
     #endif
     #endregion
@@ -18714,7 +23684,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RolePermissionType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RolePermissionType()
@@ -18755,28 +23725,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RolePermissionType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RolePermissionType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RolePermissionType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RolePermissionType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RolePermissionType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RolePermissionType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RolePermissionType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RolePermissionType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -18927,7 +23885,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DataTypeDefinition : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DataTypeDefinition()
@@ -18951,28 +23909,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataTypeDefinition; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DataTypeDefinition; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataTypeDefinition_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataTypeDefinition_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataTypeDefinition_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataTypeDefinition_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeDefinition_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataTypeDefinition_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -19144,7 +24090,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StructureField : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public StructureField()
@@ -19242,28 +24188,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.StructureField; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.StructureField; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.StructureField_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.StructureField_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.StructureField_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.StructureField_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.StructureField_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.StructureField_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -19510,28 +24444,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.StructureDefinition; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.StructureDefinition; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.StructureDefinition_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.StructureDefinition_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.StructureDefinition_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -19741,28 +24663,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EnumDefinition; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.EnumDefinition; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EnumDefinition_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EnumDefinition_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EnumDefinition_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -19913,7 +24823,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Node : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public Node()
@@ -20071,28 +24981,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.Node; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.Node; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.Node_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Node_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.Node_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.Node_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Node_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Node_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -20312,28 +25210,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.InstanceNode; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.InstanceNode; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.InstanceNode_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.InstanceNode_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.InstanceNode_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.InstanceNode_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.InstanceNode_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.InstanceNode_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -20431,28 +25317,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.TypeNode; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.TypeNode; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.TypeNode_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.TypeNode_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.TypeNode_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.TypeNode_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.TypeNode_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.TypeNode_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -20558,28 +25432,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ObjectNode; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ObjectNode; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ObjectNode_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ObjectNode_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ObjectNode_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ObjectNode_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectNode_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ObjectNode_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -20691,28 +25553,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ObjectTypeNode; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ObjectTypeNode; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ObjectTypeNode_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ObjectTypeNode_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ObjectTypeNode_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ObjectTypeNode_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectTypeNode_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ObjectTypeNode_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -20908,28 +25758,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.VariableNode; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.VariableNode; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.VariableNode_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.VariableNode_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.VariableNode_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.VariableNode_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableNode_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.VariableNode_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21129,28 +25967,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.VariableTypeNode; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.VariableTypeNode; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.VariableTypeNode_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.VariableTypeNode_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.VariableTypeNode_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.VariableTypeNode_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableTypeNode_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.VariableTypeNode_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21300,28 +26126,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReferenceTypeNode; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ReferenceTypeNode; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReferenceTypeNode_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReferenceTypeNode_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReferenceTypeNode_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReferenceTypeNode_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceTypeNode_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceTypeNode_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21452,28 +26266,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.MethodNode; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.MethodNode; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.MethodNode_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.MethodNode_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.MethodNode_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.MethodNode_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.MethodNode_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.MethodNode_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21599,28 +26401,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ViewNode; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ViewNode; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ViewNode_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ViewNode_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ViewNode_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ViewNode_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ViewNode_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ViewNode_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21746,28 +26536,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataTypeNode; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.DataTypeNode; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataTypeNode_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DataTypeNode_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataTypeNode_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataTypeNode_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeNode_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DataTypeNode_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21852,7 +26630,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceNode : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ReferenceNode()
@@ -21902,28 +26680,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReferenceNode; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ReferenceNode; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReferenceNode_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReferenceNode_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReferenceNode_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReferenceNode_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceNode_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceNode_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -22079,7 +26845,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Argument : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public Argument()
@@ -22159,28 +26925,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.Argument; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.Argument; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.Argument_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Argument_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.Argument_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.Argument_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Argument_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Argument_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -22346,7 +27100,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EnumValueType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public EnumValueType()
@@ -22396,28 +27150,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EnumValueType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.EnumValueType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EnumValueType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EnumValueType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EnumValueType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EnumValueType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EnumValueType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EnumValueType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -22605,28 +27347,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EnumField; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.EnumField; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EnumField_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.EnumField_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EnumField_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EnumField_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.EnumField_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.EnumField_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -22777,7 +27507,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class OptionSet : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public OptionSet()
@@ -22818,28 +27548,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.OptionSet; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.OptionSet; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.OptionSet_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.OptionSet_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.OptionSet_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.OptionSet_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.OptionSet_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.OptionSet_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -22990,7 +27708,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TimeZoneDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public TimeZoneDataType()
@@ -23031,28 +27749,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.TimeZoneDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TimeZoneDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.TimeZoneDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TimeZoneDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.TimeZoneDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.TimeZoneDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TimeZoneDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TimeZoneDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -23230,7 +27936,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ApplicationDescription : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ApplicationDescription()
@@ -23328,28 +28034,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ApplicationDescription; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ApplicationDescription; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ApplicationDescription_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ApplicationDescription_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ApplicationDescription_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ApplicationDescription_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationDescription_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ApplicationDescription_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -23525,7 +28219,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RequestHeader : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RequestHeader()
@@ -23611,28 +28305,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RequestHeader; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RequestHeader; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RequestHeader_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RequestHeader_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RequestHeader_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RequestHeader_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RequestHeader_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RequestHeader_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -23737,7 +28419,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ResponseHeader : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ResponseHeader()
@@ -23826,28 +28508,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ResponseHeader; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ResponseHeader; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ResponseHeader_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ResponseHeader_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ResponseHeader_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ResponseHeader_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ResponseHeader_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ResponseHeader_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -23947,7 +28617,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServiceFault : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ServiceFault()
@@ -23991,28 +28661,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ServiceFault; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ServiceFault; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ServiceFault_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ServiceFault_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ServiceFault_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ServiceFault_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServiceFault_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ServiceFault_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -24087,7 +28745,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SessionlessInvokeRequestType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SessionlessInvokeRequestType()
@@ -24191,28 +28849,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SessionlessInvokeRequestType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SessionlessInvokeRequestType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -24307,7 +28953,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SessionlessInvokeResponseType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SessionlessInvokeResponseType()
@@ -24381,28 +29027,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SessionlessInvokeResponseType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SessionlessInvokeResponseType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -24487,7 +29121,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FindServersRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public FindServersRequest()
@@ -24582,28 +29216,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.FindServersRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.FindServersRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.FindServersRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FindServersRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.FindServersRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.FindServersRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FindServersRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FindServersRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -24693,7 +29315,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FindServersResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public FindServersResponse()
@@ -24758,28 +29380,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.FindServersResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.FindServersResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.FindServersResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FindServersResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.FindServersResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.FindServersResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FindServersResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FindServersResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -24859,7 +29469,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServerOnNetwork : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ServerOnNetwork()
@@ -24930,28 +29540,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ServerOnNetwork; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ServerOnNetwork; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ServerOnNetwork_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ServerOnNetwork_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ServerOnNetwork_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ServerOnNetwork_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServerOnNetwork_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ServerOnNetwork_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -25112,7 +29710,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FindServersOnNetworkRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public FindServersOnNetworkRequest()
@@ -25195,28 +29793,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.FindServersOnNetworkRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.FindServersOnNetworkRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -25306,7 +29892,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FindServersOnNetworkResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public FindServersOnNetworkResponse()
@@ -25380,28 +29966,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.FindServersOnNetworkResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.FindServersOnNetworkResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.FindServersOnNetworkResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FindServersOnNetworkResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.FindServersOnNetworkResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.FindServersOnNetworkResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FindServersOnNetworkResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FindServersOnNetworkResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -25540,7 +30114,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UserTokenPolicy : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public UserTokenPolicy()
@@ -25608,28 +30182,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UserTokenPolicy; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.UserTokenPolicy; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UserTokenPolicy_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UserTokenPolicy_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UserTokenPolicy_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UserTokenPolicy_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserTokenPolicy_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserTokenPolicy_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -25795,7 +30357,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointDescription : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public EndpointDescription()
@@ -25914,28 +30476,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EndpointDescription; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.EndpointDescription; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EndpointDescription_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EndpointDescription_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EndpointDescription_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EndpointDescription_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EndpointDescription_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EndpointDescription_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -26116,7 +30666,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class GetEndpointsRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public GetEndpointsRequest()
@@ -26211,28 +30761,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.GetEndpointsRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.GetEndpointsRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.GetEndpointsRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.GetEndpointsRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.GetEndpointsRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.GetEndpointsRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -26322,7 +30860,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class GetEndpointsResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public GetEndpointsResponse()
@@ -26387,28 +30925,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.GetEndpointsResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.GetEndpointsResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.GetEndpointsResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.GetEndpointsResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.GetEndpointsResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.GetEndpointsResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.GetEndpointsResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.GetEndpointsResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -26488,7 +31014,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisteredServer : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RegisteredServer()
@@ -26607,28 +31133,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RegisteredServer; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RegisteredServer; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RegisteredServer_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisteredServer_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RegisteredServer_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RegisteredServer_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisteredServer_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisteredServer_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -26809,7 +31323,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterServerRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RegisterServerRequest()
@@ -26874,28 +31388,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RegisterServerRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RegisterServerRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RegisterServerRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisterServerRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RegisterServerRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RegisterServerRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterServerRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisterServerRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -26975,7 +31477,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterServerResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RegisterServerResponse()
@@ -27019,28 +31521,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RegisterServerResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RegisterServerResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RegisterServerResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisterServerResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RegisterServerResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RegisterServerResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterServerResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisterServerResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -27115,7 +31605,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DiscoveryConfiguration : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DiscoveryConfiguration()
@@ -27139,28 +31629,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DiscoveryConfiguration; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DiscoveryConfiguration; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DiscoveryConfiguration_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DiscoveryConfiguration_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DiscoveryConfiguration_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DiscoveryConfiguration_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DiscoveryConfiguration_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DiscoveryConfiguration_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -27283,28 +31761,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.MdnsDiscoveryConfiguration; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.MdnsDiscoveryConfiguration; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.MdnsDiscoveryConfiguration_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.MdnsDiscoveryConfiguration_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.MdnsDiscoveryConfiguration_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.MdnsDiscoveryConfiguration_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.MdnsDiscoveryConfiguration_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.MdnsDiscoveryConfiguration_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -27389,7 +31855,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterServer2Request : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RegisterServer2Request()
@@ -27456,47 +31922,23 @@ namespace Opc.Ua
         [DataMember(Name = "DiscoveryConfiguration", IsRequired = false, Order = 3)]
         public ExtensionObjectCollection DiscoveryConfiguration
         {
-            get
-            {
-                return m_discoveryConfiguration;
-            }
-
-            set
-            {
-                m_discoveryConfiguration = value;
-
-                if (value == null)
-                {
-                    m_discoveryConfiguration = new ExtensionObjectCollection();
-                }
-            }
+            get { return m_discoveryConfiguration;  }
+            set { m_discoveryConfiguration = value; }
         }
         #endregion
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RegisterServer2Request; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RegisterServer2Request; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RegisterServer2Request_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisterServer2Request_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RegisterServer2Request_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RegisterServer2Request_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterServer2Request_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisterServer2Request_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -27581,7 +32023,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterServer2Response : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RegisterServer2Response()
@@ -27667,28 +32109,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RegisterServer2Response; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RegisterServer2Response; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RegisterServer2Response_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisterServer2Response_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RegisterServer2Response_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RegisterServer2Response_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterServer2Response_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisterServer2Response_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -27792,7 +32222,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ChannelSecurityToken : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ChannelSecurityToken()
@@ -27851,28 +32281,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ChannelSecurityToken; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ChannelSecurityToken; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ChannelSecurityToken_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ChannelSecurityToken_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ChannelSecurityToken_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ChannelSecurityToken_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ChannelSecurityToken_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ChannelSecurityToken_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -27962,7 +32380,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class OpenSecureChannelRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public OpenSecureChannelRequest()
@@ -28051,28 +32469,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.OpenSecureChannelRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.OpenSecureChannelRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.OpenSecureChannelRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.OpenSecureChannelRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.OpenSecureChannelRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.OpenSecureChannelRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.OpenSecureChannelRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.OpenSecureChannelRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -28172,7 +32578,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class OpenSecureChannelResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public OpenSecureChannelResponse()
@@ -28255,28 +32661,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.OpenSecureChannelResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.OpenSecureChannelResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.OpenSecureChannelResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.OpenSecureChannelResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.OpenSecureChannelResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.OpenSecureChannelResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.OpenSecureChannelResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.OpenSecureChannelResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -28366,7 +32760,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CloseSecureChannelRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CloseSecureChannelRequest()
@@ -28410,28 +32804,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CloseSecureChannelRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CloseSecureChannelRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CloseSecureChannelRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CloseSecureChannelRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CloseSecureChannelRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CloseSecureChannelRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CloseSecureChannelRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CloseSecureChannelRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -28506,7 +32888,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CloseSecureChannelResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CloseSecureChannelResponse()
@@ -28550,28 +32932,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CloseSecureChannelResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CloseSecureChannelResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CloseSecureChannelResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CloseSecureChannelResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CloseSecureChannelResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CloseSecureChannelResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CloseSecureChannelResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CloseSecureChannelResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -28646,7 +33016,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SignedSoftwareCertificate : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SignedSoftwareCertificate()
@@ -28687,28 +33057,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SignedSoftwareCertificate; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SignedSoftwareCertificate; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SignedSoftwareCertificate_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SignedSoftwareCertificate_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SignedSoftwareCertificate_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SignedSoftwareCertificate_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SignedSoftwareCertificate_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SignedSoftwareCertificate_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -28859,7 +33217,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SignatureData : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SignatureData()
@@ -28900,28 +33258,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SignatureData; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SignatureData; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SignatureData_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SignatureData_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SignatureData_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SignatureData_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SignatureData_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SignatureData_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -29001,7 +33347,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateSessionRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CreateSessionRequest()
@@ -29129,28 +33475,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CreateSessionRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CreateSessionRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CreateSessionRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CreateSessionRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CreateSessionRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CreateSessionRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateSessionRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CreateSessionRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -29265,7 +33599,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateSessionResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CreateSessionResponse()
@@ -29426,28 +33760,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CreateSessionResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CreateSessionResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CreateSessionResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CreateSessionResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CreateSessionResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CreateSessionResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateSessionResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CreateSessionResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -29567,7 +33889,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UserIdentityToken : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public UserIdentityToken()
@@ -29599,28 +33921,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UserIdentityToken; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.UserIdentityToken; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UserIdentityToken_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UserIdentityToken_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UserIdentityToken_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UserIdentityToken_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserIdentityToken_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserIdentityToken_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -29719,28 +34029,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AnonymousIdentityToken; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.AnonymousIdentityToken; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AnonymousIdentityToken_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.AnonymousIdentityToken_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AnonymousIdentityToken_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AnonymousIdentityToken_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.AnonymousIdentityToken_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.AnonymousIdentityToken_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -29864,28 +34162,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UserNameIdentityToken; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.UserNameIdentityToken; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UserNameIdentityToken_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.UserNameIdentityToken_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UserNameIdentityToken_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UserNameIdentityToken_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.UserNameIdentityToken_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.UserNameIdentityToken_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -30007,28 +34293,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.X509IdentityToken; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.X509IdentityToken; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.X509IdentityToken_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.X509IdentityToken_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.X509IdentityToken_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.X509IdentityToken_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.X509IdentityToken_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.X509IdentityToken_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -30149,28 +34423,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.IssuedIdentityToken; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.IssuedIdentityToken; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.IssuedIdentityToken_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.IssuedIdentityToken_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.IssuedIdentityToken_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.IssuedIdentityToken_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.IssuedIdentityToken_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.IssuedIdentityToken_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -30255,7 +34517,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ActivateSessionRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ActivateSessionRequest()
@@ -30392,28 +34654,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ActivateSessionRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ActivateSessionRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ActivateSessionRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ActivateSessionRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ActivateSessionRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ActivateSessionRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActivateSessionRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ActivateSessionRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -30513,7 +34763,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ActivateSessionResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ActivateSessionResponse()
@@ -30608,28 +34858,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ActivateSessionResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ActivateSessionResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ActivateSessionResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ActivateSessionResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ActivateSessionResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ActivateSessionResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActivateSessionResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ActivateSessionResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -30719,7 +34957,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CloseSessionRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CloseSessionRequest()
@@ -30772,28 +35010,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CloseSessionRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CloseSessionRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CloseSessionRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CloseSessionRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CloseSessionRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CloseSessionRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CloseSessionRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CloseSessionRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -30873,7 +35099,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CloseSessionResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CloseSessionResponse()
@@ -30917,28 +35143,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CloseSessionResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CloseSessionResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CloseSessionResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CloseSessionResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CloseSessionResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CloseSessionResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CloseSessionResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CloseSessionResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -31013,7 +35227,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CancelRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CancelRequest()
@@ -31066,28 +35280,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CancelRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CancelRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CancelRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CancelRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CancelRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CancelRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CancelRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CancelRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -31167,7 +35369,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CancelResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CancelResponse()
@@ -31220,28 +35422,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CancelResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CancelResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CancelResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CancelResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CancelResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CancelResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CancelResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CancelResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -31472,7 +35662,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NodeAttributes : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public NodeAttributes()
@@ -31540,28 +35730,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.NodeAttributes; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.NodeAttributes; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.NodeAttributes_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NodeAttributes_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.NodeAttributes_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.NodeAttributes_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NodeAttributes_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NodeAttributes_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -31688,28 +35866,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ObjectAttributes; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ObjectAttributes; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ObjectAttributes_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ObjectAttributes_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ObjectAttributes_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ObjectAttributes_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectAttributes_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ObjectAttributes_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -31896,28 +36062,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.VariableAttributes; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.VariableAttributes; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.VariableAttributes_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.VariableAttributes_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.VariableAttributes_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.VariableAttributes_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableAttributes_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.VariableAttributes_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -32073,28 +36227,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.MethodAttributes; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.MethodAttributes; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.MethodAttributes_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.MethodAttributes_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.MethodAttributes_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.MethodAttributes_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.MethodAttributes_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.MethodAttributes_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -32211,28 +36353,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ObjectTypeAttributes; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ObjectTypeAttributes; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ObjectTypeAttributes_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ObjectTypeAttributes_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ObjectTypeAttributes_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ObjectTypeAttributes_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectTypeAttributes_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ObjectTypeAttributes_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -32392,28 +36522,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.VariableTypeAttributes; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.VariableTypeAttributes; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.VariableTypeAttributes_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.VariableTypeAttributes_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.VariableTypeAttributes_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.VariableTypeAttributes_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableTypeAttributes_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.VariableTypeAttributes_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -32563,28 +36681,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReferenceTypeAttributes; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ReferenceTypeAttributes; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReferenceTypeAttributes_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReferenceTypeAttributes_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReferenceTypeAttributes_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReferenceTypeAttributes_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceTypeAttributes_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceTypeAttributes_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -32706,28 +36812,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataTypeAttributes; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.DataTypeAttributes; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataTypeAttributes_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DataTypeAttributes_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataTypeAttributes_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataTypeAttributes_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeAttributes_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DataTypeAttributes_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -32848,28 +36942,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ViewAttributes; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ViewAttributes; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ViewAttributes_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ViewAttributes_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ViewAttributes_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ViewAttributes_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ViewAttributes_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ViewAttributes_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -32954,7 +37036,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class GenericAttributeValue : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public GenericAttributeValue()
@@ -32995,28 +37077,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.GenericAttributeValue; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.GenericAttributeValue; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.GenericAttributeValue_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.GenericAttributeValue_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.GenericAttributeValue_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.GenericAttributeValue_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.GenericAttributeValue_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.GenericAttributeValue_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -33211,28 +37281,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.GenericAttributes; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.GenericAttributes; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.GenericAttributes_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.GenericAttributes_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.GenericAttributes_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.GenericAttributes_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.GenericAttributes_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.GenericAttributes_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -33312,7 +37370,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddNodesItem : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public AddNodesItem()
@@ -33398,28 +37456,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AddNodesItem; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.AddNodesItem; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AddNodesItem_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddNodesItem_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AddNodesItem_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AddNodesItem_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddNodesItem_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddNodesItem_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -33595,7 +37641,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddNodesResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public AddNodesResult()
@@ -33636,28 +37682,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AddNodesResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.AddNodesResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AddNodesResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddNodesResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AddNodesResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AddNodesResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddNodesResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddNodesResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -33808,7 +37842,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddNodesRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public AddNodesRequest()
@@ -33873,28 +37907,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AddNodesRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.AddNodesRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AddNodesRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddNodesRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AddNodesRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AddNodesRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddNodesRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddNodesRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -33974,7 +37996,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddNodesResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public AddNodesResponse()
@@ -34060,28 +38082,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AddNodesResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.AddNodesResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AddNodesResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddNodesResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AddNodesResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AddNodesResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddNodesResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddNodesResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -34166,7 +38176,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddReferencesItem : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public AddReferencesItem()
@@ -34243,28 +38253,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AddReferencesItem; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.AddReferencesItem; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AddReferencesItem_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddReferencesItem_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AddReferencesItem_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AddReferencesItem_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddReferencesItem_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddReferencesItem_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -34435,7 +38433,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddReferencesRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public AddReferencesRequest()
@@ -34500,28 +38498,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AddReferencesRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.AddReferencesRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AddReferencesRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddReferencesRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AddReferencesRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AddReferencesRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddReferencesRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddReferencesRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -34601,7 +38587,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AddReferencesResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public AddReferencesResponse()
@@ -34687,28 +38673,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AddReferencesResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.AddReferencesResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AddReferencesResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddReferencesResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AddReferencesResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AddReferencesResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddReferencesResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddReferencesResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -34793,7 +38767,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteNodesItem : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DeleteNodesItem()
@@ -34834,28 +38808,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteNodesItem; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteNodesItem; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteNodesItem_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteNodesItem_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteNodesItem_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteNodesItem_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteNodesItem_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteNodesItem_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -35006,7 +38968,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteNodesRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DeleteNodesRequest()
@@ -35071,28 +39033,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteNodesRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteNodesRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteNodesRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteNodesRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteNodesRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteNodesRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteNodesRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteNodesRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -35172,7 +39122,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteNodesResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DeleteNodesResponse()
@@ -35258,28 +39208,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteNodesResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteNodesResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteNodesResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteNodesResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteNodesResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteNodesResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteNodesResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteNodesResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -35364,7 +39302,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteReferencesItem : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DeleteReferencesItem()
@@ -35432,28 +39370,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteReferencesItem; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteReferencesItem; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteReferencesItem_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteReferencesItem_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteReferencesItem_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteReferencesItem_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteReferencesItem_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteReferencesItem_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -35619,7 +39545,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteReferencesRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DeleteReferencesRequest()
@@ -35684,28 +39610,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteReferencesRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteReferencesRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteReferencesRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteReferencesRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteReferencesRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteReferencesRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteReferencesRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteReferencesRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -35785,7 +39699,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteReferencesResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DeleteReferencesResponse()
@@ -35871,28 +39785,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteReferencesResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteReferencesResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteReferencesResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteReferencesResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteReferencesResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteReferencesResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteReferencesResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteReferencesResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -36123,7 +40025,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ViewDescription : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ViewDescription()
@@ -36173,28 +40075,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ViewDescription; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ViewDescription; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ViewDescription_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ViewDescription_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ViewDescription_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ViewDescription_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ViewDescription_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ViewDescription_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -36279,7 +40169,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseDescription : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public BrowseDescription()
@@ -36356,28 +40246,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrowseDescription; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseDescription; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrowseDescription_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowseDescription_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrowseDescription_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrowseDescription_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseDescription_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseDescription_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -36599,7 +40477,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReferenceDescription : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ReferenceDescription()
@@ -36685,28 +40563,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReferenceDescription; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ReferenceDescription; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReferenceDescription_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReferenceDescription_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReferenceDescription_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReferenceDescription_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceDescription_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceDescription_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -36882,7 +40748,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public BrowseResult()
@@ -36944,28 +40810,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrowseResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrowseResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowseResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrowseResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrowseResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -37121,7 +40975,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public BrowseRequest()
@@ -37216,28 +41070,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrowseRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrowseRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowseRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrowseRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrowseRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -37327,7 +41169,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public BrowseResponse()
@@ -37413,28 +41255,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrowseResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrowseResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowseResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrowseResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrowseResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -37519,7 +41349,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseNextRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public BrowseNextRequest()
@@ -37593,28 +41423,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrowseNextRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseNextRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrowseNextRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowseNextRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrowseNextRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrowseNextRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseNextRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseNextRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -37699,7 +41517,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowseNextResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public BrowseNextResponse()
@@ -37785,28 +41603,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrowseNextResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseNextResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrowseNextResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowseNextResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrowseNextResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrowseNextResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseNextResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseNextResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -37891,7 +41697,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RelativePathElement : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RelativePathElement()
@@ -37950,28 +41756,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RelativePathElement; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RelativePathElement; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RelativePathElement_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RelativePathElement_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RelativePathElement_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RelativePathElement_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RelativePathElement_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RelativePathElement_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -38132,7 +41926,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RelativePath : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RelativePath()
@@ -38176,28 +41970,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RelativePath; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RelativePath; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RelativePath_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RelativePath_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RelativePath_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RelativePath_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RelativePath_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RelativePath_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -38272,7 +42054,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowsePath : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public BrowsePath()
@@ -38325,28 +42107,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrowsePath; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.BrowsePath; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrowsePath_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowsePath_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrowsePath_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrowsePath_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowsePath_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowsePath_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -38497,7 +42267,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowsePathTarget : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public BrowsePathTarget()
@@ -38538,28 +42308,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrowsePathTarget; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.BrowsePathTarget; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrowsePathTarget_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowsePathTarget_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrowsePathTarget_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrowsePathTarget_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowsePathTarget_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowsePathTarget_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -38710,7 +42468,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BrowsePathResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public BrowsePathResult()
@@ -38763,28 +42521,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BrowsePathResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.BrowsePathResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BrowsePathResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowsePathResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BrowsePathResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BrowsePathResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowsePathResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowsePathResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -38935,7 +42681,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TranslateBrowsePathsToNodeIdsRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public TranslateBrowsePathsToNodeIdsRequest()
@@ -39000,28 +42746,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.TranslateBrowsePathsToNodeIdsRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TranslateBrowsePathsToNodeIdsRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -39101,7 +42835,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TranslateBrowsePathsToNodeIdsResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public TranslateBrowsePathsToNodeIdsResponse()
@@ -39187,28 +42921,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.TranslateBrowsePathsToNodeIdsResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TranslateBrowsePathsToNodeIdsResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -39293,7 +43015,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterNodesRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RegisterNodesRequest()
@@ -39358,28 +43080,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RegisterNodesRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RegisterNodesRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RegisterNodesRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisterNodesRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RegisterNodesRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RegisterNodesRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterNodesRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisterNodesRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -39459,7 +43169,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RegisterNodesResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RegisterNodesResponse()
@@ -39524,28 +43234,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RegisterNodesResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RegisterNodesResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RegisterNodesResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisterNodesResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RegisterNodesResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RegisterNodesResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterNodesResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisterNodesResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -39625,7 +43323,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UnregisterNodesRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public UnregisterNodesRequest()
@@ -39690,28 +43388,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UnregisterNodesRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.UnregisterNodesRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UnregisterNodesRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UnregisterNodesRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UnregisterNodesRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UnregisterNodesRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UnregisterNodesRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UnregisterNodesRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -39791,7 +43477,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class UnregisterNodesResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public UnregisterNodesResponse()
@@ -39835,28 +43521,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UnregisterNodesResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.UnregisterNodesResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UnregisterNodesResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UnregisterNodesResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UnregisterNodesResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UnregisterNodesResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UnregisterNodesResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UnregisterNodesResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -39931,7 +43605,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointConfiguration : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public EndpointConfiguration()
@@ -40035,28 +43709,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EndpointConfiguration; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.EndpointConfiguration; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EndpointConfiguration_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EndpointConfiguration_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EndpointConfiguration_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EndpointConfiguration_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EndpointConfiguration_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EndpointConfiguration_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -40242,7 +43904,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryDataDescription : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public QueryDataDescription()
@@ -40304,28 +43966,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.QueryDataDescription; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.QueryDataDescription; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.QueryDataDescription_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QueryDataDescription_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.QueryDataDescription_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.QueryDataDescription_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryDataDescription_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QueryDataDescription_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -40481,7 +44131,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NodeTypeDescription : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public NodeTypeDescription()
@@ -40543,28 +44193,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.NodeTypeDescription; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.NodeTypeDescription; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.NodeTypeDescription_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NodeTypeDescription_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.NodeTypeDescription_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.NodeTypeDescription_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NodeTypeDescription_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NodeTypeDescription_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -40803,7 +44441,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryDataSet : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public QueryDataSet()
@@ -40865,28 +44503,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.QueryDataSet; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.QueryDataSet; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.QueryDataSet_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QueryDataSet_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.QueryDataSet_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.QueryDataSet_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryDataSet_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QueryDataSet_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -41042,7 +44668,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NodeReference : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public NodeReference()
@@ -41113,28 +44739,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.NodeReference; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.NodeReference; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.NodeReference_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NodeReference_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.NodeReference_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.NodeReference_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NodeReference_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NodeReference_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -41295,7 +44909,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ContentFilterElement : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ContentFilterElement()
@@ -41329,47 +44943,23 @@ namespace Opc.Ua
         [DataMember(Name = "FilterOperands", IsRequired = false, Order = 2)]
         public ExtensionObjectCollection FilterOperands
         {
-            get
-            {
-                return m_filterOperands;
-            }
-
-            set
-            {
-                m_filterOperands = value;
-
-                if (value == null)
-                {
-                    m_filterOperands = new ExtensionObjectCollection();
-                }
-            }
+            get { return m_filterOperands;  }
+            set { m_filterOperands = value; }
         }
         #endregion
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ContentFilterElement; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ContentFilterElement; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ContentFilterElement_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ContentFilterElement_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ContentFilterElement_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ContentFilterElement_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ContentFilterElement_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ContentFilterElement_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -41520,7 +45110,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ContentFilter : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ContentFilter()
@@ -41564,28 +45154,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ContentFilter; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ContentFilter; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ContentFilter_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ContentFilter_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ContentFilter_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ContentFilter_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ContentFilter_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ContentFilter_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -41731,7 +45309,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class FilterOperand : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public FilterOperand()
@@ -41755,28 +45333,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.FilterOperand; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.FilterOperand; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.FilterOperand_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FilterOperand_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.FilterOperand_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.FilterOperand_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FilterOperand_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FilterOperand_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -41878,28 +45444,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ElementOperand; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ElementOperand; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ElementOperand_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ElementOperand_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ElementOperand_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ElementOperand_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ElementOperand_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ElementOperand_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -42011,28 +45565,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.LiteralOperand; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.LiteralOperand; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.LiteralOperand_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.LiteralOperand_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.LiteralOperand_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.LiteralOperand_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.LiteralOperand_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.LiteralOperand_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -42192,28 +45734,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AttributeOperand; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.AttributeOperand; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AttributeOperand_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.AttributeOperand_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AttributeOperand_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AttributeOperand_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.AttributeOperand_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.AttributeOperand_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -42384,28 +45914,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SimpleAttributeOperand; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.SimpleAttributeOperand; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SimpleAttributeOperand_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.SimpleAttributeOperand_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SimpleAttributeOperand_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SimpleAttributeOperand_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.SimpleAttributeOperand_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.SimpleAttributeOperand_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -42571,7 +46089,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ContentFilterElementResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ContentFilterElementResult()
@@ -42645,28 +46163,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ContentFilterElementResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ContentFilterElementResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ContentFilterElementResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ContentFilterElementResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ContentFilterElementResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ContentFilterElementResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ContentFilterElementResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ContentFilterElementResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -42822,7 +46328,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ContentFilterResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ContentFilterResult()
@@ -42887,28 +46393,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ContentFilterResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ContentFilterResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ContentFilterResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ContentFilterResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ContentFilterResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ContentFilterResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ContentFilterResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ContentFilterResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -42988,7 +46482,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ParsingResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ParsingResult()
@@ -43062,28 +46556,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ParsingResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ParsingResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ParsingResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ParsingResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ParsingResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ParsingResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ParsingResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ParsingResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -43239,7 +46721,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryFirstRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public QueryFirstRequest()
@@ -43364,28 +46846,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.QueryFirstRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.QueryFirstRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.QueryFirstRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QueryFirstRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.QueryFirstRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.QueryFirstRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryFirstRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QueryFirstRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -43485,7 +46955,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryFirstResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public QueryFirstResponse()
@@ -43622,28 +47092,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.QueryFirstResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.QueryFirstResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.QueryFirstResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QueryFirstResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.QueryFirstResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.QueryFirstResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryFirstResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QueryFirstResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -43743,7 +47201,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryNextRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public QueryNextRequest()
@@ -43805,28 +47263,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.QueryNextRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.QueryNextRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.QueryNextRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QueryNextRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.QueryNextRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.QueryNextRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryNextRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QueryNextRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -43911,7 +47357,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class QueryNextResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public QueryNextResponse()
@@ -43985,28 +47431,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.QueryNextResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.QueryNextResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.QueryNextResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QueryNextResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.QueryNextResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.QueryNextResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryNextResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QueryNextResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -44122,7 +47556,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadValueId : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ReadValueId()
@@ -44181,28 +47615,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReadValueId; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ReadValueId; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReadValueId_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReadValueId_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReadValueId_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReadValueId_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReadValueId_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReadValueId_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -44363,7 +47785,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ReadRequest()
@@ -44446,28 +47868,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReadRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ReadRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReadRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReadRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReadRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReadRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReadRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReadRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -44557,7 +47967,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ReadResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ReadResponse()
@@ -44643,28 +48053,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReadResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ReadResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReadResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReadResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReadResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReadResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReadResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReadResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -44749,7 +48147,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadValueId : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public HistoryReadValueId()
@@ -44808,28 +48206,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryReadValueId; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryReadValueId; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryReadValueId_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryReadValueId_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryReadValueId_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryReadValueId_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadValueId_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryReadValueId_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -44990,7 +48376,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public HistoryReadResult()
@@ -45040,28 +48426,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryReadResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryReadResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryReadResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryReadResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryReadResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryReadResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryReadResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -45217,7 +48591,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadDetails : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public HistoryReadDetails()
@@ -45241,28 +48615,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryReadDetails; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryReadDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryReadDetails_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryReadDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryReadDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryReadDetails_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadDetails_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryReadDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -45403,28 +48765,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReadEventDetails; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ReadEventDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReadEventDetails_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadEventDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReadEventDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReadEventDetails_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadEventDetails_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadEventDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -45587,28 +48937,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReadRawModifiedDetails; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ReadRawModifiedDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReadRawModifiedDetails_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadRawModifiedDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReadRawModifiedDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReadRawModifiedDetails_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadRawModifiedDetails_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadRawModifiedDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -45800,28 +49138,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReadProcessedDetails; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ReadProcessedDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReadProcessedDetails_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadProcessedDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReadProcessedDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReadProcessedDetails_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadProcessedDetails_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadProcessedDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -45974,28 +49300,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReadAtTimeDetails; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ReadAtTimeDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReadAtTimeDetails_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadAtTimeDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReadAtTimeDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReadAtTimeDetails_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadAtTimeDetails_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadAtTimeDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -46124,28 +49438,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ReadAnnotationDataDetails; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.ReadAnnotationDataDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -46225,7 +49527,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryData : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public HistoryData()
@@ -46269,28 +49571,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryData; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryData; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryData_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryData_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryData_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryData_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryData_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryData_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -46365,7 +49655,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModificationInfo : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ModificationInfo()
@@ -46415,28 +49705,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ModificationInfo; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ModificationInfo; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ModificationInfo_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ModificationInfo_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ModificationInfo_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ModificationInfo_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModificationInfo_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ModificationInfo_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -46636,28 +49914,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryModifiedData; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.HistoryModifiedData; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryModifiedData_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryModifiedData_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryModifiedData_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryModifiedData_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.HistoryModifiedData_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.HistoryModifiedData_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -46737,7 +50003,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryEvent : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public HistoryEvent()
@@ -46781,28 +50047,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryEvent; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryEvent; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryEvent_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryEvent_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryEvent_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryEvent_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryEvent_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryEvent_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -46877,7 +50131,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public HistoryReadRequest()
@@ -46969,28 +50223,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryReadRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryReadRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryReadRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryReadRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryReadRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryReadRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryReadRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -47085,7 +50327,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryReadResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public HistoryReadResponse()
@@ -47171,28 +50413,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryReadResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryReadResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryReadResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryReadResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryReadResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryReadResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryReadResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -47277,7 +50507,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriteValue : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public WriteValue()
@@ -47336,28 +50566,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.WriteValue; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.WriteValue; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.WriteValue_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WriteValue_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.WriteValue_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.WriteValue_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriteValue_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WriteValue_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -47518,7 +50736,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriteRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public WriteRequest()
@@ -47583,28 +50801,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.WriteRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.WriteRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.WriteRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WriteRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.WriteRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.WriteRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriteRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WriteRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -47684,7 +50890,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class WriteResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public WriteResponse()
@@ -47770,28 +50976,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.WriteResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.WriteResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.WriteResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WriteResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.WriteResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.WriteResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriteResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WriteResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -47876,7 +51070,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryUpdateDetails : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public HistoryUpdateDetails()
@@ -47908,28 +51102,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryUpdateDetails; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryUpdateDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryUpdateDetails_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryUpdateDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryUpdateDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryUpdateDetails_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryUpdateDetails_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryUpdateDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -48111,28 +51293,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UpdateDataDetails; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.UpdateDataDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UpdateDataDetails_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.UpdateDataDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UpdateDataDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UpdateDataDetails_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.UpdateDataDetails_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.UpdateDataDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -48270,28 +51440,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UpdateStructureDataDetails; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.UpdateStructureDataDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UpdateStructureDataDetails_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.UpdateStructureDataDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UpdateStructureDataDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UpdateStructureDataDetails_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.UpdateStructureDataDetails_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.UpdateStructureDataDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -48450,28 +51608,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.UpdateEventDetails; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.UpdateEventDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.UpdateEventDetails_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.UpdateEventDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.UpdateEventDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.UpdateEventDetails_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.UpdateEventDetails_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.UpdateEventDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -48611,28 +51757,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteRawModifiedDetails; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.DeleteRawModifiedDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteRawModifiedDetails_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteRawModifiedDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteRawModifiedDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteRawModifiedDetails_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DeleteRawModifiedDetails_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DeleteRawModifiedDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -48766,28 +51900,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteAtTimeDetails; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.DeleteAtTimeDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteAtTimeDetails_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteAtTimeDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteAtTimeDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteAtTimeDetails_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DeleteAtTimeDetails_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DeleteAtTimeDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -48911,28 +52033,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteEventDetails; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.DeleteEventDetails; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteEventDetails_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteEventDetails_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteEventDetails_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteEventDetails_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DeleteEventDetails_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DeleteEventDetails_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -49012,7 +52122,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryUpdateResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public HistoryUpdateResult()
@@ -49086,28 +52196,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryUpdateResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryUpdateResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryUpdateResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryUpdateResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryUpdateResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryUpdateResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryUpdateResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryUpdateResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -49263,7 +52361,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryUpdateRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public HistoryUpdateRequest()
@@ -49309,47 +52407,23 @@ namespace Opc.Ua
         [DataMember(Name = "HistoryUpdateDetails", IsRequired = false, Order = 2)]
         public ExtensionObjectCollection HistoryUpdateDetails
         {
-            get
-            {
-                return m_historyUpdateDetails;
-            }
-
-            set
-            {
-                m_historyUpdateDetails = value;
-
-                if (value == null)
-                {
-                    m_historyUpdateDetails = new ExtensionObjectCollection();
-                }
-            }
+            get { return m_historyUpdateDetails;  }
+            set { m_historyUpdateDetails = value; }
         }
         #endregion
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryUpdateRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryUpdateRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryUpdateRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryUpdateRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryUpdateRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryUpdateRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryUpdateRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryUpdateRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -49429,7 +52503,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryUpdateResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public HistoryUpdateResponse()
@@ -49515,28 +52589,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryUpdateResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryUpdateResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryUpdateResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryUpdateResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryUpdateResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryUpdateResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryUpdateResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryUpdateResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -49621,7 +52683,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CallMethodRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CallMethodRequest()
@@ -49683,28 +52745,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CallMethodRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CallMethodRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CallMethodRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CallMethodRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CallMethodRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CallMethodRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CallMethodRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CallMethodRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -49860,7 +52910,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CallMethodResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CallMethodResult()
@@ -49955,28 +53005,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CallMethodResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CallMethodResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CallMethodResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CallMethodResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CallMethodResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CallMethodResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CallMethodResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CallMethodResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -50137,7 +53175,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CallRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CallRequest()
@@ -50202,28 +53240,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CallRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CallRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CallRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CallRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CallRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CallRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CallRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CallRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -50303,7 +53329,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CallResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CallResponse()
@@ -50389,28 +53415,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CallResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CallResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CallResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CallResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CallResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CallResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CallResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CallResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -50564,7 +53578,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoringFilter : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public MonitoringFilter()
@@ -50588,28 +53602,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.MonitoringFilter; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoringFilter; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.MonitoringFilter_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoringFilter_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.MonitoringFilter_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.MonitoringFilter_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoringFilter_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoringFilter_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -50729,28 +53731,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataChangeFilter; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.DataChangeFilter; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataChangeFilter_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DataChangeFilter_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataChangeFilter_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataChangeFilter_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DataChangeFilter_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DataChangeFilter_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -50905,28 +53895,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EventFilter; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.EventFilter; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EventFilter_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.EventFilter_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EventFilter_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EventFilter_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.EventFilter_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.EventFilter_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -51011,7 +53989,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AggregateConfiguration : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public AggregateConfiguration()
@@ -51079,28 +54057,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AggregateConfiguration; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.AggregateConfiguration; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AggregateConfiguration_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AggregateConfiguration_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AggregateConfiguration_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AggregateConfiguration_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AggregateConfiguration_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AggregateConfiguration_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -51266,28 +54232,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AggregateFilter; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.AggregateFilter; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AggregateFilter_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.AggregateFilter_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AggregateFilter_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AggregateFilter_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.AggregateFilter_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.AggregateFilter_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -51382,7 +54336,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoringFilterResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public MonitoringFilterResult()
@@ -51406,28 +54360,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.MonitoringFilterResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoringFilterResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.MonitoringFilterResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoringFilterResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.MonitoringFilterResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.MonitoringFilterResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoringFilterResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoringFilterResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -51583,28 +54525,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EventFilterResult; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.EventFilterResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EventFilterResult_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.EventFilterResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EventFilterResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EventFilterResult_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.EventFilterResult_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.EventFilterResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -51756,28 +54686,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AggregateFilterResult; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.AggregateFilterResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AggregateFilterResult_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.AggregateFilterResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AggregateFilterResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AggregateFilterResult_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.AggregateFilterResult_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.AggregateFilterResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -51867,7 +54785,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoringParameters : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public MonitoringParameters()
@@ -51935,28 +54853,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.MonitoringParameters; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoringParameters; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.MonitoringParameters_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoringParameters_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.MonitoringParameters_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.MonitoringParameters_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoringParameters_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoringParameters_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -52051,7 +54957,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemCreateRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public MonitoredItemCreateRequest()
@@ -52125,28 +55031,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.MonitoredItemCreateRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoredItemCreateRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.MonitoredItemCreateRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoredItemCreateRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.MonitoredItemCreateRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.MonitoredItemCreateRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemCreateRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoredItemCreateRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -52302,7 +55196,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemCreateResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public MonitoredItemCreateResult()
@@ -52370,28 +55264,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.MonitoredItemCreateResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoredItemCreateResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.MonitoredItemCreateResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoredItemCreateResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.MonitoredItemCreateResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.MonitoredItemCreateResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemCreateResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoredItemCreateResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -52557,7 +55439,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateMonitoredItemsRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CreateMonitoredItemsRequest()
@@ -52640,28 +55522,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CreateMonitoredItemsRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CreateMonitoredItemsRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CreateMonitoredItemsRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CreateMonitoredItemsRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CreateMonitoredItemsRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CreateMonitoredItemsRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateMonitoredItemsRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CreateMonitoredItemsRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -52751,7 +55621,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateMonitoredItemsResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CreateMonitoredItemsResponse()
@@ -52837,28 +55707,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CreateMonitoredItemsResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CreateMonitoredItemsResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CreateMonitoredItemsResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CreateMonitoredItemsResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CreateMonitoredItemsResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CreateMonitoredItemsResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateMonitoredItemsResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CreateMonitoredItemsResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -52943,7 +55801,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemModifyRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public MonitoredItemModifyRequest()
@@ -52996,28 +55854,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.MonitoredItemModifyRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoredItemModifyRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.MonitoredItemModifyRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoredItemModifyRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.MonitoredItemModifyRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.MonitoredItemModifyRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemModifyRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoredItemModifyRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -53168,7 +56014,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemModifyResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public MonitoredItemModifyResult()
@@ -53227,28 +56073,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.MonitoredItemModifyResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoredItemModifyResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.MonitoredItemModifyResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoredItemModifyResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.MonitoredItemModifyResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.MonitoredItemModifyResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemModifyResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoredItemModifyResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -53409,7 +56243,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModifyMonitoredItemsRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ModifyMonitoredItemsRequest()
@@ -53492,28 +56326,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ModifyMonitoredItemsRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ModifyMonitoredItemsRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ModifyMonitoredItemsRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ModifyMonitoredItemsRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ModifyMonitoredItemsRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ModifyMonitoredItemsRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModifyMonitoredItemsRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ModifyMonitoredItemsRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -53603,7 +56425,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModifyMonitoredItemsResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ModifyMonitoredItemsResponse()
@@ -53689,28 +56511,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ModifyMonitoredItemsResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ModifyMonitoredItemsResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ModifyMonitoredItemsResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ModifyMonitoredItemsResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ModifyMonitoredItemsResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ModifyMonitoredItemsResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModifyMonitoredItemsResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ModifyMonitoredItemsResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -53795,7 +56605,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetMonitoringModeRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SetMonitoringModeRequest()
@@ -53878,28 +56688,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SetMonitoringModeRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SetMonitoringModeRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SetMonitoringModeRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SetMonitoringModeRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SetMonitoringModeRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SetMonitoringModeRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetMonitoringModeRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SetMonitoringModeRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -53989,7 +56787,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetMonitoringModeResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SetMonitoringModeResponse()
@@ -54075,28 +56873,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SetMonitoringModeResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SetMonitoringModeResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SetMonitoringModeResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SetMonitoringModeResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SetMonitoringModeResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SetMonitoringModeResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetMonitoringModeResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SetMonitoringModeResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -54181,7 +56967,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetTriggeringRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SetTriggeringRequest()
@@ -54285,28 +57071,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SetTriggeringRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SetTriggeringRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SetTriggeringRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SetTriggeringRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SetTriggeringRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SetTriggeringRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetTriggeringRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SetTriggeringRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -54401,7 +57175,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetTriggeringResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SetTriggeringResponse()
@@ -54529,28 +57303,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SetTriggeringResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SetTriggeringResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SetTriggeringResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SetTriggeringResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SetTriggeringResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SetTriggeringResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetTriggeringResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SetTriggeringResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -54645,7 +57407,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteMonitoredItemsRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DeleteMonitoredItemsRequest()
@@ -54719,28 +57481,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteMonitoredItemsRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteMonitoredItemsRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteMonitoredItemsRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteMonitoredItemsRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteMonitoredItemsRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteMonitoredItemsRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteMonitoredItemsRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteMonitoredItemsRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -54825,7 +57575,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteMonitoredItemsResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DeleteMonitoredItemsResponse()
@@ -54911,28 +57661,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteMonitoredItemsResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteMonitoredItemsResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteMonitoredItemsResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteMonitoredItemsResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteMonitoredItemsResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteMonitoredItemsResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteMonitoredItemsResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteMonitoredItemsResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -55017,7 +57755,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateSubscriptionRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CreateSubscriptionRequest()
@@ -55115,28 +57853,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CreateSubscriptionRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CreateSubscriptionRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CreateSubscriptionRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CreateSubscriptionRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CreateSubscriptionRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CreateSubscriptionRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateSubscriptionRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CreateSubscriptionRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -55241,7 +57967,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class CreateSubscriptionResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public CreateSubscriptionResponse()
@@ -55321,28 +58047,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.CreateSubscriptionResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.CreateSubscriptionResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.CreateSubscriptionResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CreateSubscriptionResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.CreateSubscriptionResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.CreateSubscriptionResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateSubscriptionResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CreateSubscriptionResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -55437,7 +58151,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModifySubscriptionRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ModifySubscriptionRequest()
@@ -55535,28 +58249,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ModifySubscriptionRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ModifySubscriptionRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ModifySubscriptionRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ModifySubscriptionRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ModifySubscriptionRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ModifySubscriptionRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModifySubscriptionRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ModifySubscriptionRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -55661,7 +58363,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModifySubscriptionResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ModifySubscriptionResponse()
@@ -55732,28 +58434,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ModifySubscriptionResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ModifySubscriptionResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ModifySubscriptionResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ModifySubscriptionResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ModifySubscriptionResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ModifySubscriptionResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModifySubscriptionResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ModifySubscriptionResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -55843,7 +58533,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetPublishingModeRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SetPublishingModeRequest()
@@ -55917,28 +58607,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SetPublishingModeRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SetPublishingModeRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SetPublishingModeRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SetPublishingModeRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SetPublishingModeRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SetPublishingModeRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetPublishingModeRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SetPublishingModeRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -56023,7 +58701,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SetPublishingModeResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SetPublishingModeResponse()
@@ -56109,28 +58787,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SetPublishingModeResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SetPublishingModeResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SetPublishingModeResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SetPublishingModeResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SetPublishingModeResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SetPublishingModeResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetPublishingModeResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SetPublishingModeResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -56215,7 +58881,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NotificationMessage : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public NotificationMessage()
@@ -56258,47 +58924,23 @@ namespace Opc.Ua
         [DataMember(Name = "NotificationData", IsRequired = false, Order = 3)]
         public ExtensionObjectCollection NotificationData
         {
-            get
-            {
-                return m_notificationData;
-            }
-
-            set
-            {
-                m_notificationData = value;
-
-                if (value == null)
-                {
-                    m_notificationData = new ExtensionObjectCollection();
-                }
-            }
+            get { return m_notificationData;  }
+            set { m_notificationData = value; }
         }
         #endregion
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.NotificationMessage; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.NotificationMessage; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.NotificationMessage_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NotificationMessage_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.NotificationMessage_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.NotificationMessage_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NotificationMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NotificationMessage_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -56383,7 +59025,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NotificationData : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public NotificationData()
@@ -56407,28 +59049,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.NotificationData; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.NotificationData; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.NotificationData_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NotificationData_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.NotificationData_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.NotificationData_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NotificationData_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NotificationData_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -56563,28 +59193,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DataChangeNotification; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.DataChangeNotification; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DataChangeNotification_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DataChangeNotification_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DataChangeNotification_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DataChangeNotification_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.DataChangeNotification_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.DataChangeNotification_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -56669,7 +59287,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class MonitoredItemNotification : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public MonitoredItemNotification()
@@ -56710,28 +59328,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.MonitoredItemNotification; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoredItemNotification; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.MonitoredItemNotification_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoredItemNotification_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.MonitoredItemNotification_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.MonitoredItemNotification_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemNotification_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoredItemNotification_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -56926,28 +59532,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EventNotificationList; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.EventNotificationList; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EventNotificationList_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.EventNotificationList_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EventNotificationList_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EventNotificationList_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.EventNotificationList_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.EventNotificationList_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -57027,7 +59621,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EventFieldList : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public EventFieldList()
@@ -57080,28 +59674,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EventFieldList; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.EventFieldList; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EventFieldList_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EventFieldList_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EventFieldList_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EventFieldList_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EventFieldList_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EventFieldList_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -57252,7 +59834,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class HistoryEventFieldList : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public HistoryEventFieldList()
@@ -57296,28 +59878,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.HistoryEventFieldList; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryEventFieldList; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.HistoryEventFieldList_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryEventFieldList_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.HistoryEventFieldList_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.HistoryEventFieldList_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryEventFieldList_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryEventFieldList_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -57504,28 +60074,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.StatusChangeNotification; }
-        }
+        public override ExpandedNodeId TypeId => DataTypeIds.StatusChangeNotification; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.StatusChangeNotification_Encoding_DefaultBinary; }
-        }
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.StatusChangeNotification_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.StatusChangeNotification_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.StatusChangeNotification_Encoding_DefaultJson; }
-        }
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.StatusChangeNotification_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.StatusChangeNotification_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -57610,7 +60168,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SubscriptionAcknowledgement : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SubscriptionAcknowledgement()
@@ -57651,28 +60209,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SubscriptionAcknowledgement; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SubscriptionAcknowledgement; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SubscriptionAcknowledgement_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SubscriptionAcknowledgement_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SubscriptionAcknowledgement_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SubscriptionAcknowledgement_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SubscriptionAcknowledgement_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SubscriptionAcknowledgement_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -57823,7 +60369,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public PublishRequest()
@@ -57888,28 +60434,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.PublishRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PublishRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.PublishRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PublishRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.PublishRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.PublishRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PublishRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -57989,7 +60523,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class PublishResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public PublishResponse()
@@ -58135,28 +60669,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.PublishResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.PublishResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.PublishResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PublishResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.PublishResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.PublishResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PublishResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -58261,7 +60783,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RepublishRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RepublishRequest()
@@ -58323,28 +60845,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RepublishRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RepublishRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RepublishRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RepublishRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RepublishRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RepublishRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RepublishRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RepublishRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -58429,7 +60939,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RepublishResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RepublishResponse()
@@ -58494,28 +61004,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RepublishResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RepublishResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RepublishResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RepublishResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RepublishResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RepublishResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RepublishResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RepublishResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -58595,7 +61093,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TransferResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public TransferResult()
@@ -58648,28 +61146,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.TransferResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TransferResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.TransferResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TransferResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.TransferResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.TransferResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransferResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TransferResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -58820,7 +61306,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TransferSubscriptionsRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public TransferSubscriptionsRequest()
@@ -58894,28 +61380,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.TransferSubscriptionsRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TransferSubscriptionsRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.TransferSubscriptionsRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TransferSubscriptionsRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.TransferSubscriptionsRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.TransferSubscriptionsRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransferSubscriptionsRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TransferSubscriptionsRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -59000,7 +61474,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class TransferSubscriptionsResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public TransferSubscriptionsResponse()
@@ -59086,28 +61560,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.TransferSubscriptionsResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TransferSubscriptionsResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -59192,7 +61654,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteSubscriptionsRequest : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DeleteSubscriptionsRequest()
@@ -59257,28 +61719,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteSubscriptionsRequest; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteSubscriptionsRequest; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteSubscriptionsRequest_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteSubscriptionsRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteSubscriptionsRequest_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteSubscriptionsRequest_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteSubscriptionsRequest_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteSubscriptionsRequest_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -59358,7 +61808,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DeleteSubscriptionsResponse : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DeleteSubscriptionsResponse()
@@ -59444,28 +61894,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DeleteSubscriptionsResponse; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteSubscriptionsResponse; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DeleteSubscriptionsResponse_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteSubscriptionsResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DeleteSubscriptionsResponse_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DeleteSubscriptionsResponse_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteSubscriptionsResponse_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteSubscriptionsResponse_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -59550,7 +61988,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class BuildInfo : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public BuildInfo()
@@ -59627,28 +62065,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.BuildInfo; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.BuildInfo; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.BuildInfo_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BuildInfo_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.BuildInfo_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.BuildInfo_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BuildInfo_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BuildInfo_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -59826,7 +62252,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class RedundantServerDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public RedundantServerDataType()
@@ -59876,28 +62302,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.RedundantServerDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.RedundantServerDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.RedundantServerDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RedundantServerDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.RedundantServerDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.RedundantServerDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RedundantServerDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RedundantServerDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -60053,7 +62467,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EndpointUrlListDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public EndpointUrlListDataType()
@@ -60097,28 +62511,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EndpointUrlListDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.EndpointUrlListDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EndpointUrlListDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EndpointUrlListDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EndpointUrlListDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EndpointUrlListDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EndpointUrlListDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EndpointUrlListDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -60264,7 +62666,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class NetworkGroupDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public NetworkGroupDataType()
@@ -60317,28 +62719,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.NetworkGroupDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.NetworkGroupDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.NetworkGroupDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NetworkGroupDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.NetworkGroupDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.NetworkGroupDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NetworkGroupDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NetworkGroupDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -60489,7 +62879,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SamplingIntervalDiagnosticsDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SamplingIntervalDiagnosticsDataType()
@@ -60548,28 +62938,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SamplingIntervalDiagnosticsDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SamplingIntervalDiagnosticsDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -60730,7 +63108,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServerDiagnosticsSummaryDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ServerDiagnosticsSummaryDataType()
@@ -60861,28 +63239,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ServerDiagnosticsSummaryDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ServerDiagnosticsSummaryDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -61012,7 +63378,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServerStatusDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ServerStatusDataType()
@@ -61101,28 +63467,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ServerStatusDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ServerStatusDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ServerStatusDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ServerStatusDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ServerStatusDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ServerStatusDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServerStatusDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ServerStatusDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -61222,7 +63576,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SessionDiagnosticsDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SessionDiagnosticsDataType()
@@ -62004,28 +64358,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SessionDiagnosticsDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SessionDiagnosticsDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SessionDiagnosticsDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SessionDiagnosticsDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SessionDiagnosticsDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SessionDiagnosticsDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionDiagnosticsDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SessionDiagnosticsDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -62381,7 +64723,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SessionSecurityDiagnosticsDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SessionSecurityDiagnosticsDataType()
@@ -62497,28 +64839,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SessionSecurityDiagnosticsDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SessionSecurityDiagnosticsDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -62704,7 +65034,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ServiceCounterDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ServiceCounterDataType()
@@ -62745,28 +65075,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ServiceCounterDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ServiceCounterDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ServiceCounterDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ServiceCounterDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ServiceCounterDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ServiceCounterDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServiceCounterDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ServiceCounterDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -62846,7 +65164,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class StatusResult : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public StatusResult()
@@ -62887,28 +65205,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.StatusResult; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.StatusResult; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.StatusResult_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.StatusResult_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.StatusResult_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.StatusResult_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.StatusResult_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.StatusResult_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -63059,7 +65365,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SubscriptionDiagnosticsDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SubscriptionDiagnosticsDataType()
@@ -63361,28 +65667,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SubscriptionDiagnosticsDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SubscriptionDiagnosticsDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -63709,7 +66003,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ModelChangeStructureDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ModelChangeStructureDataType()
@@ -63759,28 +66053,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ModelChangeStructureDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ModelChangeStructureDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ModelChangeStructureDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ModelChangeStructureDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ModelChangeStructureDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ModelChangeStructureDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModelChangeStructureDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ModelChangeStructureDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -63936,7 +66218,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class SemanticChangeStructureDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public SemanticChangeStructureDataType()
@@ -63977,28 +66259,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SemanticChangeStructureDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SemanticChangeStructureDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -64149,7 +66419,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Range : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public Range()
@@ -64190,28 +66460,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.Range; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.Range; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.Range_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Range_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.Range_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.Range_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Range_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Range_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -64291,7 +66549,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class EUInformation : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public EUInformation()
@@ -64350,28 +66608,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.EUInformation; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.EUInformation; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.EUInformation_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EUInformation_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.EUInformation_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.EUInformation_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EUInformation_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EUInformation_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -64484,7 +66730,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ComplexNumberType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ComplexNumberType()
@@ -64525,28 +66771,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ComplexNumberType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ComplexNumberType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ComplexNumberType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ComplexNumberType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ComplexNumberType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ComplexNumberType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ComplexNumberType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ComplexNumberType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -64626,7 +66860,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class DoubleComplexNumberType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public DoubleComplexNumberType()
@@ -64667,28 +66901,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.DoubleComplexNumberType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DoubleComplexNumberType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.DoubleComplexNumberType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DoubleComplexNumberType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.DoubleComplexNumberType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.DoubleComplexNumberType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DoubleComplexNumberType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DoubleComplexNumberType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -64768,7 +66990,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class AxisInformation : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public AxisInformation()
@@ -64872,28 +67094,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.AxisInformation; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.AxisInformation; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.AxisInformation_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AxisInformation_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.AxisInformation_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.AxisInformation_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AxisInformation_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AxisInformation_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -64988,7 +67198,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class XVType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public XVType()
@@ -65029,28 +67239,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.XVType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.XVType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.XVType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.XVType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.XVType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.XVType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.XVType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.XVType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -65130,7 +67328,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ProgramDiagnosticDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ProgramDiagnosticDataType()
@@ -65279,28 +67477,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ProgramDiagnosticDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ProgramDiagnosticDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -65420,7 +67606,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class ProgramDiagnostic2DataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ProgramDiagnostic2DataType()
@@ -65599,28 +67785,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ProgramDiagnostic2DataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ProgramDiagnostic2DataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ProgramDiagnostic2DataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ProgramDiagnostic2DataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ProgramDiagnostic2DataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ProgramDiagnostic2DataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ProgramDiagnostic2DataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ProgramDiagnostic2DataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -65750,7 +67924,7 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
     public partial class Annotation : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public Annotation()
@@ -65800,28 +67974,16 @@ namespace Opc.Ua
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.Annotation; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.Annotation; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.Annotation_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Annotation_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.Annotation_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.Annotation_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Annotation_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Annotation_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
