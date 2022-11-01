@@ -220,7 +220,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Decode the Tbs of the CRL.
+        /// Decode the Tbs of the CRL. 
         /// </summary>
         /// <param name="tbs">The raw TbsCertList of the CRL.</param>
         internal void DecodeCrl(byte[] tbs)
@@ -262,15 +262,11 @@ namespace Opc.Ua.Security.Certificates
                     m_issuerName = new X500DistinguishedName(seqReader.ReadEncodedValue().ToArray());
 
                     // thisUpdate
-                    m_thisUpdate = seqReader.ReadUtcTime().UtcDateTime;
+                    m_thisUpdate = ReadTime(seqReader, optional: false);
 
                     // nextUpdate is OPTIONAL
-                    var utcTag = new Asn1Tag(UniversalTagNumber.UtcTime);
-                    peekTag = seqReader.PeekTag();
-                    if (peekTag == utcTag)
-                    {
-                        m_nextUpdate = seqReader.ReadUtcTime().UtcDateTime;
-                    }
+                    m_nextUpdate = ReadTime(seqReader, optional: true);
+
 
                     var seqTag = new Asn1Tag(UniversalTagNumber.Sequence, true);
                     peekTag = seqReader.PeekTag();
@@ -328,6 +324,34 @@ namespace Opc.Ua.Security.Certificates
             catch (AsnContentException ace)
             {
                 throw new CryptographicException("Failed to decode the CRL.", ace);
+            }
+        }
+
+        /// <summary>
+        /// Read the time, UTC or local time
+        /// </summary>
+        /// <param name="asnReader"></param>
+        /// <param name="optional"></param>
+        /// <returns>The DateTime representing the tag</returns>
+        private DateTime ReadTime(AsnReader asnReader, bool optional)
+        {
+            // determine if the time is UTC or GeneralizedTime time
+            var timeTag = asnReader.PeekTag();
+            if (timeTag.TagValue == Asn1Tag.UtcTime.TagValue)
+            {
+                return asnReader.ReadUtcTime().UtcDateTime;
+            }
+            else if (timeTag.TagValue == Asn1Tag.GeneralizedTime.TagValue)
+            {
+                return asnReader.ReadGeneralizedTime().LocalDateTime;
+            }
+            else if (optional)
+            {
+                return DateTime.MinValue;
+            }
+            else
+            {
+                throw new AsnContentException("The CRL contains an invalid time tag.");
             }
         }
 

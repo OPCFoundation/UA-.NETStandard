@@ -2530,21 +2530,10 @@ namespace Opc.Ua
             ref int index,
             TypeInfo typeInfo)
         {
-            ulong sizeFromDimensions = 1;
             // check if matrix is well formed
-            for (int ii = 0; ii < matrix.Dimensions.Length; ii++)
-            {
-                if (matrix.Dimensions[ii] > m_context.MaxArrayLength)
-                {
-                    throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingLimitsExceeded,
-                            "Maximum MaxArrayLength of {0} was exceeded while in matrix dimensions",
-                            m_context.MaxArrayLength);
-                }
+            (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(true, matrix.Dimensions, Context.MaxArrayLength);
 
-                sizeFromDimensions *= (ulong)matrix.Dimensions[ii];
-            }
-            if (sizeFromDimensions != (ulong)matrix.Elements.Length)
+            if (!valid || (sizeFromDimensions != matrix.Elements.Length))
             {
                 throw new ArgumentException("The number of elements in the matrix does not match the dimensions.");
             }
