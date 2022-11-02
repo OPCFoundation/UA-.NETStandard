@@ -125,15 +125,7 @@ namespace Opc.Ua.Security.Certificates
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
             try
             {
-                var asymmetricKeyParameter = PublicKeyFactory.CreateKey(publicKey);
-                var rsaKeyParameters = asymmetricKeyParameter as RsaKeyParameters;
-                var parameters = new RSAParameters {
-                    Exponent = rsaKeyParameters.Exponent.ToByteArrayUnsigned(),
-                    Modulus = rsaKeyParameters.Modulus.ToByteArrayUnsigned()
-                };
-                RSA rsaPublicKey = RSA.Create();
-                rsaPublicKey.ImportParameters(parameters);
-                m_rsaPublicKey = rsaPublicKey;
+                m_rsaPublicKey = X509Utils.SetRSAPublicKey(publicKey);
             }
             catch (Exception e)
             {
