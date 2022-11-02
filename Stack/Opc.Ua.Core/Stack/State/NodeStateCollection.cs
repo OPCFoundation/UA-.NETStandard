@@ -336,7 +336,6 @@ namespace Opc.Ua
 
             using (XmlReader reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings()))
             {
-                XmlQualifiedName root = new XmlQualifiedName("ListOfNodeState", Namespaces.OpcUaXsd);
                 XmlDecoder decoder = new XmlDecoder(null, reader, messageContext);
 
                 NamespaceTable namespaceUris = new NamespaceTable();

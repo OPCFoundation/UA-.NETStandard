@@ -20,7 +20,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Schema\Opc.Ua.NodeSet2.xml" />
+    <None Remove="Schema\Opc.Ua.Nodeset2.xml.zip" />
     <None Remove="Schema\Opc.Ua.Types.bsd" />
     <None Remove="Schema\Opc.Ua.Types.xsd" />
     <None Remove="Schema\UANodeSet.xsd" />
@@ -29,7 +29,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
     <EmbeddedResource Include="Schema\UANodeSet.xsd" />
@@ -66,7 +65,25 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
   </ItemGroup>
-  
+
   <Target Name="GetPackagingOutputs" />
+
+  <!-- Produces a zipped version of the Nodeset 2 to reduce assembly size by 2.7MB ! -->
+  <ItemGroup>
+    <EmbeddedResource Include="Schema\Opc.Ua.Nodeset2.xml.zip" />
+  </ItemGroup>
+    
+  <PropertyGroup>
+    <ZipTmp>$(TMP)/zipnodeset2</ZipTmp>
+    <ZipNodeset2XML>./Schema/Opc.Ua.Nodeset2.xml</ZipNodeset2XML>
+  </PropertyGroup>
+
+  <Target Name="ZipNodeset2" BeforeTargets="PrepareForBuild" Inputs="$(ZipNodeset2XML)" Outputs="$(ZipNodeset2XML).zip">
+    <Message Text="Zip $(ZipNodeset2XML) in $(ZipTmp)." Importance="high"/>
+    <Copy SourceFiles="$(ZipNodeset2XML)" DestinationFolder="$(ZipTmp)" />
+    <ZipDirectory SourceDirectory="$(ZipTmp)" DestinationFile="$(ZipNodeset2XML).zip" Overwrite="true" />
+    <RemoveDir Directories="$(ZipTmp)" />
+    <Message Text="Zip Nodeset2 completed, $(ZipTmp) removed." Importance="high"/>
+  </Target>
 
 </Project>

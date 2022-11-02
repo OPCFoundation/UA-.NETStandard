@@ -261,3 +261,4 @@ OPC\ Foundation/
 /Microsoft.CodeDom.Providers.DotNetCompilerPlatform.xml
 /SampleApplications/Samples/OPCOutput
 !**/Assets/*.*
+*.Nodeset2.xml.zip
