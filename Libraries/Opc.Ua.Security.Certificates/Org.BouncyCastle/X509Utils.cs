@@ -191,6 +191,22 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 return Convert.ToBase64String(tokenBuffer);
             }
         }
+
+        /// <summary>
+        /// Returns a RSA object with an imported public key.
+        /// </summary>
+        internal static RSA SetRSAPublicKey(byte[] publicKey)
+        {
+            var asymmetricKeyParameter = PublicKeyFactory.CreateKey(publicKey);
+            var rsaKeyParameters = asymmetricKeyParameter as RsaKeyParameters;
+            var parameters = new RSAParameters {
+                Exponent = rsaKeyParameters.Exponent.ToByteArrayUnsigned(),
+                Modulus = rsaKeyParameters.Modulus.ToByteArrayUnsigned()
+            };
+            RSA rsaPublicKey = RSA.Create();
+            rsaPublicKey.ImportParameters(parameters);
+            return rsaPublicKey;
+        }
         #endregion
     }
 }
