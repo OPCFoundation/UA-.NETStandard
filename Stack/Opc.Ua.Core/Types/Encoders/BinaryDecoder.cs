@@ -2114,23 +2114,24 @@ namespace Opc.Ua
                         m_context.MaxEncodingNestingLevels);
                 }
 
-                m_nestingLevel++;
+                uint nestingLevel = m_nestingLevel++;
 
                 try
                 {
                     // decode body.
                     encodeable.Decode(this);
+
+                    m_nestingLevel--;
                 }
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
                 {
                     // type was known but decoding failed, reset stream!
                     m_reader.BaseStream.Position = start;
+                    m_nestingLevel = nestingLevel;
                     encodeable = null;
                     Utils.LogWarning(sre, "Failed to decode encodeable type '{0}', NodeId='{1}'. BinaryDecoder recovered.",
                         systemType.Name, extension.TypeId);
                 }
-
-                m_nestingLevel--;
             }
 
             // process unknown type.
