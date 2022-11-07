@@ -2099,6 +2099,41 @@ namespace Opc.Ua
             // get the length.
             int length = ReadInt32(null);
 
+            // save the current position.
+            int start = Position;
+
+            // process known type.
+            if (encodeable != null)
+            {
+                // check the nesting level for avoiding a stack overflow.
+                if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Maximum nesting level of {0} was exceeded",
+                        m_context.MaxEncodingNestingLevels);
+                }
+
+                uint nestingLevel = m_nestingLevel++;
+
+                try
+                {
+                    // decode body.
+                    encodeable.Decode(this);
+
+                    m_nestingLevel--;
+                }
+                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+                {
+                    // type was known but decoding failed, reset stream!
+                    m_reader.BaseStream.Position = start;
+                    m_nestingLevel = nestingLevel;
+                    encodeable = null;
+                    Utils.LogWarning(sre, "Failed to decode encodeable type '{0}', NodeId='{1}'. BinaryDecoder recovered.",
+                        systemType.Name, extension.TypeId);
+                }
+            }
+
             // process unknown type.
             if (encodeable == null)
             {
@@ -2122,27 +2157,9 @@ namespace Opc.Ua
 
                 // read the bytes of the body.
                 extension.Body = m_reader.ReadBytes(length);
+
                 return extension;
             }
-
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            m_nestingLevel++;
-
-            // save the current position.
-            int start = Position;
-
-            // decode body.
-            encodeable.Decode(this);
-
-            m_nestingLevel--;
 
             // skip any unread data.
             int unused = length - (Position - start);
