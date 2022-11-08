@@ -43,7 +43,7 @@ namespace Opc.Ua.Gds
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGdsXsd)]
     public partial class ApplicationRecordDataType : IEncodeable, IJsonEncodeable
-        {
+    {
         #region Constructors
         /// <remarks />
         public ApplicationRecordDataType()
@@ -165,28 +165,16 @@ namespace Opc.Ua.Gds
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.ApplicationRecordDataType; }
-        }
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ApplicationRecordDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.ApplicationRecordDataType_Encoding_DefaultBinary; }
-        }
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ApplicationRecordDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.ApplicationRecordDataType_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId JsonEncodingId
-        {
-            get { return ObjectIds.ApplicationRecordDataType_Encoding_DefaultJson; }
-        }
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationRecordDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ApplicationRecordDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)

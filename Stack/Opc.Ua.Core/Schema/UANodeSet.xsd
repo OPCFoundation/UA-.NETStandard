@@ -175,11 +175,14 @@
     </xs:sequence>
   </xs:complexType>
 
+  <!--
+  May be used in the future.
   <xs:simpleType name="ModelVersion">
     <xs:restriction base="xs:token">
       <xs:pattern value="^(0|[1-9]+[0-9]*)\.(0|[1-9]+[0-9]*)\.(0|[1-9]+[0-9]*)(-(0|[1-9A-Za-z-][0-9A-Za-z-]*)(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$" />
     </xs:restriction>
   </xs:simpleType>
+  -->
 
   <xs:simpleType name="NodeId">
     <xs:restriction base="xs:string" />
