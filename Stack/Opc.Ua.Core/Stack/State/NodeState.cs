@@ -129,7 +129,7 @@ namespace Opc.Ua
 
                 if (child == null)
                 {
-                    child = (BaseInstanceState)sourceChild.MemberwiseClone();
+                    child = (BaseInstanceState)Utils.Clone(sourceChild);
                     AddChild(child);
                 }
 
@@ -144,6 +144,28 @@ namespace Opc.Ua
                 IReference reference = references[ii];
                 AddReference(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
             }
+        }
+
+        /// <summary>
+        /// Makes a copy of all children.
+        /// Children must implement MemberwiseClone.
+        /// </summary>
+        protected object MemberwiseClone(NodeState clone)
+        {
+            if (m_children != null)
+            {
+                clone.m_children = new List<BaseInstanceState>(m_children.Count);
+
+                for (int ii = 0; ii < m_children.Count; ii++)
+                {
+                    BaseInstanceState child = (BaseInstanceState)Utils.Clone(m_children[ii]);
+                    clone.m_children.Add(child);
+                }
+            }
+
+            clone.m_changeMasks = NodeStateChangeMasks.None;
+
+            return clone;
         }
         #endregion
 

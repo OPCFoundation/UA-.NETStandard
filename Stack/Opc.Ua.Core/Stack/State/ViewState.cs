@@ -80,24 +80,10 @@ namespace Opc.Ua
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
-        public object MemberwiseClone(NodeState parent)
+        public new object MemberwiseClone()
         {
             ViewState clone = new ViewState();
-
-            if (m_children != null)
-            {
-                clone.m_children = new List<BaseInstanceState>(m_children.Count);
-
-                for (int ii = 0; ii < m_children.Count; ii++)
-                {
-                    BaseInstanceState child = (BaseInstanceState)m_children[ii].MemberwiseClone();
-                    clone.m_children.Add(child);
-                }
-            }
-
-            clone.m_changeMasks = NodeStateChangeMasks.None;
-
-            return clone;
+            return MemberwiseClone(clone);
         }
 
         /// <summary>

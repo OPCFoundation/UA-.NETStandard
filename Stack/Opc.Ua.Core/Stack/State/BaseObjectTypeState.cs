@@ -11,17 +11,9 @@
 */
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Reflection;
-using System.Threading;
 
 namespace Opc.Ua
-{       
+{
     /// <summary> 
     /// The base class for all object type nodes.
     /// </summary>
@@ -29,7 +21,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public BaseObjectTypeState() : base(NodeClass.ObjectType)
         {
@@ -60,8 +52,22 @@ namespace Opc.Ua
             return new BaseObjectTypeState();
         }
         #endregion
+
+        #region Public Members
+        /// <summary>
+        /// Makes a copy of the node and all children.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            BaseObjectTypeState clone = new BaseObjectTypeState();
+            return MemberwiseClone(clone);
+        }
+        #endregion
     }
-    
+
     /// <summary> 
     /// The base class for all object type nodes.
     /// </summary>
@@ -90,6 +96,20 @@ namespace Opc.Ua
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;
+        }
+        #endregion
+
+        #region Public Members
+        /// <summary>
+        /// Makes a copy of the node and all children.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            FolderTypeState clone = new FolderTypeState();
+            return MemberwiseClone(clone);
         }
         #endregion
     }

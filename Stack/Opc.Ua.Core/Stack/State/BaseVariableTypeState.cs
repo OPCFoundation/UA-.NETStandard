@@ -92,11 +92,11 @@ namespace Opc.Ua
         /// </summary>
         public Variant WrappedValue
         {
-            get 
-            { 
-                return new Variant(m_value); 
+            get
+            {
+                return new Variant(m_value);
             }
-            
+
             set
             {
                 Value = ExtractValueFromVariant(null, value.Value, false);
@@ -484,7 +484,7 @@ namespace Opc.Ua
             QualifiedName dataEncoding,
             ref object value,
             ref DateTime sourceTimestamp)
-        {  
+        {
             value = m_value;
 
             ServiceResult result = ServiceResult.Good;
@@ -514,7 +514,7 @@ namespace Opc.Ua
                     return StatusCodes.BadAttributeIdInvalid;
                 }
             }
-            
+
             // apply the index range and encoding.
             result = BaseVariableState.ApplyIndexRangeAndDataEncoding(context, indexRange, dataEncoding, ref value);
 
@@ -596,7 +596,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                       ValueRank = valueRank;
+                        ValueRank = valueRank;
                     }
 
                     return result;
@@ -697,7 +697,7 @@ namespace Opc.Ua
             return ServiceResult.Good;
         }
         #endregion
-        
+
         #region Private Fields
         private object m_value;
         private NodeId m_dataType;
@@ -750,6 +750,21 @@ namespace Opc.Ua
             ArrayDimensions = null;
         }
         #endregion
+
+        #region Public Members
+        /// <summary>
+        /// Makes a copy of the node and all children.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            BaseDataVariableTypeState clone = new BaseDataVariableTypeState();
+            return MemberwiseClone(clone);
+        }
+        #endregion
+
     }
 
     /// <summary> 
@@ -804,6 +819,18 @@ namespace Opc.Ua
                 base.Value = value;
             }
         }
+
+        /// <summary>
+        /// Makes a copy of the node and all children.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            BaseDataVariableTypeState<T> clone = new BaseDataVariableTypeState<T>();
+            return MemberwiseClone(clone);
+        }
         #endregion
     }
 
@@ -849,6 +876,20 @@ namespace Opc.Ua
             DataType = Opc.Ua.NodeId.Create(Opc.Ua.DataTypes.BaseDataType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
             ValueRank = ValueRanks.Any;
             ArrayDimensions = null;
+        }
+        #endregion
+
+        #region Public Members
+        /// <summary>
+        /// Makes a copy of the node and all children.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            PropertyTypeState clone = new PropertyTypeState();
+            return MemberwiseClone(clone);
         }
         #endregion
     }
@@ -904,6 +945,18 @@ namespace Opc.Ua
             {
                 base.Value = value;
             }
+        }
+
+        /// <summary>
+        /// Makes a copy of the node and all children.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            PropertyTypeState<T> clone = new PropertyTypeState<T>();
+            return MemberwiseClone(clone);
         }
         #endregion
     }
