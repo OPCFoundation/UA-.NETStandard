@@ -53,7 +53,13 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Public Members
+        #region ICloneable Members
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Makes a copy of the node and all children.
         /// </summary>
@@ -62,8 +68,8 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseObjectTypeState clone = new BaseObjectTypeState();
-            return MemberwiseClone(clone);
+            BaseObjectTypeState clone = (BaseObjectTypeState)Activator.CreateInstance(this.GetType());
+            return CloneChildren(clone);
         }
         #endregion
     }
@@ -98,8 +104,8 @@ namespace Opc.Ua
             IsAbstract = false;
         }
         #endregion
-
-        #region Public Members
+#if mist
+#region Public Members
         /// <summary>
         /// Makes a copy of the node and all children.
         /// </summary>
@@ -111,6 +117,7 @@ namespace Opc.Ua
             FolderTypeState clone = new FolderTypeState();
             return MemberwiseClone(clone);
         }
-        #endregion
+#endregion
+#endif
     }
 }

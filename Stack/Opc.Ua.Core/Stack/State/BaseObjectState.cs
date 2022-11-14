@@ -94,6 +94,26 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region ICloneable Members
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
+        /// <summary>
+        /// Makes a copy of the node and all children.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            BaseObjectState clone = (BaseObjectState)Activator.CreateInstance(this.GetType(), this.Parent);
+            return CloneChildren(clone);
+        }
+        #endregion
+
         #region Public Members
         /// <summary>
         /// The inverse name for the reference.
@@ -114,18 +134,6 @@ namespace Opc.Ua
 
                 m_eventNotifier = value;
             }
-        }
-
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
-        {
-            BaseObjectState clone = new BaseObjectState(this.Parent);
-            return MemberwiseClone(clone);
         }
         #endregion
 
@@ -374,8 +382,14 @@ namespace Opc.Ua
             return ObjectTypes.FolderType;
         }
         #endregion
+#if mist
+#region ICloneable Members
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            return this.MemberwiseClone();
+        }
 
-        #region Public Members
         /// <summary>
         /// Makes a copy of the node and all children.
         /// </summary>
@@ -387,6 +401,7 @@ namespace Opc.Ua
             FolderState clone = new FolderState(this.Parent);
             return MemberwiseClone(clone);
         }
-        #endregion
+#endregion
+#endif
     }
 }

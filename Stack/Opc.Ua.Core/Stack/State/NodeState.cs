@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// The base class for custom nodes.
     /// </summary>
-    public abstract partial class NodeState : IDisposable, IFormattable
+    public abstract partial class NodeState : IDisposable, IFormattable, ICloneable
     {
         #region Constructors
         /// <summary>
@@ -50,6 +50,36 @@ namespace Opc.Ua
         protected virtual void Dispose(bool disposing)
         {
             // does nothing.
+        }
+        #endregion
+
+        #region ICloneable Members
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Makes a copy of all children.
+        /// Children must implement MemberwiseClone or ICloneable.
+        /// </summary>
+        protected object CloneChildren(NodeState clone)
+        {
+            if (m_children != null)
+            {
+                clone.m_children = new List<BaseInstanceState>(m_children.Count);
+
+                for (int ii = 0; ii < m_children.Count; ii++)
+                {
+                    BaseInstanceState child = (BaseInstanceState)m_children[ii].Clone();
+                    clone.m_children.Add(child);
+                }
+            }
+
+            clone.m_changeMasks = NodeStateChangeMasks.None;
+
+            return clone;
         }
         #endregion
 
@@ -129,7 +159,7 @@ namespace Opc.Ua
 
                 if (child == null)
                 {
-                    child = (BaseInstanceState)Utils.Clone(sourceChild);
+                    child = (BaseInstanceState)sourceChild.Clone();
                     AddChild(child);
                 }
 
@@ -144,28 +174,6 @@ namespace Opc.Ua
                 IReference reference = references[ii];
                 AddReference(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
             }
-        }
-
-        /// <summary>
-        /// Makes a copy of all children.
-        /// Children must implement MemberwiseClone.
-        /// </summary>
-        protected object MemberwiseClone(NodeState clone)
-        {
-            if (m_children != null)
-            {
-                clone.m_children = new List<BaseInstanceState>(m_children.Count);
-
-                for (int ii = 0; ii < m_children.Count; ii++)
-                {
-                    BaseInstanceState child = (BaseInstanceState)Utils.Clone(m_children[ii]);
-                    clone.m_children.Add(child);
-                }
-            }
-
-            clone.m_changeMasks = NodeStateChangeMasks.None;
-
-            return clone;
         }
         #endregion
 

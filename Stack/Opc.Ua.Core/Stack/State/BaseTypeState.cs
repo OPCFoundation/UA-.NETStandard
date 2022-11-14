@@ -55,7 +55,13 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Public Members
+        #region ICloneable Members
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Makes a copy of the node and all children.
         /// </summary>
@@ -65,9 +71,11 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             BaseTypeState clone = new BaseTypeState(this.NodeClass);
-            return MemberwiseClone(clone);
+            return CloneChildren(clone);
         }
+        #endregion
 
+        #region Public Members
         /// <summary>
         /// The identifier for the supertype node.
         /// </summary>

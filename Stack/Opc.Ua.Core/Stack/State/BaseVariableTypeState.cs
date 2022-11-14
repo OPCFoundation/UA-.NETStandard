@@ -65,6 +65,26 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region ICloneable Members
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
+        /// <summary>
+        /// Makes a copy of the node and all children.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            BaseTypeState clone = (BaseTypeState)Activator.CreateInstance(this.GetType());
+            return CloneChildren(clone);
+        }
+        #endregion
+
         #region Public Members
         /// <summary>
         /// The value of the variable.
@@ -750,7 +770,7 @@ namespace Opc.Ua
             ArrayDimensions = null;
         }
         #endregion
-
+#if mist
         #region Public Members
         /// <summary>
         /// Makes a copy of the node and all children.
@@ -764,6 +784,7 @@ namespace Opc.Ua
             return MemberwiseClone(clone);
         }
         #endregion
+#endif
 
     }
 
@@ -819,7 +840,7 @@ namespace Opc.Ua
                 base.Value = value;
             }
         }
-
+#if mist
         /// <summary>
         /// Makes a copy of the node and all children.
         /// </summary>
@@ -831,6 +852,7 @@ namespace Opc.Ua
             BaseDataVariableTypeState<T> clone = new BaseDataVariableTypeState<T>();
             return MemberwiseClone(clone);
         }
+#endif
         #endregion
     }
 
@@ -878,7 +900,7 @@ namespace Opc.Ua
             ArrayDimensions = null;
         }
         #endregion
-
+#if mist
         #region Public Members
         /// <summary>
         /// Makes a copy of the node and all children.
@@ -892,6 +914,7 @@ namespace Opc.Ua
             return MemberwiseClone(clone);
         }
         #endregion
+#endif
     }
 
     /// <summary> 
@@ -946,7 +969,7 @@ namespace Opc.Ua
                 base.Value = value;
             }
         }
-
+#if mist
         /// <summary>
         /// Makes a copy of the node and all children.
         /// </summary>
@@ -958,6 +981,7 @@ namespace Opc.Ua
             PropertyTypeState<T> clone = new PropertyTypeState<T>();
             return MemberwiseClone(clone);
         }
+#endif
         #endregion
     }
 }

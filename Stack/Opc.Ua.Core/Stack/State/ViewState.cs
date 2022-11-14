@@ -73,7 +73,13 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Public Members
+        #region ICloneable Members
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Makes a copy of the node and all children.
         /// </summary>
@@ -82,10 +88,12 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            ViewState clone = new ViewState();
-            return MemberwiseClone(clone);
+            ViewState clone = (ViewState)Activator.CreateInstance(this.GetType());
+            return CloneChildren(clone);
         }
+        #endregion
 
+        #region Public Members
         /// <summary>
         /// The inverse name for the reference.
         /// </summary>

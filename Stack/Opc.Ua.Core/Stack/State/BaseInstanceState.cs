@@ -61,14 +61,11 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Public Members
-        /// <summary>
-        /// The parent node.
-        /// </summary>
-        public NodeState Parent
+        #region ICloneable Members
+        /// <inheritdoc/>
+        public override object Clone()
         {
-            get { return m_parent; }
-            internal set { m_parent = value; }
+            return this.MemberwiseClone();
         }
 
         /// <summary>
@@ -80,9 +77,19 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             BaseInstanceState clone = new BaseInstanceState(this.NodeClass, this.Parent);
-            return MemberwiseClone(clone);
+            return CloneChildren(clone);
         }
+        #endregion
 
+        #region Public Members
+        /// <summary>
+        /// The parent node.
+        /// </summary>
+        public NodeState Parent
+        {
+            get { return m_parent; }
+            internal set { m_parent = value; }
+        }
 
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
@@ -421,7 +428,7 @@ namespace Opc.Ua
                 children[ii].SetMinimumSamplingInterval(context, minimumSamplingInterval);
             }
         }
-        #endregion 
+        #endregion
 
         #region IFilterTarget Members
         /// <summary cref="IFilterTarget.IsTypeOf" />
