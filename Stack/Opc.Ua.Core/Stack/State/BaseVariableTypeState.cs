@@ -770,22 +770,6 @@ namespace Opc.Ua
             ArrayDimensions = null;
         }
         #endregion
-#if mist
-        #region Public Members
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
-        {
-            BaseDataVariableTypeState clone = new BaseDataVariableTypeState();
-            return MemberwiseClone(clone);
-        }
-        #endregion
-#endif
-
     }
 
     /// <summary> 
@@ -840,19 +824,6 @@ namespace Opc.Ua
                 base.Value = value;
             }
         }
-#if mist
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
-        {
-            BaseDataVariableTypeState<T> clone = new BaseDataVariableTypeState<T>();
-            return MemberwiseClone(clone);
-        }
-#endif
         #endregion
     }
 
@@ -900,21 +871,6 @@ namespace Opc.Ua
             ArrayDimensions = null;
         }
         #endregion
-#if mist
-        #region Public Members
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
-        {
-            PropertyTypeState clone = new PropertyTypeState();
-            return MemberwiseClone(clone);
-        }
-        #endregion
-#endif
     }
 
     /// <summary> 
@@ -969,19 +925,6 @@ namespace Opc.Ua
                 base.Value = value;
             }
         }
-#if mist
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
-        {
-            PropertyTypeState<T> clone = new PropertyTypeState<T>();
-            return MemberwiseClone(clone);
-        }
-#endif
         #endregion
     }
 }

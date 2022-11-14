@@ -104,20 +104,5 @@ namespace Opc.Ua
             IsAbstract = false;
         }
         #endregion
-#if mist
-#region Public Members
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
-        {
-            FolderTypeState clone = new FolderTypeState();
-            return MemberwiseClone(clone);
-        }
-#endregion
-#endif
     }
 }

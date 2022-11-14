@@ -382,26 +382,5 @@ namespace Opc.Ua
             return ObjectTypes.FolderType;
         }
         #endregion
-#if mist
-#region ICloneable Members
-        /// <inheritdoc/>
-        public override object Clone()
-        {
-            return this.MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
-        {
-            FolderState clone = new FolderState(this.Parent);
-            return MemberwiseClone(clone);
-        }
-#endregion
-#endif
     }
 }

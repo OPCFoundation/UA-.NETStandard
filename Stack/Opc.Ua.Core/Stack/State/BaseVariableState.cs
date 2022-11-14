@@ -2103,18 +2103,6 @@ namespace Opc.Ua
             return VariableTypes.PropertyType;
         }
         #endregion
-#if mist
-        #region Public Members
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            PropertyState clone = new PropertyState(this.Parent);
-            return MemberwiseClone(clone);
-        }
-        #endregion
-#endif
     }
 
     /// <summary> 
@@ -2172,16 +2160,6 @@ namespace Opc.Ua
                 base.Value = value;
             }
         }
-#if mist
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            PropertyState<T> clone = new PropertyState<T>(this.Parent);
-            return MemberwiseClone(clone);
-        }
-#endif
         #endregion
     }
 
@@ -2338,16 +2316,6 @@ namespace Opc.Ua
 
             return base.FindChild(context, browseName, createOrReplace, replacement);
         }
-#if mist
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            BaseDataVariableState clone = new BaseDataVariableState(this.Parent);
-            return MemberwiseClone(clone);
-        }
-#endif
         #endregion
 
         #region Private Fields
@@ -2427,16 +2395,6 @@ namespace Opc.Ua
                 base.Value = value;
             }
         }
-#if mist
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            BaseDataVariableState<T> clone = new BaseDataVariableState<T>(this.Parent);
-            return MemberwiseClone(clone);
-        }
-#endif
         #endregion
     }
 
