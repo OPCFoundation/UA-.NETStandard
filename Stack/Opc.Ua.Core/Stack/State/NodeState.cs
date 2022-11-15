@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -16,14 +16,13 @@ using System.Xml;
 using System.Text;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// The base class for custom nodes.
     /// </summary>
-    public abstract class NodeState : IDisposable, IFormattable
+    public abstract partial class NodeState : IDisposable, IFormattable
     {
         #region Constructors
         /// <summary>
@@ -479,10 +478,10 @@ namespace Opc.Ua
                 case NodeClass.View: { node = new ViewNode(); break; }
 
                 default:
-                    {
-                        node = new Node();
-                        break;
-                    }
+                {
+                    node = new Node();
+                    break;
+                }
             }
 
             Export(context, node);
@@ -505,7 +504,7 @@ namespace Opc.Ua
                 children[ii].Export(context, table);
             }
         }
-    
+
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>
@@ -529,19 +528,14 @@ namespace Opc.Ua
         /// <param name="ostrm">The stream to write.</param>
         public void SaveAsXml(ISystemContext context, Stream ostrm)
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext();
+            ServiceMessageContext messageContext = new ServiceMessageContext {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Factory = context.EncodeableFactory
+            };
 
-            messageContext.NamespaceUris = context.NamespaceUris;
-            messageContext.ServerUris = context.ServerUris;
-            messageContext.Factory = context.EncodeableFactory;
-
-            XmlWriterSettings settings = new XmlWriterSettings();
-
-            settings.Encoding = Encoding.UTF8;
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
-            settings.ConformanceLevel = ConformanceLevel.Document;
-            settings.Indent = true;
-
             using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
             {
                 XmlQualifiedName root = new XmlQualifiedName(this.SymbolicName, context.NamespaceUris.GetString(this.BrowseName.NamespaceIndex));
@@ -653,7 +647,7 @@ namespace Opc.Ua
         /// Flags which control the serialization of a NodeState in a stream.
         /// </summary>
         [Flags]
-        public enum AttributesToSave
+        public enum AttributesToSave : uint
         {
             /// <summary>
             /// The default value.
@@ -1201,10 +1195,7 @@ namespace Opc.Ua
         /// <param name="input">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, TextReader input)
         {
-            XmlReaderSettings settings = new XmlReaderSettings();
-            settings.ConformanceLevel = ConformanceLevel.Document;
-
-            using (XmlReader reader = XmlReader.Create(input, settings))
+            using (XmlReader reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings()))
             {
                 LoadFromXml(context, reader);
             }
@@ -1217,10 +1208,7 @@ namespace Opc.Ua
         /// <param name="input">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, Stream input)
         {
-            XmlReaderSettings settings = new XmlReaderSettings();
-            settings.ConformanceLevel = ConformanceLevel.Document;
-
-            using (XmlReader reader = XmlReader.Create(input, settings))
+            using (XmlReader reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings()))
             {
                 LoadFromXml(context, reader);
             }
@@ -2101,7 +2089,7 @@ namespace Opc.Ua
         /// Called when a reference gets removed from the node
         /// </summary>
         public NodeStateReferenceRemoved OnReferenceRemoved;
-        
+
         /// <summary>
         /// Called when a node produces an event that needs to be reported.
         /// </summary>
@@ -2454,7 +2442,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Returns any notifiers with the specified notifier type (NodeId) and direction.
-        /// </summary> 
+        /// </summary>
         public virtual void GetNotifiers(
             ISystemContext context,
             IList<Notifier> notifiers,
@@ -2853,7 +2841,7 @@ namespace Opc.Ua
         /// <param name="browseName">The browse name of the targets to return.</param>
         /// <param name="additionalReferences">Any additional references that should be included in the list.</param>
         /// <param name="internalOnly">Only return references that are stored in memory.</param>
-        /// <returns>A thread safe object which enumerates the refernces for an entity.</returns>
+        /// <returns>A thread safe object which enumerates the references for an entity.</returns>
         public virtual INodeBrowser CreateBrowser(
             ISystemContext context,
             ViewDescription view,
@@ -2933,7 +2921,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Populates a table with all references in the hierarchy. 
+        /// Populates a table with all references in the hierarchy.
         /// </summary>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="browsePath">The path to the parent object.</param>
@@ -3328,6 +3316,7 @@ namespace Opc.Ua
                         context,
                         attributeId,
                         ref valueToRead);
+
                 }
                 catch (Exception e)
                 {
@@ -3443,7 +3432,12 @@ namespace Opc.Ua
                         value = displayName;
                     }
 
-                    return result;
+                    if (value != null || result != null)
+                    {
+                        return result;
+                    }
+
+                    break;
                 }
 
                 case Attributes.Description:
@@ -3460,7 +3454,12 @@ namespace Opc.Ua
                         value = description;
                     }
 
-                    return result;
+                    if (value != null || result != null)
+                    {
+                        return result;
+                    }
+
+                    break;
                 }
 
                 case Attributes.WriteMask:
@@ -3511,7 +3510,12 @@ namespace Opc.Ua
                         value = rolePermissions;
                     }
 
-                    return result;
+                    if (value != null || result != null)
+                    {
+                        return result;
+                    }
+
+                    break;
                 }
 
                 case Attributes.UserRolePermissions:
@@ -3528,7 +3532,12 @@ namespace Opc.Ua
                         value = userRolePermissions;
                     }
 
-                    return result;
+                    if (value != null || result != null)
+                    {
+                        return result;
+                    }
+
+                    break;
                 }
 
                 case Attributes.AccessRestrictions:
@@ -3545,7 +3554,12 @@ namespace Opc.Ua
                         value = (ushort)m_accessRestrictions;
                     }
 
-                    return result;
+                    if (value != null || result != null)
+                    {
+                        return result;
+                    }
+
+                    break;
                 }
             }
 
@@ -3868,7 +3882,7 @@ namespace Opc.Ua
                 {
                     ExtensionObject[] rolePermissionsArray = value as ExtensionObject[];
 
-                    if(rolePermissionsArray == null)
+                    if (rolePermissionsArray == null)
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4130,7 +4144,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Adds a child to the node. 
+        /// Adds a child to the node.
         /// </summary>
         public void AddChild(BaseInstanceState child)
         {
@@ -4185,7 +4199,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Adds a child from the node. 
+        /// Removes a child from the node.
         /// </summary>
         public void RemoveChild(BaseInstanceState child)
         {
@@ -4498,7 +4512,7 @@ namespace Opc.Ua
                 .Select(r => r.Key)
                 .Where(r => r.ReferenceTypeId == referenceTypeId && r.IsInverse == isInverse)
                 .ToList();
-            
+
             refsToRemove.ForEach(r => RemoveReference(r.ReferenceTypeId, r.IsInverse, r.TargetId));
 
             return refsToRemove.Count != 0;
@@ -4513,7 +4527,7 @@ namespace Opc.Ua
         /// <param name="children">The list of children to populate.</param>
         /// <remarks>
         /// This method returns the children that are in memory and does not attempt to
-        /// access an underlying system. The PopulateBrowser method is used to discover those references. 
+        /// access an underlying system. The PopulateBrowser method is used to discover those references.
         /// </remarks>
         public virtual void GetChildren(
             ISystemContext context,
@@ -4534,11 +4548,11 @@ namespace Opc.Ua
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="references">The list of references to populate.</param>
         /// <remarks>
-        /// This method only returns references that are not implied by the parent-child 
+        /// This method only returns references that are not implied by the parent-child
         /// relation or references which are intrinsic to the NodeState classes (e.g. HasTypeDefinition)
-        /// 
+        ///
         /// This method also only returns the reference that are in memory and does not attempt to
-        /// access an underlying system. The PopulateBrowser method is used to discover those references.        
+        /// access an underlying system. The PopulateBrowser method is used to discover those references.
         /// </remarks>
         public virtual void GetReferences(
             ISystemContext context,
@@ -4646,8 +4660,19 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region Protected Fields
+        /// <summary>
+        /// A list of children of the node.
+        /// </summary>
+        protected List<BaseInstanceState> m_children;
+
+        /// <summary>
+        /// Indicates what has changed in the node.
+        /// </summary>
+        protected NodeStateChangeMasks m_changeMasks;
+        #endregion
+
         #region Private Fields
-        private object m_lock = new object();
         private object m_handle;
         private string m_symbolicName;
         private NodeId m_nodeId;
@@ -4660,20 +4685,18 @@ namespace Opc.Ua
         private RolePermissionTypeCollection m_rolePermissions;
         private RolePermissionTypeCollection m_userRolePermissions;
         private AccessRestrictionType m_accessRestrictions;
-        protected List<BaseInstanceState> m_children;
         private IReferenceDictionary<object> m_references;
-        protected NodeStateChangeMasks m_changeMasks;
         private int m_areEventsMonitored;
         private bool m_initialized;
         private List<Notifier> m_notifiers;
-        private System.Xml.XmlElement[] m_extensions;
+        private XmlElement[] m_extensions;
         #endregion
     }
 
-    [Flags]
     /// <summary>
     /// Indicates what has changed in a node.
     /// </summary>
+    [Flags]
     public enum NodeStateChangeMasks
     {
         /// <summary>
@@ -4721,7 +4744,7 @@ namespace Opc.Ua
         ISystemContext context,
         NodeState node,
         NodeStateChangeMasks changes);
-    
+
     /// <summary>
     /// Used to receive notifications when a reference get added to the node
     /// </summary>
@@ -4730,7 +4753,7 @@ namespace Opc.Ua
         NodeId referenceTypeId,
         bool isInverse,
         ExpandedNodeId targetId);
-    
+
     /// <summary>
     /// Used to receive notifications when a reference get removed to the node
     /// </summary>

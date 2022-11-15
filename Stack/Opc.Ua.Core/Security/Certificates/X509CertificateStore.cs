@@ -1,7 +1,7 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
 
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
 
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
@@ -15,17 +15,21 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// Provides access to a simple file based certificate store.
+    /// Provides access to a simple X509Store based certificate store.
     /// </summary>
     public class X509CertificateStore : ICertificateStore
     {
+        /// <summary>
+        /// Create an instance of the certificate store.
+        /// </summary>
         public X509CertificateStore()
         {
             // defaults
@@ -33,30 +37,38 @@ namespace Opc.Ua
             m_storeLocation = StoreLocation.CurrentUser;
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
-            // nothing to do
+            Dispose(true);
         }
 
+        /// <summary>
+        /// Dispose method for derived classes.
+        /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            // nothing to do
+            if (disposing)
+            {
+                Close();
+            }
         }
 
-        /// <summary cref="ICertificateStore.Open(string)" />
+        /// <summary cref="ICertificateStore.Open(string, bool)" />
         /// <remarks>
-        /// Syntax: StoreLocation\StoreName		
-        /// Examples:
-        /// LocalMachine\My
-        /// CurrentUser\Trust
+        /// Syntax: StoreLocation\StoreName
+        /// Example:
+        ///   CurrentUser\My
         /// </remarks>
-        public void Open(string path)
+        public void Open(string location, bool noPrivateKeys = true)
         {
-            if (path == null) throw new ArgumentNullException(nameof(path));
+            if (location == null) throw new ArgumentNullException(nameof(location));
 
-            path = path.Trim();
+            m_storePath = location;
+            m_noPrivateKeys = noPrivateKeys;
+            location = location.Trim();
 
-            if (string.IsNullOrEmpty(path))
+            if (string.IsNullOrEmpty(location))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
@@ -64,42 +76,51 @@ namespace Opc.Ua
             }
 
             // extract store name.
-            int index = path.IndexOf('\\');
+            int index = location.IndexOf('\\');
             if (index == -1)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
                     "Path does not specify a store name. Path={0}",
-                    path);
+                    location);
             }
 
             // extract store location.
-            string storeLocation = path.Substring(0, index);
+            string storeLocation = location.Substring(0, index);
             bool found = false;
             foreach (StoreLocation availableLocation in (StoreLocation[])Enum.GetValues(typeof(StoreLocation)))
             {
-                if (availableLocation.ToString() == storeLocation)
+                if (availableLocation.ToString().Equals(storeLocation, StringComparison.OrdinalIgnoreCase))
                 {
                     m_storeLocation = availableLocation;
                     found = true;
                 }
             }
-            if (found == false)
+            if (!found)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
-                    "Store location specified not available.\r\nStore location={0}",
-                    storeLocation);
+                var message = new StringBuilder();
+                message.AppendLine("Store location specified not available.");
+                message.AppendLine("Store location={0}");
+                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
+                    message.ToString(), storeLocation);
             }
 
-            m_storeName = path.Substring(index + 1);
+            m_storeName = location.Substring(index + 1);
         }
 
+        /// <inheritdoc/>
         public void Close()
         {
             // nothing to do
         }
 
+        /// <inheritdoc/>
+        public string StoreType => CertificateStoreType.X509Store;
+
+        /// <inheritdoc/>
+        public string StorePath => m_storePath;
+
+        /// <inheritdoc/>
         public Task<X509Certificate2Collection> Enumerate()
         {
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
@@ -109,7 +130,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.Add(X509Certificate2)" />
+        /// <inheritdoc/>
         public Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
@@ -119,14 +140,38 @@ namespace Opc.Ua
                 store.Open(OpenFlags.ReadWrite);
                 if (!store.Certificates.Contains(certificate))
                 {
-                    store.Add(certificate);
-                    Utils.Trace(Utils.TraceMasks.Information, "Added cert {0} to X509Store {1}.", certificate.ToString(), store.Name);
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER || NET472_OR_GREATER
+                    if (certificate.HasPrivateKey && !m_noPrivateKeys &&
+                        (Environment.OSVersion.Platform == PlatformID.Win32NT))
+                    {
+                        // see https://github.com/dotnet/runtime/issues/29144
+                        var temp = X509Utils.GeneratePasscode();
+                        using (var persistable = new X509Certificate2(certificate.Export(X509ContentType.Pfx, temp), temp,
+                            X509KeyStorageFlags.PersistKeySet))
+                        {
+                            store.Add(persistable);
+                        }
+                    }
+                    else
+#endif
+                    if (certificate.HasPrivateKey && m_noPrivateKeys)
+                    {
+                        // ensure no private key is added to store
+                        store.Add(new X509Certificate2(certificate.RawData));
+                    }
+                    else
+                    {
+                        store.Add(certificate);
+                    }
+
+                    Utils.LogCertificate("Added certificate to X509Store {0}.", certificate, store.Name);
                 }
             }
 
             return Task.CompletedTask;
         }
 
+        /// <inheritdoc/>
         public Task<bool> Delete(string thumbprint)
         {
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
@@ -145,6 +190,7 @@ namespace Opc.Ua
             return Task.FromResult(true);
         }
 
+        /// <inheritdoc/>
         public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
@@ -165,34 +211,58 @@ namespace Opc.Ua
             }
         }
 
-        public bool SupportsCRLs { get { return false; } }
+        /// <inheritdoc/>
+        public bool SupportsLoadPrivateKey => false;
 
-        public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
+        /// <inheritdoc/>
+        /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
         {
-            return StatusCodes.BadNotSupported;
+            return Task.FromResult<X509Certificate2>(null);
         }
 
-        public List<X509CRL> EnumerateCRLs()
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
+        public bool SupportsCRLs => false;
+
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
+        public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
+        {
+            return Task.FromResult((StatusCode)StatusCodes.BadNotSupported);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
+        public Task<X509CRLCollection> EnumerateCRLs()
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
-        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
+        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
-        public void AddCRL(X509CRL crl)
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
+        public Task AddCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
-        public bool DeleteCRL(X509CRL crl)
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
+        public Task<bool> DeleteCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
+        private bool m_noPrivateKeys;
         private string m_storeName;
+        private string m_storePath;
         private StoreLocation m_storeLocation;
     }
 }

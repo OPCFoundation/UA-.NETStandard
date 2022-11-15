@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -49,6 +49,7 @@ namespace Quickstarts.ReferenceClient
 
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
+            application.ApplicationName = "UA Reference Client";
             application.ApplicationType   = ApplicationType.Client;
             application.ConfigSectionName = "Quickstarts.ReferenceClient";
 
@@ -59,7 +60,11 @@ namespace Quickstarts.ReferenceClient
                 application.LoadApplicationConfiguration(false).Wait();
 
                 // check the application certificate.
-                application.CheckApplicationInstanceCertificate(false, 0).Wait();
+                var certOK = application.CheckApplicationInstanceCertificate(false, 0).Result;
+                if (!certOK)
+                {
+                    throw new Exception("Application instance certificate invalid!");
+                }
 
                 // run the application interactively.
                 Application.Run(new MainForm(application.ApplicationConfiguration));
@@ -67,7 +72,6 @@ namespace Quickstarts.ReferenceClient
             catch (Exception e)
             {
                 ExceptionDlg.Show(application.ApplicationName, e);
-                return;
             }
         }
     }

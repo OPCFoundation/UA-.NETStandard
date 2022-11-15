@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -34,6 +34,12 @@
     xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
 >
+  <xs:annotation>
+    <xs:appinfo>
+      <Model ModelUri="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" Version="1.05.02" PublicationDate="2022-10-01T00:00:00Z" />
+    </xs:appinfo>
+  </xs:annotation>
+
   <xs:element name="UANodeSet">
     <xs:complexType>
       <xs:sequence>
@@ -157,6 +163,7 @@
       <xs:element name="RequiredModel" type="ModelTableEntry" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
     <xs:attribute name="ModelUri" type="xs:string" use="required" />
+    <xs:attribute name="XmlSchemaUri" type="xs:string" use="optional" />
     <xs:attribute name="Version" type="xs:string" />
     <xs:attribute name="PublicationDate" type="xs:dateTime" />
     <xs:attribute name="AccessRestrictions" type="AccessRestriction" default="0" />
@@ -167,6 +174,15 @@
       <xs:element name="Model" type="ModelTableEntry" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
   </xs:complexType>
+
+  <!--
+  May be used in the future.
+  <xs:simpleType name="ModelVersion">
+    <xs:restriction base="xs:token">
+      <xs:pattern value="^(0|[1-9]+[0-9]*)\.(0|[1-9]+[0-9]*)\.(0|[1-9]+[0-9]*)(-(0|[1-9A-Za-z-][0-9A-Za-z-]*)(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$" />
+    </xs:restriction>
+  </xs:simpleType>
+  -->
 
   <xs:simpleType name="NodeId">
     <xs:restriction base="xs:string" />
@@ -215,7 +231,7 @@
   </xs:simpleType>
 
   <xs:simpleType name="AccessRestriction">
-    <xs:restriction base="xs:unsignedByte" />
+    <xs:restriction base="xs:unsignedShort" />
   </xs:simpleType>
 
   <xs:simpleType name="ArrayDimensions">
@@ -225,23 +241,9 @@
   </xs:simpleType>
 
   <xs:simpleType name="SymbolicName">
-    <xs:list>
-      <xs:simpleType>
-        <xs:restriction base="xs:string">
-          <xs:pattern value="[A-Za-z][A-Za-z0-9_]*" />
-        </xs:restriction>
-      </xs:simpleType>
-    </xs:list>
-  </xs:simpleType>
-
-  <xs:simpleType name="CardinalityType">
-    <xs:list>
-      <xs:simpleType>
-        <xs:restriction base="xs:string">
-          <xs:pattern value="(\p{N})*|unbounded" />
-        </xs:restriction>
-      </xs:simpleType>
-    </xs:list>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z][A-Za-z0-9_]*" />
+    </xs:restriction>
   </xs:simpleType>
 
   <xs:simpleType name="Duration">
@@ -315,7 +317,8 @@
     <xs:attribute name="BrowseName" type="QualifiedName" use="required" />
     <xs:attribute name="WriteMask" type="WriteMask" default="0" />
     <xs:attribute name="UserWriteMask" type="WriteMask" default="0" />
-    <xs:attribute name="AccessRestrictions" type="AccessRestriction" default="0" />
+    <xs:attribute name="AccessRestrictions" type="AccessRestriction" use="optional" />
+    <xs:attribute name="HasNoPermissions" type="xs:boolean" default="false" />
     <xs:attribute name="SymbolicName" type="SymbolicName" />
     <xs:attribute name="ReleaseStatus" type="ReleaseStatus" default="Released" />
   </xs:complexType>
@@ -460,7 +463,7 @@
       <xs:element name="Field" type="DataTypeField" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
     <xs:attribute name="Name" type="QualifiedName" use="required" />
-    <xs:attribute name="SymbolicName" type="SymbolicName" default="" />
+    <xs:attribute name="SymbolicName" type="SymbolicName" use="optional" />
     <xs:attribute name="IsUnion" type="xs:boolean" default="false" />
     <xs:attribute name="IsOptionSet" type="xs:boolean" default="false" />
     
@@ -481,6 +484,7 @@
     <xs:attribute name="MaxStringLength" type="xs:unsignedInt" default="0" />
     <xs:attribute name="Value" type="xs:int" default="-1" />
     <xs:attribute name="IsOptional" type="xs:boolean" default="false" />
+    <xs:attribute name="AllowSubTypes" type="xs:boolean" default="false" />
   </xs:complexType>
 
   <xs:complexType name="UAReferenceType">

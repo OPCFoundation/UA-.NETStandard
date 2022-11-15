@@ -1,3 +1,5 @@
 ﻿<Project>
+  <Import Project="targets.props" />
+  <Import Project="common.props" />
   <Import Project="version.props" />
 </Project>

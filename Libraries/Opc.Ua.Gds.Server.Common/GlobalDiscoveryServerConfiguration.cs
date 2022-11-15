@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -121,12 +121,12 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private void Initialize()
         {
-            DefaultCertificateLifetime = CertificateFactory.defaultLifeTime;
-            DefaultCertificateKeySize = CertificateFactory.defaultKeySize;
-            DefaultCertificateHashSize = CertificateFactory.defaultHashSize;
-            CACertificateLifetime = CertificateFactory.defaultLifeTime;
-            CACertificateKeySize = CertificateFactory.defaultKeySize;
-            CACertificateHashSize = CertificateFactory.defaultHashSize;
+            DefaultCertificateLifetime = CertificateFactory.DefaultLifeTime;
+            DefaultCertificateKeySize = CertificateFactory.DefaultKeySize;
+            DefaultCertificateHashSize = CertificateFactory.DefaultHashSize;
+            CACertificateLifetime = CertificateFactory.DefaultLifeTime;
+            CACertificateKeySize = CertificateFactory.DefaultKeySize;
+            CACertificateHashSize = CertificateFactory.DefaultHashSize;
         }
         #endregion
 

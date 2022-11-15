@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -9,8 +9,6 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
-
-using System.IdentityModel.Selectors;
 
 namespace Opc.Ua.Bindings
 {
@@ -27,7 +25,7 @@ namespace Opc.Ua.Bindings
         {
             m_messageContext = ServiceMessageContext.GlobalContext;
             m_maxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;
-            m_maxBufferSize = TcpMessageLimits.DefaultMaxMessageSize;
+            m_maxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
             m_channelLifetime = TcpMessageLimits.DefaultChannelLifetime;
             m_securityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
         }
@@ -37,7 +35,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The context to use when encoding/decoding messages.
         /// </summary>
-        public ServiceMessageContext MessageContext
+        public IServiceMessageContext MessageContext
         {
             get
             {
@@ -173,7 +171,7 @@ namespace Opc.Ua.Bindings
         private int m_maxBufferSize;
         private int m_channelLifetime;
         private int m_securityTokenLifetime;
-        private ServiceMessageContext m_messageContext;
+        private IServiceMessageContext m_messageContext;
         private ICertificateValidator m_certificateValidator;
         #endregion
     }

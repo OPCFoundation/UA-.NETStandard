@@ -1,25 +1,29 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;netstandard2.0</TargetFrameworks>
+    <DefineConstants>$(DefineConstants);CLIENT_ASYNC</DefineConstants>
     <AssemblyName>Opc.Ua.Client</AssemblyName>
-    <LangVersion>6</LangVersion>
-    <PackageId>Opc.Ua.Client</PackageId>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Client</PackageId>
     <RootNamespace>Opc.Ua.Client</RootNamespace>
     <Description>OPC UA Client Class Library</Description>
+    <IsPackable>true</IsPackable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
+    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Properties\" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <Reference Include="System.IdentityModel" />
-    <Reference Include="System.ServiceModel" />
+    <ProjectReference Include="..\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
   </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />

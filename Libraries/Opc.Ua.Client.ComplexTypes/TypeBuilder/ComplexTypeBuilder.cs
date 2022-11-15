@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Linq;
 using System.Reflection;
@@ -36,7 +35,7 @@ using System.Reflection.Emit;
 namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
-    /// Build an assembly with custom enum types and 
+    /// Build an assembly with custom enum types and
     /// complex types based on the BaseComplexType class
     /// using System.Reflection.Emit.
     /// </summary>
@@ -57,10 +56,17 @@ namespace Opc.Ua.Client.ComplexTypes
             m_moduleName = FindModuleName(moduleName, targetNamespace, targetNamespaceIndex);
             m_moduleBuilder = moduleFactory.GetModuleBuilder();
         }
-        #endregion
+        #endregion Constructors
 
         #region Public Members
+        /// <summary>
+        /// The target namespace of the type builder.
+        /// </summary>
         public string TargetNamespace => m_targetNamespace;
+
+        /// <summary>
+        /// The target namespace index of the type builder.
+        /// </summary>
         public int TargetNamespaceIndex => m_targetNamespaceIndex;
 
         /// <summary>
@@ -92,8 +98,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public Type AddEnumType(QualifiedName typeName, ExtensionObject typeDefinition)
         {
-            var enumDefinition = typeDefinition.Body as EnumDefinition;
-            if (enumDefinition == null)
+            if (!(typeDefinition.Body is EnumDefinition enumDefinition))
             {
                 throw new ArgumentNullException(nameof(typeDefinition));
             }
@@ -189,10 +194,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Serializable,
                 baseType);
             structureBuilder.DataContractAttribute(m_targetNamespace);
-            structureBuilder.StructureDefinitonAttribute(structureDefinition);
+            structureBuilder.StructureDefinitionAttribute(structureDefinition);
             return new ComplexTypeFieldBuilder(structureBuilder, structureDefinition.StructureType);
         }
-        #endregion
+        #endregion Public Members
 
         #region Private Members
         /// <summary>
@@ -202,7 +207,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             if (String.IsNullOrWhiteSpace(moduleName))
             {
-                Uri uri = new Uri(targetNamespace, UriKind.RelativeOrAbsolute);
+                // remove space chars in malformed namespace url
+                var tempNamespace = targetNamespace.Replace(" ", "");
+                Uri uri = new Uri(tempNamespace, UriKind.RelativeOrAbsolute);
                 var tempName = uri.IsAbsoluteUri ? uri.AbsolutePath : uri.ToString();
 
                 tempName = tempName.Replace("/", "");
@@ -225,14 +232,13 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             return result + browseName.Name;
         }
-        #endregion
+        #endregion Private Members
 
         #region Private Fields
-        private ModuleBuilder m_moduleBuilder;
-        private string m_targetNamespace;
-        private string m_moduleName;
-        private int m_targetNamespaceIndex;
-        #endregion
+        private readonly ModuleBuilder m_moduleBuilder;
+        private readonly string m_targetNamespace;
+        private readonly string m_moduleName;
+        private readonly int m_targetNamespaceIndex;
+        #endregion Private Fields
     }
-
 }//namespace

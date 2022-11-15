@@ -1,8 +1,8 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -34,7 +34,7 @@ using System.Threading;
 using System.Security.Principal;
 
 namespace Opc.Ua.Server
-{    
+{
     /// <summary>
     /// An object that manages all events raised within the server.
     /// </summary>
@@ -53,13 +53,13 @@ namespace Opc.Ua.Server
             m_maxEventQueueSize = maxQueueSize;
         }
         #endregion
-                      
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -67,7 +67,7 @@ namespace Opc.Ua.Server
         /// An overrideable version of the Dispose.
         /// </summary>
         protected virtual void Dispose(bool disposing)
-        {  
+        {
             if (disposing)
             {
                 List<IEventMonitoredItem> monitoredItems = null;
@@ -85,7 +85,7 @@ namespace Opc.Ua.Server
             }
         }
         #endregion
-                 
+
         #region Public Methods
         /// <summary>
         /// Reports an event.
@@ -93,13 +93,13 @@ namespace Opc.Ua.Server
         public static void ReportEvent(IFilterTarget e, IList<IEventMonitoredItem> monitoredItems)
         {
             if (e == null) throw new ArgumentNullException(nameof(e));
-            
+
             foreach (IEventMonitoredItem monitoredItem in monitoredItems)
             {
                 monitoredItem.QueueEvent(e);
             }
         }
-        
+
         /// <summary>
         /// Creates a set of monitored items.
         /// </summary>
@@ -144,12 +144,12 @@ namespace Opc.Ua.Server
             {
                 // calculate sampling interval.
                 double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
-                
+
                 if (samplingInterval < 0)
                 {
                     samplingInterval = publishingInterval;
                 }
-                
+
                 // limit the queue size.
                 uint queueSize = itemToCreate.RequestedParameters.QueueSize;
 
@@ -157,7 +157,7 @@ namespace Opc.Ua.Server
                 {
                     queueSize = m_maxEventQueueSize;
                 }
-                
+
                 // create the monitored item.
                 MonitoredItem monitoredItem = new MonitoredItem(
                     m_server,
@@ -165,7 +165,6 @@ namespace Opc.Ua.Server
                     handle,
                     subscriptionId,
                     monitoredItemId,
-                    context.Session,
                     itemToCreate.ItemToMonitor,
                     context.DiagnosticsMask,
                     timestampsToReturn,
@@ -185,7 +184,7 @@ namespace Opc.Ua.Server
                 return monitoredItem;
             }
         }
-                
+
         /// <summary>
         /// Modifies a monitored item.
         /// </summary>
@@ -223,7 +222,7 @@ namespace Opc.Ua.Server
                     itemToModify.RequestedParameters.SamplingInterval,
                     queueSize,
                     itemToModify.RequestedParameters.DiscardOldest);
-            }           
+            }
         }
 
         /// <summary>
@@ -238,7 +237,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns the currently active monitored items. 
+        /// Returns the currently active monitored items.
         /// </summary>
         public IList<IEventMonitoredItem> GetMonitoredItems()
         {

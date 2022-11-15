@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -119,7 +119,7 @@ namespace Opc.Ua.Client.Controls
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not get ip addresses for host: {0}", hostname);                
+                Utils.LogError(e, "Could not get ip addresses for host: {0}", hostname);                
                 ThreadPool.QueueUserWorkItem(new WaitCallback(OnUpdateAddress), new object[] { listItem, e.Message });
             }
         }

@@ -8,7 +8,7 @@
   <ApplicationUri>urn:localhost:opcfoundation.org:GlobalDiscoveryTestServer</ApplicationUri>
   <ProductUri>http://opcfoundation.org/UA/GlobalDiscoveryTestServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
-  
+
   <SecurityConfiguration>
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
@@ -34,15 +34,15 @@
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
-    
+
     <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. -->
     <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
     <MinimumCertificateKeySize>1024</MinimumCertificateKeySize>
     <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
   </SecurityConfiguration>
-  
+
   <TransportConfigurations></TransportConfigurations>
-  
+
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
     <MaxStringLength>1048576</MaxStringLength>
@@ -53,7 +53,7 @@
     <ChannelLifetime>300000</ChannelLifetime>
     <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
   </TransportQuotas>
-  
+
   <ServerConfiguration>
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:58810/GlobalDiscoveryTestServer</ua:String>
@@ -91,7 +91,7 @@
     <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
     <MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
     <AvailableSamplingRates />
-    
+
     <RegistrationEndpoint>
       <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>
       <ua:Server>
@@ -105,12 +105,12 @@
       <ua:SecurityPolicyUri />
       <ua:UserIdentityTokens />
     </RegistrationEndpoint>
-    
+
     <MaxRegistrationInterval>0</MaxRegistrationInterval>
 
     <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
     <ServerProfileArray>
-      <ua:String>Global Discovery and Certificate Management Server</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/GlobalDiscoveryAndCertificateManagement2017</ua:String>
     </ServerProfileArray>
 
     <ShutdownDelay>0</ShutdownDelay>
@@ -152,8 +152,8 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>%LocalApplicationData%/OPC/Logs/GlobalDiscoveryTestServer.log.txt</OutputFilePath>
-    <DeleteOnLoad>false</DeleteOnLoad>
+    <OutputFilePath>%LocalApplicationData%/OPC/Logs/Opc.Ua.Gds.Tests.log.txt</OutputFilePath>
+    <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->
@@ -167,5 +167,5 @@
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
     <TraceMasks>519</TraceMasks>
   </TraceConfiguration>
-  
+
 </ApplicationConfiguration>

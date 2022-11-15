@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -56,7 +56,7 @@ namespace Opc.Ua
     /// <seealso cref="Variant"/>
     /// <seealso cref="StatusCode"/>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class DataValue : IFormattable
+    public class DataValue : IFormattable, IEquatable<DataValue>
     {
         #region Constructors
         /// <summary>
@@ -238,12 +238,59 @@ namespace Opc.Ua
                     return false;
                 }
 
-                if (this.m_serverTimestamp != value.m_serverTimestamp)
+                if (this.m_sourcePicoseconds != value.m_sourcePicoseconds)
                 {
                     return false;
                 }
 
                 return Utils.IsEqual(this.m_value.Value, value.m_value.Value);
+            }
+            
+            return false;
+        }
+
+        /// <summary>
+        /// Determines if the specified object is equal to the object.
+        /// </summary>
+        /// <remarks>
+        /// Determines if the specified object is equal to the object.
+        /// </remarks>
+        /// <param name="other">The DataValue to compare to *this*</param>
+        public bool Equals(DataValue other)
+        {
+            if (Object.ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            if (other != null)
+            {
+                if (this.m_statusCode != other.m_statusCode)
+                {
+                    return false;
+                }
+
+                if (this.m_serverTimestamp != other.m_serverTimestamp)
+                {
+                    return false;
+                }
+
+                if (this.m_sourceTimestamp != other.m_sourceTimestamp)
+                {
+                    return false;
+                }
+
+                if (this.m_serverPicoseconds != other.m_serverPicoseconds)
+                {
+                    return false;
+                }
+
+                if (this.m_sourcePicoseconds != other.m_sourcePicoseconds)
+                {
+                    return false;
+                }
+
+                return Utils.IsEqual(this.m_value.Value, other.m_value.Value);
             }
 
             return false;

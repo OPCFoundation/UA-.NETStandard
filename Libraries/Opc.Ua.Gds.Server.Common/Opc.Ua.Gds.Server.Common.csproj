@@ -1,24 +1,32 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;netstandard2.0</TargetFrameworks>
-    <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
     <AssemblyName>Opc.Ua.Gds.Server.Common</AssemblyName>
-    <PackageId>Opc.Ua.Gds.Server.Common</PackageId>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds.Server</RootNamespace>
-    <LangVersion>6</LangVersion>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Description>OPC UA GDS Server Class Library</Description>
+    <IsPackable>true</IsPackable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
+    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Model\Opc.Ua.Gds.PredefinedNodes.uanodes" />
   </ItemGroup>
   
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <Reference Include="System.IdentityModel" />
-  </ItemGroup>
-
   <ItemGroup>
+    <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>

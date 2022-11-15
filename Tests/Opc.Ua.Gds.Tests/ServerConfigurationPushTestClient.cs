@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
@@ -39,7 +40,7 @@ namespace Opc.Ua.Gds.Tests
 
     public class ServerConfigurationPushTestClient
     {
-        public ServerPushConfigurationClient PushClient => _client;
+        public ServerPushConfigurationClient PushClient => m_client;
         public static bool AutoAccept = false;
 
         public ServerConfigurationPushTestClient(bool autoAccept)
@@ -59,12 +60,53 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = "Opc.Ua.ServerConfigurationPushTestClient"
             };
-
+#if USE_FILE_CONFIG
             // load the application configuration.
-            Config = await application.LoadApplicationConfiguration(false);
+            Config = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+#else
+            string root = Path.Combine("%LocalApplicationData%", "OPC");
+            string pkiRoot = Path.Combine(root, "pki");
+            var clientConfig = new ServerConfigurationPushTestClientConfiguration() {
+                ServerUrl = "opc.tcp://localhost:58810/GlobalDiscoveryTestServer",
+                AppUserName = "",
+                AppPassword = "",
+                SysAdminUserName = "sysadmin",
+                SysAdminPassword = "demo",
+                TempStorePath = Path.Combine(pkiRoot, "temp")
+            };
 
+            var transportQuotas = new TransportQuotas() {
+                OperationTimeout = 120000,
+                MaxStringLength = 1048576,
+                MaxByteStringLength = 1048576,
+                MaxArrayLength = 65535,
+                MaxMessageSize = 4194304,
+                MaxBufferSize = 65535,
+                ChannelLifetime = 300000,
+                SecurityTokenLifetime = 3600000,
+            };
+
+            // build the application configuration.
+            Config = await application
+                .Build(
+                    "urn:localhost:opcfoundation.org:ServerConfigurationPushTestClient",
+                    "http://opcfoundation.org/UA/ServerConfigurationPushTestClient")
+                .SetTransportQuotas(transportQuotas)
+                .AsClient()
+                .AddSecurityConfiguration(
+                    "CN=Server Configuration Push Test Client, O=OPC Foundation",
+                    pkiRoot, pkiRoot, pkiRoot)
+                .SetAutoAcceptUntrustedCertificates(true)
+                .SetRejectSHA1SignedCertificates(false)
+                .SetRejectUnknownRevocationStatus(true)
+                .SetMinimumCertificateKeySize(1024)
+                .AddExtension<ServerConfigurationPushTestClientConfiguration>(null, clientConfig)
+                .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
+                .SetTraceMasks(Utils.TraceMasks.Error)
+                .Create().ConfigureAwait(false);
+#endif
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0);
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -73,7 +115,7 @@ namespace Opc.Ua.Gds.Tests
             Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration = application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
-            _client = new ServerPushConfigurationClient(application) {
+            m_client = new ServerPushConfigurationClient(application.ApplicationConfiguration) {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(clientConfiguration.ServerUrl, port)
             };
             if (String.IsNullOrEmpty(clientConfiguration.AppUserName))
@@ -92,13 +134,18 @@ namespace Opc.Ua.Gds.Tests
         {
             Console.WriteLine("Disconnect Session. Waiting for exit...");
 
-            if (_client != null)
+            if (m_client != null)
             {
-                ServerPushConfigurationClient pushClient = _client;
-                _client = null;
+                ServerPushConfigurationClient pushClient = m_client;
+                m_client = null;
                 pushClient.Disconnect();
             }
 
+        }
+
+        public string ReadLogFile()
+        {
+            return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
         }
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
@@ -117,7 +164,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private ServerPushConfigurationClient _client;
+        private ServerPushConfigurationClient m_client;
 
     }
 

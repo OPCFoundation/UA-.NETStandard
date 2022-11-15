@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,14 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.Threading;
-using System.Reflection;
-using System.IO;
-using System.Diagnostics;
 using System.Threading.Tasks;
 
 #pragma warning disable 0618
@@ -69,8 +62,8 @@ namespace Opc.Ua.Server
             m_monitoredItems                 = new Dictionary<uint,MonitoredItem>();
             m_defaultMinimumSamplingInterval = 1000;
             m_namespaceUris                  = new List<string>();
-            m_dynamicNamespaceIndex          = dynamicNamespaceIndex; 
-            
+            m_dynamicNamespaceIndex = dynamicNamespaceIndex;
+
             // use namespace 1 if out of range.
             if (m_dynamicNamespaceIndex == 0 || m_dynamicNamespaceIndex >= server.NamespaceUris.Count)
             {
@@ -92,6 +85,7 @@ namespace Opc.Ua.Server
         public void Dispose()
         {   
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -212,7 +206,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected error disposing a Node object.");
+                    Utils.LogError(e, "Unexpected error disposing a Node object.");
                 }
             }
         }
@@ -606,26 +600,6 @@ namespace Opc.Ua.Server
                     metadata.DefaultRolePermissions = namespaceMetadataState.DefaultRolePermissions.Value;
                     metadata.DefaultUserRolePermissions = namespaceMetadataState.DefaultUserRolePermissions.Value;
                 }
-
-                #if LEGACY_NODEMANAGER
-                // check if a source is defined for the node.
-                SourceHandle handle = target.Handle as SourceHandle;
-
-                if (handle != null)
-                {
-                    // check if the metadata needs to be updated by the source.
-                    IReadMetadataSource source = handle.Source as IReadMetadataSource;
-
-                    if (source != null)
-                    {
-                        source.ReadMetadata(
-                            context,
-                            handle.Handle,
-                            resultMask,
-                            metadata);
-                    }
-                }
-                #endif
 
                 // return metadata.
                 return metadata;
@@ -1278,28 +1252,25 @@ namespace Opc.Ua.Server
                         itemToCreate,
                         range,
                         minimumSamplingInterval);
-                    
+
+                    // final check for initial value
+                    ServiceResult error = ReadInitialValue(context, node, monitoredItem);
+                    if (ServiceResult.IsBad(error))
+                    {
+                        if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                            error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                            error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
+                        {
+                            errors[ii] = error;
+                            continue;
+                        }
+                    }
+
                     // save monitored item.
                     m_monitoredItems.Add(monitoredItem.Id, monitoredItem);
 
                     // update monitored item list.
                     monitoredItems[ii] = monitoredItem;
-                    
-                    // read the initial value.
-                    DataValue initialValue = new DataValue();
-
-                    initialValue.ServerTimestamp = DateTime.UtcNow;
-                    initialValue.StatusCode      = StatusCodes.BadWaitingForInitialData;
-                    
-                    ServiceResult error = node.Read(context, itemToCreate.ItemToMonitor.AttributeId, initialValue);
-
-                    if (ServiceResult.IsBad(error))
-                    {
-                        initialValue.Value = null;
-                        initialValue.StatusCode = error.StatusCode;
-                    }
-                        
-                    monitoredItem.QueueValue(initialValue, error);
 
                     // errors updating the monitoring groups will be reported in notifications.
                     errors[ii] = StatusCodes.Good;
@@ -1308,6 +1279,37 @@ namespace Opc.Ua.Server
  
             // update all groups with any new items.
             m_samplingGroupManager.ApplyChanges();
+        }
+
+        /// <summary>
+        /// Reads the initial value for a monitored item.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="node">The node to read.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        protected virtual ServiceResult ReadInitialValue(
+            OperationContext context,
+            ILocalNode node,
+            IDataChangeMonitoredItem2 monitoredItem)
+        {
+            DataValue initialValue = new DataValue {
+                Value = null,
+                ServerTimestamp = DateTime.UtcNow,
+                SourceTimestamp = DateTime.MinValue,
+                StatusCode = StatusCodes.BadWaitingForInitialData
+            };
+
+            ServiceResult error = node.Read(context, monitoredItem.AttributeId, initialValue);
+
+            if (ServiceResult.IsBad(error))
+            {
+                initialValue.Value = null;
+                initialValue.StatusCode = error.StatusCode;
+            }
+
+            monitoredItem.QueueValue(initialValue, error, true);
+
+            return error;
         }
 
         /// <summary>
@@ -1486,6 +1488,64 @@ namespace Opc.Ua.Server
  
             // remove all items from groups.
             m_samplingGroupManager.ApplyChanges();
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
+        /// <param name="monitoredItems">The set of monitoring items to update.</param>
+        /// <param name="processedItems">The set of processed items.</param>
+        /// <param name="errors">Any errors.</param>
+        public virtual void TransferMonitoredItems(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+            if (processedItems == null) throw new ArgumentNullException(nameof(processedItems));
+
+            lock (m_lock)
+            {
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    // skip items that have already been processed.
+                    if (processedItems[ii] || monitoredItems[ii] == null)
+                    {
+                        continue;
+                    }
+
+                    // check if the node manager created the item.
+                    if (!Object.ReferenceEquals(this, monitoredItems[ii].NodeManager))
+                    {
+                        continue;
+                    }
+
+                    // owned by this node manager.
+                    processedItems[ii] = true;
+
+                    // validate monitored item.
+                    IMonitoredItem monitoredItem = monitoredItems[ii];
+
+                    // find the node being monitored.
+                    ILocalNode node = monitoredItem.ManagerHandle as ILocalNode;
+                    if (node == null)
+                    {
+                        continue;
+                    }
+
+                    if (sendInitialValues)
+                    {
+                        monitoredItem.SetupResendDataTrigger();
+                    }
+
+                    errors[ii] = StatusCodes.Good;
+                }
+            }
         }
 
         /// <summary>
@@ -2475,7 +2535,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Error deleting node: {0}", nodeId);
+                    Utils.LogError(e, "Error deleting node: {0}", nodeId);
                 }
             }
             else
@@ -2515,11 +2575,6 @@ namespace Opc.Ua.Server
                     m_server.TypeTree.Remove(node.NodeId);
                 }
 
-                // delete sources.
-                #if LEGACY_NODEMANAGER
-                DeleteRegisteredSources(node);
-                #endif
-                
                 // remove any references to the node.
                 foreach (IReference reference in node.References)
                 {
@@ -2584,7 +2639,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Error deleting references for node: {0}", current.Key);
+                    Utils.LogError(e, "Error deleting references for node: {0}", current.Key);
                 }
             }            
         }
@@ -3104,103 +3159,8 @@ namespace Opc.Ua.Server
 
                 return GetLocalNode(nodeId) as ILocalNode;
             }
-        }        
-
-        #if LEGACY_CORENODEMANAGER
-        /// <summary>
-        /// Checks if the operation needs to be handled by an external source.
-        /// </summary>
-        private static bool CheckSourceHandle(ILocalNode node, Type sourceType, int index, IDictionary sources)
-        {            
-            // check if a source is defined for the node.
-            SourceHandle handle = node.Handle as SourceHandle;
-
-            if (handle == null)
-            {
-                return false;
-            }
-
-            // check if the source type is valid.
-            if (!sourceType.IsInstanceOfType(handle.Source))
-            {
-                return false;
-            }
-
-            // find list of handles for the source.
-            List<RequestHandle> handles = null;
-
-            if (!sources.Contains(handle.Source))
-            {
-                sources[handle.Source] = handles = new List<RequestHandle>();
-            }
-            else
-            {
-                handles = (List<RequestHandle>)sources[handle.Source];
-            }
-
-            // add node to list of values to process by the source.
-            handles.Add(new RequestHandle(handle.Handle, index));
-
-            return true;
         }
 
-        /// <summary>
-        /// Recursively subscribes to events for the notifiers in the tree.
-        /// </summary>
-        private void SubscribeToEvents(
-            OperationContext    context,
-            ILocalNode          node,
-            uint                subscriptionId,
-            IEventMonitoredItem monitoredItem,
-            bool                unsubscribe)
-        {
-            // find handle associated with the node.
-            IEventSource eventSource = node as IEventSource;
-            SourceHandle handle = node.Handle as SourceHandle;
-
-            if (handle != null)
-            {
-                eventSource = handle.Source as IEventSource;            
-            }
-            
-            if (eventSource != null)
-            {
-                try
-                {
-                    eventSource.SubscribeToEvents(context, (handle != null)?handle.Handle:null, subscriptionId, monitoredItem, unsubscribe);
-                }
-                catch (Exception e)
-                {
-                    Utils.Trace(e, "Unexpected error calling SubscribeToEvents on an EventSource.");
-                }
-            }
-    
-            // find the child notifiers.
-            IList<IReference> references = node.References.Find(ReferenceTypes.HasNotifier, false, true, m_server.TypeTree);
-
-            for (int ii = 0; ii < references.Count; ii++)
-            {
-                if (!references[ii].TargetId.IsAbsolute)
-                {
-                    ILocalNode target = GetManagerHandle(references[ii].TargetId) as ILocalNode;
-
-                    if (target == null)
-                    {
-                        continue;
-                    }
-                    
-                    // only object or views can produce events.
-                    if ((target.NodeClass & (NodeClass.Object | NodeClass.View)) == 0)
-                    {
-                        continue;
-                    }
-
-                    SubscribeToEvents(context, target, subscriptionId, monitoredItem, unsubscribe);
-                }
-            }       
-        }
-        #endif
-        
         /// <summary>
         /// Reads the EU Range for a variable.
         /// </summary>
@@ -3298,17 +3258,12 @@ namespace Opc.Ua.Server
         #endregion
         
         #region Private Fields
-        private IServerInternal m_server;
         private object m_lock = new object();
+        private IServerInternal m_server;
         private NodeTable m_nodes;
         private long m_lastId;
         private SamplingGroupManager m_samplingGroupManager;
         private Dictionary<uint, MonitoredItem> m_monitoredItems;
-        
-        #if LEGACY_CORENODEMANAGER
-        private Dictionary<object,IEventSource> m_eventSources;
-        #endif
-        
         private double m_defaultMinimumSamplingInterval;
         private List<string> m_namespaceUris;
         private ushort m_dynamicNamespaceIndex;

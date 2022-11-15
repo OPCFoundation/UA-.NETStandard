@@ -1,5 +1,5 @@
-﻿/* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+/* ========================================================================
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,283 +27,136 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Mono.Options;
-using Opc.Ua;
-using Opc.Ua.Configuration;
-using Opc.Ua.Server;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
+using System.Globalization;
+using System.IO;
 using System.Threading.Tasks;
-
+using Microsoft.Extensions.Logging;
+using Opc.Ua;
 
 namespace Quickstarts.ReferenceServer
 {
-    public class ApplicationMessageDlg : IApplicationMessageDlg
+    /// <summary>
+    /// The program.
+    /// </summary>
+    public static class Program
     {
-        private string message = string.Empty;
-        private bool ask = false;
-
-        public override void Message(string text, bool ask)
+        public static async Task<int> Main(string[] args)
         {
-            this.message = text;
-            this.ask = ask;
-        }
+            TextWriter output = Console.Out;
+            output.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".NET Core");
 
-        public override async Task<bool> ShowAsync()
-        {
-            if (ask)
-            {
-                message += " (y/n, default y): ";
-                Console.Write(message);
-            }
-            else
-            {
-                Console.WriteLine(message);
-            }
-            if (ask)
-            {
-                try
-                {
-                    ConsoleKeyInfo result = Console.ReadKey();
-                    Console.WriteLine();
-                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
-                }
-                catch
-                {
-                    // intentionally fall through
-                }
-            }
-            return await Task.FromResult(true);
-        }
-    }
+            output.WriteLine("OPC UA library: {0} @ {1} -- {2}",
+                Utils.GetAssemblyBuildNumber(),
+                Utils.GetAssemblyTimestamp().ToString("G", CultureInfo.InvariantCulture),
+                Utils.GetAssemblySoftwareVersion());
 
-    public enum ExitCode : int
-    {
-        Ok = 0,
-        ErrorServerNotStarted = 0x80,
-        ErrorServerRunning = 0x81,
-        ErrorServerException = 0x82,
-        ErrorInvalidCommandLine = 0x100
-    };
-
-    public class Program
-    {
-        public static int Main(string[] args)
-        {
-            Console.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".Net Core");
+            // The application name and config file names
+            var applicationName = Utils.IsRunningOnMono() ? "MonoReferenceServer" : "ConsoleReferenceServer";
+            var configSectionName = Utils.IsRunningOnMono() ? "Quickstarts.MonoReferenceServer" : "Quickstarts.ReferenceServer";
 
             // command line options
             bool showHelp = false;
             bool autoAccept = false;
+            bool logConsole = false;
+            bool appLog = false;
+            bool renewCertificate = false;
+            bool shadowConfig = false;
+            bool cttMode = false;
+            string password = null;
+            int timeout = -1;
 
+            var usage = Utils.IsRunningOnMono() ? $"Usage: mono {applicationName}.exe [OPTIONS]" : $"Usage: dotnet {applicationName}.dll [OPTIONS]";
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
+                usage,
                 { "h|help", "show this message and exit", h => showHelp = h != null },
-                { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null }
+                { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
+                { "c|console", "log to console", c => logConsole = c != null },
+                { "l|log", "log app output", c => appLog = c != null },
+                { "p|password=", "optional password for private key", (string p) => password = p },
+                { "r|renew", "renew application certificate", r => renewCertificate = r != null },
+                { "t|timeout=", "timeout in seconds to exit application", (int t) => timeout = t * 1000 },
+                { "s|shadowconfig", "create configuration in pki root", s => shadowConfig = s != null },
+                { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null },
             };
 
             try
             {
-                IList<string> extraArgs = options.Parse(args);
-                foreach (string extraArg in extraArgs)
+                // parse command line and set options
+                ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp);
+
+                if (logConsole && appLog)
                 {
-                    Console.WriteLine("Error: Unknown option: {0}", extraArg);
-                    showHelp = true;
+                    output = new LogWriter();
                 }
-            }
-            catch (OptionException e)
-            {
-                Console.WriteLine(e.Message);
-                showHelp = true;
-            }
 
-            if (showHelp)
-            {
-                Console.WriteLine(Utils.IsRunningOnMono() ? "Usage: mono MonoReferenceServer.exe [OPTIONS]" : "Usage: dotnet ConsoleReferenceServer.dll [OPTIONS]");
-                Console.WriteLine();
-
-                Console.WriteLine("Options:");
-                options.WriteOptionDescriptions(Console.Out);
-                return (int)ExitCode.ErrorInvalidCommandLine;
-            }
-
-            MyRefServer server = new MyRefServer(autoAccept);
-            server.Run();
-
-            return (int)MyRefServer.ExitCode;
-        }
-    }
-
-    public class MyRefServer
-    {
-        ReferenceServer server;
-        Task status;
-        DateTime lastEventTime;
-        static bool autoAccept = false;
-        static ExitCode exitCode;
-
-        public MyRefServer(bool _autoAccept)
-        {
-            autoAccept = _autoAccept;
-        }
-
-        public void Run()
-        {
-
-            try
-            {
-                exitCode = ExitCode.ErrorServerNotStarted;
-                ConsoleSampleServer().Wait();
-                Console.WriteLine("Server started. Press Ctrl-C to exit...");
-                exitCode = ExitCode.ErrorServerRunning;
-            }
-            catch (Exception ex)
-            {
-                Utils.Trace("ServiceResultException:" + ex.Message);
-                Console.WriteLine("Exception: {0}", ex.Message);
-                exitCode = ExitCode.ErrorServerException;
-                return;
-            }
-
-            ManualResetEvent quitEvent = new ManualResetEvent(false);
-            try
-            {
-                Console.CancelKeyPress += (sender, eArgs) =>
-                {
-                    quitEvent.Set();
-                    eArgs.Cancel = true;
+                // create the UA server
+                var server = new UAServer<ReferenceServer>(output) {
+                    AutoAccept = autoAccept,
+                    Password = password
                 };
-            }
-            catch
-            {
-            }
 
-            // wait for timeout or Ctrl-C
-            quitEvent.WaitOne();
+                // load the server configuration, validate certificates
+                output.WriteLine("Loading configuration from {0}.", configSectionName);
+                await server.LoadAsync(applicationName, configSectionName).ConfigureAwait(false);
 
-            if (server != null)
-            {
-                Console.WriteLine("Server stopped. Waiting for exit...");
-
-                using (ReferenceServer _server = server)
+                // use the shadow config to map the config to an externally accessible location
+                if (shadowConfig)
                 {
-                    // Stop status thread
-                    server = null;
-                    status.Wait();
-                    // Stop server and dispose
-                    _server.Stop();
-                }
-            }
-
-            exitCode = ExitCode.Ok;
-        }
-
-        public static ExitCode ExitCode { get => exitCode; }
-
-        private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
-        {
-            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
-            {
-                e.Accept = autoAccept;
-                if (autoAccept)
-                {
-                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
-                }
-                else
-                {
-                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
-                }
-            }
-        }
-
-        private async Task ConsoleSampleServer()
-        {
-            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            ApplicationInstance application = new ApplicationInstance();
-
-            application.ApplicationName = "Quickstart Reference Server";
-            application.ApplicationType = ApplicationType.Server;
-            application.ConfigSectionName = Utils.IsRunningOnMono() ? "Quickstarts.MonoReferenceServer" : "Quickstarts.ReferenceServer";
-
-            // load the application configuration.
-            ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
-
-            // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, CertificateFactory.defaultKeySize, CertificateFactory.defaultLifeTime);
-            if (!haveAppCertificate)
-            {
-                throw new Exception("Application instance certificate invalid!");
-            }
-
-            if (!config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
-            {
-                config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
-            }
-
-            // start the server.
-            server = new ReferenceServer();
-            await application.Start(server);
-
-            // print endpoint info
-            var endpoints = application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
-            foreach (var endpoint in endpoints)
-            {
-                Console.WriteLine(endpoint);
-            }
-
-            // start the status thread
-            status = Task.Run(new Action(StatusThread));
-
-            // print notification on session events
-            server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
-            server.CurrentInstance.SessionManager.SessionClosing += EventStatus;
-            server.CurrentInstance.SessionManager.SessionCreated += EventStatus;
-        }
-
-        private void EventStatus(Session session, SessionEventReason reason)
-        {
-            lastEventTime = DateTime.UtcNow;
-            PrintSessionStatus(session, reason.ToString());
-        }
-
-        void PrintSessionStatus(Session session, string reason, bool lastContact = false)
-        {
-            lock (session.DiagnosticsLock)
-            {
-                string item = String.Format("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName);
-                if (lastContact)
-                {
-                    item += String.Format("Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
-                }
-                else
-                {
-                    if (session.Identity != null)
+                    output.WriteLine("Using shadow configuration.");
+                    var shadowPath = Directory.GetParent(Path.GetDirectoryName(
+                        Utils.ReplaceSpecialFolderNames(server.Configuration.TraceConfiguration.OutputFilePath))).FullName;
+                    var shadowFilePath = Path.Combine(shadowPath, Path.GetFileName(server.Configuration.SourceFilePath));
+                    if (!File.Exists(shadowFilePath))
                     {
-                        item += String.Format(":{0,20}", session.Identity.DisplayName);
+                        output.WriteLine("Create a copy of the config in the shadow location.");
+                        File.Copy(server.Configuration.SourceFilePath, shadowFilePath, true);
                     }
-                    item += String.Format(":{0}", session.Id);
+                    output.WriteLine("Reloading configuration from {0}.", shadowFilePath);
+                    await server.LoadAsync(applicationName, Path.Combine(shadowPath, configSectionName)).ConfigureAwait(false);
                 }
-                Console.WriteLine(item);
-            }
-        }
 
-        private async void StatusThread()
-        {
-            while (server != null)
-            {
-                if (DateTime.UtcNow - lastEventTime > TimeSpan.FromMilliseconds(6000))
+                // setup the logging
+                ConsoleUtils.ConfigureLogging(server.Configuration, applicationName, logConsole, LogLevel.Information);
+
+                // check or renew the certificate
+                output.WriteLine("Check the certificate.");
+                await server.CheckCertificateAsync(renewCertificate).ConfigureAwait(false);
+
+                // Create and add the node managers
+                server.Create(Servers.Utils.NodeManagerFactories);
+
+                // start the server
+                output.WriteLine("Start the server.");
+                await server.StartAsync().ConfigureAwait(false);
+
+                // Apply custom settings for CTT testing
+                if (cttMode)
                 {
-                    IList<Session> sessions = server.CurrentInstance.SessionManager.GetSessions();
-                    for (int ii = 0; ii < sessions.Count; ii++)
-                    {
-                        Session session = sessions[ii];
-                        PrintSessionStatus(session, "-Status-", true);
-                    }
-                    lastEventTime = DateTime.UtcNow;
+                    output.WriteLine("Apply settings for CTT.");
+                    // start Alarms and other settings for CTT test
+                    Quickstarts.Servers.Utils.ApplyCTTMode(output, server.Server);
                 }
-                await Task.Delay(1000);
+
+                output.WriteLine("Server started. Press Ctrl-C to exit...");
+
+                // wait for timeout or Ctrl-C
+                var quitEvent = ConsoleUtils.CtrlCHandler();
+                bool ctrlc = quitEvent.WaitOne(timeout);
+
+                // stop server. May have to wait for clients to disconnect.
+                output.WriteLine("Server stopped. Waiting for exit...");
+                await server.StopAsync().ConfigureAwait(false);
+
+                return (int)ExitCode.Ok;
+            }
+            catch (ErrorExitException eee)
+            {
+                output.WriteLine("The application exits with error: {0}", eee.Message);
+                return (int)eee.ExitCode;
             }
         }
     }
 }
+
+

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -35,6 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -47,10 +48,12 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Initializes a new instance of the <see cref="ServerPushConfigurationClient"/> class.
         /// </summary>
-        /// <param name="application">The application.</param>
-        public ServerPushConfigurationClient(ApplicationInstance application)
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="sessionFactory">Used to create session to the server.</param>
+        public ServerPushConfigurationClient(ApplicationConfiguration configuration, ISessionFactory sessionFactory = null)
         {
-            m_application = application;
+            m_configuration = configuration;
+            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory();
         }
         #endregion
 
@@ -67,7 +70,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The application instance.
         /// </value>
-        public ApplicationInstance Application => m_application;
+        public ApplicationConfiguration Configuration => m_configuration;
 
         /// <summary>
         /// Gets or sets the admin credentials.
@@ -129,7 +132,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The session.
         /// </value>
-        public Session Session => m_session;
+        public ISession Session => m_session;
 
         /// <summary>
         /// Gets the endpoint.
@@ -203,11 +206,11 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
             }
 
-            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_application.ApplicationConfiguration);
+            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, endpointUrl, true);
+            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-            await Connect(endpoint);
+            await Connect(endpoint).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -237,15 +240,15 @@ namespace Opc.Ua.Gds.Client
                 m_session = null;
             }
 
-            m_session = await Session.Create(
-                m_application.ApplicationConfiguration,
+            m_session = await m_sessionFactory.CreateAsync(
+                m_configuration,
                 endpoint,
                 false,
                 false,
-                m_application.ApplicationName,
+                m_configuration.ApplicationName,
                 60000,
                 m_adminCredentials,
-                m_preferredLocales);
+                m_preferredLocales).ConfigureAwait(false);
 
             m_endpoint = m_session.ConfiguredEndpoint;
 
@@ -293,7 +296,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.Trace(exception, "Unexpected error raising ConnectionStatusChanged event.");
+                    Utils.LogError(exception, "Unexpected error raising ConnectionStatusChanged event.");
                 }
             }
         }
@@ -528,33 +531,6 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Add certificate.
-        /// </summary>
-        public void AddCrl(X509CRL crl, bool isTrustedCertificate)
-        {
-            if (!IsConnected)
-            {
-                Connect();
-            }
-
-            IUserIdentity oldUser = ElevatePermissions();
-            try
-            {
-                m_session.Call(
-                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate, m_session.NamespaceUris),
-                    crl.RawData,
-                    isTrustedCertificate
-                    );
-            }
-            finally
-            {
-                RevertPermissions(oldUser);
-            }
-        }
-
-
-        /// <summary>
         /// Remove certificate.
         /// </summary>
         public void RemoveCertificate(string thumbprint, bool isTrustedCertificate)
@@ -630,7 +606,12 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Updates the certificate.
         /// </summary>
+        /// <param name="certificateGroupId">The group of the trust list.</param>
+        /// <param name="certificateTypeId">The type of the trust list.</param>
         /// <param name="certificate">The certificate.</param>
+        /// <param name="privateKeyFormat">The format of the private key, PFX or PEM.</param>
+        /// <param name="privateKey">The private ky.</param>
+        /// <param name="issuerCertificates">An array containing the chain of issuer certificates.</param>
         public bool UpdateCertificate(
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -780,11 +761,11 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Error reverting to normal permissions.");
+                Utils.LogError(e, "Error reverting to normal permissions.");
             }
         }
 
-        private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (!Object.ReferenceEquals(session, m_session))
             {
@@ -801,7 +782,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.Trace(exception, "Unexpected error raising KeepAlive event.");
+                    Utils.LogError(exception, "Unexpected error raising KeepAlive event.");
                 }
             }
         }
@@ -823,18 +804,19 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.Trace(exception, "Unexpected error raising KeepAlive event.");
+                    Utils.LogError(exception, "Unexpected error raising KeepAlive event.");
                 }
             }
         }
         #endregion
 
         #region Private Fields
-        private ApplicationInstance m_application;
+        private ApplicationConfiguration m_configuration;
+        private readonly ISessionFactory m_sessionFactory;
         private ConfiguredEndpoint m_endpoint;
         private string m_endpointUrl;
         private string[] m_preferredLocales;
-        private Session m_session;
+        private ISession m_session;
         private IUserIdentity m_adminCredentials;
         #endregion
     }

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -29,22 +29,16 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Reflection;
 using System.IO;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
+using System.Linq;
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading.Tasks;
+using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Configuration
 {
-    public abstract class IApplicationMessageDlg
-    {
-        public abstract void Message(string text, Boolean ask=false);
-        public abstract Task<bool> ShowAsync();
-    }
-
     /// <summary>
     /// A class that install, configures and runs a UA application.
     /// </summary>
@@ -64,7 +58,7 @@ namespace Opc.Ua.Configuration
         public ApplicationInstance(ApplicationConfiguration applicationConfiguration)
         {
             m_applicationConfiguration = applicationConfiguration;
-        } 
+        }
         #endregion
 
         #region Public Properties
@@ -112,10 +106,7 @@ namespace Opc.Ua.Configuration
         /// Gets the server.
         /// </summary>
         /// <value>The server.</value>
-        public ServerBase Server
-        {
-            get { return m_server; }
-        }
+        public ServerBase Server => m_server;
 
         /// <summary>
         /// Gets the application configuration used when the Start() method was called.
@@ -128,12 +119,14 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Gets or sets a flag that indicates whether the application will be set up for management with the GDS agent.
+        /// Get or set the message dialog.
         /// </summary>
-        /// <value>If true the application will not be visible to the GDS local agent after installation.</value>
-        public bool NoGdsAgentAdmin { get; set; }
-
         public static IApplicationMessageDlg MessageDlg { get; set; }
+
+        /// <summary>
+        /// Get or set the certificate password provider.
+        /// </summary>
+        public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
         #endregion
 
         #region Public Methods
@@ -168,12 +161,7 @@ namespace Opc.Ua.Configuration
 
             if (m_applicationConfiguration == null)
             {
-                await LoadApplicationConfiguration(false);
-            }
-
-            if (m_applicationConfiguration.CertificateValidator != null)
-            {
-                m_applicationConfiguration.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
+                await LoadApplicationConfiguration(false).ConfigureAwait(false);
             }
 
             server.Start(m_applicationConfiguration);
@@ -186,35 +174,19 @@ namespace Opc.Ua.Configuration
         {
             m_server.Stop();
         }
-        #endregion
-
-        #region Static Methods
-        public static ApplicationConfiguration FixupAppConfig(
-            ApplicationConfiguration configuration)
-        {
-            configuration.ApplicationUri = Utils.ReplaceLocalhost(configuration.ApplicationUri);
-            if (configuration.ServerConfiguration != null)
-            {
-                for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
-                {
-                    configuration.ServerConfiguration.BaseAddresses[i] =
-                        Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i]);
-                }
-            }
-            return configuration;
-        }
 
         /// <summary>
         /// Loads the configuration.
         /// </summary>
-        public static async Task<ApplicationConfiguration> LoadAppConfig(
+        public async Task<ApplicationConfiguration> LoadAppConfig(
             bool silent,
             string filePath,
             ApplicationType applicationType,
             Type configurationType,
-            bool applyTraceSettings)
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null)
         {
-            Utils.Trace(Utils.TraceMasks.Information, "Loading application configuration file. {0}", filePath);
+            Utils.LogInfo("Loading application configuration file. {0}", filePath);
 
             try
             {
@@ -223,7 +195,9 @@ namespace Opc.Ua.Configuration
                     new System.IO.FileInfo(filePath),
                     applicationType,
                     configurationType,
-                    applyTraceSettings);
+                    applyTraceSettings,
+                    certificatePasswordProvider)
+                    .ConfigureAwait(false);
 
                 if (configuration == null)
                 {
@@ -234,14 +208,71 @@ namespace Opc.Ua.Configuration
             }
             catch (Exception e)
             {
+                Utils.LogError(e, "Could not load configuration file. {0}", filePath);
+
                 // warn user.
-                if (!silent && MessageDlg != null)
+                if (!silent)
                 {
-                    MessageDlg.Message("Load Application Configuration: " + e.Message);
-                    await MessageDlg.ShowAsync();
+                    if (MessageDlg != null)
+                    {
+                        MessageDlg.Message("Load Application Configuration: " + e.Message);
+                        await MessageDlg.ShowAsync().ConfigureAwait(false);
+                    }
+
+                    throw;
                 }
 
-                Utils.Trace(e, "Could not load configuration file. {0}", filePath);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Loads the configuration.
+        /// </summary>
+        public async Task<ApplicationConfiguration> LoadAppConfig(
+            bool silent,
+            Stream stream,
+            ApplicationType applicationType,
+            Type configurationType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null)
+        {
+            Utils.LogInfo("Loading application from stream.");
+
+            try
+            {
+                // load the configuration file.
+                ApplicationConfiguration configuration = await ApplicationConfiguration.Load(
+                    stream,
+                    applicationType,
+                    configurationType,
+                    applyTraceSettings,
+                    certificatePasswordProvider)
+                    .ConfigureAwait(false);
+
+                if (configuration == null)
+                {
+                    return null;
+                }
+
+                return configuration;
+            }
+            catch (Exception e)
+            {
+                Utils.LogError(e, "Could not load configuration from stream.");
+
+                // warn user.
+                if (!silent)
+                {
+                    if (MessageDlg != null)
+                    {
+                        MessageDlg.Message("Load Application Configuration: " + e.Message);
+                        await MessageDlg.ShowAsync().ConfigureAwait(false);
+                    }
+
+                    throw;
+                }
+
                 return null;
             }
         }
@@ -249,9 +280,46 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Loads the application configuration.
         /// </summary>
+        public async Task<ApplicationConfiguration> LoadApplicationConfiguration(Stream stream, bool silent)
+        {
+            ApplicationConfiguration configuration = null;
+
+            try
+            {
+                configuration = await LoadAppConfig(
+                    silent, stream, ApplicationType, ConfigurationType, true, CertificatePasswordProvider)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception) when (silent)
+            {
+            }
+
+            if (configuration == null)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Could not load configuration.");
+            }
+
+            m_applicationConfiguration = FixupAppConfig(configuration);
+
+            return configuration;
+        }
+
+        /// <summary>
+        /// Loads the application configuration.
+        /// </summary>
         public async Task<ApplicationConfiguration> LoadApplicationConfiguration(string filePath, bool silent)
         {
-            ApplicationConfiguration configuration = await LoadAppConfig(silent, filePath, ApplicationType, ConfigurationType, true);
+            ApplicationConfiguration configuration = null;
+
+            try
+            {
+                configuration = await LoadAppConfig(
+                    silent, filePath, ApplicationType, ConfigurationType, true, CertificatePasswordProvider)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception) when (silent)
+            {
+            }
 
             if (configuration == null)
             {
@@ -269,16 +337,76 @@ namespace Opc.Ua.Configuration
         public async Task<ApplicationConfiguration> LoadApplicationConfiguration(bool silent)
         {
             string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName);
-            ApplicationConfiguration configuration = await LoadAppConfig(silent, filePath, ApplicationType, ConfigurationType, true);
 
-            if (configuration == null)
+            return await LoadApplicationConfiguration(filePath, silent).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Helper to replace localhost with the hostname
+        /// in the application uri and base adresses of the
+        /// configuration.
+        /// </summary>
+        /// <param name="configuration"></param>
+        public static ApplicationConfiguration FixupAppConfig(
+            ApplicationConfiguration configuration)
+        {
+            configuration.ApplicationUri = Utils.ReplaceLocalhost(configuration.ApplicationUri);
+            if (configuration.ServerConfiguration != null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Could not load configuration file.");
+                for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
+                {
+                    configuration.ServerConfiguration.BaseAddresses[i] =
+                        Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i]);
+                }
             }
+            return configuration;
+        }
 
-            m_applicationConfiguration = FixupAppConfig(configuration);
+        /// <summary>
+        /// Create a builder for a UA application configuration.
+        /// </summary>
+        public IApplicationConfigurationBuilderTypes Build(
+            string applicationUri,
+            string productUri
+            )
+        {
+            // App Uri and cert subject
+            ApplicationConfiguration = new ApplicationConfiguration {
+                ApplicationName = this.ApplicationName,
+                ApplicationType = this.ApplicationType,
+                ApplicationUri = applicationUri,
+                ProductUri = productUri,
+                TraceConfiguration = new TraceConfiguration {
+                    TraceMasks = Utils.TraceMasks.None
+                },
+                TransportQuotas = new TransportQuotas()
+            };
 
-            return m_applicationConfiguration;
+            // Trace off
+            ApplicationConfiguration.TraceConfiguration.ApplySettings();
+
+            return new ApplicationConfigurationBuilder(this);
+        }
+
+        /// <summary>
+        /// Checks for a valid application instance certificate.
+        /// </summary>
+        /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
+        /// <param name="minimumKeySize">Minimum size of the key.</param>
+        public Task<bool> CheckApplicationInstanceCertificate(
+            bool silent,
+            ushort minimumKeySize)
+        {
+            return CheckApplicationInstanceCertificate(silent, minimumKeySize, CertificateFactory.DefaultLifeTime);
+        }
+
+        /// <summary>
+        /// Delete the application certificate.
+        /// </summary>
+        public async Task DeleteApplicationInstanceCertificate()
+        {
+            if (m_applicationConfiguration == null) throw new ArgumentException("Missing configuration.");
+            await DeleteApplicationInstanceCertificate(m_applicationConfiguration).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -290,43 +418,59 @@ namespace Opc.Ua.Configuration
         public async Task<bool> CheckApplicationInstanceCertificate(
             bool silent,
             ushort minimumKeySize,
-            ushort lifeTimeInMonths = CertificateFactory.defaultLifeTime)
+            ushort lifeTimeInMonths)
         {
-            Utils.Trace(Utils.TraceMasks.Information, "Checking application instance certificate.");
-
-            ApplicationConfiguration configuration = null;
+            Utils.LogInfo("Checking application instance certificate.");
 
             if (m_applicationConfiguration == null)
             {
-                await LoadApplicationConfiguration(silent);
+                await LoadApplicationConfiguration(silent).ConfigureAwait(false);
             }
 
-            configuration = m_applicationConfiguration;
-            bool certificateValid = false;
+            ApplicationConfiguration configuration = m_applicationConfiguration;
 
             // find the existing certificate.
             CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
 
             if (id == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Configuration file does not specify a certificate.");
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                    "Configuration file does not specify a certificate.");
             }
 
-            X509Certificate2 certificate = await id.Find(true);
+            // reload the certificate from disk in the cache.
+            var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
+            await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
+
+            // load the certificate
+            X509Certificate2 certificate = await id.Find(true).ConfigureAwait(false);
 
             // check that it is ok.
             if (certificate != null)
             {
-                certificateValid = await CheckApplicationInstanceCertificate(configuration, certificate, silent, minimumKeySize);
+                Utils.LogCertificate("Check certificate:", certificate);
+                bool certificateValid = await CheckApplicationInstanceCertificate(configuration, certificate, silent, minimumKeySize).ConfigureAwait(false);
+
+                if (!certificateValid)
+                {
+                    var message = new StringBuilder();
+                    message.AppendLine("The certificate with subject {0} in the configuration is invalid.");
+                    message.AppendLine(" Please update or delete the certificate from this location:");
+                    message.AppendLine(" {1}");
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                        message.ToString(), id.SubjectName, Utils.ReplaceSpecialFolderNames(id.StorePath)
+                        );
+                }
             }
             else
             {
                 // check for missing private key.
-                certificate = await id.Find(false);
+                certificate = await id.Find(false).ConfigureAwait(false);
 
                 if (certificate != null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Cannot access certificate private key. Subject={0}", certificate.Subject);
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                        "Cannot access certificate private key. Subject={0}", certificate.Subject);
                 }
 
                 // check for missing thumbprint.
@@ -334,49 +478,53 @@ namespace Opc.Ua.Configuration
                 {
                     if (!String.IsNullOrEmpty(id.SubjectName))
                     {
-                        CertificateIdentifier id2 = new CertificateIdentifier();
-                        id2.StoreType = id.StoreType;
-                        id2.StorePath = id.StorePath;
-                        id2.SubjectName = id.SubjectName;
-
-                        certificate = await id2.Find(true);
+                        CertificateIdentifier id2 = new CertificateIdentifier {
+                            StoreType = id.StoreType,
+                            StorePath = id.StorePath,
+                            SubjectName = id.SubjectName
+                        };
+                        certificate = await id2.Find(true).ConfigureAwait(false);
                     }
 
                     if (certificate != null)
                     {
-                        string message = Utils.Format(
-                            "Thumbprint was explicitly specified in the configuration." +
-                            "\r\nAnother certificate with the same subject name was found." +
-                            "\r\nUse it instead?\r\n" +
-                            "\r\nRequested: {0}" +
-                            "\r\nFound: {1}",
-                            id.SubjectName,
-                            certificate.Subject);
-
-                        throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
+                        var message = new StringBuilder();
+                        message.AppendLine("Thumbprint was explicitly specified in the configuration.");
+                        message.AppendLine("Another certificate with the same subject name was found.");
+                        message.AppendLine("Use it instead?");
+                        message.AppendLine("Requested: {0}");
+                        message.AppendLine("Found: {1}");
+                        if (!await ApproveMessage(String.Format(message.ToString(), id.SubjectName, certificate.Subject), silent).ConfigureAwait(false))
+                        {
+                            throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                                message.ToString(), id.SubjectName, certificate.Subject);
+                        }
                     }
                     else
                     {
-                        string message = Utils.Format("Thumbprint was explicitly specified in the configuration. Cannot generate a new certificate.");
-                        throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
+                        var message = new StringBuilder();
+                        message.AppendLine("Thumbprint was explicitly specified in the configuration. ");
+                        message.AppendLine("Cannot generate a new certificate.");
+                        throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message.ToString());
                     }
                 }
             }
 
-            if ((certificate == null) || !certificateValid)
+            if (certificate == null)
             {
-                certificate = await CreateApplicationInstanceCertificate(configuration, minimumKeySize, lifeTimeInMonths);
+                certificate = await CreateApplicationInstanceCertificate(configuration,
+                    minimumKeySize, lifeTimeInMonths).ConfigureAwait(false);
 
                 if (certificate == null)
                 {
-                    string message = Utils.Format(
-                        "There is no cert with subject {0} in the configuration." +
-                        "\r\n Please generate a cert for your application,",
-                        "\r\n then copy the new cert to this location:" +
-                        "\r\n{1}",
-                        id.SubjectName,
-                        id.StorePath);
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
+                    var message = new StringBuilder();
+                    message.AppendLine("There is no cert with subject {0} in the configuration.");
+                    message.AppendLine(" Please generate a cert for your application,");
+                    message.AppendLine(" then copy the new cert to this location:");
+                    message.AppendLine(" {1}");
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                        message.ToString(), id.SubjectName, id.StorePath
+                        );
                 }
             }
             else
@@ -384,40 +532,39 @@ namespace Opc.Ua.Configuration
                 if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
                 {
                     // ensure it is trusted.
-                    await AddToTrustedStore(configuration, certificate);
+                    await AddToTrustedStore(configuration, certificate).ConfigureAwait(false);
                 }
             }
 
             return true;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
-        /// Handles a certificate validation error.
+        /// Helper to suppress errors which are allowed for the application certificate validation.
         /// </summary>
-        private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
+        private class CertValidationSuppressibleStatusCodes
         {
-            try
+            public StatusCode[] ApprovedCodes { get; }
+
+            public CertValidationSuppressibleStatusCodes(StatusCode[] approvedCodes)
             {
-                if (m_applicationConfiguration.SecurityConfiguration != null
-                    && m_applicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates
-                    && e.Error != null && e.Error.Code == StatusCodes.BadCertificateUntrusted)
-                {
-                    e.Accept = true;
-                    Utils.Trace((int)Utils.TraceMasks.Security, "Automatically accepted certificate: {0}", e.Certificate.Subject);
-                }
+                ApprovedCodes = approvedCodes;
             }
-            catch (Exception exception)
+
+            public void OnCertificateValidation(object sender, CertificateValidationEventArgs e)
             {
-                Utils.Trace(exception, "Error accepting certificate.");
+                if (ApprovedCodes.Contains(e.Error.StatusCode))
+                {
+                    Utils.LogWarning("Application Certificate Validation suppressed {0}", e.Error.StatusCode);
+                    e.Accept = true;
+                }
             }
         }
 
         /// <summary>
         /// Creates an application instance certificate if one does not already exist.
         /// </summary>
-        private static async Task<bool> CheckApplicationInstanceCertificate(
+        private async Task<bool> CheckApplicationInstanceCertificate(
             ApplicationConfiguration configuration,
             X509Certificate2 certificate,
             bool silent,
@@ -428,51 +575,50 @@ namespace Opc.Ua.Configuration
                 return false;
             }
 
-            Utils.Trace(Utils.TraceMasks.Information, "Checking application instance certificate. {0}", certificate.Subject);
+            // set suppressible errors
+            var certValidator = new CertValidationSuppressibleStatusCodes(
+                new StatusCode[] {
+                    StatusCodes.BadCertificateUntrusted,
+                    StatusCodes.BadCertificateTimeInvalid,
+                    StatusCodes.BadCertificateIssuerTimeInvalid,
+                    StatusCodes.BadCertificateHostNameInvalid,
+                    StatusCodes.BadCertificateRevocationUnknown,
+                    StatusCodes.BadCertificateIssuerRevocationUnknown,
+                });
+
+            Utils.LogCertificate("Check application instance certificate.", certificate);
 
             try
             {
                 // validate certificate.
-                configuration.CertificateValidator.Validate(certificate);
+                configuration.CertificateValidator.CertificateValidation += certValidator.OnCertificateValidation;
+                configuration.CertificateValidator.Validate(certificate.HasPrivateKey ? new X509Certificate2(certificate.RawData) : certificate);
             }
             catch (Exception ex)
             {
                 string message = Utils.Format(
                     "Error validating certificate. Exception: {0}. Use certificate anyway?", ex.Message);
-                if (!silent && MessageDlg != null)
+                if (!await ApproveMessage(message, silent).ConfigureAwait(false))
                 {
-                    MessageDlg.Message(message, true);
-                    if (!await MessageDlg.ShowAsync())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    Utils.Trace(message);
                     return false;
                 }
             }
+            finally
+            {
+                configuration.CertificateValidator.CertificateValidation -= certValidator.OnCertificateValidation;
+            }
 
             // check key size.
-            if (minimumKeySize > certificate.GetRSAPublicKey().KeySize)
+            int keySize = X509Utils.GetRSAPublicKeySize(certificate);
+            if (minimumKeySize > keySize)
             {
                 string message = Utils.Format(
-                    "The key size ({0}) in the certificate is less than the minimum provided ({1}). Use certificate anyway?",
-                    certificate.GetRSAPublicKey().KeySize,
+                    "The key size ({0}) in the certificate is less than the minimum allowed ({1}). Use certificate anyway?",
+                    keySize,
                     minimumKeySize);
 
-                if (!silent && MessageDlg!=null)
+                if (!await ApproveMessage(message, silent).ConfigureAwait(false))
                 {
-                    MessageDlg.Message(message, true);
-                    if (!await MessageDlg.ShowAsync())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    Utils.Trace(message);
                     return false;
                 }
             }
@@ -480,37 +626,30 @@ namespace Opc.Ua.Configuration
             // check domains.
             if (configuration.ApplicationType != ApplicationType.Client)
             {
-                if (!await CheckDomainsInCertificate(configuration, certificate, silent))
+                if (!await CheckDomainsInCertificate(configuration, certificate, silent).ConfigureAwait(false))
                 {
                     return false;
                 }
             }
 
             // check uri.
-            string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
+            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
 
             if (String.IsNullOrEmpty(applicationUri))
             {
                 string message = "The Application URI could not be read from the certificate. Use certificate anyway?";
-
-                if (!silent && MessageDlg != null)
+                if (!await ApproveMessage(message, silent).ConfigureAwait(false))
                 {
-                    MessageDlg.Message(message, true);
-                    if (!await MessageDlg.ShowAsync())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    Utils.Trace(message);
                     return false;
                 }
             }
-            else
+            else if (!configuration.ApplicationUri.Equals(applicationUri, StringComparison.Ordinal))
             {
+                Utils.LogInfo("Updated the ApplicationUri: {0} --> {1}", configuration.ApplicationUri, applicationUri);
                 configuration.ApplicationUri = applicationUri;
             }
+
+            Utils.LogInfo("Using the ApplicationUri: {0}", applicationUri);
 
             // update configuration.
             configuration.SecurityConfiguration.ApplicationCertificate.Certificate = certificate;
@@ -521,16 +660,28 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Checks that the domains in the server addresses match the domains in the certificates.
         /// </summary>
-        private static async Task<bool> CheckDomainsInCertificate(
+        private async Task<bool> CheckDomainsInCertificate(
             ApplicationConfiguration configuration,
             X509Certificate2 certificate,
             bool silent)
         {
-            Utils.Trace(Utils.TraceMasks.Information, "Checking domains in certificate. {0}", certificate.Subject);
+            Utils.LogInfo("Check domains in certificate.");
 
             bool valid = true;
             IList<string> serverDomainNames = configuration.GetServerDomainNames();
-            IList<string> certificateDomainNames = Utils.GetDomainsFromCertficate(certificate);
+            IList<string> certificateDomainNames = X509Utils.GetDomainsFromCertficate(certificate);
+
+            Utils.LogInfo("Server Domain names:");
+            foreach (var name in serverDomainNames)
+            {
+                Utils.LogInfo(" {0}", name);
+            }
+
+            Utils.LogInfo("Certificate Domain names:");
+            foreach (var name in certificateDomainNames)
+            {
+                Utils.LogInfo(" {0}", name);
+            }
 
             // get computer name.
             string computerName = Utils.GetHostName();
@@ -545,7 +696,7 @@ namespace Opc.Ua.Configuration
                     continue;
                 }
 
-                if (String.Compare(serverDomainNames[ii], "localhost", StringComparison.OrdinalIgnoreCase) == 0)
+                if (String.Equals(serverDomainNames[ii], "localhost", StringComparison.OrdinalIgnoreCase))
                 {
                     if (Utils.FindStringIgnoreCase(certificateDomainNames, computerName))
                     {
@@ -558,7 +709,7 @@ namespace Opc.Ua.Configuration
                     // get IP addresses only if necessary.
                     if (addresses == null)
                     {
-                        addresses = await Utils.GetHostAddresses(computerName);
+                        addresses = await Utils.GetHostAddressesAsync(computerName).ConfigureAwait(false);
                     }
 
                     // check for ip addresses.
@@ -578,22 +729,17 @@ namespace Opc.Ua.Configuration
                 }
 
                 string message = Utils.Format(
-                    "The server is configured to use domain '{0}' which does not appear in the certificate. Use certificate?",
+                    "The server is configured to use domain '{0}' which does not appear in the certificate. Use certificate anyway?",
                     serverDomainNames[ii]);
 
                 valid = false;
 
-                if (!silent && MessageDlg != null)
+                if (await ApproveMessage(message, silent).ConfigureAwait(false))
                 {
-                    MessageDlg.Message(message, true);
-                    if (await MessageDlg.ShowAsync())
-                    {
-                        valid = true;
-                        continue;
-                    }
+                    valid = true;
+                    continue;
                 }
 
-                Utils.Trace(message);
                 break;
             }
 
@@ -605,18 +751,18 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="keySize">Size of the key.</param>
-        /// <param name="lifetimeInMonths">The lifetime in months.</param>
+        /// <param name="lifeTimeInMonths">The lifetime in months.</param>
         /// <returns>The new certificate</returns>
         private static async Task<X509Certificate2> CreateApplicationInstanceCertificate(
             ApplicationConfiguration configuration,
-            ushort minimumKeySize = CertificateFactory.defaultKeySize,
-            ushort lifeTimeInMonths = CertificateFactory.defaultLifeTime
+            ushort keySize,
+            ushort lifeTimeInMonths
             )
         {
-            Utils.Trace(Utils.TraceMasks.Information, "Creating application instance certificate.");
-
             // delete any existing certificate.
-            await DeleteApplicationInstanceCertificate(configuration);
+            await DeleteApplicationInstanceCertificate(configuration).ConfigureAwait(false);
+
+            Utils.LogInfo("Creating application instance certificate.");
 
             CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
 
@@ -634,39 +780,40 @@ namespace Opc.Ua.Configuration
                 Utils.GetAbsoluteDirectoryPath(id.StorePath, true, true, true);
             }
 
+            var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
             X509Certificate2 certificate = CertificateFactory.CreateCertificate(
-                id.StoreType,
-                id.StorePath,
-                null,
                 configuration.ApplicationUri,
                 configuration.ApplicationName,
                 id.SubjectName,
-                serverDomainNames,
-                minimumKeySize,
-                DateTime.UtcNow - TimeSpan.FromDays(1),
-                lifeTimeInMonths,
-                CertificateFactory.defaultHashSize,
-                false,
-                null,
-                null
-                );
+                serverDomainNames)
+                .SetLifeTime(lifeTimeInMonths)
+                .SetRSAKeySize(keySize)
+                .CreateForRSA();
 
+            // need id for password provider
             id.Certificate = certificate;
+            certificate.AddToStore(
+                id.StoreType,
+                id.StorePath,
+                passwordProvider?.GetPassword(id)
+                );
 
             // ensure the certificate is trusted.
             if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
             {
-                await AddToTrustedStore(configuration, certificate);
+                await AddToTrustedStore(configuration, certificate).ConfigureAwait(false);
             }
 
-            await configuration.CertificateValidator.Update(configuration.SecurityConfiguration);
-
-            Utils.Trace(Utils.TraceMasks.Information, "Certificate created. Thumbprint={0}", certificate.Thumbprint);
-
             // reload the certificate from disk.
-            await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
+            id.Certificate = await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
 
-            return certificate;
+            await configuration.CertificateValidator.Update(configuration.SecurityConfiguration).ConfigureAwait(false);
+
+            Utils.LogCertificate("Certificate created for {0}.", certificate, configuration.ApplicationUri);
+
+            // do not dispose temp cert, or X509Store certs become unusable
+
+            return id.Certificate;
         }
 
         /// <summary>
@@ -675,8 +822,6 @@ namespace Opc.Ua.Configuration
         /// <param name="configuration">The configuration instance that stores the configurable information for a UA application.</param>
         private static async Task DeleteApplicationInstanceCertificate(ApplicationConfiguration configuration)
         {
-            Utils.Trace(Utils.TraceMasks.Information, "Deleting application instance certificate.");
-
             // create a default certificate id none specified.
             CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
 
@@ -685,11 +830,16 @@ namespace Opc.Ua.Configuration
                 return;
             }
 
-            // delete private key.
-            X509Certificate2 certificate = await id.Find();
+            // delete certificate and private key.
+            X509Certificate2 certificate = await id.Find().ConfigureAwait(false);
+            if (certificate != null)
+            {
+                Utils.LogCertificate(TraceMasks.Security, "Deleting application instance certificate and private key.", certificate);
+            }
 
             // delete trusted peer certificate.
-            if (configuration.SecurityConfiguration != null && configuration.SecurityConfiguration.TrustedPeerCertificates != null)
+            if (configuration.SecurityConfiguration != null &&
+                configuration.SecurityConfiguration.TrustedPeerCertificates != null)
             {
                 string thumbprint = id.Thumbprint;
 
@@ -698,20 +848,34 @@ namespace Opc.Ua.Configuration
                     thumbprint = certificate.Thumbprint;
                 }
 
-                using (ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                if (!string.IsNullOrEmpty(thumbprint))
                 {
-                    await store.Delete(thumbprint);
+                    using (ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                    {
+                        bool deleted = await store.Delete(thumbprint).ConfigureAwait(false);
+                        if (deleted)
+                        {
+                            Utils.LogInfo(TraceMasks.Security, "Application Instance Certificate [{0}] deleted from trusted store.", thumbprint);
+                        }
+                    }
                 }
             }
 
-            // delete private key.
+            // delete certificate and private key from owner store.
             if (certificate != null)
             {
                 using (ICertificateStore store = id.OpenStore())
                 {
-                    await store.Delete(certificate.Thumbprint);
+                    bool deleted = await store.Delete(certificate.Thumbprint).ConfigureAwait(false);
+                    if (deleted)
+                    {
+                        Utils.LogCertificate(TraceMasks.Security, "Application certificate and private key deleted.", certificate);
+                    }
                 }
             }
+
+            // erase the memory copy of the deleted certificate
+            id.Certificate = null;
         }
 
         /// <summary>
@@ -732,7 +896,7 @@ namespace Opc.Ua.Configuration
 
             if (String.IsNullOrEmpty(storePath))
             {
-                Utils.Trace(Utils.TraceMasks.Information, "WARNING: Trusted peer store not specified.");
+                Utils.LogWarning("WARNING: Trusted peer store not specified.");
                 return;
             }
 
@@ -742,44 +906,48 @@ namespace Opc.Ua.Configuration
 
                 if (store == null)
                 {
-                    Utils.Trace("Could not open trusted peer store. StorePath={0}", storePath);
+                    Utils.LogWarning("Could not open trusted peer store.");
                     return;
                 }
 
                 try
                 {
                     // check if it already exists.
-                    X509Certificate2Collection existingCertificates = await store.FindByThumbprint(certificate.Thumbprint);
+                    X509Certificate2Collection existingCertificates = await store.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
 
                     if (existingCertificates.Count > 0)
                     {
                         return;
                     }
 
-                    Utils.Trace(Utils.TraceMasks.Information, "Adding certificate to trusted peer store. StorePath={0}", storePath);
+                    Utils.LogCertificate("Adding application certificate to trusted peer store.", certificate);
 
-                    List<string> subjectName = Utils.ParseDistinguishedName(certificate.Subject);
+                    List<string> subjectName = X509Utils.ParseDistinguishedName(certificate.Subject);
 
                     // check for old certificate.
-                    X509Certificate2Collection certificates = await store.Enumerate();
+                    X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
 
                     for (int ii = 0; ii < certificates.Count; ii++)
                     {
-                        if (Utils.CompareDistinguishedName(certificates[ii], subjectName))
+                        if (X509Utils.CompareDistinguishedName(certificates[ii], subjectName))
                         {
                             if (certificates[ii].Thumbprint == certificate.Thumbprint)
                             {
                                 return;
                             }
 
-                            await store.Delete(certificates[ii].Thumbprint);
+                            Utils.LogCertificate("Delete Certificate from trusted store.", certificate);
+
+                            await store.Delete(certificates[ii].Thumbprint).ConfigureAwait(false);
                             break;
                         }
                     }
 
                     // add new certificate.
                     X509Certificate2 publicKey = new X509Certificate2(certificate.RawData);
-                    await store.Add(publicKey);
+                    await store.Add(publicKey).ConfigureAwait(false);
+
+                    Utils.LogInfo("Added application certificate to trusted peer store.");
                 }
                 finally
                 {
@@ -788,7 +956,27 @@ namespace Opc.Ua.Configuration
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not add certificate to trusted peer store. StorePath={0}", storePath);
+                Utils.LogError(e, "Could not add certificate to trusted peer store.");
+            }
+        }
+
+        /// <summary>
+        /// Show a message for approval and return result.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="silent"></param>
+        /// <returns>True if approved, false otherwise.</returns>
+        private async Task<bool> ApproveMessage(string message, bool silent)
+        {
+            if (!silent && MessageDlg != null)
+            {
+                MessageDlg.Message(message, true);
+                return await MessageDlg.ShowAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                Utils.LogError(message);
+                return false;
             }
         }
         #endregion

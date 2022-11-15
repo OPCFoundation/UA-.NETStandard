@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>          
+          <Exclude>[coverlet.*.tests?]*,[*]Coverlet.Core*,[Opc.Ua.*.Tests]*,[Quickstarts.Servers]*</Exclude> <!-- [Assembly-Filter]Type-Filter -->
+          <Include></Include> <!-- [Assembly-Filter]Type-Filter -->
+          <ExcludeByAttribute>Obsolete</ExcludeByAttribute>
+          <ExcludeByFile>**/Generated/*.cs,**/Model/*.cs</ExcludeByFile> <!-- Globbing filter -->
+          <IncludeDirectory></IncludeDirectory>
+          <SingleHit>false</SingleHit>
+          <UseSourceLink>false</UseSourceLink>
+          <IncludeTestAssembly>false</IncludeTestAssembly>
+          <SkipAutoProps>true</SkipAutoProps>
+          <DeterministicReport>false</DeterministicReport>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

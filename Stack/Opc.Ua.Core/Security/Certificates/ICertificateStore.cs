@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -11,9 +11,9 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -26,15 +26,26 @@ namespace Opc.Ua
         /// Opens the store at the specified location.
         /// </summary>
         /// <param name="location">The location.</param>
+        /// <param name="noPrivateKeys">Indicates whether NO private keys are found in the store. Default <c>true</c>.</param>
         /// <remarks>
         /// The syntax depends on the store implementation.
         /// </remarks>
-        void Open(string location);
+        void Open(string location, bool noPrivateKeys = true);
 
         /// <summary>
         /// Closes the store.
         /// </summary>
         void Close();
+
+        /// <summary>
+        /// The store type.
+        /// </summary>
+        string StoreType { get; }
+
+        /// <summary>
+        /// The store path used to open the store.
+        /// </summary>
+        string StorePath { get; }
 
         /// <summary>
         /// Enumerates the certificates in the store.
@@ -45,6 +56,7 @@ namespace Opc.Ua
         /// Adds a certificate to the store.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
+        /// <param name="password">The certificate password.</param>
         Task Add(X509Certificate2 certificate, string password = null);
 
         /// <summary>
@@ -62,9 +74,24 @@ namespace Opc.Ua
         Task<X509Certificate2Collection> FindByThumbprint(string thumbprint);
 
         /// <summary>
+        /// If the store supports the LoadPrivateKey operation.
+        /// </summary>
+        bool SupportsLoadPrivateKey { get; }
+
+        /// <summary>
+        /// Finds the certificate with the specified thumprint.
+        /// </summary>
+        /// <param name="thumbprint">The thumbprint.</param>
+        /// <param name="subjectName">The certificate subject.</param>
+        /// <param name="password">The certificate password.</param>
+        /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
+        /// <returns>The matching certificate with private key</returns>
+        Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password);
+
+        /// <summary>
         /// Checks if issuer has revoked the certificate.
         /// </summary>
-        StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate);
+        Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate);
 
         /// <summary>
         /// Whether the store supports CRLs.
@@ -74,21 +101,21 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the CRLs in the store.
         /// </summary>
-        List<X509CRL> EnumerateCRLs();
+        Task<X509CRLCollection> EnumerateCRLs();
 
         /// <summary>
         /// Returns the CRLs for the issuer.
         /// </summary>
-        List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true);
+        Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true);
 
         /// <summary>
         /// Adds a CRL to the store.
         /// </summary>
-        void AddCRL(X509CRL crl);
+        Task AddCRL(X509CRL crl);
 
         /// <summary>
         /// Removes a CRL from the store.
         /// </summary>
-        bool DeleteCRL(X509CRL crl);
+        Task<bool> DeleteCRL(X509CRL crl);
     };
 }

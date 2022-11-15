@@ -1,0 +1,27 @@
+# Azure pipeline
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+pr: none
+
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - 'Stack/' 
+    - 'Libraries/' 
+
+stages:
+- stage: nugetpreview
+  displayName: 'Push Nuget Preview'
+  jobs:
+  - template: .azurepipelines/preview.yml
+    parameters:
+      upload: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
+      config: 'Release'
+  - template: .azurepipelines/preview.yml
+    parameters:
+      upload: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
+      config: 'Debug'

@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -535,6 +535,8 @@ namespace Opc.Ua
                 case FilterOperator.LessThanOrEqual:
                 case FilterOperator.Like:
                 case FilterOperator.Cast:
+                case FilterOperator.BitwiseAnd:
+                case FilterOperator.BitwiseOr:
                 {
                     operandCount = 2;
                     break;
@@ -740,6 +742,8 @@ namespace Opc.Ua
                 case FilterOperator.LessThanOrEqual:
                 case FilterOperator.Like:
                 case FilterOperator.Or:
+                case FilterOperator.BitwiseAnd:
+                case FilterOperator.BitwiseOr:
                 {
                     buffer.AppendFormat("'{1}' {0} '{2}'", FilterOperator, operand1, operand2);
                     break;
@@ -759,19 +763,19 @@ namespace Opc.Ua
                     
                 case FilterOperator.InList:
                 {
-                    buffer.AppendFormat("'{0}' in {", operand1);
+                    buffer.AppendFormat("'{0}' in ", operand1);
+                    buffer.Append('{');
 
                     for (int ii = 1; ii < operands.Count; ii++)
                     {
+                        buffer.AppendFormat("'{0}'", operands[ii].ToString());
                         if (ii < operands.Count-1)
                         {
                             buffer.Append(", ");
                         }
-
-                        buffer.AppendFormat("'{0}'", operands[ii].ToString());
                     }
                             
-                    buffer.Append("}");
+                    buffer.Append('}');
                     break;
                 }
                     
@@ -1191,12 +1195,12 @@ namespace Opc.Ua
         /// <returns>The result of the validation</returns>
         public override ServiceResult Validate(FilterContext context, int index)
         {
-            if (m_index < 0)
+            if (index < 0)
             {
                 return ServiceResult.Create(
                     StatusCodes.BadFilterOperandInvalid, 
                     "ElementOperand specifies an Index that is less than zero ({0}).", 
-                    m_index);
+                    index);
             }
 
             if (m_index <= index)

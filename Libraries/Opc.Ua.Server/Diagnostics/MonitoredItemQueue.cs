@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -55,6 +55,9 @@ namespace Opc.Ua.Server
         }
 
         #region Public Methods
+        /// <summary>
+        /// The delegate for the discarded value handler.
+        /// </summary>
         public delegate void DiscardedValueHandler();
 
         /// <summary>
@@ -107,7 +110,7 @@ namespace Opc.Ua.Server
             }
 
             // calculate the next sampling interval.
-            m_samplingInterval = (long)(samplingInterval * TimeSpan.TicksPerMillisecond);
+            m_samplingInterval = (long)samplingInterval;
 
             if (m_samplingInterval > 0)
             {
@@ -190,7 +193,7 @@ namespace Opc.Ua.Server
         /// <param name="error">The error to queue.</param>
         public void QueueValue(DataValue value, ServiceResult error)
         {
-            long now = DateTime.UtcNow.Ticks;
+            long now = HiResClock.TickCount64;
 
             if (m_start >= 0)
             {
@@ -264,7 +267,7 @@ namespace Opc.Ua.Server
                 m_end = 1;
                 m_overflow = -1;
 
-                Utils.Trace("ENQUEUE VALUE: Value={0}", value.WrappedValue);
+                ServerUtils.EventLog.EnqueueValue(value.WrappedValue);
 
                 m_values[m_start] = value;
 
@@ -322,7 +325,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    Utils.Trace("ENQUEUE VALUE: Value={0}", value.WrappedValue);
+                    ServerUtils.EventLog.EnqueueValue(value.WrappedValue);
                 }
             }
             else
@@ -390,7 +393,7 @@ namespace Opc.Ua.Server
                 m_start = 0;
             }
 
-            Utils.Trace("DEQUEUE VALUE: Value={0} CODE={1}<{1:X8}> OVERFLOW={2}", value.WrappedValue, value.StatusCode.Code, value.StatusCode.Overflow);
+            ServerUtils.EventLog.DequeueValue(value.WrappedValue, value.StatusCode);
 
             return true;
         }

@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -13,14 +13,13 @@
 using System;
 using System.Collections;
 using System.Threading;
-using System.Reflection;
 
 namespace Opc.Ua
 {
     /// <summary>
 	/// The client side interface with a UA server.
 	/// </summary>
-    public partial class ClientBase : IDisposable
+    public partial class ClientBase : IClientBase, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -30,25 +29,17 @@ namespace Opc.Ua
         public ClientBase(ITransportChannel channel)
         {
             if (channel == null) throw new ArgumentNullException(nameof(channel));
-            
-            m_channel = channel;
-            m_useTransportChannel = true;
 
-            UaChannelBase uaChannel = channel as UaChannelBase;
-
-            if (uaChannel != null)
-            {
-                m_useTransportChannel = uaChannel.m_uaBypassChannel != null || uaChannel.UseBinaryEncoding;
-            }
+            InitializeChannel(channel);
         }
         #endregion
-                
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -105,7 +96,7 @@ namespace Opc.Ua
         /// The message context used when serializing messages.
         /// </summary>
         /// <value>The message context.</value>
-        public ServiceMessageContext MessageContext
+        public IServiceMessageContext MessageContext
         {
             get
             {
@@ -138,10 +129,10 @@ namespace Opc.Ua
                     }
                 }
 
-                return channel; 
+                return channel;
             }
-            
-            protected set 
+
+            protected set
             {
                 ITransportChannel channel = m_channel;
                 m_channel = null;
@@ -153,13 +144,13 @@ namespace Opc.Ua
                         channel.Close();
                         channel.Dispose();
                     }
-                    catch (Exception)
+                    catch
                     {
                         // ignore errors.
                     }
                 }
 
-                m_channel = value; 
+                m_channel = value;
             }
         }
 
@@ -244,8 +235,25 @@ namespace Opc.Ua
             }
         }
         #endregion
-        
+
         #region Public Methods
+        /// <summary>
+        /// Attach the channel to an already created client.
+        /// </summary>
+        /// <param name="channel">Channel to be used by the client</param>
+        public void AttachChannel(ITransportChannel channel)
+        {
+            InitializeChannel(channel);
+        }
+
+        /// <summary>
+        /// Detach the channel.
+        /// </summary>
+        public void DetachChannel()
+        {
+            m_channel = null;
+        }
+
         /// <summary>
         /// Closes the channel.
         /// </summary>
@@ -283,6 +291,23 @@ namespace Opc.Ua
         #endregion
 
         #region Protected Methods
+        /// <summary>
+        /// Initializes the channel.
+        /// </summary>
+        /// <param name="channel"></param>
+        protected void InitializeChannel(ITransportChannel channel)
+        {
+            m_channel = channel;
+            m_useTransportChannel = true;
+
+            UaChannelBase uaChannel = channel as UaChannelBase;
+
+            if (uaChannel != null)
+            {
+                m_useTransportChannel = uaChannel.m_uaBypassChannel != null || uaChannel.UseBinaryEncoding;
+            }
+        }
+
         /// <summary>
         /// Closes the channel.
         /// </summary>
@@ -402,13 +427,8 @@ namespace Opc.Ua
         protected virtual void UpdateRequestHeader(IServiceRequest request, bool useDefaults, string serviceName)
         {
             UpdateRequestHeader(request, useDefaults);
-
-            Utils.Trace(
-                (int)Utils.TraceMasks.Service, 
-                "{0} Called. RequestHandle={1}, PendingRequestCount={2}",
-                serviceName,
-                request.RequestHeader.RequestHandle,
-                Interlocked.Increment(ref m_pendingRequestCount));
+            int incrementedCount = Interlocked.Increment(ref m_pendingRequestCount);
+            Utils.EventLog.ServiceCallStart(serviceName, (int)request.RequestHeader.RequestHandle, incrementedCount);
         }
 
         /// <summary>
@@ -441,22 +461,11 @@ namespace Opc.Ua
 
             if (statusCode != StatusCodes.Good)
             {
-                Utils.Trace(
-                    (int)Utils.TraceMasks.Service,
-                    "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}",
-                    serviceName,
-                    requestHandle,
-                    statusCode,
-                    pendingRequestCount);
+                Utils.EventLog.ServiceCallBadStop(serviceName, (int)requestHandle, (int)statusCode.Code, pendingRequestCount);
             }
             else
             {
-                Utils.Trace(
-                    (int)Utils.TraceMasks.Service,
-                    "{0} Completed. RequestHandle={1}, PendingRequestCount={2}",
-                    serviceName,
-                    requestHandle,
-                    pendingRequestCount);
+                Utils.EventLog.ServiceCallStop(serviceName, (int)requestHandle, pendingRequestCount);
             }
         }
 
@@ -603,7 +612,7 @@ namespace Opc.Ua
     /// <summary>
 	/// The client side interface with a UA server.
 	/// </summary>
-    public partial class SessionClient
+    public partial class SessionClient : ISessionClient
     {
         #region IDisposable Implementation
         /// <summary>

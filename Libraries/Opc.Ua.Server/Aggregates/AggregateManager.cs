@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -185,7 +185,8 @@ namespace Opc.Ua.Server
 
             if (configuration.UseServerCapabilitiesDefaults)
             {
-                configuration = m_defaultConfiguration;
+                // ensure the configuration is initialized
+                configuration = GetDefaultConfiguration(null); 
             }
 
             IAggregateCalculator calculator = factory(aggregateId, startTime, endTime, processingInterval, stepped, configuration);

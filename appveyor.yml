@@ -4,11 +4,14 @@
 #---------------------------------#
 
 # version format
-version: 1.4.362.{build}-{branch}
+version: 1.4.369.{build}-{branch}
 
 
 # branches to build
 branches:
+  # whitelist
+  only:
+    - appveyor
   # blacklist
   except:
     - gh-pages
@@ -27,9 +30,6 @@ init:
 # clone directory
 clone_folder: c:\projects\UA-.NetStandard
 
-# set clone depth
-clone_depth: 5                      # clone entire repository history if not defined
-
 environment:
   matrix:
   - solution_name: "UA Core Library.sln"
@@ -44,7 +44,7 @@ environment:
 
 # this is how to allow failing jobs in the matrix
 matrix:
-  fast_finish: false     # set this flag to immediately finish build once one of the jobs fails.
+  fast_finish: true     # set this flag to immediately finish build once one of the jobs fails.
 
 # scripts to run before build
 before_build:

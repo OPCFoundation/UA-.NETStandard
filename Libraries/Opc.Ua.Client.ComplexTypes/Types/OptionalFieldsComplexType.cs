@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,6 +34,9 @@ using System.Text;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
+    /// <summary>
+    /// A complex type with optional fields.
+    /// </summary>
     public class OptionalFieldsComplexType : BaseComplexType
     {
         #region Constructors
@@ -54,11 +56,11 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             m_encodingMask = 0;
         }
-        #endregion
+        #endregion Constructors
 
         #region Public Properties
 
-        /// <summary cref="IStructureTypeInfo.StructureType" />
+        /// <inheritdoc/>
         public override StructureType StructureType => StructureType.StructureWithOptionalFields;
 
         /// <summary>
@@ -79,10 +81,10 @@ namespace Opc.Ua.Client.ComplexTypes
             return clone;
         }
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(TypeId.NamespaceUri);
+            encoder.PushNamespace(XmlNamespace);
 
             if (encoder.UseReversibleEncoding)
             {
@@ -99,15 +101,15 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                 }
 
-                EncodeProperty(encoder, property.PropertyInfo, property.ValueRank);
+                EncodeProperty(encoder, property);
             }
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(TypeId.NamespaceUri);
+            decoder.PushNamespace(XmlNamespace);
 
             m_encodingMask = decoder.ReadUInt32("EncodingMask");
 
@@ -121,21 +123,20 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                 }
 
-                DecodeProperty(decoder, property.PropertyInfo, property.ValueRank);
+                DecodeProperty(decoder, property);
             }
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public override bool IsEqual(IEncodeable equalValue)
+        /// <inheritdoc/>
+        public override bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, equalValue))
+            if (Object.ReferenceEquals(this, encodeable))
             {
                 return true;
             }
 
-            var valueBaseType = equalValue as OptionalFieldsComplexType;
-            if (valueBaseType == null)
+            if (!(encodeable is OptionalFieldsComplexType valueBaseType))
             {
                 return false;
             }
@@ -169,18 +170,10 @@ namespace Opc.Ua.Client.ComplexTypes
 
             return true;
         }
-        #endregion
+        #endregion Public Properties
 
         #region IFormattable Members
-        /// <summary>
-        /// Returns the string representation of the complex type.
-        /// </summary>
-        /// <param name="format">(Unused). Leave this as null</param>
-        /// <param name="formatProvider">The provider of a mechanism for retrieving an object to control formatting.</param>
-        /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current embeded instance in the specified format.
-        /// </returns>
-        /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is not null</exception>
+        /// <inheritdoc/>
         public override string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -201,7 +194,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (body.Length > 0)
                 {
-                    body.Append("}");
+                    body.Append('}');
                     return body.ToString();
                 }
 
@@ -215,12 +208,10 @@ namespace Opc.Ua.Client.ComplexTypes
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
+        #endregion IFormattable Members
 
         #region IComplexTypeProperties Members
-        /// <summary>
-        /// Access property values by index.
-        /// </summary>
+        /// <inheritdoc/>
         public override object this[int index]
         {
             get
@@ -251,14 +242,12 @@ namespace Opc.Ua.Client.ComplexTypes
             }
         }
 
-        /// <summary>
-        /// Access property values by name.
-        /// </summary>
+        /// <inheritdoc/>
         public override object this[string name]
         {
             get
             {
-                ComplexTypePropertyAttribute property;
+                ComplexTypePropertyInfo property;
                 if (m_propertyDict.TryGetValue(name, out property))
                 {
                     if (property.IsOptional &&
@@ -272,7 +261,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                ComplexTypePropertyAttribute property;
+                ComplexTypePropertyInfo property;
                 if (m_propertyDict.TryGetValue(name, out property))
                 {
                     property.SetValue(this, value);
@@ -291,9 +280,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-        #endregion
+        #endregion IComplexTypeProperties Members
 
         #region Private Members
+        /// <inheritdoc/>
         protected override void InitializePropertyAttributes()
         {
             base.InitializePropertyAttributes();
@@ -310,12 +300,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-        #endregion
+        #endregion Private Members
 
         #region Private Fields
-        protected UInt32 m_encodingMask;
-        #endregion
+        private UInt32 m_encodingMask;
+        #endregion Private Fields
     }
-
-
 }//namespace

@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ApplicationConfiguration
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+>
+  <ApplicationName>UA Configuration Test</ApplicationName>
+  <ApplicationUri>urn:localhost:opcfoundation.org:ConfigurationTest</ApplicationUri>
+  <ProductUri>http://opcfoundation.org/UA/ConfigurationTest</ProductUri>
+  <ApplicationType>Server_0</ApplicationType>
+
+  <SecurityConfiguration>
+    <ApplicationCertificate>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPCFoundation/own</StorePath>
+      <SubjectName>CN=UA Configuration Test, O=OPC Foundation, C=US, S=Arizona</SubjectName>
+    </ApplicationCertificate>
+
+    <TrustedIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPCFoundation/issuers</StorePath>
+    </TrustedIssuerCertificates>
+
+    <TrustedPeerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPCFoundation/trusted</StorePath>
+    </TrustedPeerCertificates>
+
+    <RejectedCertificateStore>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPCFoundation/rejected</StorePath>
+    </RejectedCertificateStore>
+
+  </SecurityConfiguration>
+
+  <ServerConfiguration/>
+  
+</ApplicationConfiguration>

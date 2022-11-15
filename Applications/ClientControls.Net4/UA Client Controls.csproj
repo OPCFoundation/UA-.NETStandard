@@ -63,7 +63,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="System.Configuration.Install" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Runtime.Serialization">
@@ -1015,6 +1014,10 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj">
+      <Project>{4b72937f-5a57-4cea-b9fe-b4c45cf7b284}</Project>
+      <Name>Opc.Ua.Security.Certificates</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
       <Project>{d918c0f6-39bd-4ed0-8323-e5a2eb9a85da}</Project>
       <Name>Opc.Ua.Core</Name>
@@ -1031,6 +1034,11 @@
       <Project>{a39614ca-8ebe-4408-a9d2-38c7e5ae2a1d}</Project>
       <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions">
+      <Version>3.1.28</Version>
+    </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

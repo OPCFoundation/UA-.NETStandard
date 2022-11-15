@@ -1,0 +1,66 @@
+name: Build and Test .NET 6.0
+
+on:
+  push:
+  pull_request:
+    branches: [ master ]
+    paths:
+    - '**.cs'
+    - '**.csproj'
+
+env:
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
+
+jobs:
+  build-and-test:
+    name: build-and-test-${{matrix.os}}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false    
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]    
+        include:
+          - framework: 'net6.0'
+            dotnet-version: '6.0.x'
+            configuration: 'Release'
+           
+    env:
+      OS: ${{ matrix.os }}
+      DOTNET_VERSION: ${{ matrix.dotnet-version }}
+      CONFIGURATION:  ${{ matrix.configuration }}
+      
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Setup .NET ${{ matrix.dotnet-version }}
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ matrix.dotnet-version }}
+        
+    - name: Build
+      run: dotnet build --force --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} "UA Core Library.sln"
+      
+    - name: Test
+      # note: /p:CollectCoverage=true is only used to disable deterministc builds
+      run: dotnet test --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory "TestResults-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}" "UA Core Library.sln"
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: dotnet-results-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}
+        path: "TestResults-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
+        # Use always() to always run this step to publish test results when there are test failures
+      if: ${{ always() }}
+
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        name: codecov-umbrella
+        #token: ${{ secrets.CODECOV_TOKEN }}
+        directory: "TestResults-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
+        env_vars: OS,DOTNET_VERSION,CONFIGURATION
+        fail_ci_if_error: false
+        #path_to_write_report: "./coverage/codecov_report-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}/"
+        verbose: true      

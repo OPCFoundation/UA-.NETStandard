@@ -2,46 +2,117 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
-pr:
-  autoCancel: true
+trigger:
+  batch: 'true'
   branches:
     include:
     - '*'
+  paths:
+    include:
+    - '*' 
+    exclude:
+    - 'Docs/*' 
+    - 'README.md' 
+
+pr: 
+  autoCancel: 'true'
+  branches:
+    include:
+    - '*'
+  paths:
+    include:
+    - '*' 
+
+variables:
+  FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsFork'], 'False')) }}
+  ScheduledBuild: ${{ eq(variables['Build.Reason'], 'Schedule') }}
 
 stages:
 - stage: build
-  displayName: 'Build .Net Core Samples'
+  displayName: 'Build .NET Core Samples'
   jobs:
   - template: .azurepipelines/ci.yml
 - stage: buildnohttps
   dependsOn: []
-  displayName: 'Build NoHttps .Net Core Samples'
+  displayName: 'Build NoHttps .NET Core Samples'
+  condition: ne(variables.FullBuild, 'False')
   jobs:
   - template: .azurepipelines/ci.yml
     parameters:
       buildoption: '-p:NoHttps=true'
-      agents: '@{ linux = "ubuntu-18.04" }'
+      agents: '@{ linux = "ubuntu-22.04" }'
 - stage: solutions
   dependsOn: []
   displayName: 'Build Solutions'
   jobs:
   - template: .azurepipelines/sln.yml
+    parameters:
+      poolImage: 'windows-2022'
+      jobnamesuffix: win2022
+  - template: .azurepipelines/sln.yml
+    parameters:
+      poolImage: 'windows-2019'
+      jobnamesuffix: win2019
 - stage: testrelease
-  dependsOn: []
+  dependsOn: [build]
   displayName: 'Test Core and SDK Release'
+  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      agents: '@{ windows = "vs2017-win2016"; mac = "macOS-10.15" }'
+      framework: net462
+      agents: '@{ windows = "windows-2019" }'
+      jobnamesuffix: net462
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      framework: net48
+      agents: '@{ windows = "windows-2019" }'
+      jobnamesuffix: net48  
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      framework: netcoreapp3.1
+      jobnamesuffix: core3
+- stage: test6release
+  dependsOn: [build]
+  displayName: 'Test .NET 6 Core and SDK Release'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      framework: net6.0
+      agents: '@{ windows = "windows-2022"; linux="ubuntu-22.04"; mac = "macOS-12"}'
+      jobnamesuffix: net60
+- stage: testreleasepr
+  dependsOn: []
+  displayName: 'Fast PR Test Core and SDK Release'
+  condition: and(eq(variables.FullBuild, 'False'), eq(variables.ScheduledBuild, 'False'))
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      framework: net6.0
+      agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"}'
+      jobnamesuffix: net60pr
+- stage: testdebug
+  dependsOn: [build]
+  displayName: 'Test Core and SDK Debug'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      framework: netcoreapp3.1
+      configuration: Debug
+- stage: coverage
+  dependsOn: [testdebug,testrelease]
+  displayName: 'Code Coverage'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
-      poolImage: 'ubuntu-18.04'
-- stage: testdebug
-  dependsOn: []
-  displayName: 'Test Core and SDK Debug'
-  jobs:
-  - template: .azurepipelines/test.yml
-    parameters:
-      configuration: Debug
+      poolImage: 'ubuntu-20.04'
+      jobnamesuffix: netcore31

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,13 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.ObjectModel;
 using System.Collections.Generic;
-using System.Text;
-using System.ServiceModel;
-using System.Runtime.Serialization;
-using System.Security.Principal;
-using System.Security.Cryptography.X509Certificates;
 
 #pragma warning disable 0618
 
@@ -43,7 +37,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The interface that a server exposes to objects that it contains.
     /// </summary>
-    public interface IServerInternal
+    public interface IServerInternal : IAuditEventServer
     {
         /// <summary>
         /// The endpoint addresses used by the server.
@@ -55,7 +49,7 @@ namespace Opc.Ua.Server
         /// The context to use when serializing/deserializing extension objects.
         /// </summary>
         /// <value>The message context.</value>
-        ServiceMessageContext MessageContext { get; }
+        IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// The default system context for the server.
@@ -79,7 +73,7 @@ namespace Opc.Ua.Server
         /// The factory used to create encodeable objects that the server understands.
         /// </summary>
         /// <value>The factory.</value>
-        EncodeableFactory Factory { get; }
+        IEncodeableFactory Factory { get; }
 
         /// <summary>
         /// The datatypes, object types and variable types known to the server.
@@ -91,19 +85,6 @@ namespace Opc.Ua.Server
         /// This object is thread safe.
         /// </remarks>
         TypeTable TypeTree { get; }
-        
-#if LEGACY_CORENODEMANAGER
-        /// <summary>
-        /// Returns the source for a types that has shared components defined.
-        /// </summary>
-        /// <value>The type sources.</value>
-        /// <remarks>
-        /// Some types define shared components which are used by all instances of the type. This
-        /// table contains sources for those shared components. The namespace qualified browse name
-        /// is assumed to be a unique identifier for a type.
-        /// </remarks>
-        TypeSourceTable TypeSources { get; }
-#endif
 
         /// <summary>
         /// The master node manager for the server.
@@ -140,7 +121,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The request manager.</value>
         RequestManager RequestManager { get; }
-        
+
         /// <summary>
         /// A manager for aggregate calculators supported by the server.
         /// </summary>
@@ -157,7 +138,7 @@ namespace Opc.Ua.Server
         /// The manager for active subscriptions.
         /// </summary>
         ISubscriptionManager SubscriptionManager { get; }
-        
+
         /// <summary>
         /// Whether the server is currently running.
         /// </summary>
@@ -206,7 +187,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The server diagnostics.</value>
         ServerDiagnosticsSummaryDataType ServerDiagnostics { get; }
-        
+
         /// <summary>
         /// Whether the server is collecting diagnostics.
         /// </summary>
@@ -246,5 +227,13 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="subscriptionId">The subscription identifier.</param>
         void ConditionRefresh(OperationContext context, uint subscriptionId);
+
+        /// <summary>
+        /// Refreshes the conditions for the specified subscription and monitored item.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="subscriptionId">The subscription identifier.</param>
+        /// <param name="monitoredItemId">The monitored item identifier.</param>
+        void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId);
     }
 }

@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -23,7 +23,7 @@ namespace Opc.Ua
     /// <remarks>
     /// A class that stores a numeric range.
     /// </remarks>
-	public struct NumericRange : IFormattable
+    public struct NumericRange : IFormattable, IEquatable<NumericRange>
     {
         #region Constructors
         /// <summary>
@@ -268,19 +268,24 @@ namespace Opc.Ua
         /// <param name="obj">The object to test against this</param>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
+            if (obj is NumericRange)
             {
-                return true;
+                return this.Equals((NumericRange)obj);
             }
 
-            NumericRange? range = obj as NumericRange?;
+            return false;
+        }
 
-            if (range == null)
-            {
-                return false;
-            }
-
-            return (range.Value.m_begin == m_begin) && (range.Value.m_end == m_end);
+        /// <summary>
+        /// Returns true if the objects are equal.
+        /// </summary>
+        /// <remarks>
+        /// Returns true if the objects are equal.
+        /// </remarks>
+        /// <param name="other">The NumericRange to test against this</param>
+        public bool Equals(NumericRange other)
+        {
+            return (other.m_begin == m_begin) && (other.m_end == m_end);
         }
 
         /// <summary>
@@ -684,10 +689,17 @@ namespace Opc.Ua
             Array srcArray = src as Array;
             Array dstArray = dst as Array;
 
-            // check for invalid target.
+            // check for destinations specified as a matrix.
             if (dstArray == null)
             {
-                return StatusCodes.BadIndexRangeInvalid;
+                Matrix matrix = dst as Matrix;
+
+                if (matrix == null || m_subranges == null || matrix.Dimensions.Length != m_subranges.Length)
+                {
+                    return StatusCodes.BadIndexRangeInvalid;
+                }
+
+                dstArray = matrix.ToArray();
             }
 
             // check for input specified as a matrix.
@@ -695,7 +707,7 @@ namespace Opc.Ua
             {
                 Matrix matrix = src as Matrix;
 
-                if (matrix == null || matrix.Dimensions.Length != m_subranges.Length)
+                if (matrix == null || m_subranges == null || matrix.Dimensions.Length != m_subranges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -705,7 +717,7 @@ namespace Opc.Ua
 
             TypeInfo srcTypeInfo = TypeInfo.Construct(srcArray);
 
-            if (srcTypeInfo.BuiltInType != dstTypeInfo.BuiltInType && dstTypeInfo.BuiltInType != BuiltInType.Variant)
+            if (srcTypeInfo.BuiltInType != dstTypeInfo.BuiltInType)
             {
                 return StatusCodes.BadIndexRangeInvalid;
             }
@@ -736,6 +748,12 @@ namespace Opc.Ua
                 for (int jj = 0; jj < srcArray.Length; jj++)
                 {
                     dstArray.SetValue(srcArray.GetValue(jj), this.m_begin + jj);
+                }
+
+                if (dst is Matrix)
+                {
+                    // dstArray is a copy of the data of the dst Matrix so create new Matrix with modified data
+                    dst = new Matrix(dstArray, dstTypeInfo.BuiltInType);
                 }
 
                 return StatusCodes.Good;
@@ -915,6 +933,12 @@ namespace Opc.Ua
                 }
             }
 
+            if(dst is Matrix)
+            {
+                // dstArray is a copy of the data of the dst Matrix so create new Matrix with modified data
+                dst = new Matrix(dstArray, dstTypeInfo.BuiltInType);
+            }
+
             return StatusCodes.Good;
         }
 
@@ -965,20 +989,23 @@ namespace Opc.Ua
                 // check for string.
                 String chars = value as String;
 
-                if (chars == null)
+                if (chars != null)
                 {
-                    value = null;
-                    return StatusCodes.BadIndexRangeNoData;
+                    isString = true;
+                    array = chars.ToCharArray();
                 }
-
-                isString = true;
-                array = chars.ToCharArray();
             }
 
             // check for multidimensional arrays.
             if (m_subranges != null)
             {
                 return ApplyMultiRange(ref value);
+            }
+
+            if(list == null && array == null)
+            {
+                value = null;
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // get length.

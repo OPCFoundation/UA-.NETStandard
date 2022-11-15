@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -10,14 +10,12 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.ServiceModel.Channels;
-
 namespace Opc.Ua.Bindings
 {
     /// <summary>
     /// The binding for the UA native stack
     /// </summary>
-    public abstract class BaseBinding : Binding
+    public abstract class BaseBinding 
     {
         #region Constructors
         /// <summary>
@@ -25,17 +23,17 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected BaseBinding(
             NamespaceTable namespaceUris,
-            EncodeableFactory factory,
+            IEncodeableFactory factory,
             EndpointConfiguration configuration)
         {
-            m_messageContext = new ServiceMessageContext();
-
-            m_messageContext.MaxStringLength = configuration.MaxStringLength;
-            m_messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
-            m_messageContext.MaxArrayLength = configuration.MaxArrayLength;
-            m_messageContext.MaxMessageSize = configuration.MaxMessageSize;
-            m_messageContext.Factory = factory;
-            m_messageContext.NamespaceUris = namespaceUris;
+            m_messageContext = new ServiceMessageContext {
+                MaxStringLength = configuration.MaxStringLength,
+                MaxByteStringLength = configuration.MaxByteStringLength,
+                MaxArrayLength = configuration.MaxArrayLength,
+                MaxMessageSize = configuration.MaxMessageSize,
+                Factory = factory,
+                NamespaceUris = namespaceUris
+            };
         }
         #endregion
 
@@ -43,7 +41,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The message context to use with the binding.
         /// </summary>
-        public ServiceMessageContext MessageContext
+        public IServiceMessageContext MessageContext
         {
             get { return m_messageContext; }
             set { m_messageContext = value; }
@@ -51,7 +49,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private ServiceMessageContext m_messageContext;
+        private IServiceMessageContext m_messageContext;
         #endregion
     }
 }

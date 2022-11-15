@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -61,14 +61,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// A modifier applied to the datatype.
-        /// </summary>
-        public DataTypeModifier DataTypeModifier { get; set; }
-
-        /// <summary>
         /// The purpose of the data type.
         /// </summary>
         public Opc.Ua.Export.DataTypePurpose Purpose { get; set; }
+
         #region Serialization Functions
         /// <summary>
         /// Saves the attributes from the stream.
@@ -146,7 +142,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
-        /// <param name="attibutesToLoad">The attributes to load.</param>
+        /// <param name="attributesToLoad">The attributes to load.</param>
         public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
@@ -184,21 +180,28 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
+                {
+                    ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
+
+                    if (OnReadDataTypeDefinition != null)
                     {
-                        ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
-
-                        if (OnReadDataTypeDefinition != null)
-                        {
-                            result = OnReadDataTypeDefinition(context, this, ref dataTypeDefinition);
-                        }
-
-                        if (ServiceResult.IsGood(result))
-                        {
-                            value = dataTypeDefinition;
-                        }
-
-                        return result;
+                        result = OnReadDataTypeDefinition(context, this, ref dataTypeDefinition);
                     }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        if (dataTypeDefinition?.Body is StructureDefinition structureType &&
+                            (structureType.DefaultEncodingId == null ||
+                             structureType.DefaultEncodingId.IsNullNodeId))
+                        {
+                            // one time set the id for binary encoding, currently the only supported encoding
+                            structureType.SetDefaultEncodingId(context, NodeId, null);
+                        }
+                        value = dataTypeDefinition;
+                    }
+
+                    return result;
+                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -219,26 +222,26 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
+                {
+                    ExtensionObject dataTypeDefinition = value as ExtensionObject;
+
+                    if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)
                     {
-                        ExtensionObject dataTypeDefinition = value as ExtensionObject;
-
-                        if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)
-                        {
-                            return StatusCodes.BadNotWritable;
-                        }
-
-                        if (OnWriteDataTypeDefinition != null)
-                        {
-                            result = OnWriteDataTypeDefinition(context, this, ref dataTypeDefinition);
-                        }
-
-                        if (ServiceResult.IsGood(result))
-                        {
-                            m_dataTypeDefinition = dataTypeDefinition;
-                        }
-
-                        return result;
+                        return StatusCodes.BadNotWritable;
                     }
+
+                    if (OnWriteDataTypeDefinition != null)
+                    {
+                        result = OnWriteDataTypeDefinition(context, this, ref dataTypeDefinition);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        m_dataTypeDefinition = dataTypeDefinition;
+                    }
+
+                    return result;
+                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
@@ -248,18 +251,5 @@ namespace Opc.Ua
         #region Private Fields
         private ExtensionObject m_dataTypeDefinition;
         #endregion
-    }
-
-    /// <remarks />
-    public enum DataTypeModifier
-    {
-        /// <remarks />
-        None = 0,
-
-        /// <remarks />
-        Union = 1,
-
-        /// <remarks />
-        OptionSet = 2
     }
 }

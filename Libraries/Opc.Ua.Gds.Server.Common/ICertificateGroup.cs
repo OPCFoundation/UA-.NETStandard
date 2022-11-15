@@ -1,5 +1,5 @@
-﻿/* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+/* ========================================================================
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -29,6 +29,7 @@
 
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -72,7 +73,7 @@ namespace Opc.Ua.Gds.Server
             string subjectName
             );
 
-        Task<Opc.Ua.X509CRL> RevokeCertificateAsync(
+        Task<X509CRL> RevokeCertificateAsync(
             X509Certificate2 certificate
             );
 

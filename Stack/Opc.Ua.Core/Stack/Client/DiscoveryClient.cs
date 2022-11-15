@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -12,6 +12,8 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -74,7 +76,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static DiscoveryClient Create(Uri discoveryUrl)
         {
-            return DiscoveryClient.Create(discoveryUrl, null);
+            return DiscoveryClient.Create(discoveryUrl, null, null);
         }
 
         /// <summary>
@@ -128,12 +130,7 @@ namespace Opc.Ua
 
             try
             {
-                if (applicationConfiguration != null &&
-                    applicationConfiguration.SecurityConfiguration != null &&
-                    applicationConfiguration.SecurityConfiguration.ApplicationCertificate != null)
-                {
-                    clientCertificate = applicationConfiguration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
-                }
+                clientCertificate = applicationConfiguration?.SecurityConfiguration?.ApplicationCertificate?.Find(true).Result;
             }
             catch
             {
@@ -162,35 +159,18 @@ namespace Opc.Ua
                 profileUris,
                 out endpoints);
 
-            // if a server is behind a firewall, can only be accessed with a FQDN or IP address
-            // it may return URLs that are not accessible to the client. This problem can be avoided 
-            // by assuming that the domain in the URL used to call GetEndpoints can be used to 
-            // access any of the endpoints. This code patches the returned endpoints accordingly.
-            Uri endpointUrl = Utils.ParseUri(this.Endpoint.EndpointUrl);
-            if (endpointUrl != null)
-            {
-                // patch discovery Url to endpoint Url used for service call
-                foreach (EndpointDescription discoveryEndPoint in endpoints)
-                {
-                    Uri discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
-                    if (endpointUrl.Scheme == discoveryEndPointUri.Scheme)
-                    {
-                        UriBuilder builder = new UriBuilder(discoveryEndPointUri);
-                        builder.Host = endpointUrl.DnsSafeHost;
-                        builder.Port = endpointUrl.Port;
-                        discoveryEndPoint.EndpointUrl = builder.ToString();
-                    }
+            return PatchEndpointUrls(endpoints);
+        }
 
-                    if (discoveryEndPoint.Server != null &&
-                        discoveryEndPoint.Server.DiscoveryUrls != null)
-                    {
-                        discoveryEndPoint.Server.DiscoveryUrls.Clear();
-                        discoveryEndPoint.Server.DiscoveryUrls.Add(this.Endpoint.EndpointUrl.ToString());
-                    }
-                }
-            }
-
-            return endpoints;
+        /// <summary>
+        /// Invokes the GetEndpoints service async.
+        /// </summary>
+        /// <param name="profileUris">The collection of profile URIs.</param>
+        /// <returns></returns>
+        public async virtual Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris)
+        {
+            var endpoints = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris).ConfigureAwait(false);
+            return PatchEndpointUrls(endpoints);
         }
 
         /// <summary>
@@ -210,6 +190,22 @@ namespace Opc.Ua
                 out servers);
 
             return servers;
+        }
+
+        /// <summary>
+        /// Invokes the FindServers service async.
+        /// </summary>
+        /// <param name="serverUris">The collection of server URIs.</param>
+        /// <returns></returns>
+        public virtual async Task<ApplicationDescriptionCollection> FindServersAsync(StringCollection serverUris)
+        {
+            var response = await FindServersAsync(
+                null,
+                this.Endpoint.EndpointUrl,
+                null,
+                serverUris,
+                CancellationToken.None).ConfigureAwait(false);
+            return response.Servers;
         }
 
         /// <summary>
@@ -238,8 +234,63 @@ namespace Opc.Ua
 
             return servers;
         }
+        #endregion
 
-        #endregion  
+        #region Private Methods
+        /// <summary>
+        /// Helper to get endpoints async.
+        /// </summary>
+        private Task<EndpointDescriptionCollection> GetEndpointsAsync(
+            RequestHeader requestHeader,
+            string endpointUrl,
+            StringCollection localeIds,
+            StringCollection profileUris)
+        {
+            return Task.Factory.FromAsync(
+                (callback, state) => BeginGetEndpoints(requestHeader,
+                    endpointUrl, localeIds, profileUris, callback, state),
+                result => {
+                    EndpointDescriptionCollection endpoints;
+                    var response = EndGetEndpoints(result, out endpoints);
+                    return endpoints;
+                },
+                TaskCreationOptions.DenyChildAttach);
+        }
+
+        /// <summary>
+        /// Patch returned endpoints urls with url used to reached the endpoint.
+        /// </summary>
+        private EndpointDescriptionCollection PatchEndpointUrls(EndpointDescriptionCollection endpoints)
+        {
+            // if a server is behind a firewall, can only be accessed with a FQDN or IP address
+            // it may return URLs that are not accessible to the client. This problem can be avoided 
+            // by assuming that the domain in the URL used to call GetEndpoints can be used to 
+            // access any of the endpoints. This code patches the returned endpoints accordingly.
+            Uri endpointUrl = Utils.ParseUri(this.Endpoint.EndpointUrl);
+            if (endpointUrl != null)
+            {
+                // patch discovery Url to endpoint Url used for service call
+                foreach (EndpointDescription discoveryEndPoint in endpoints)
+                {
+                    Uri discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
+                    if  ( (endpointUrl.Scheme == discoveryEndPointUri.Scheme) && (endpointUrl.Port == discoveryEndPointUri.Port))
+                    {
+                        UriBuilder builder = new UriBuilder(discoveryEndPointUri);
+                        builder.Host = endpointUrl.DnsSafeHost;
+                        discoveryEndPoint.EndpointUrl = builder.ToString();
+                    }
+
+                    if (discoveryEndPoint.Server != null &&
+                        discoveryEndPoint.Server.DiscoveryUrls != null)
+                    {
+                        discoveryEndPoint.Server.DiscoveryUrls.Clear();
+                        discoveryEndPoint.Server.DiscoveryUrls.Add(this.Endpoint.EndpointUrl.ToString());
+                    }
+                }
+            }
+            return endpoints;
+        }
+        #endregion
     }
 
     /// <summary>
@@ -254,11 +305,12 @@ namespace Opc.Ua
         /// <param name="discoveryUrl">The discovery url.</param>
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <param name="clientCertificate">The client certificate to use.</param>
         /// <returns></returns>
         public static ITransportChannel Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
-            ServiceMessageContext messageContext,
+            IServiceMessageContext messageContext,
             X509Certificate2 clientCertificate = null)
         {
             // create a dummy description.
@@ -287,7 +339,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             EndpointConfiguration endpointConfiguration,
-            ServiceMessageContext messageContext,
+            IServiceMessageContext messageContext,
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
@@ -318,7 +370,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
-            ServiceMessageContext messageContext,
+            IServiceMessageContext messageContext,
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.

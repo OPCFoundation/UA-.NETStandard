@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -18,7 +18,7 @@ using System.Text;
 using System.Xml;
 
 namespace Opc.Ua
-{    
+{
     /// <summary>
     /// A set of nodes in an address space.
     /// </summary>
@@ -31,7 +31,7 @@ namespace Opc.Ua
     [KnownType(typeof(DataTypeNode))]
     [KnownType(typeof(ReferenceTypeNode))]
     [KnownType(typeof(ViewNode))]
-    public partial class NodeSet  : IEnumerable<Node>
+    public partial class NodeSet : IEnumerable<Node>
     {
         #region Constructors
         /// <summary>
@@ -41,9 +41,9 @@ namespace Opc.Ua
         {
             m_namespaceUris = new NamespaceTable();
             m_serverUris = new StringTable();
-            m_nodes = new Dictionary<NodeId,Node>();
+            m_nodes = new Dictionary<NodeId, Node>();
         }
-        
+
         /// <summary>
         /// Loads a nodeset from a stream.
         /// </summary>
@@ -51,30 +51,21 @@ namespace Opc.Ua
         /// <returns>The set of nodes</returns>
         public static NodeSet Read(Stream istrm)
         {
-            XmlReader reader = XmlReader.Create(istrm);
-            
-            try
+            using (XmlReader reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings()))
             {
                 DataContractSerializer serializer = new DataContractSerializer(typeof(NodeSet));
                 return serializer.ReadObject(reader) as NodeSet;
             }
-            finally
-            {
-                reader.Dispose();
-            }
         }
-        
+
         /// <summary>
         /// Write a nodeset to a stream.
         /// </summary>
         /// <param name="istrm">The input stream.</param>
         public void Write(Stream istrm)
         {
-            XmlWriterSettings settings = new XmlWriterSettings();
-            settings.Encoding = Encoding.UTF8;
-            settings.Indent = true;
-            XmlWriter writer = XmlWriter.Create(istrm, settings);
-                        
+            var writer = XmlWriter.Create(istrm, Utils.DefaultXmlWriterSettings());
+
             try
             {
                 DataContractSerializer serializer = new DataContractSerializer(typeof(NodeSet));
@@ -87,7 +78,7 @@ namespace Opc.Ua
             }
         }
         #endregion
-        
+
         #region IEnumerable<IReference> Members
         /// <summary>
         /// Returns an enumerator that iterates through the collection.
@@ -130,7 +121,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentException("A non-null NodeId must be specified.");
             }
-            
+
             if (m_nodes.ContainsKey(node.NodeId))
             {
                 throw new ArgumentException(Utils.Format("NodeID {0} already exists for node: {1}", node.NodeId, node));
@@ -159,7 +150,7 @@ namespace Opc.Ua
             {
                 dimensions[ii] = array.GetLength(ii);
             }
-            
+
             int length = array.Length;
             int[] indexes = new int[dimensions.Length];
 
@@ -170,11 +161,11 @@ namespace Opc.Ua
                 for (int jj = 0; jj < indexes.Length; jj++)
                 {
                     divisor /= dimensions[jj];
-                    indexes[jj] = (ii/divisor)%dimensions[jj];
+                    indexes[jj] = (ii / divisor) % dimensions[jj];
                 }
-                
+
                 object element = array.GetValue(indexes);
-                        
+
                 if (element != null)
                 {
                     if (elementType == BuiltInType.Variant)
@@ -183,7 +174,7 @@ namespace Opc.Ua
                     }
 
                     element = TranslateValue(element, namespaceUris, serverUris);
-                    
+
                     if (elementType == BuiltInType.Variant)
                     {
                         element = new Variant(element);
@@ -202,7 +193,7 @@ namespace Opc.Ua
         /// <param name="serverUris">The server URIs.</param>
         /// <returns>Translated value.</returns>
         private object TranslateValue(object value, NamespaceTable namespaceUris, StringTable serverUris)
-        {            
+        {
             TypeInfo typeInfo = TypeInfo.Construct(value);
 
             // do nothing for unknown types.
@@ -248,7 +239,7 @@ namespace Opc.Ua
                     return value;
                 }
             }
-                   
+
             return value;
         }
 
@@ -268,7 +259,7 @@ namespace Opc.Ua
 
             node.NodeId = Translate(nodeToExport.NodeId, m_namespaceUris, namespaceUris);
             node.BrowseName = Translate(nodeToExport.BrowseName, m_namespaceUris, namespaceUris);
-            
+
             VariableNode variableToExport = nodeToExport as VariableNode;
 
             if (variableToExport != null)
@@ -280,7 +271,7 @@ namespace Opc.Ua
 
                 variableNode.DataType = Translate(variableToExport.DataType, m_namespaceUris, namespaceUris);
             }
-            
+
             VariableTypeNode variableTypeToExport = nodeToExport as VariableTypeNode;
 
             if (variableTypeToExport != null)
@@ -298,8 +289,8 @@ namespace Opc.Ua
                 ReferenceNode reference = new ReferenceNode();
 
                 reference.ReferenceTypeId = Translate(referenceToExport.ReferenceTypeId, m_namespaceUris, namespaceUris);
-                reference.IsInverse       = referenceToExport.IsInverse;
-                reference.TargetId        = Translate(referenceToExport.TargetId, m_namespaceUris, m_serverUris, namespaceUris, serverUris); 
+                reference.IsInverse = referenceToExport.IsInverse;
+                reference.TargetId = Translate(referenceToExport.TargetId, m_namespaceUris, m_serverUris, namespaceUris, serverUris);
 
                 node.References.Add(reference);
             }
@@ -322,7 +313,7 @@ namespace Opc.Ua
 
             reference.ReferenceTypeId = Translate(referenceToExport.ReferenceTypeId, m_namespaceUris, namespaceUris);
             reference.IsInverse = referenceToExport.IsInverse;
-            reference.TargetId = Translate(referenceToExport.TargetId, m_namespaceUris, m_serverUris, namespaceUris, serverUris); 
+            reference.TargetId = Translate(referenceToExport.TargetId, m_namespaceUris, m_serverUris, namespaceUris, serverUris);
 
             node.References.Add(reference);
         }
@@ -338,8 +329,8 @@ namespace Opc.Ua
         public bool Remove(NodeId nodeId)
         {
             return m_nodes.Remove(nodeId);
-        }        
-        
+        }
+
         /// <summary>
         /// Returns true if the node exists in the nodeset.
         /// </summary>
@@ -354,7 +345,7 @@ namespace Opc.Ua
         {
             return m_nodes.ContainsKey(nodeId);
         }
-        
+
         /// <summary>
         /// Returns the node in the set.
         /// </summary>
@@ -373,8 +364,8 @@ namespace Opc.Ua
             }
 
             return null;
-        }        
-        
+        }
+
         /// <summary>
         /// Returns the node in the set.
         /// </summary>
@@ -396,10 +387,10 @@ namespace Opc.Ua
             {
                 return null;
             }
-            
+
             // check for unknown namespace uri.
             int nsIndex = m_namespaceUris.GetIndex(ns);
-            
+
             if (nsIndex < 0)
             {
                 return null;
@@ -417,8 +408,8 @@ namespace Opc.Ua
             }
 
             return null;
-        }        
-        
+        }
+
         /// <summary>
         /// Translates all namespace/server indexes in attributes or references and returns a copy of the node.
         /// </summary>
@@ -442,22 +433,22 @@ namespace Opc.Ua
             {
                 VariableNode variable = (VariableNode)node;
 
-                variable.DataType = Translate(variableToImport.DataType, namespaceUris, m_namespaceUris); 
+                variable.DataType = Translate(variableToImport.DataType, namespaceUris, m_namespaceUris);
 
                 if (variableToImport.Value.Value != null)
                 {
                     variable.Value = new Variant(ImportValue(variableToImport.Value.Value, namespaceUris, serverUris));
                 }
             }
-            
+
             VariableTypeNode variableTypeToImport = nodeToImport as VariableTypeNode;
 
             if (variableTypeToImport != null)
             {
                 VariableTypeNode variableType = (VariableTypeNode)node;
 
-                variableType.DataType = Translate(variableTypeToImport.DataType, namespaceUris, m_namespaceUris); 
-                
+                variableType.DataType = Translate(variableTypeToImport.DataType, namespaceUris, m_namespaceUris);
+
                 if (variableTypeToImport.Value.Value != null)
                 {
                     variableType.Value = new Variant(ImportValue(variableTypeToImport.Value.Value, namespaceUris, serverUris));
@@ -469,8 +460,8 @@ namespace Opc.Ua
                 ReferenceNode reference = new ReferenceNode();
 
                 reference.ReferenceTypeId = Translate(referenceToImport.ReferenceTypeId, namespaceUris, m_namespaceUris);
-                reference.IsInverse       = referenceToImport.IsInverse;
-                reference.TargetId        = Translate(referenceToImport.TargetId, namespaceUris, serverUris, m_namespaceUris, m_serverUris); 
+                reference.IsInverse = referenceToImport.IsInverse;
+                reference.TargetId = Translate(referenceToImport.TargetId, namespaceUris, serverUris, m_namespaceUris, m_serverUris);
 
                 node.References.Add(reference);
             }
@@ -508,21 +499,21 @@ namespace Opc.Ua
                 return copy;
             }
 
-            NodeId nodeId = value as NodeId; 
+            NodeId nodeId = value as NodeId;
 
             if (nodeId != null)
             {
                 return Import(nodeId, namespaceUris);
             }
 
-            ExpandedNodeId expandedNodeId = value as ExpandedNodeId; 
+            ExpandedNodeId expandedNodeId = value as ExpandedNodeId;
 
             if (expandedNodeId != null)
             {
                 return Import(expandedNodeId, namespaceUris, serverUris);
             }
 
-            ExtensionObject extension = value as ExtensionObject; 
+            ExtensionObject extension = value as ExtensionObject;
 
             if (extension != null)
             {
@@ -536,7 +527,7 @@ namespace Opc.Ua
 
             return value;
         }
-                
+
         /// <summary>
         /// Updates the nodeset string tables and returns a NodeId that references those tables.
         /// </summary>
@@ -547,7 +538,7 @@ namespace Opc.Ua
         {
             return Translate(nodeId, m_namespaceUris, namespaceUris);
         }
-        
+
         /// <summary>
         /// Updates the specified namespace tables and returns a NodeId that references those tables.
         /// </summary>
@@ -558,7 +549,7 @@ namespace Opc.Ua
         {
             return Translate(nodeId, namespaceUris, m_namespaceUris);
         }
-        
+
         /// <summary>
         /// Updates the nodeset string tables and returns a NodeId that references those tables.
         /// </summary>
@@ -570,7 +561,7 @@ namespace Opc.Ua
         {
             return Translate(nodeId, m_namespaceUris, m_serverUris, namespaceUris, serverUris);
         }
-        
+
         /// <summary>
         /// Updates the specified string tables and returns a NodeId that references those tables.
         /// </summary>
@@ -583,19 +574,19 @@ namespace Opc.Ua
             return Translate(nodeId, namespaceUris, serverUris, m_namespaceUris, m_serverUris);
         }
         #endregion
-        
+
         #region Private Members
-		/// <summary>
-		/// The table of namespaces.
-		/// </summary>
-		[DataMember(Name = "NamespaceUris", Order = 1)]
+        /// <summary>
+        /// The table of namespaces.
+        /// </summary>
+        [DataMember(Name = "NamespaceUris", Order = 1)]
         internal StringCollection NamespaceUris
         {
-            get 
-            { 
+            get
+            {
                 return new StringCollection(m_namespaceUris.ToArray());
             }
-            
+
             set
             {
                 if (value == null)
@@ -608,18 +599,18 @@ namespace Opc.Ua
                 }
             }
         }
-        
-		/// <summary>
-		/// The table of servers.
-		/// </summary>
-		[DataMember(Name = "ServerUris", Order = 2)]
+
+        /// <summary>
+        /// The table of servers.
+        /// </summary>
+        [DataMember(Name = "ServerUris", Order = 2)]
         internal StringCollection ServerUris
         {
-            get 
-            { 
+            get
+            {
                 return new StringCollection(m_serverUris.ToArray());
             }
-            
+
             set
             {
                 if (value == null)
@@ -632,21 +623,21 @@ namespace Opc.Ua
                 }
             }
         }
-        
-		/// <summary>
-		/// The table of nodes.
-		/// </summary>
-		[DataMember(Name = "Nodes", Order = 3)]
+
+        /// <summary>
+        /// The table of nodes.
+        /// </summary>
+        [DataMember(Name = "Nodes", Order = 3)]
         internal NodeCollection Nodes
         {
-            get 
-            { 
+            get
+            {
                 return new NodeCollection(m_nodes.Values);
             }
-            
+
             set
             {
-                m_nodes = new Dictionary<NodeId,Node>();
+                m_nodes = new Dictionary<NodeId, Node>();
 
                 if (value != null)
                 {
@@ -666,8 +657,8 @@ namespace Opc.Ua
         /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
         /// <returns>A NodeId that references those tables.</returns>
         private static NodeId Translate(
-            NodeId nodeId, 
-            NamespaceTable targetNamespaceUris, 
+            NodeId nodeId,
+            NamespaceTable targetNamespaceUris,
             NamespaceTable sourceNamespaceUris)
         {
             if (targetNamespaceUris == null) throw new ArgumentNullException(nameof(targetNamespaceUris));
@@ -679,7 +670,7 @@ namespace Opc.Ua
             }
 
             ushort namespaceIndex = 0;
-            
+
             if (nodeId.NamespaceIndex > 0)
             {
                 string uri = sourceNamespaceUris.GetString(nodeId.NamespaceIndex);
@@ -696,7 +687,7 @@ namespace Opc.Ua
 
             return new NodeId(nodeId.Identifier, namespaceIndex);
         }
-        
+
         /// <summary>
         /// Updates the nodeset string tables and returns a NodeId that references those tables.
         /// </summary>
@@ -705,8 +696,8 @@ namespace Opc.Ua
         /// <param name="sourceNamespaceUris">The source namespace URIs.</param>
         /// <returns>A NodeId that references those tables.</returns>
         private static QualifiedName Translate(
-            QualifiedName  qname, 
-            NamespaceTable targetNamespaceUris, 
+            QualifiedName qname,
+            NamespaceTable targetNamespaceUris,
             NamespaceTable sourceNamespaceUris)
         {
             if (targetNamespaceUris == null) throw new ArgumentNullException(nameof(targetNamespaceUris));
@@ -718,7 +709,7 @@ namespace Opc.Ua
             }
 
             ushort namespaceIndex = 0;
-            
+
             if (qname.NamespaceIndex > 0)
             {
                 string uri = sourceNamespaceUris.GetString(qname.NamespaceIndex);
@@ -739,7 +730,7 @@ namespace Opc.Ua
             }
 
             return new QualifiedName(qname.Name, namespaceIndex);
-        }        
+        }
 
         /// <summary>
         /// Updates the nodeset string tables and returns a NodeId that references those tables.
@@ -751,15 +742,15 @@ namespace Opc.Ua
         /// <param name="sourceServerUris">The source server URIs.</param>
         /// <returns>A NodeId that references those tables.</returns>
         private static ExpandedNodeId Translate(
-            ExpandedNodeId nodeId, 
-            NamespaceTable targetNamespaceUris, 
-            StringTable    targetServerUris, 
-            NamespaceTable sourceNamespaceUris, 
-            StringTable    sourceServerUris)
+            ExpandedNodeId nodeId,
+            NamespaceTable targetNamespaceUris,
+            StringTable targetServerUris,
+            NamespaceTable sourceNamespaceUris,
+            StringTable sourceServerUris)
         {
             if (targetNamespaceUris == null) throw new ArgumentNullException(nameof(targetNamespaceUris));
             if (sourceNamespaceUris == null) throw new ArgumentNullException(nameof(sourceNamespaceUris));
-        
+
             if (nodeId.ServerIndex > 0)
             {
                 if (targetServerUris == null) throw new ArgumentNullException(nameof(targetServerUris));
@@ -775,11 +766,11 @@ namespace Opc.Ua
             {
                 return Translate((NodeId)nodeId, targetNamespaceUris, sourceNamespaceUris);
             }
-             
+
             string namespaceUri = nodeId.NamespaceUri;
-           
+
             if (nodeId.ServerIndex > 0)
-            {                
+            {
                 if (String.IsNullOrEmpty(namespaceUri))
                 {
                     namespaceUri = sourceNamespaceUris.GetString(nodeId.NamespaceIndex);
@@ -793,10 +784,10 @@ namespace Opc.Ua
                 {
                     index = targetServerUris.Append(serverUri);
                 }
-                
+
                 return new ExpandedNodeId(new NodeId(nodeId.Identifier, 0), namespaceUri, (uint)index);
             }
-            
+
             ushort namespaceIndex = 0;
 
             if (!String.IsNullOrEmpty(namespaceUri))
@@ -814,11 +805,11 @@ namespace Opc.Ua
             return new NodeId(nodeId.Identifier, namespaceIndex);
         }
         #endregion
-        
+
         #region Private Fields
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
-        private Dictionary<NodeId,Node> m_nodes;
+        private Dictionary<NodeId, Node> m_nodes;
         #endregion
     }
 }

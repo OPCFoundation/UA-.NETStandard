@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -13,6 +13,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -780,7 +781,7 @@ namespace Opc.Ua
 
                 // create document from encoder.
                 XmlDocument document = new XmlDocument();
-                document.InnerXml = encoder.Close();
+                document.LoadInnerXml(encoder.Close());
 
                 // return element.
                 return document.DocumentElement;
@@ -862,6 +863,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Append a ByteString as a hex string.
+        /// </summary>
+        private void AppendByteString(StringBuilder buffer, byte[] bytes, IFormatProvider formatProvider)
+        {
+            if (bytes != null)
+            {
+                for (int ii = 0; ii < bytes.Length; ii++)
+                {
+                    buffer.AppendFormat(formatProvider, "{0:X2}", bytes[ii]);
+                }
+            }
+            else
+            {
+                buffer.Append("(null)");
+            }
+        }
+
+        /// <summary>
         /// Formats a value as a string.
         /// </summary>
         private void AppendFormat(StringBuilder buffer, object value, IFormatProvider formatProvider)
@@ -877,12 +896,7 @@ namespace Opc.Ua
             if (m_typeInfo.BuiltInType == BuiltInType.ByteString && m_typeInfo.ValueRank < 0)
             {
                 byte[] bytes = (byte[])value;
-
-                for (int ii = 0; ii < bytes.Length; ii++)
-                {
-                    buffer.AppendFormat(formatProvider, "{0:X2}", bytes[ii]);
-                }
-
+                AppendByteString(buffer, bytes, formatProvider);
                 return;
             }
 
@@ -899,20 +913,37 @@ namespace Opc.Ua
 
             if (array != null && m_typeInfo.ValueRank <= 1)
             {
-                buffer.Append("{");
+                buffer.Append('{');
 
-                if (array.Length > 0)
+                if (m_typeInfo.BuiltInType == BuiltInType.ByteString)
                 {
-                    AppendFormat(buffer, array.GetValue(0), formatProvider);
-                }
+                    if (array.Length > 0)
+                    {
+                        byte[] bytes = (byte[])array.GetValue(0);
+                        AppendByteString(buffer, bytes, formatProvider);
+                    }
 
-                for (int ii = 1; ii < array.Length; ii++)
+                    for (int ii = 1; ii < array.Length; ii++)
+                    {
+                        buffer.Append('|');
+                        byte[] bytes = (byte[])array.GetValue(ii);
+                        AppendByteString(buffer, bytes, formatProvider);
+                    }
+                }
+                else
                 {
-                    buffer.Append(" |");
-                    AppendFormat(buffer, array.GetValue(ii), formatProvider);
-                }
+                    if (array.Length > 0)
+                    {
+                        AppendFormat(buffer, array.GetValue(0), formatProvider);
+                    }
 
-                buffer.Append("}");
+                    for (int ii = 1; ii < array.Length; ii++)
+                    {
+                        buffer.Append('|');
+                        AppendFormat(buffer, array.GetValue(ii), formatProvider);
+                    }
+                }
+                buffer.Append('}');
                 return;
             }
 
@@ -1516,11 +1547,6 @@ namespace Opc.Ua
         /// </remarks>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-
             Variant? variant = obj as Variant?;
 
             if (variant != null)
@@ -2578,239 +2604,5 @@ namespace Opc.Ua
         }
     }//class
     #endregion
-
-    /// <summary>
-    /// Wraps a multi-dimensional array for use within a Variant.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class Matrix : IFormattable
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes the matrix with a multidimensional array.
-        /// </summary>
-        public Matrix(Array value, BuiltInType builtInType)
-        {
-            if (value == null) throw new ArgumentNullException(nameof(value));
-
-            m_elements = value;
-            m_dimensions = new int[value.Rank];
-
-            for (int ii = 0; ii < m_dimensions.Length; ii++)
-            {
-                m_dimensions[ii] = value.GetLength(ii);
-            }
-
-            m_elements = Utils.FlattenArray(value);
-            m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
-
-#if DEBUG
-            TypeInfo sanityCheck = TypeInfo.Construct(m_elements);
-            System.Diagnostics.Debug.Assert(sanityCheck.BuiltInType == builtInType || (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte));
-#endif
-        }
-
-        /// <summary>
-        /// Initializes the matrix with a one dimensional array and a list of dimensions.
-        /// </summary>
-        public Matrix(Array elements, BuiltInType builtInType, params int[] dimensions)
-        {
-            if (elements == null) throw new ArgumentNullException(nameof(elements));
-
-            m_elements = elements;
-            m_dimensions = dimensions;
-
-            if (dimensions != null && dimensions.Length > 0)
-            {
-                int length = 1;
-
-                for (int ii = 0; ii < dimensions.Length; ii++)
-                {
-                    length *= dimensions[ii];
-                }
-
-                if (length != elements.Length)
-                {
-                    throw new ArgumentException("The number of elements in the array does not match the dimensions.");
-                }
-            }
-            else
-            {
-                m_dimensions = new int[] { elements.Length };
-            }
-
-            m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
-
-#if DEBUG
-            TypeInfo sanityCheck = TypeInfo.Construct(m_elements);
-            System.Diagnostics.Debug.Assert(sanityCheck.BuiltInType == builtInType ||
-                (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
-                (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte));
-#endif
-        }
-        #endregion
-
-        #region Public Members
-        /// <summary>
-        /// The elements of the matrix.
-        /// </summary>
-        /// <value>An array of elements.</value>
-        public Array Elements => m_elements;
-
-        /// <summary>
-        /// The dimensions of the matrix.
-        /// </summary>
-        /// <value>The dimensions of the array.</value>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public int[] Dimensions => m_dimensions;
-
-        /// <summary>
-        /// The type information for the matrix.
-        /// </summary>
-        /// <value>The type information.</value>
-        public TypeInfo TypeInfo => m_typeInfo;
-
-        /// <summary>
-        /// Returns the flattened array as a multi-dimensional array.
-        /// </summary>
-        public Array ToArray()
-        {
-            Array array = Array.CreateInstance(m_elements.GetType().GetElementType(), m_dimensions);
-
-            int[] indexes = new int[m_dimensions.Length];
-
-            for (int ii = 0; ii < m_elements.Length; ii++)
-            {
-                array.SetValue(m_elements.GetValue(ii), indexes);
-
-                for (int jj = indexes.Length - 1; jj >= 0; jj--)
-                {
-                    indexes[jj]++;
-
-                    if (indexes[jj] < m_dimensions[jj])
-                    {
-                        break;
-                    }
-
-                    indexes[jj] = 0;
-                }
-            }
-
-            return array;
-        }
-        #endregion
-
-        #region Overridden Methods
-        /// <summary>
-        /// Determines if the specified object is equal to the object.
-        /// </summary>
-        /// <remarks>
-        /// Determines if the specified object is equal to the object.
-        /// </remarks>
-        public override bool Equals(object obj)
-        {
-            if (Object.ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-
-            Matrix matrix = obj as Matrix;
-
-            if (matrix != null)
-            {
-                if (!m_typeInfo.Equals(matrix.TypeInfo))
-                {
-                    return false;
-                }
-                if (!Utils.IsEqual(m_dimensions, matrix.Dimensions))
-                {
-                    return false;
-                }
-                return Utils.IsEqual(m_elements, matrix.Elements);
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Returns a unique hashcode for the object.
-        /// </summary>
-        public override int GetHashCode()
-        {
-            if (m_elements != null)
-            {
-                return m_elements.GetHashCode();
-            }
-            if (m_typeInfo != null)
-            {
-                return m_typeInfo.GetHashCode();
-            }
-            if (m_dimensions != null)
-            {
-                return m_dimensions.GetHashCode();
-            }
-            return base.GetHashCode();
-        }
-        #endregion
-
-        #region IFormattable Members
-        /// <summary>
-        /// Returns the string representation of the object.
-        /// </summary>
-        /// <param name="format">(Unused) Always pass a NULL value</param>
-        /// <param name="formatProvider">The format-provider to use. If unsure, pass an empty string or null</param>
-        /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
-        /// </returns>
-        /// <remarks>
-        /// Returns the string representation of the object.
-        /// </remarks>
-        /// <exception cref="FormatException">Thrown when the 'format' argument is NOT null.</exception>
-        public string ToString(string format, IFormatProvider formatProvider)
-        {
-            if (format == null)
-            {
-                StringBuilder buffer = new StringBuilder();
-
-                buffer.AppendFormat("{0}[", m_elements.GetType().GetElementType().Name);
-
-                for (int ii = 0; ii < m_dimensions.Length; ii++)
-                {
-                    if (ii > 0)
-                    {
-                        buffer.Append(",");
-                    }
-
-                    buffer.AppendFormat(formatProvider, "{0}", m_dimensions[ii]);
-                }
-
-                buffer.AppendFormat(formatProvider, "]");
-
-                return buffer.ToString();
-            }
-
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
-        }
-        #endregion
-
-        #region ICloneable Members
-        /// <summary>
-        /// Makes a deep copy of the object.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
-        {
-            return new Matrix((Array)Utils.Clone(m_elements), m_typeInfo.BuiltInType, (int[])Utils.Clone(m_dimensions));
-        }
-        #endregion
-
-        #region Private Fields
-        private Array m_elements;
-        private int[] m_dimensions;
-        private TypeInfo m_typeInfo;
-        #endregion
-    }
 
 }//namespace

@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -38,18 +38,18 @@ namespace Opc.Ua
     /// LocalizedText welcomeGB = new LocalizedText( "Hello Everyone", "EN-GB" );
     /// LocalizedText welcomeNoLocale = new LocalizedText( "Welcome" );
     /// 
-    /// Utils.Trace( welcomeUS.ToString() );
-    /// Utils.Trace( welcomeGB.ToString() );
-    /// Utils.Trace( welcomeNoLocale.ToString() );
+    /// Utils.LogInfo( welcomeUS.ToString() );
+    /// Utils.LogInfo( welcomeGB.ToString() );
+    /// Utils.LogInfo( welcomeNoLocale.ToString() );
     /// </code>
     /// <code lang="Visual Basic">
     /// Dim welcomeUS As LocalizedText = New LocalizedText( "Hi Everyone", "EN-GB" )
     /// Dim welcomeGB As LocalizedText = New LocalizedText( "Hello Everyone", "EN-GB" )
     /// Dim welcomeNoLocale As LocalizedText = New LocalizedText( "Welcome" )
     /// 
-    /// Utils.Trace( welcomeUS.ToString() )
-    /// Utils.Trace( welcomeGB.ToString() )
-    /// Utils.Trace( welcomeNoLocale.ToString() )
+    /// Utils.LogInfo( welcomeUS.ToString() )
+    /// Utils.LogInfo( welcomeGB.ToString() )
+    /// Utils.LogInfo( welcomeNoLocale.ToString() )
     /// </code>
     /// <para>
     /// This produces the following output:<br/>

@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -32,9 +32,9 @@ namespace Opc.Ua.Bindings
 
             if (m_buffers.Count > 0)
             {
-                m_endOfLastBuffer = m_buffers[m_buffers.Count-1].Count;
+                m_endOfLastBuffer = m_buffers[m_buffers.Count - 1].Count;
             }
-                        
+
             SetCurrentBuffer(0);
         }
 
@@ -47,24 +47,24 @@ namespace Opc.Ua.Bindings
         /// <param name="count">The count.</param>
         public ArraySegmentStream(
             BufferManager bufferManager,
-            int           bufferSize,
-            int           start,
-            int           count)
+            int bufferSize,
+            int start,
+            int count)
 
         {
             m_buffers = new BufferCollection();
-            
+
             m_bufferManager = bufferManager;
             m_bufferSize = bufferSize;
             m_start = start;
             m_count = count;
 
             m_endOfLastBuffer = 0;
-            
+
             SetCurrentBuffer(0);
         }
         #endregion
-        
+
         #region Public Methods
         /// <summary>
         /// Returns ownership of the buffers stored in the stream.
@@ -74,7 +74,7 @@ namespace Opc.Ua.Bindings
         public BufferCollection GetBuffers(string owner)
         {
             BufferCollection buffers = new BufferCollection(m_buffers.Count);
- 
+
             for (int ii = 0; ii < m_buffers.Count; ii++)
             {
                 m_bufferManager.TransferBuffer(m_buffers[ii].Array, owner);
@@ -86,38 +86,38 @@ namespace Opc.Ua.Bindings
             return buffers;
         }
         #endregion
-        
+
         #region Overridden Methods
         /// <summary cref="Stream.CanRead" />
         public override bool CanRead
         {
             get { return true; }
         }
-        
+
         /// <summary cref="Stream.CanSeek" />
         public override bool CanSeek
         {
             get { return true; }
         }
-        
+
         /// <summary cref="Stream.CanWrite" />
         public override bool CanWrite
         {
             get { return true; }
         }
-        
+
         /// <summary cref="Stream.Flush" />
         public override void Flush()
         {
             // nothing to do.
         }
-        
+
         /// <summary cref="Stream.Length" />
         public override long Length
         {
             get { return GetAbsoluteLength(); }
         }
-        
+
         /// <summary cref="Stream.Position" />
         public override long Position
         {
@@ -131,8 +131,8 @@ namespace Opc.Ua.Bindings
                 Seek(value, SeekOrigin.Begin);
             }
         }
-        
-        /// <summary cref="Stream.Read" />
+
+        /// <summary cref="Stream.Read(byte[], int, int)" />
         public override int Read(byte[] buffer, int offset, int count)
         {
             int bytesRead = 0;
@@ -155,21 +155,21 @@ namespace Opc.Ua.Bindings
                     m_currentPosition += count;
                     return bytesRead;
                 }
-                
+
                 // copy the bytes available and move to next buffer.
                 Array.Copy(m_currentBuffer.Array, m_currentPosition + m_currentBuffer.Offset, buffer, offset, bytesLeft);
                 bytesRead += bytesLeft;
-                
+
                 offset += bytesLeft;
-                count  -= bytesLeft;
-                
+                count -= bytesLeft;
+
                 // move to next buffer.
-                SetCurrentBuffer(m_bufferIndex+1);
+                SetCurrentBuffer(m_bufferIndex + 1);
             }
 
             return bytesRead;
         }
-        
+
         /// <summary cref="Stream.Seek" />
         public override long Seek(long offset, SeekOrigin origin)
         {
@@ -199,7 +199,7 @@ namespace Opc.Ua.Bindings
             }
 
             int position = (int)offset;
-            
+
             for (int ii = 0; ii < m_buffers.Count; ii++)
             {
                 int length = GetBufferCount(ii);
@@ -213,17 +213,17 @@ namespace Opc.Ua.Bindings
 
                 offset -= length;
             }
-            
+
             throw new IOException("Cannot seek beyond the end of the stream.");
         }
-        
-        /// <summary cref="Stream.SetLength" />
+
+        /// <summary cref="Stream.SetLength(long)" />
         public override void SetLength(long value)
         {
             throw new NotSupportedException();
         }
-        
-        /// <summary cref="Stream.Write" />
+
+        /// <summary cref="Stream.Write(byte[],int,int)" />
         public override void Write(byte[] buffer, int offset, int count)
         {
             while (count > 0)
@@ -240,7 +240,7 @@ namespace Opc.Ua.Bindings
                     m_buffers.Add(new ArraySegment<byte>(newBuffer, m_start, m_count));
                     m_endOfLastBuffer = 0;
 
-                    SetCurrentBuffer(m_buffers.Count-1);
+                    SetCurrentBuffer(m_buffers.Count - 1);
                 }
 
                 int bytesLeft = m_currentBuffer.Count - m_currentPosition;
@@ -249,10 +249,10 @@ namespace Opc.Ua.Bindings
                 if (bytesLeft >= count)
                 {
                     Array.Copy(buffer, offset, m_currentBuffer.Array, m_currentPosition + m_currentBuffer.Offset, count);
-                    
+
                     m_currentPosition += count;
 
-                    if (m_bufferIndex == m_buffers.Count-1)
+                    if (m_bufferIndex == m_buffers.Count - 1)
                     {
                         if (m_endOfLastBuffer < m_currentPosition)
                         {
@@ -262,19 +262,19 @@ namespace Opc.Ua.Bindings
 
                     return;
                 }
-                
+
                 // copy the bytes available and move to next buffer.
                 Array.Copy(buffer, offset, m_currentBuffer.Array, m_currentPosition + m_currentBuffer.Offset, bytesLeft);
-                
+
                 offset += bytesLeft;
-                count  -= bytesLeft;
-                
+                count -= bytesLeft;
+
                 // move to next buffer.
-                SetCurrentBuffer(m_bufferIndex+1);
+                SetCurrentBuffer(m_bufferIndex + 1);
             }
         }
         #endregion
-        
+
         #region Private Methods
         /// <summary>
         /// Sets the current buffer.
@@ -283,16 +283,16 @@ namespace Opc.Ua.Bindings
         {
             if (index < 0 || index >= m_buffers.Count)
             {
-                m_currentBuffer   = new ArraySegment<byte>();
+                m_currentBuffer = new ArraySegment<byte>();
                 m_currentPosition = 0;
                 return;
             }
 
-            m_bufferIndex     = index;
-            m_currentBuffer   = m_buffers[index];
+            m_bufferIndex = index;
+            m_currentBuffer = m_buffers[index];
             m_currentPosition = 0;
         }
-        
+
         /// <summary>
         /// Returns the total length in all buffers.
         /// </summary>
@@ -307,7 +307,7 @@ namespace Opc.Ua.Bindings
 
             return length;
         }
-        
+
         /// <summary>
         /// Returns the current position.
         /// </summary>
@@ -318,7 +318,7 @@ namespace Opc.Ua.Bindings
             {
                 return GetAbsoluteLength();
             }
-            
+
             // calculate position.
             int position = 0;
 
@@ -337,7 +337,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private int GetBufferCount(int index)
         {
-            if (index == m_buffers.Count-1)
+            if (index == m_buffers.Count - 1)
             {
                 return m_endOfLastBuffer;
             }
@@ -345,7 +345,7 @@ namespace Opc.Ua.Bindings
             return m_buffers[index].Count;
         }
         #endregion
-        
+
         #region Private Fields
         private int m_bufferIndex;
         private ArraySegment<byte> m_currentBuffer;

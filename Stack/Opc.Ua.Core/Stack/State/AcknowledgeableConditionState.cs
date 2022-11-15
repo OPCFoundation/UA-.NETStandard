@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -113,7 +113,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (this.ConfirmedState != null)
+            if (SupportsConfirm())
             {
                 if (!this.ConfirmedState.Id.Value)
                 {
@@ -148,11 +148,42 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
-                SetAcknowledgedState(context, true);
-                SetComment(context, comment, GetCurrentUserId(context));
+                AcknowledgeableConditionState branch = GetAcknowledgeableBranch(eventId);
+
+                if ( branch != null )
+                {
+                    branch.OnAcknowledgeCalled(context, method, objectId, eventId, comment);
+
+                    if (SupportsConfirm())
+                    {
+                        ReplaceBranchEvent(eventId, branch);
+                    }
+                    else
+                    { 
+                        RemoveBranchEvent(eventId);
+                    }
+                }
+                else
+                {
+                    SetAcknowledgedState(context, true);
+
+                    if (SupportsConfirm())
+                    {
+                        SetConfirmedState(context, false);
+                    }
+                }
+
+                // If this is a branch, the comment goes to both the branch and the original event
+                if (CanSetComment(comment))
+                {
+                    SetComment(context, comment, GetCurrentUserId(context));
+                }
+
+                UpdateRetainState();
+
             }
 
-            if (this.AreEventsMonitored)
+            if (EventsMonitored())
             {
                 // report a state change event.
                 if (ServiceResult.IsGood(error))
@@ -176,13 +207,14 @@ namespace Opc.Ua
                     ServiceResult.IsGood(error),
                     DateTime.UtcNow);
 
-                e.SourceName.Value = "Attribute/Call";
+                e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                e.SetChildValue(context, BrowseNames.SourceName, "Method/Acknowledge", false);
 
-                e.MethodId = new PropertyState<NodeId>(e);
-                e.MethodId.Value = method.NodeId;
+                e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                e.SetChildValue(context, BrowseNames.InputArguments, new object[] { eventId, comment }, false);
 
-                e.InputArguments = new PropertyState<object[]>(e);
-                e.InputArguments.Value = new object[] { eventId, comment };
+                e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
+                e.SetChildValue(context, BrowseNames.Comment, comment, false);
 
                 ReportEvent(context, e);
             }
@@ -290,11 +322,28 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
-                SetConfirmedState(context, true);
-                SetComment(context, comment, GetCurrentUserId(context));
+                AcknowledgeableConditionState branch = GetAcknowledgeableBranch(eventId);
+
+                if (branch != null)
+                {
+                    branch.OnConfirmCalled(context, method, objectId, eventId, comment);
+                    RemoveBranchEvent(eventId);
+                }
+                else
+                {
+                    SetConfirmedState(context, true);
+                }
+
+                // If this is a branch, the comment goes to both the branch and the original event
+                if (CanSetComment(comment))
+                {
+                    SetComment(context, comment, GetCurrentUserId(context));
+                }
+
+                UpdateRetainState();
             }
 
-            if (this.AreEventsMonitored)
+            if (EventsMonitored())
             {
                 // report a state change event.
                 if (ServiceResult.IsGood(error))
@@ -318,13 +367,14 @@ namespace Opc.Ua
                     ServiceResult.IsGood(error),
                     DateTime.UtcNow);
 
-                e.SourceName.Value = "Attribute/Call";
+                e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                e.SetChildValue(context, BrowseNames.SourceName, "Method/Confirm", false);
 
-                e.MethodId = new PropertyState<NodeId>(e);
-                e.MethodId.Value = method.NodeId;
+                e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                e.SetChildValue(context, BrowseNames.InputArguments, new object[] { eventId, comment }, false);
 
-                e.InputArguments = new PropertyState<object[]>(e);
-                e.InputArguments.Value = new object[] { eventId, comment };
+                e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
+                e.SetChildValue(context, BrowseNames.Comment, comment, false);
 
                 ReportEvent(context, e);
             }
@@ -417,6 +467,114 @@ namespace Opc.Ua
                 UpdateEffectiveState(context);
             }
         }
+
+        /// <summary>
+        /// Determines if a comment should be added on Acknowledgment or Confirm.
+        /// </summary>
+        /// <param name="comment">The client provided comment.</param>
+        /// <returns>Boolean stating whether the comment should be set</returns>
+        /// <remarks>
+        /// According to the specification for Alarms, the Acknowledgment states that
+        /// "If the comment field is NULL (both locale and text are empty) it will be
+        /// ignored and any existing comments will remain unchanged."
+        /// This also applies to the Confirm method, although the spec needs updating
+        /// (Mantis issue 6405)
+        /// </remarks>
+        private bool CanSetComment(LocalizedText comment)
+        {
+            bool canSetComment = false;
+
+            if (comment != null)
+            {
+                canSetComment = true;
+
+                bool emptyComment = comment.Text == null || comment.Text.Length == 0;
+                bool emptyLocale = comment.Locale == null || comment.Locale.Length == 0;
+
+                if (emptyComment && emptyLocale)
+                {
+                    canSetComment = false;
+                }
+            }
+
+            return canSetComment;
+        }
+
+        /// <summary>
+        /// Determines if this Event supports Confirm.
+        /// </summary>
+        /// <returns>
+        /// Boolean stating whether the Confirm is supported
+        /// </returns>
+        public bool SupportsConfirm()
+        {
+            bool supportsConfirm = false;
+
+            if (this.ConfirmedState != null && this.ConfirmedState.Value != null )
+            {
+                supportsConfirm = true;
+            }
+
+            return supportsConfirm;
+        }
+
+        /// <summary>
+        /// Determines whether a specified branch exists, and returns it as AcknowledgeableConditionState
+        /// </summary>
+        /// <param name="eventId">Desired Event Id</param>
+        /// <returns>
+        /// AcknowledgeableConditionState branch if it exists
+        /// </returns>
+        private AcknowledgeableConditionState GetAcknowledgeableBranch(byte[] eventId)
+        {
+            AcknowledgeableConditionState acknowledgeableBranch = null;
+            ConditionState branch = GetBranch(eventId);
+
+            if (branch != null)
+            {
+                object acknowledgeable = branch as AcknowledgeableConditionState;
+                if (acknowledgeable != null)
+                {
+                    acknowledgeableBranch = (AcknowledgeableConditionState)acknowledgeable;
+                }
+            }
+
+            return acknowledgeableBranch;
+        }
+
+        /// <summary>
+        /// Determines the desired Retain state based off of the values of AckedState and
+        /// ConfirmedState if ConfirmedState is supported
+        /// </summary>
+        /// <remarks>
+        /// All implementations of this method should check the enabled state
+        /// </remarks>
+        protected override bool GetRetainState()
+        {
+            bool retainState = false;
+
+            if (this.EnabledState.Id.Value)
+            {
+                retainState = base.GetRetainState();
+
+                if (!this.AckedState.Id.Value)
+                {
+                    retainState = true;
+                }
+                else
+                {
+                    if ( SupportsConfirm() && !this.ConfirmedState.Id.Value)
+                    {
+                        retainState = true;
+                    }
+                }
+            }
+
+            return retainState;
+        }
+
+
+
         #endregion
 
         #region Public Interface

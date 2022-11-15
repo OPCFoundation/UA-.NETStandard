@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -17,7 +17,6 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
-
     /// <summary>
     /// Manages the server side of a UA TCP channel.
     /// </summary>
@@ -125,6 +124,9 @@ namespace Opc.Ua.Bindings
 
             m_maxRequestMessageSize = quotas.MaxMessageSize;
             m_maxResponseMessageSize = quotas.MaxMessageSize;
+
+            m_maxRequestChunkCount = CalculateChunkCount(m_maxRequestMessageSize, TcpMessageLimits.MinBufferSize);
+            m_maxResponseChunkCount = CalculateChunkCount(m_maxResponseMessageSize, TcpMessageLimits.MinBufferSize);
 
             CalculateSymmetricKeySizes();
         }
@@ -243,28 +245,37 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            Utils.Trace((int)Utils.TraceMasks.Error, "{0}: Channel {1} - Duplicate sequence number: {2} <= {3}", context, this.ChannelId, sequenceNumber, m_remoteSequenceNumber);
+            Utils.LogError("ChannelId {0}: {1} - Duplicate sequence number: {2} <= {3}",
+                ChannelId, context, sequenceNumber, m_remoteSequenceNumber);
             return false;
         }
 
         /// <summary>
         /// Saves an intermediate chunk for an incoming message.
         /// </summary>
-        protected void SaveIntermediateChunk(uint requestId, ArraySegment<byte> chunk)
+        protected void SaveIntermediateChunk(uint requestId, ArraySegment<byte> chunk, bool isServerContext)
         {
             if (m_partialMessageChunks == null)
             {
                 m_partialMessageChunks = new BufferCollection();
             }
 
-            if (m_partialRequestId != requestId)
+            bool chunkOrSizeLimitsExceeded = MessageLimitsExceeded(isServerContext, m_partialMessageChunks.TotalSize, m_partialMessageChunks.Count);
+
+            if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
             {
                 if (m_partialMessageChunks.Count > 0)
                 {
-                    Utils.Trace("WARNING - Discarding unprocessed message chunks for Request #{0}", m_partialRequestId);
+                    Utils.LogWarning("WARNING - Discarding unprocessed message chunks for Request #{0}", m_partialRequestId);
                 }
 
                 m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+            }
+
+            if (chunkOrSizeLimitsExceeded)
+            {
+                DoMessageLimitsExceeded();
+                return;
             }
 
             if (requestId != 0)
@@ -277,12 +288,20 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the chunks saved for message.
         /// </summary>
-        protected BufferCollection GetSavedChunks(uint requestId, ArraySegment<byte> chunk)
+        protected BufferCollection GetSavedChunks(uint requestId, ArraySegment<byte> chunk, bool isServerContext)
         {
-            SaveIntermediateChunk(requestId, chunk);
+            SaveIntermediateChunk(requestId, chunk, isServerContext);
             BufferCollection savedChunks = m_partialMessageChunks;
             m_partialMessageChunks = null;
             return savedChunks;
+        }
+
+        /// <summary>
+        /// Code executed when the 
+        /// </summary>
+        protected virtual void DoMessageLimitsExceeded()
+        {
+            Utils.LogError("ChannelId {0}: - Message limits exceeded while building up message. Channel will be closed", ChannelId);
         }
         #endregion
 
@@ -297,8 +316,6 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     uint messageType = BitConverter.ToUInt32(message.Array, message.Offset);
-
-                    Utils.TraceDebug("{1} Message Received: {0} bytes", message.Count, messageType);
 
                     if (!HandleIncomingMessage(messageType, message))
                     {
@@ -377,8 +394,6 @@ namespace Opc.Ua.Bindings
                 ServiceResult error = ServiceResult.Good;
                 try
                 {
-                    Utils.TraceDebug("Bytes written: {0}", e.BytesTransferred);
-
                     if (e.BytesTransferred == 0)
                     {
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
@@ -546,7 +561,7 @@ namespace Opc.Ua.Bindings
         {
             if (isRequest)
             {
-                if (this.MaxRequestChunkCount > 0 && this.MaxRequestChunkCount <= chunkCount)
+                if (this.MaxRequestChunkCount > 0 && this.MaxRequestChunkCount < chunkCount)
                 {
                     return true;
                 }
@@ -558,7 +573,7 @@ namespace Opc.Ua.Bindings
             }
             else
             {
-                if (this.MaxResponseChunkCount > 0 && this.MaxResponseChunkCount <= chunkCount)
+                if (this.MaxResponseChunkCount > 0 && this.MaxResponseChunkCount < chunkCount)
                 {
                     return true;
                 }
@@ -592,7 +607,7 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentOutOfRangeException(nameof(offset));
             }
-            
+
             offset += 4;
 
             buffer[offset++] = (byte)((messageSize & 0x000000FF));
@@ -614,11 +629,13 @@ namespace Opc.Ua.Bindings
         protected internal IMessageSocket Socket
         {
             get { return m_socket; }
-            set
-            {
-                m_socket = value;
-            }
+            set { m_socket = value; }
         }
+
+        /// <summary>
+        /// Whether the client channel uses a reverse hello socket.
+        /// </summary>
+        protected internal bool ReverseSocket { get; set; }
 
         /// <summary>
         /// The buffer manager for the channel.
@@ -695,7 +712,7 @@ namespace Opc.Ua.Bindings
             {
                 if (m_state != value)
                 {
-                    Utils.Trace("Channel {0} in {1} state.", ChannelId, value);
+                    Utils.LogInfo("ChannelId {0}: in {1} state.", ChannelId, value);
                 }
 
                 m_state = value;
@@ -718,6 +735,7 @@ namespace Opc.Ua.Bindings
                 m_globalChannelId = Utils.Format("{0}-{1}", m_contextId, m_channelId);
             }
         }
+
         #endregion
 
         #region WriteOperation Class
@@ -757,6 +775,28 @@ namespace Opc.Ua.Bindings
             private uint m_requestId;
             private IEncodeable m_messageBody;
             #endregion
+        }
+        #endregion
+
+        #region Protected Methods
+        /// <summary>
+        /// Calculate the chunk count which can be used for messages based on buffer size. 
+        /// </summary>
+        /// <param name="messageSize">The message size to be used.</param>
+        /// <param name="bufferSize">The buffer available for a message.</param>
+        /// <returns>The chunk count.</returns>
+        protected static int CalculateChunkCount(int messageSize, int bufferSize)
+        {
+            if (bufferSize > 0)
+            {
+                int chunkCount = messageSize / bufferSize;
+                if (chunkCount * bufferSize < messageSize)
+                {
+                    chunkCount++;
+                }
+                return chunkCount;
+            }
+            return 1;
         }
         #endregion
 

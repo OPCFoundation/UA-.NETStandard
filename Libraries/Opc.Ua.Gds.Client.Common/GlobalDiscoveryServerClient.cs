@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -46,14 +46,19 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class.
         /// </summary>
-        /// <param name="application">The application.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="endpointUrl">The endpoint Url.</param>
+        /// <param name="sessionFactory">Used to create session to the server</param>
+        /// <param name="adminUserIdentity">The user identity for the administrator.</param>
         public GlobalDiscoveryServerClient(
-            ApplicationInstance application, 
+            ApplicationConfiguration configuration,
             string endpointUrl,
-            IUserIdentity adminUserIdentity = null)
+            IUserIdentity adminUserIdentity = null,
+            ISessionFactory sessionFactory = null)
         {
-            Application = application;
+            Configuration = configuration;
             EndpointUrl = endpointUrl;
+            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory();
             // preset admin 
             AdminCredentials = adminUserIdentity;
         }
@@ -66,7 +71,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The application.
         /// </value>
-        public ApplicationInstance Application { get; private set; }
+        public ApplicationConfiguration Configuration { get; private set; }
 
         /// <summary>
         /// Gets or sets the admin credentials.
@@ -87,7 +92,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The session.
         /// </value>
-        public Session Session { get; private set; }
+        public ISession Session { get; private set; }
 
         /// <summary>
         /// Gets or sets the endpoint URL.
@@ -132,7 +137,7 @@ namespace Opc.Ua.Gds.Client
 
                 if (lds == null)
                 {
-                    lds = new LocalDiscoveryServerClient(this.Application.ApplicationConfiguration);
+                    lds = new LocalDiscoveryServerClient(Configuration);
                 }
 
                 var servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);
@@ -153,7 +158,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                Utils.Trace(exception, "Unexpected error connecting to LDS");
+                Utils.LogError(exception, "Unexpected error connecting to LDS");
             }
 
             return serverUrls;
@@ -176,7 +181,7 @@ namespace Opc.Ua.Gds.Client
 
                 if (lds == null)
                 {
-                    lds = new LocalDiscoveryServerClient(this.Application.ApplicationConfiguration);
+                    lds = new LocalDiscoveryServerClient(Configuration);
                 }
 
                 var servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);
@@ -191,7 +196,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                Utils.Trace(exception, "Unexpected error connecting to LDS");
+                Utils.LogError(exception, "Unexpected error connecting to LDS");
             }
 
             return gdsUrls;
@@ -229,18 +234,18 @@ namespace Opc.Ua.Gds.Client
                 serverHalted = false;
                 try
                 {
-                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
-                    EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Application.ApplicationConfiguration);
+                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(Configuration, endpointUrl, true);
+                    EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Configuration);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-                    await Connect(endpoint);
+                    await Connect(endpoint).ConfigureAwait(false);
                 }
                 catch (ServiceResultException e)
                 {
                     if (e.StatusCode == StatusCodes.BadServerHalted)
                     {
                         serverHalted = true;
-                        await Task.Delay(1000);
+                        await Task.Delay(1000).ConfigureAwait(false);
                     }
                     else
                     {
@@ -277,15 +282,15 @@ namespace Opc.Ua.Gds.Client
                 Session = null;
             }
 
-            Session = await Session.Create(
-                Application.ApplicationConfiguration,
+            Session = await m_sessionFactory.CreateAsync(
+                Configuration,
                 endpoint,
                 false,
                 false,
-                Application.ApplicationName,
+                Configuration.ApplicationName,
                 60000,
                 AdminCredentials,
-                PreferredLocales);
+                PreferredLocales).ConfigureAwait(false);
 
             m_endpoint = Session.ConfiguredEndpoint;
 
@@ -305,6 +310,9 @@ namespace Opc.Ua.Gds.Client
 
         }
 
+        /// <summary>
+        /// Disconnect the client connection.
+        /// </summary>
         public void Disconnect()
         {
             if (Session != null)
@@ -315,7 +323,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (ServiceResult.IsBad(e.Status))
             {
@@ -372,7 +380,6 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Queries the GDS for any servers matching the criteria.
         /// </summary>
-        /// <param name="startingRecordId">The id of the first record to return.</param>
         /// <param name="maxRecordsToReturn">The max records to return.</param>
         /// <param name="applicationName">The filter applied to the application name.</param>
         /// <param name="applicationUri">The filter applied to the application uri.</param>
@@ -662,7 +669,9 @@ namespace Opc.Ua.Gds.Client
         /// Signs the certificate.
         /// </summary>
         /// <param name="applicationId">The application id.</param>
-        /// <param name="certificate">The certificate to renew.</param>
+        /// <param name="certificateGroupId">The group of the trust list.</param>
+        /// <param name="certificateTypeId">The type of the trust list.</param>
+        /// <param name="certificateRequest">The certificate signing request (CSR).</param>
         /// <returns>The id for the request which is used to check when it is approved.</returns>
         public NodeId StartSigningRequest(
             NodeId applicationId,
@@ -797,7 +806,8 @@ namespace Opc.Ua.Gds.Client
         /// Gets the certificate status.
         /// </summary>
         /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">Type of the trust list.</param>
+        /// <param name="certificateGroupId">Group of the trust list.</param>
+        /// <param name="certificateTypeId">Type of the trust list.</param>
         /// <returns></returns>
         public Boolean GetCertificateStatus(
             NodeId applicationId,
@@ -951,13 +961,15 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Error reverting to normal permissions.");
+                Utils.LogError(e, "Error reverting to normal permissions.");
             }
         }
 
         #endregion
+
         #region Private Fields
         private ConfiguredEndpoint m_endpoint;
+        private readonly ISessionFactory m_sessionFactory;
         #endregion
     }
 }

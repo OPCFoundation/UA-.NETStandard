@@ -1,12 +1,19 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;netcoreapp2.0</TargetFrameworks>
     <AssemblyName>Opc.Ua.Client.ComplexTypes</AssemblyName>
-    <LangVersion>7</LangVersion>
-    <PackageId>Opc.Ua.Client.ComplexTypes</PackageId>
+    <TargetFrameworks>$(LibxTargetFrameworks)</TargetFrameworks>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes</PackageId>
     <RootNameSpace>Opc.Ua.Client.ComplexTypes</RootNameSpace>
     <Description>OPC UA Complex Types Client Class Library</Description>
+    <IsPackable>true</IsPackable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,14 +25,7 @@
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <Reference Include="System.Reflection" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp2.0'">
-    <PackageReference Include="System.Reflection.Emit" Version="4.6.0" />
-  </ItemGroup>
-
+  
   <Target Name="GetPackagingOutputs" />
 
 </Project>
