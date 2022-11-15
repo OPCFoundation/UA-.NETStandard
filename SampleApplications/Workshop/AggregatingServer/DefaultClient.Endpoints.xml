@@ -1,0 +1,280 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ua:ConfiguredEndpointCollection
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+  xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" 
+  xmlns:ua="http://opcfoundation.org/UA/SDK/Configuration.xsd">
+  <ua:KnownHosts />
+  <ua:Endpoints>
+    <!-- 
+      Self, acting as a server endpoint:
+        opc.tcp://localhost:61210/UA/SampleClient // -->
+    <ua:ConfiguredEndpoint>
+      <ua:Endpoint>
+        <EndpointUrl>opc.tcp://localhost:61210/UA/SampleClient</EndpointUrl>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <UserIdentityTokens>
+          <UserTokenPolicy>
+            <TokenType>Anonymous_0</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>UserName_1</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>Certificate_2</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <PolicyId xsi:nil="true" />
+            <TokenType>IssuedToken_3</TokenType>
+            <IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</IssuedTokenType>
+          </UserTokenPolicy>
+        </UserIdentityTokens>
+        <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
+      </ua:Endpoint>
+      <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
+      <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
+    </ua:ConfiguredEndpoint>
+    
+    <!-- 
+      Self, acting as a server endpoint:
+        https://localhost:61212/UA/SampleClient // -->
+    <ua:ConfiguredEndpoint>
+      <ua:Endpoint>
+        <EndpointUrl>https://localhost:61212/UA/SampleClient</EndpointUrl>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <UserIdentityTokens>
+          <UserTokenPolicy>
+            <TokenType>Anonymous_0</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>UserName_1</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>Certificate_2</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <PolicyId xsi:nil="true" />
+            <TokenType>IssuedToken_3</TokenType>
+            <IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</IssuedTokenType>
+          </UserTokenPolicy>
+        </UserIdentityTokens>
+        <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
+      </ua:Endpoint>
+      <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
+      <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
+    </ua:ConfiguredEndpoint>
+
+    <!-- 
+      Sample server, opc.tcp endpoint:
+        opc.tcp://localhost:51210/UA/SampleServer // -->
+    <ua:ConfiguredEndpoint>
+      <ua:Endpoint>
+        <EndpointUrl>opc.tcp://localhost:51210/UA/SampleServer</EndpointUrl>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <UserIdentityTokens>
+          <UserTokenPolicy>
+            <TokenType>Anonymous_0</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>UserName_1</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>Certificate_2</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <PolicyId xsi:nil="true" />
+            <TokenType>IssuedToken_3</TokenType>
+            <IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</IssuedTokenType>
+          </UserTokenPolicy>
+        </UserIdentityTokens>
+        <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
+      </ua:Endpoint>
+      <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
+      <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
+    </ua:ConfiguredEndpoint>
+    
+    <!-- 
+      Sample server, opc.tcp endpoint:
+        https://localhost:51212/UA/SampleServer // -->
+    <ua:ConfiguredEndpoint>
+      <ua:Endpoint>
+        <EndpointUrl>https://localhost:51212/UA/SampleServer</EndpointUrl>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <UserIdentityTokens>
+          <UserTokenPolicy>
+            <TokenType>Anonymous_0</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>UserName_1</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>Certificate_2</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <PolicyId xsi:nil="true" />
+            <TokenType>IssuedToken_3</TokenType>
+            <IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</IssuedTokenType>
+          </UserTokenPolicy>
+        </UserIdentityTokens>
+        <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
+      </ua:Endpoint>
+      <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
+      <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
+    </ua:ConfiguredEndpoint>
+
+    <!-- 
+      Reference server, opc.tcp endpoint:
+        opc.tcp://localhost:62541/UA/ReferenceServer // -->
+    <ua:ConfiguredEndpoint>
+      <ua:Endpoint>
+        <EndpointUrl>opc.tcp://localhost:62541/UA/ReferenceServer</EndpointUrl>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <UserIdentityTokens>
+          <UserTokenPolicy>
+            <TokenType>Anonymous_0</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>UserName_1</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>Certificate_2</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <PolicyId xsi:nil="true" />
+            <TokenType>IssuedToken_3</TokenType>
+            <IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</IssuedTokenType>
+          </UserTokenPolicy>
+        </UserIdentityTokens>
+        <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
+      </ua:Endpoint>
+      <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
+      <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
+    </ua:ConfiguredEndpoint>
+
+    <!-- 
+      Data Access server, opc.tcp endpoint:
+        opc.tcp://localhost:62547/Quickstarts/DataAccessServer // -->
+    <ua:ConfiguredEndpoint>
+      <ua:Endpoint>
+        <EndpointUrl>opc.tcp://localhost:62547/Quickstarts/DataAccessServer</EndpointUrl>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <UserIdentityTokens>
+          <UserTokenPolicy>
+            <TokenType>Anonymous_0</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>UserName_1</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>Certificate_2</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <PolicyId xsi:nil="true" />
+            <TokenType>IssuedToken_3</TokenType>
+            <IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</IssuedTokenType>
+          </UserTokenPolicy>
+        </UserIdentityTokens>
+        <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
+      </ua:Endpoint>
+      <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
+      <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
+    </ua:ConfiguredEndpoint>
+
+    <!-- 
+      Alarms/Conditions server, opc.tcp endpoint:
+        opc.tcp://localhost:62544/Quickstarts/AlarmConditionServer // -->
+    <ua:ConfiguredEndpoint>
+      <ua:Endpoint>
+        <EndpointUrl>opc.tcp://localhost:62544/Quickstarts/AlarmConditionServer</EndpointUrl>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <UserIdentityTokens>
+          <UserTokenPolicy>
+            <TokenType>Anonymous_0</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>UserName_1</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>Certificate_2</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <PolicyId xsi:nil="true" />
+            <TokenType>IssuedToken_3</TokenType>
+            <IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</IssuedTokenType>
+          </UserTokenPolicy>
+        </UserIdentityTokens>
+        <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
+      </ua:Endpoint>
+      <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
+      <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
+    </ua:ConfiguredEndpoint>
+
+    <!-- 
+      Historical Data server, opc.tcp endpoint:
+        opc.tcp://localhost:62550/Quickstarts/HistoricalAccessServer // -->
+    <ua:ConfiguredEndpoint>
+      <ua:Endpoint>
+        <EndpointUrl>opc.tcp://localhost:62550/Quickstarts/HistoricalAccessServer</EndpointUrl>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <UserIdentityTokens>
+          <UserTokenPolicy>
+            <TokenType>Anonymous_0</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>UserName_1</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>Certificate_2</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <PolicyId xsi:nil="true" />
+            <TokenType>IssuedToken_3</TokenType>
+            <IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</IssuedTokenType>
+          </UserTokenPolicy>
+        </UserIdentityTokens>
+        <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
+      </ua:Endpoint>
+      <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
+      <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
+    </ua:ConfiguredEndpoint>
+
+    <!-- 
+      Historical Events server opc.tcp endpoint:
+        opc.tcp://localhost:62553/Quickstarts/HistoricalEventsServer // -->
+    <ua:ConfiguredEndpoint>
+      <ua:Endpoint>
+        <EndpointUrl>opc.tcp://localhost:62553/Quickstarts/HistoricalEventsServer</EndpointUrl>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <UserIdentityTokens>
+          <UserTokenPolicy>
+            <TokenType>Anonymous_0</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>UserName_1</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <TokenType>Certificate_2</TokenType>
+          </UserTokenPolicy>
+          <UserTokenPolicy>
+            <PolicyId xsi:nil="true" />
+            <TokenType>IssuedToken_3</TokenType>
+            <IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</IssuedTokenType>
+          </UserTokenPolicy>
+        </UserIdentityTokens>
+        <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
+      </ua:Endpoint>
+      <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
+      <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
+    </ua:ConfiguredEndpoint>
+
+  </ua:Endpoints>
+  
+</ua:ConfiguredEndpointCollection>

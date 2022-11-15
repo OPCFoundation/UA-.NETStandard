@@ -3,16 +3,14 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <ProductVersion>9.0.30729</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{42EF4F25-29BF-4AB7-B403-8523694A3B36}</ProjectGuid>
+    <ProjectGuid>{CFB15271-EEFA-4C7E-AE96-BDCEEDC24B6B}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Quickstarts.ReferenceServer</RootNamespace>
-    <AssemblyName>Quickstarts.ReferenceServer</AssemblyName>
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <RootNamespace>Quickstarts.WeightScale.Server</RootNamespace>
+    <AssemblyName>Quickstarts.WeightScaleServer</AssemblyName>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ApplicationIcon>App.ico</ApplicationIcon>
     <FileUpgradeFlags>
@@ -21,7 +19,6 @@
     </UpgradeBackupLocation>
     <OldToolsVersion>3.5</OldToolsVersion>
     <TargetFrameworkProfile />
-    <IsWebBootstrapper>false</IsWebBootstrapper>
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
@@ -34,6 +31,7 @@
     <MapFileExtensions>true</MapFileExtensions>
     <ApplicationRevision>0</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -42,7 +40,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>..\..\..\bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -52,43 +50,42 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>..\..\..\bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <UseVSHostingProcess>false</UseVSHostingProcess>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
-  <PropertyGroup>
-    <RunPostBuildEvent>Always</RunPostBuildEvent>
-  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
     <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
     <Reference Include="System.Drawing" />
-    <Reference Include="System.IdentityModel" />
-    <Reference Include="System.Numerics" />
-    <Reference Include="System.Runtime.Serialization" />
-    <Reference Include="System.ServiceModel" />
+    <Reference Include="System.Runtime.Serialization">
+      <RequiredTargetFramework>3.0</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.ServiceModel">
+      <RequiredTargetFramework>3.0</RequiredTargetFramework>
+    </Reference>
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MonitoredItemEventLogDlg.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="MonitoredItemEventLogDlg.Designer.cs">
-      <DependentUpon>MonitoredItemEventLogDlg.cs</DependentUpon>
-    </Compile>
+    <Compile Include="Opc.Ua.Di.Classes.cs" />
+    <Compile Include="Opc.Ua.Di.Constants.cs" />
+    <Compile Include="Opc.Ua.Di.DataTypes.cs" />
+    <Compile Include="Opc.Ua.Ws.Classes.cs" />
+    <Compile Include="Opc.Ua.Ws.Constants.cs" />
+    <Compile Include="Opc.Ua.Ws.DataTypes.cs" />
+    <Compile Include="WeightScaleServerConfiguration.cs" />
+    <Compile Include="WeightScaleNodeManager.cs" />
+    <Compile Include="WeightScaleServer.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SerilogTraceLogger.cs" />
-    <Compile Include="ReferenceServerUtils.cs" />
-    <Content Include="Resources\OPCFoundation.jpg" />
-    <EmbeddedResource Include="MonitoredItemEventLogDlg.resx">
-      <DependentUpon>MonitoredItemEventLogDlg.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -99,16 +96,22 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
-    <Content Include="App.config">
-      <SubType>Designer</SubType>
-    </Content>
+    <Content Include="App.config" />
     <EmbeddedResource Include="App.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <Content Include="Quickstarts.ReferenceServer.Config.xml">
+    <Content Include="ModelDesign.csv" />
+    <Content Include="ModelDesign.xml" />
+    <Content Include="namespacesfiles.PNG" />
+    <Content Include="OPCUAServer.PNG" />
+    <Content Include="UAExpert.PNG" />
+    <Content Include="WeightScaleServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>
     </Content>
+    <Content Include="BuildDesign.bat" />
+    <EmbeddedResource Include="Opc.Ua.Di.PredefinedNodes.uanodes" />
+    <EmbeddedResource Include="Opc.Ua.Ws.PredefinedNodes.uanodes" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -118,6 +121,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <None Include="readme-SK.md" />
     <None Include="Readme.md" />
   </ItemGroup>
   <ItemGroup>
@@ -133,51 +137,28 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj">
-      <Project>{92d98d3d-2a7d-4f4b-8c72-1a98908d0221}</Project>
-      <Name>Opc.Ua.Bindings.Https</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
-      <Project>{4569aaa2-710b-4e8b-a4c6-f917777814da}</Project>
+    <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
+      <Project>{17b6f98c-b58c-419f-ae58-63b9883f211a}</Project>
       <Name>Opc.Ua.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Quickstarts.Servers\Quickstarts.Servers.csproj">
-      <Project>{83cc0d9c-40cd-487a-bf45-c4a8c1b8bf69}</Project>
-      <Name>Quickstarts.Servers</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\ServerControls.Net4\UA Server Controls.csproj">
+    <ProjectReference Include="..\..\..\Samples\ServerControls.Net4\UA Server Controls.csproj">
       <Project>{80056988-44e7-4ef4-9f59-50bcf215cb03}</Project>
       <Name>UA Server Controls</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
-      <Project>{de6b7d4f-e566-45cb-a876-086e5cd50fb0}</Project>
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+      <Project>{26f0d36f-1348-4aed-b011-234131871d35}</Project>
       <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj">
-      <Project>{a2f587fd-5140-478b-8a0e-8417f8a38548}</Project>
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj">
+      <Project>{4a1b6008-293a-4c85-8d33-4194a446aaf5}</Project>
       <Name>Opc.Ua.Server</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Serilog">
-      <Version>2.12.0</Version>
-    </PackageReference>
-    <PackageReference Include="Serilog.Sinks.Debug">
-      <Version>2.0.0</Version>
-    </PackageReference>
-    <PackageReference Include="Serilog.Sinks.File">
-      <Version>5.0.0</Version>
-    </PackageReference>
   </ItemGroup>
   <PropertyGroup>
     <RuntimeIdentifier>win7-x64</RuntimeIdentifier>
     <BaseNuGetRuntimeIdentifier>win7-x64</BaseNuGetRuntimeIdentifier>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>
-    </PostBuildEvent>
-  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
