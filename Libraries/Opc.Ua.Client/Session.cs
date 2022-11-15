@@ -38,8 +38,15 @@ using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using System.ServiceModel;
+using System.Runtime.Serialization;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Globalization;
+using System.IO;
 using System.Xml;
+using System.Threading.Tasks;
+using System.Reflection;
 
 namespace Opc.Ua.Client
 {
@@ -195,7 +202,7 @@ namespace Opc.Ua.Client
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
-                        "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
+                        "Do not have a privat key for the application instance certificate. Subject={0}, Thumbprint={1}.",
                         m_instanceCertificate.Subject,
                         m_instanceCertificate.Thumbprint);
                 }
@@ -323,16 +330,10 @@ namespace Opc.Ua.Client
             byte[] previousServerNonce,
             MessageSecurityMode channelSecurityMode = MessageSecurityMode.None)
         {
-            // skip validation if server nonce is not used for encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
-            {
-                return;
-            }
-
-            if (identity != null && identity.TokenType != UserTokenType.Anonymous)
+            if (identity!= null && identity.TokenType != UserTokenType.Anonymous)
             {
                 // the server nonce should be validated if the token includes a secret.
-                if (!Utils.Nonce.ValidateNonce(serverNonce, MessageSecurityMode.SignAndEncrypt, (uint)m_configuration.SecurityConfiguration.NonceLength))
+                if (!Utils.Nonce.ValidateNonce(serverNonce, MessageSecurityMode.SignAndEncrypt, securityPolicyUri))
                 {
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
@@ -360,6 +361,61 @@ namespace Opc.Ua.Client
                 }
             }
         }
+<<<<<<< HEAD
+=======
+
+        private static void CheckCertificateDomain(ConfiguredEndpoint endpoint)
+        {
+            bool domainFound = false;
+
+            X509Certificate2 serverCertificate = new X509Certificate2(endpoint.Description.ServerCertificate);
+
+            // check the certificate domains.
+            IList<string> domains = Utils.GetDomainsFromCertficate(serverCertificate);
+
+            if (domains != null)
+            {
+                string hostname;
+                string dnsHostName = hostname = endpoint.EndpointUrl.DnsSafeHost;
+                bool isLocalHost = false;
+                if (endpoint.EndpointUrl.HostNameType == UriHostNameType.Dns)
+                {
+                    if (String.Equals(dnsHostName, "localhost", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        isLocalHost = true;
+                    }
+                    else
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "Server nonce is equal with previously returned nonce.");
+                    }
+                }
+
+                if (isLocalHost)
+                {
+                    dnsHostName = Utils.GetFullQualifiedDomainName();
+                    hostname = Utils.GetHostName();
+                }
+
+                for (int ii = 0; ii < domains.Count; ii++)
+                {
+                    if (String.Equals(hostname, domains[ii], StringComparison.OrdinalIgnoreCase) ||
+                        String.Equals(dnsHostName, domains[ii], StringComparison.OrdinalIgnoreCase))
+                    {
+                        domainFound = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!domainFound)
+            {
+                string message = Utils.Format(
+                    "The domain '{0}' is not listed in the server certificate.",
+                    endpoint.EndpointUrl.DnsSafeHost);
+                throw new ServiceResultException(StatusCodes.BadCertificateHostNameInvalid, message);
+            }
+        }
+>>>>>>> 0641bfb846daba4d4386fc89c5fc9e4b765a12a4
         #endregion
 
         #region IDisposable Members
@@ -520,17 +576,35 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the endpoint used to connect to the server.
         /// </summary>
-        public ConfiguredEndpoint ConfiguredEndpoint => m_endpoint;
+        public ConfiguredEndpoint ConfiguredEndpoint
+        {
+            get
+            {
+                return m_endpoint;
+            }
+        }
 
         /// <summary>
         /// Gets the name assigned to the session.
         /// </summary>
-        public string SessionName => m_sessionName;
+        public string SessionName
+        {
+            get
+            {
+                return m_sessionName;
+            }
+        }
 
         /// <summary>
         /// Gets the period for wich the server will maintain the session if there is no communication from the client.
         /// </summary>
-        public double SessionTimeout => m_sessionTimeout;
+        public double SessionTimeout
+        {
+            get
+            {
+                return m_sessionTimeout;
+            }
+        }
 
         /// <summary>
         /// Gets the local handle assigned to the session.
@@ -544,27 +618,45 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the user identity currently used for the session.
         /// </summary>
-        public IUserIdentity Identity => m_identity;
+        public IUserIdentity Identity
+        {
+            get
+            {
+                return m_identity;
+            }
+        }
 
         /// <summary>
         /// Gets a list of user identities that can be used to connect to the server.
         /// </summary>
-        public IEnumerable<IUserIdentity> IdentityHistory => m_identityHistory;
+        public IEnumerable<IUserIdentity> IdentityHistory
+        {
+            get { return m_identityHistory; }
+        }
 
         /// <summary>
         /// Gets the table of namespace uris known to the server.
         /// </summary>
-        public NamespaceTable NamespaceUris => m_namespaceUris;
+        public NamespaceTable NamespaceUris
+        {
+            get { return m_namespaceUris; }
+        }
 
         /// <summary>
         /// Gets the table of remote server uris known to the server.
         /// </summary>
-        public StringTable ServerUris => m_serverUris;
+        public StringTable ServerUris
+        {
+            get { return m_serverUris; }
+        }
 
         /// <summary>
         /// Gets the system context for use with the session.
         /// </summary>
-        public ISystemContext SystemContext => m_systemContext;
+        public ISystemContext SystemContext
+        {
+            get { return m_systemContext; }
+        }
 
         /// <summary>
         /// Gets the factory used to create encodeable objects that the server understands.
@@ -574,7 +666,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the cache of the server's type tree.
         /// </summary>
-        public ITypeTable TypeTree => m_nodeCache.TypeTree;
+        public ITypeTable TypeTree
+        {
+            get { return m_nodeCache.TypeTree; }
+        }
 
         /// <summary>
         /// Gets the cache of nodes fetched from the server.
@@ -584,12 +679,18 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the context to use for filter operations.
         /// </summary>
-        public FilterContext FilterContext => new FilterContext(m_namespaceUris, m_nodeCache.TypeTree, m_preferredLocales);
+        public FilterContext FilterContext
+        {
+            get { return new FilterContext(m_namespaceUris, m_nodeCache.TypeTree, m_preferredLocales); }
+        }
 
         /// <summary>
         /// Gets the locales that the server should use when returning localized text.
         /// </summary>
-        public StringCollection PreferredLocales => m_preferredLocales;
+        public StringCollection PreferredLocales
+        {
+            get { return m_preferredLocales; }
+        }
 
         /// <summary>
         /// Gets the data type system dictionaries in use.
@@ -704,7 +805,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the time of the last keep alive.
         /// </summary>
-        public DateTime LastKeepAliveTime => m_lastKeepAliveTime;
+        public DateTime LastKeepAliveTime
+        {
+            get { return m_lastKeepAliveTime; }
+        }
 
         /// <summary>
         /// Gets the number of outstanding publish or keep alive requests.
@@ -781,7 +885,7 @@ namespace Opc.Ua.Client
         /// <param name="identity">The identity.</param>
         /// <param name="preferredLocales">The user identity to associate with the session.</param>
         /// <returns>The new session object</returns>
-        public static Task<Session> Create(
+        public static async Task<Session> Create(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -790,7 +894,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales)
         {
-            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales);
+            return await Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales);
         }
 
         /// <summary>
@@ -871,9 +975,10 @@ namespace Opc.Ua.Client
             IServiceMessageContext messageContext = configuration.CreateMessageContext(true);
 
             // update endpoint description using the discovery endpoint.
-            if (endpoint.UpdateBeforeConnect && connection == null)
+            if (endpoint.UpdateBeforeConnect)
             {
                 endpoint.UpdateFromServer();
+
                 endpointDescription = endpoint.Description;
                 endpointConfiguration = endpoint.Configuration;
             }
@@ -891,35 +996,72 @@ namespace Opc.Ua.Client
 
             X509Certificate2 clientCertificate = null;
             X509Certificate2Collection clientCertificateChain = null;
+
             if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
             {
                 clientCertificate = await LoadCertificate(configuration).ConfigureAwait(false);
                 clientCertificateChain = await LoadCertificateChain(configuration, clientCertificate).ConfigureAwait(false);
             }
 
+                clientCertificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
+
+                if (clientCertificate == null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate cannot be found.");
+                }
+
+                // load certificate chain.
+                if (configuration.SecurityConfiguration.SendCertificateChain)
+                {
+                    clientCertificateChain = new X509Certificate2Collection(clientCertificate);
+                    List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
+                    await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers);
+
+                    for (int i = 0; i < issuers.Count; i++)
+                    {
+                        clientCertificateChain.Add(issuers[i].Certificate);
+                    }
+                }
+            }
+
             // initialize the channel which will be created with the server.
-            ITransportChannel channel;
-            if (connection != null)
-            {
-                channel = SessionChannel.CreateUaBinaryChannel(
-                    configuration,
-                    connection,
-                    endpointDescription,
-                    endpointConfiguration,
-                    clientCertificate,
-                    clientCertificateChain,
-                    messageContext);
-            }
-            else
-            {
-                channel = SessionChannel.Create(
-                     configuration,
-                     endpointDescription,
-                     endpointConfiguration,
-                     clientCertificate,
-                     clientCertificateChain,
-                     messageContext);
-            }
+            ITransportChannel channel = SessionChannel.Create(
+                 configuration,
+                 endpointDescription,
+                 endpointConfiguration,
+                 clientCertificate,
+                 clientCertificateChain,
+                 messageContext);
+
+            return channel;
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connection.
+        /// </summary>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="connection">The client endpoint for the reverse connect.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="identity">The user identity to associate with the session.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <returns>The new session object.</returns>
+        public static async Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales)
+        {
+            // initialize the channel which will be created with the server.
+            ITransportChannel channel = await Session.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain).ConfigureAwait(false);
 
             return channel;
         }
@@ -959,13 +1101,78 @@ namespace Opc.Ua.Client
             {
                 session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain);
             }
-            catch (Exception)
+            catch (Exception e)
             {
                 session.Dispose();
-                throw;
+                throw e;
             }
 
             return session;
+        }
+
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connect manager.
+        /// </summary>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="reverseConnectManager">The reverse connect manager for the client connection.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="userIdentity">The user identity to associate with the session.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The new session object.</returns>
+        public static async Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ReverseConnectManager reverseConnectManager,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity userIdentity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default(CancellationToken)
+            )
+        {
+            if (reverseConnectManager == null)
+            {
+                return await Create(configuration, endpoint, updateBeforeConnect,
+                    checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales).ConfigureAwait(false);
+            }
+
+            ITransportWaitingConnection connection = null;
+            do
+            {
+                connection = await reverseConnectManager.WaitForConnection(
+                    endpoint.EndpointUrl,
+                    endpoint.ReverseConnect?.ServerUri,
+                    ct).ConfigureAwait(false);
+
+                if (updateBeforeConnect)
+                {
+                    await endpoint.UpdateFromServerAsync(
+                        endpoint.EndpointUrl, connection,
+                        endpoint.Description.SecurityMode,
+                        endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
+                    updateBeforeConnect = false;
+                    connection = null;
+                }
+            } while (connection == null);
+
+            return await Create(
+                configuration,
+                connection,
+                endpoint,
+                false,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
+                preferredLocales).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1047,6 +1254,55 @@ namespace Opc.Ua.Client
                 template.m_configuration,
                 template.ConfiguredEndpoint.Description,
                 template.ConfiguredEndpoint.Configuration,
+<<<<<<< HEAD
+                template.m_instanceCertificate,
+                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
+                    template.m_instanceCertificateChain : null,
+                messageContext);
+
+            // create the session object.
+            Session session = new Session(channel, template, true);
+
+            try
+            {
+                // open the session.
+                session.Open(
+                    template.SessionName,
+                    (uint)template.SessionTimeout,
+                    template.Identity,
+                    template.PreferredLocales,
+                    template.m_checkDomain);
+
+                session.RecreateSubscriptions(template.Subscriptions);
+            }
+            catch (Exception e)
+            {
+                session.Dispose();
+                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.SessionName);
+            }
+
+            return session;
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <param name="connection">The waiting reverse connection.</param>
+        /// <returns>The new session object.</returns>
+        public static Session Recreate(Session template, ITransportWaitingConnection connection)
+        {
+            var messageContext = template.m_configuration.CreateMessageContext();
+            messageContext.Factory = template.Factory;
+
+            // create the channel object used to connect to the server.
+            ITransportChannel channel = SessionChannel.Create(
+                template.m_configuration,
+                connection,
+                template.m_endpoint.Description,
+                template.m_endpoint.Configuration,
+=======
+>>>>>>> 0641bfb846daba4d4386fc89c5fc9e4b765a12a4
                 template.m_instanceCertificate,
                 template.m_configuration.SecurityConfiguration.SendCertificateChain ?
                     template.m_instanceCertificateChain : null,
@@ -1094,12 +1350,47 @@ namespace Opc.Ua.Client
                 template.m_endpoint.Description,
                 template.m_endpoint.Configuration,
                 template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
+                template.m_configuration.SecurityConfiguration.SendCertificateChain ? 
                     template.m_instanceCertificateChain : null,
                 messageContext);
 
             // create the session object.
             Session session = new Session(channel, template, true);
+
+            try
+            {
+                // open the session.
+                session.Open(
+                    template.m_sessionName,
+                    (uint)template.m_sessionTimeout,
+                    template.m_identity,
+                    template.m_preferredLocales,
+                    template.m_checkDomain);
+
+                session.RecreateSubscriptions(template.Subscriptions);
+            }
+            catch (Exception e)
+            {
+                session.Dispose();
+                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
+            }
+
+            return session;
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template using the provided channel.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <param name="transportChannel">The waiting reverse connection.</param>
+        /// <returns>The new session object.</returns>
+        public static Session Recreate(Session template, ITransportChannel transportChannel)
+        {
+            var messageContext = template.m_configuration.CreateMessageContext();
+            messageContext.Factory = template.Factory;
+
+            // create the session object.
+            Session session = new Session(transportChannel, template, true);
 
             try
             {
@@ -1501,6 +1792,57 @@ namespace Opc.Ua.Client
             else
             {
                 m_serverUris.Update((string[])values[1].Value);
+            } 
+        }
+
+        /// <summary>
+        /// Fetch the operation limits of the server.
+        /// </summary>
+        public void FetchOperationLimits()
+        {
+            try
+            {
+                var operationLimitsProperties = typeof(OperationLimits)
+                    .GetProperties().Select(p => p.Name).ToList();
+
+                var nodeIds = new NodeIdCollection(
+                    operationLimitsProperties.Select(name => (NodeId)typeof(VariableIds)
+                    .GetField("Server_ServerCapabilities_OperationLimits_" + name, BindingFlags.Public | BindingFlags.Static)
+                    .GetValue(null))
+                    );
+
+                ReadValues(nodeIds, Enumerable.Repeat(typeof(uint), nodeIds.Count).ToList(), out var values, out var errors);
+
+                var configOperationLimits = m_configuration?.ClientConfiguration?.OperationLimits ?? new OperationLimits();
+                var operationLimits = new OperationLimits();
+
+                for (int ii = 0; ii < nodeIds.Count; ii++)
+                {
+                    var property = typeof(OperationLimits).GetProperty(operationLimitsProperties[ii]);
+                    uint value = (uint)property.GetValue(configOperationLimits);
+                    if (values[ii] != null &&
+                        ServiceResult.IsNotBad(errors[ii]))
+                    {
+                        uint serverValue = (uint)values[ii];
+                        if (serverValue > 0 &&
+                           (value == 0 || serverValue < value))
+                        {
+                            value = serverValue;
+                        }
+                    }
+                    property.SetValue(operationLimits, value);
+                }
+
+                OperationLimits = operationLimits;
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Failed to read operation limits from server. Using configuration defaults.");
+                var operationLimits = m_configuration?.ClientConfiguration?.OperationLimits;
+                if (operationLimits != null)
+                {
+                    OperationLimits = operationLimits;
+                }
             }
         }
 
@@ -1738,7 +2080,7 @@ namespace Opc.Ua.Client
             NodeId dictionaryId = ExpandedNodeId.ToNodeId(dictionaryNode.NodeId, m_namespaceUris);
             if (!forceReload &&
                 m_dictionaries.TryGetValue(dictionaryId, out dictionary))
-            {
+            { 
                 return dictionary;
             }
 
@@ -2047,6 +2389,473 @@ namespace Opc.Ua.Client
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
+<<<<<<< HEAD
+=======
+            // process results.
+            int? nodeClass = null;
+
+            for (int ii = 0; ii < itemsToRead.Count; ii++)
+            {
+                uint attributeId = itemsToRead[ii].AttributeId;
+
+                // the node probably does not exist if the node class is not found.
+                if (attributeId == Attributes.NodeClass)
+                {
+                    if (!DataValue.IsGood(values[ii]))
+                    {
+                        throw ServiceResultException.Create(values[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable);
+                    }
+
+                    // check for valid node class.
+                    nodeClass = values[ii].Value as int?;
+
+                    if (nodeClass == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Node does not have a valid value for NodeClass: {0}.", values[ii].Value);
+                    }
+                }
+                else
+                {
+                    if (!DataValue.IsGood(values[ii]))
+                    {
+                        // check for unsupported attributes.
+                        if (values[ii].StatusCode == StatusCodes.BadAttributeIdInvalid)
+                        {
+                            continue;
+                        }
+
+                        // ignore errors on optional attributes 
+                        if (StatusCode.IsBad(values[ii].StatusCode))
+                        {
+                            if (attributeId == Attributes.AccessRestrictions ||
+                                attributeId == Attributes.Description ||
+                                attributeId == Attributes.RolePermissions ||
+                                attributeId == Attributes.UserRolePermissions ||
+                                attributeId == Attributes.UserWriteMask ||
+                                attributeId == Attributes.WriteMask)
+                            {
+                                continue;
+                            }
+                        }
+
+                        // all supported attributes must be readable.
+                        if (attributeId != Attributes.Value)
+                        {
+                            throw ServiceResultException.Create(values[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable);
+                        }
+                    }
+                }
+
+            // find namespace properties
+            var namespaceNodes = this.NodeCache.FindReferences(referenceNodeIds, new NodeIdCollection { ReferenceTypeIds.HasProperty }, false, false)
+                .Where(n => n.BrowseName == BrowseNames.NamespaceUri).ToList();
+            var namespaceNodeIds = namespaceNodes.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, this.NamespaceUris)).ToList();
+
+            // read all schema definitions
+            var referenceExpandedNodeIds = references
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, this.NamespaceUris))
+                .Where(n => n.NamespaceIndex != 0).ToList();
+            IDictionary<NodeId, byte[]> schemas = await DataDictionary.ReadDictionaries(this, referenceExpandedNodeIds).ConfigureAwait(false);
+
+            switch ((NodeClass)nodeClass.Value)
+            {
+                default:
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Node does not have a valid value for NodeClass: {0}.", nodeClass.Value);
+                }
+
+                case NodeClass.Object:
+                {
+                    ObjectNode objectNode = new ObjectNode();
+
+                    value = attributes[Attributes.EventNotifier];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Object does not support the EventNotifier attribute.");
+                    }
+
+                    objectNode.EventNotifier = (byte)attributes[Attributes.EventNotifier].GetValue(typeof(byte));
+                    node = objectNode;
+                    break;
+                }
+
+                case NodeClass.ObjectType:
+                {
+                    ObjectTypeNode objectTypeNode = new ObjectTypeNode();
+
+                    value = attributes[Attributes.IsAbstract];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ObjectType does not support the IsAbstract attribute.");
+                    }
+
+                    objectTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
+                    node = objectTypeNode;
+                    break;
+                }
+
+                case NodeClass.Variable:
+                {
+                    VariableNode variableNode = new VariableNode();
+
+                    // DataType Attribute
+                    value = attributes[Attributes.DataType];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the DataType attribute.");
+                    }
+
+                    variableNode.DataType = (NodeId)attributes[Attributes.DataType].GetValue(typeof(NodeId));
+
+                    // ValueRank Attribute
+                    value = attributes[Attributes.ValueRank];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the ValueRank attribute.");
+                    }
+
+                    variableNode.ValueRank = (int)attributes[Attributes.ValueRank].GetValue(typeof(int));
+
+                    // ArrayDimensions Attribute
+                    value = attributes[Attributes.ArrayDimensions];
+
+                    if (value != null)
+                    {
+                        if (value.Value == null)
+                        {
+                            variableNode.ArrayDimensions = new uint[0];
+                        }
+                        else
+                        {
+                            variableNode.ArrayDimensions = (uint[])value.GetValue(typeof(uint[]));
+                        }
+                    }
+
+                    // AccessLevel Attribute
+                    value = attributes[Attributes.AccessLevel];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the AccessLevel attribute.");
+                    }
+
+                    variableNode.AccessLevel = (byte)attributes[Attributes.AccessLevel].GetValue(typeof(byte));
+
+                    // UserAccessLevel Attribute
+                    value = attributes[Attributes.UserAccessLevel];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the UserAccessLevel attribute.");
+                    }
+
+                    variableNode.UserAccessLevel = (byte)attributes[Attributes.UserAccessLevel].GetValue(typeof(byte));
+
+                    // Historizing Attribute
+                    value = attributes[Attributes.Historizing];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the Historizing attribute.");
+                    }
+
+                    variableNode.Historizing = (bool)attributes[Attributes.Historizing].GetValue(typeof(bool));
+
+                    // MinimumSamplingInterval Attribute
+                    value = attributes[Attributes.MinimumSamplingInterval];
+
+                    if (value != null)
+                    {
+                        variableNode.MinimumSamplingInterval = Convert.ToDouble(attributes[Attributes.MinimumSamplingInterval].Value);
+                    }
+
+                    // AccessLevelEx Attribute
+                    value = attributes[Attributes.AccessLevelEx];
+
+                    if (value != null)
+                    {
+                        variableNode.AccessLevelEx = (uint)attributes[Attributes.AccessLevelEx].GetValue(typeof(uint));
+                    }
+
+                    node = variableNode;
+                    break;
+                }
+
+                case NodeClass.VariableType:
+                {
+                    VariableTypeNode variableTypeNode = new VariableTypeNode();
+
+                    // IsAbstract Attribute
+                    value = attributes[Attributes.IsAbstract];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the IsAbstract attribute.");
+                    }
+
+                    variableTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
+
+                    // DataType Attribute
+                    value = attributes[Attributes.DataType];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the DataType attribute.");
+                    }
+
+                    variableTypeNode.DataType = (NodeId)attributes[Attributes.DataType].GetValue(typeof(NodeId));
+
+                    // ValueRank Attribute
+                    value = attributes[Attributes.ValueRank];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the ValueRank attribute.");
+                    }
+
+                    variableTypeNode.ValueRank = (int)attributes[Attributes.ValueRank].GetValue(typeof(int));
+
+                    // ArrayDimensions Attribute
+                    value = attributes[Attributes.ArrayDimensions];
+
+                    if (value != null && value.Value != null)
+                    {
+                        variableTypeNode.ArrayDimensions = (uint[])attributes[Attributes.ArrayDimensions].GetValue(typeof(uint[]));
+                    }
+
+                    node = variableTypeNode;
+                    break;
+                }
+
+                case NodeClass.Method:
+                {
+                    MethodNode methodNode = new MethodNode();
+
+                    // Executable Attribute
+                    value = attributes[Attributes.Executable];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the Executable attribute.");
+                    }
+
+                    methodNode.Executable = (bool)attributes[Attributes.Executable].GetValue(typeof(bool));
+
+                    // UserExecutable Attribute
+                    value = attributes[Attributes.UserExecutable];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the UserExecutable attribute.");
+                    }
+
+                    methodNode.UserExecutable = (bool)attributes[Attributes.UserExecutable].GetValue(typeof(bool));
+
+                    node = methodNode;
+                    break;
+                }
+
+                case NodeClass.DataType:
+                {
+                    DataTypeNode dataTypeNode = new DataTypeNode();
+
+                    // IsAbstract Attribute
+                    value = attributes[Attributes.IsAbstract];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "DataType does not support the IsAbstract attribute.");
+                    }
+
+                    dataTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
+
+                    // DataTypeDefinition Attribute
+                    value = attributes[Attributes.DataTypeDefinition];
+
+                    if (value != null)
+                    {
+                        dataTypeNode.DataTypeDefinition = value.Value as ExtensionObject;
+                    }
+
+                    node = dataTypeNode;
+                    break;
+                }
+
+                case NodeClass.ReferenceType:
+                {
+                    ReferenceTypeNode referenceTypeNode = new ReferenceTypeNode();
+
+                    // IsAbstract Attribute
+                    value = attributes[Attributes.IsAbstract];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the IsAbstract attribute.");
+                    }
+
+                    referenceTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
+
+                    // Symmetric Attribute
+                    value = attributes[Attributes.Symmetric];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the Symmetric attribute.");
+                    }
+
+                    referenceTypeNode.Symmetric = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
+
+                    // InverseName Attribute
+                    value = attributes[Attributes.InverseName];
+
+                    if (value != null && value.Value != null)
+                    {
+                        referenceTypeNode.InverseName = (LocalizedText)attributes[Attributes.InverseName].GetValue(typeof(LocalizedText));
+                    }
+
+                    node = referenceTypeNode;
+                    break;
+                }
+
+                case NodeClass.View:
+                {
+                    ViewNode viewNode = new ViewNode();
+
+                    // EventNotifier Attribute
+                    value = attributes[Attributes.EventNotifier];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the EventNotifier attribute.");
+                    }
+
+                    viewNode.EventNotifier = (byte)attributes[Attributes.EventNotifier].GetValue(typeof(byte));
+
+                    // ContainsNoLoops Attribute
+                    value = attributes[Attributes.ContainsNoLoops];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the ContainsNoLoops attribute.");
+                    }
+
+                    viewNode.ContainsNoLoops = (bool)attributes[Attributes.ContainsNoLoops].GetValue(typeof(bool));
+
+                    node = viewNode;
+                    break;
+                }
+            }
+
+            // NodeId Attribute
+            value = attributes[Attributes.NodeId];
+
+                ClientBase.ValidateResponse(nodeClassValues, itemsToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+            }
+            else
+            {
+                // for a single node read all attributes to skip the first service call
+                nodeClassValues = new DataValueCollection() {
+                    new DataValue(new Variant((int)NodeClass.Unspecified),
+                    statusCode: StatusCodes.Good)
+                    };
+            }
+
+            // second determine attributes to read per nodeclass
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(count);
+            var attributesToRead = new ReadValueIdCollection();
+
+            CreateAttributesReadNodesRequest(
+                responseHeader,
+                itemsToRead, nodeClassValues, diagnosticInfos,
+                attributesToRead, attributesPerNodeId,
+                nodeCollection, errors,
+                optionalAttributes);
+
+            if (attributesToRead.Count > 0)
+            {
+                responseHeader = Read(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    attributesToRead,
+                    out DataValueCollection values,
+                    out diagnosticInfos);
+
+            // all optional attributes follow
+
+            // Description Attribute
+            if (attributes.TryGetValue(Attributes.Description, out value) &&
+                value != null && value.Value != null)
+            {
+                node.Description = (LocalizedText)value.GetValue(typeof(LocalizedText));
+            }
+
+            // WriteMask Attribute
+            if (attributes.TryGetValue(Attributes.WriteMask, out value) &&
+                value != null)
+            {
+                node.WriteMask = (uint)value.GetValue(typeof(uint));
+            }
+
+            // UserWriteMask Attribute
+            if (attributes.TryGetValue(Attributes.UserWriteMask, out value) &&
+                value != null)
+            {
+                node.UserWriteMask = (uint)value.GetValue(typeof(uint));
+            }
+
+            // RolePermissions Attribute
+            if (attributes.TryGetValue(Attributes.RolePermissions, out value) &&
+                value != null)
+            {
+                ExtensionObject[] rolePermissions = value.Value as ExtensionObject[];
+
+                if (rolePermissions != null)
+                {
+                    node.RolePermissions = new RolePermissionTypeCollection();
+
+            // build list of values to read.
+            ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
+            foreach (uint attributeId in attributes.Keys)
+            {
+                ReadValueId itemToRead = new ReadValueId {
+                    NodeId = nodeId,
+                    AttributeId = attributeId
+                };
+                itemsToRead.Add(itemToRead);
+            }
+
+            // UserRolePermissions Attribute
+            if (attributes.TryGetValue(Attributes.UserRolePermissions, out value) &&
+                value != null)
+            {
+                ExtensionObject[] userRolePermissions = value.Value as ExtensionObject[];
+
+                if (userRolePermissions != null)
+                {
+                    node.UserRolePermissions = new RolePermissionTypeCollection();
+
+            ResponseHeader responseHeader = Read(
+                null,
+                0,
+                TimestampsToReturn.Neither,
+                itemsToRead,
+                out values,
+                out diagnosticInfos);
+
+            // AccessRestrictions Attribute
+            if (attributes.TryGetValue(Attributes.AccessRestrictions, out value) &&
+                value != null)
+            {
+                node.AccessRestrictions = (ushort)value.GetValue(typeof(ushort));
+            }
+
+>>>>>>> 0641bfb846daba4d4386fc89c5fc9e4b765a12a4
             return ProcessReadResponse(responseHeader, attributes, itemsToRead, values, diagnosticInfos);
         }
 
@@ -2528,9 +3337,7 @@ namespace Opc.Ua.Client
             try
             {
                 // verify that the server returned the same instance certificate.
-                if (serverCertificateData != null &&
-                    m_endpoint.Description.ServerCertificate != null &&
-                    !Utils.IsEqual(serverCertificateData, m_endpoint.Description.ServerCertificate))
+                if (serverCertificateData != null && !Utils.IsEqual(serverCertificateData, m_endpoint.Description.ServerCertificate))
                 {
                     try
                     {
@@ -2732,13 +3539,6 @@ namespace Opc.Ua.Client
                     securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
                 }
 
-                byte[] previousServerNonce = null;
-
-                if (TransportChannel.CurrentToken != null)
-                {
-                    previousServerNonce = TransportChannel.CurrentToken.ServerNonce;
-                }
-
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
                     identity,
@@ -2798,7 +3598,6 @@ namespace Opc.Ua.Client
                     // save nonces.
                     m_sessionName = sessionName;
                     m_identity = identity;
-                    m_previousServerNonce = previousServerNonce;
                     m_serverNonce = serverNonce;
                     m_serverCertificate = serverCertificate;
 
@@ -2814,7 +3613,7 @@ namespace Opc.Ua.Client
                 // start keep alive thread.
                 StartKeepAliveTimer();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 try
                 {
@@ -2830,7 +3629,7 @@ namespace Opc.Ua.Client
                     SessionCreated(null, null);
                 }
 
-                throw;
+                throw ex;
             }
         }
 
@@ -2876,7 +3675,7 @@ namespace Opc.Ua.Client
             string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
 
             // create the client signature.
-            byte[] dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, serverNonce);
+            byte[]  dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, serverNonce);
             SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
 
             // choose a default token.
@@ -2953,7 +3752,6 @@ namespace Opc.Ua.Client
                     m_identity = identity;
                 }
 
-                m_previousServerNonce = m_serverNonce;
                 m_serverNonce = serverNonce;
                 m_preferredLocales = preferredLocales;
 
@@ -3342,7 +4140,7 @@ namespace Opc.Ua.Client
         /// <param name="subscription">The subscription to add.</param>
         public bool AddSubscription(Subscription subscription)
         {
-            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
+            if (subscription == null) throw new ArgumentNullException("subscription");
 
             lock (SyncRoot)
             {
@@ -3369,7 +4167,7 @@ namespace Opc.Ua.Client
         /// <param name="subscription">The subscription to remove.</param>
         public bool RemoveSubscription(Subscription subscription)
         {
-            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
+            if (subscription == null) throw new ArgumentNullException("subscription");
 
             if (subscription.Created)
             {
@@ -3400,7 +4198,7 @@ namespace Opc.Ua.Client
         /// <param name="subscriptions">The list of subscriptions to remove.</param>
         public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
         {
-            if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
+            if (subscriptions == null) throw new ArgumentNullException("subscriptions");
 
             List<Subscription> subscriptionsToDelete = new List<Subscription>();
             bool removed = PrepareSubscriptionsToDelete(subscriptions, subscriptionsToDelete);
@@ -5286,8 +6084,9 @@ namespace Opc.Ua.Client
             {
                 ServiceResult error = new ServiceResult(e);
 
-                bool result = true;
-                switch (error.StatusCode.Code)
+                bool result = (error.StatusCode == StatusCodes.BadMessageNotAvailable);
+
+                if (result)
                 {
                     case StatusCodes.BadMessageNotAvailable:
                         Utils.LogWarning("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
@@ -5485,7 +6284,8 @@ namespace Opc.Ua.Client
 
                     if (m_Publish != null)
                     {
-                        Task.Run(() => {
+                        Task.Run(() =>
+                        {
                             OnRaisePublishNotification(args);
                         });
                     }
@@ -5642,7 +6442,33 @@ namespace Opc.Ua.Client
                     clientCertificateChain.Add(issuers[i].Certificate);
                 }
             }
-            return clientCertificateChain;
+        }
+
+        /// <summary>
+        /// Helper to determine if a continuation point needs to be processed.
+        /// </summary>
+        private bool HasAnyContinuationPoint(ByteStringCollection continuationPoints)
+        {
+            foreach (byte[] cp in continuationPoints)
+            {
+                if (cp != null)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true if the Bad_TooManyPublishRequests limit
+        /// has not been reached.
+        /// </summary>
+        /// <param name="requestCount">The actual number of publish requests.</param>
+        /// <returns>If the publish request limit was reached.</returns>
+        private bool BelowPublishRequestLimit(int requestCount)
+        {
+            return (m_tooManyPublishRequests == 0) ||
+                (requestCount < m_tooManyPublishRequests);
         }
 
         /// <summary>
@@ -5720,6 +6546,53 @@ namespace Opc.Ua.Client
         protected IUserIdentity m_identity;
         #endregion
 
+        #region Protected Fields
+        /// <summary>
+        /// The period for which the server will maintain the session if there is no communication from the client.
+        /// </summary>
+        protected double m_sessionTimeout;
+
+        /// <summary>
+        /// The locales that the server should use when returning localized text.
+        /// </summary>
+        protected StringCollection m_preferredLocales;
+
+        /// <summary>
+        /// The Application Configuration.
+        /// </summary>
+        protected ApplicationConfiguration m_configuration;
+
+        /// <summary>
+        /// The endpoint used to connect to the server.
+        /// </summary>
+        protected ConfiguredEndpoint m_endpoint;
+
+        /// <summary>
+        /// The Instance Certificate.
+        /// </summary>
+        protected X509Certificate2 m_instanceCertificate;
+
+        /// <summary>
+        /// The Instance Certificate Chain.
+        /// </summary>
+        protected X509Certificate2Collection m_instanceCertificateChain;
+
+        /// <summary>
+        /// If set to<c>true</c> then the domain in the certificate must match the endpoint used.
+        /// </summary>
+        protected bool m_checkDomain;
+
+        /// <summary>
+        /// The name assigned to the session.
+        /// </summary>
+        protected string m_sessionName;
+
+        /// <summary>
+        /// The user identity currently used for the session.
+        /// </summary>
+        protected IUserIdentity m_identity;
+        #endregion
+
         #region Private Fields
         private ISessionFactory m_sessionFactory;
         private SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
@@ -5738,7 +6611,6 @@ namespace Opc.Ua.Client
         private List<IUserIdentity> m_identityHistory;
         private object m_handle;
         private byte[] m_serverNonce;
-        private byte[] m_previousServerNonce;
         private X509Certificate2 m_serverCertificate;
         private long m_publishCounter;
         private int m_tooManyPublishRequests;
@@ -5796,17 +6668,26 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
-        public ServiceResult Status => m_status;
+        public ServiceResult Status
+        {
+            get { return m_status; }
+        }
 
         /// <summary>
         /// Gets the current server state.
         /// </summary>
-        public ServerState CurrentState => m_currentState;
+        public ServerState CurrentState
+        {
+            get { return m_currentState; }
+        }
 
         /// <summary>
         /// Gets the current server time.
         /// </summary>
-        public DateTime CurrentTime => m_currentTime;
+        public DateTime CurrentTime
+        {
+            get { return m_currentTime; }
+        }
 
         /// <summary>
         /// Gets or sets a flag indicating whether the session should send another keep alive.
@@ -5852,17 +6733,26 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the subscription that the notification applies to.
         /// </summary>
-        public Subscription Subscription => m_subscription;
+        public Subscription Subscription
+        {
+            get { return m_subscription; }
+        }
 
         /// <summary>
         /// Gets the notification message.
         /// </summary>
-        public NotificationMessage NotificationMessage => m_notificationMessage;
+        public NotificationMessage NotificationMessage
+        {
+            get { return m_notificationMessage; }
+        }
 
         /// <summary>
         /// Gets the string table returned with the notification message.
         /// </summary>
-        public IList<string> StringTable => m_stringTable;
+        public IList<string> StringTable
+        {
+            get { return m_stringTable; }
+        }
         #endregion
 
         #region Private Fields
@@ -5903,17 +6793,26 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
-        public ServiceResult Status => m_status;
+        public ServiceResult Status
+        {
+            get { return m_status; }
+        }
 
         /// <summary>
         /// Gets the subscription with the message that could not be republished.
         /// </summary>
-        public uint SubscriptionId => m_subscriptionId;
+        public uint SubscriptionId
+        {
+            get { return m_subscriptionId; }
+        }
 
         /// <summary>
         /// Gets the sequence number for the message that could not be republished.
         /// </summary>
-        public uint SequenceNumber => m_sequenceNumber;
+        public uint SequenceNumber
+        {
+            get { return m_sequenceNumber; }
+        }
         #endregion
 
         #region Private Fields

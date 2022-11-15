@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,28 +27,50 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-<<<<<<<< HEAD:Applications/Quickstarts.Servers/ReferenceServer/Namespaces.cs
-namespace Quickstarts.ReferenceServer
-========
 using System;
+using System.ServiceModel;
+using System.Runtime.Serialization;
 using System.Collections.Generic;
-using System.Text;
+using Opc.Ua.Server;
 
-namespace AggregatingServer.Servers
->>>>>>>> 0641bfb846daba4d4386fc89c5fc9e4b765a12a4:SampleApplications/Workshop/AggregatingServer/Namespaces.cs
+namespace Quickstarts.WeightScale.Server
 {
     /// <summary>
-    /// Defines constants for namespaces used by the servers.
+    /// Stores the configuration the data access node manager.
     /// </summary>
-    public static partial class Namespaces
+    [DataContract(Namespace=Opc.Ua.Di.Namespaces.OpcUaDi)]
+    public class WeightScaleServerConfiguration
     {
+        #region Constructors
         /// <summary>
-        /// The namespace for the nodes provided by the reference server.
+        /// The default constructor.
         /// </summary>
-<<<<<<<< HEAD:Applications/Quickstarts.Servers/ReferenceServer/Namespaces.cs
-        public const string ReferenceServer = "http://opcfoundation.org/Quickstarts/ReferenceServer";
-========
-        public const string AggregatingServer = "http://phi-ware.com/AggregatingServer";
->>>>>>>> 0641bfb846daba4d4386fc89c5fc9e4b765a12a4:SampleApplications/Workshop/AggregatingServer/Namespaces.cs
+        public WeightScaleServerConfiguration()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        [OnDeserializing()]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Private Members
+        #endregion
     }
 }

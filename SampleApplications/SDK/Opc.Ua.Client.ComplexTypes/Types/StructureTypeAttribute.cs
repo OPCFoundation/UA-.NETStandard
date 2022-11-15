@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,28 +27,22 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-<<<<<<<< HEAD:Applications/Quickstarts.Servers/ReferenceServer/Namespaces.cs
-namespace Quickstarts.ReferenceServer
-========
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace AggregatingServer.Servers
->>>>>>>> 0641bfb846daba4d4386fc89c5fc9e4b765a12a4:SampleApplications/Workshop/AggregatingServer/Namespaces.cs
+using System;
+
+namespace Opc.Ua.Client.ComplexTypes
 {
+
     /// <summary>
-    /// Defines constants for namespaces used by the servers.
+    /// Attribute for type ids of a structure definition.
     /// </summary>
-    public static partial class Namespaces
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+    public class StructureTypeIdAttribute : Attribute
     {
-        /// <summary>
-        /// The namespace for the nodes provided by the reference server.
-        /// </summary>
-<<<<<<<< HEAD:Applications/Quickstarts.Servers/ReferenceServer/Namespaces.cs
-        public const string ReferenceServer = "http://opcfoundation.org/Quickstarts/ReferenceServer";
-========
-        public const string AggregatingServer = "http://phi-ware.com/AggregatingServer";
->>>>>>>> 0641bfb846daba4d4386fc89c5fc9e4b765a12a4:SampleApplications/Workshop/AggregatingServer/Namespaces.cs
+        #region  Public Properties
+        public string ComplexTypeId { get; set; }
+        public string BinaryEncodingId { get; set; }
+        public string XmlEncodingId { get; set; }
+        #endregion
     }
-}
+}//namespace
