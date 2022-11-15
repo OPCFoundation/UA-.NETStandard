@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,77 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Runtime.Serialization;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
-    /// <summary>
-    /// Attribute for a complex type property.
-    /// </summary>
-    public class ComplexTypePropertyAttribute
-    {
-        public readonly PropertyInfo PropertyInfo;
-        public readonly StructureFieldAttribute FieldAttribute;
-        public readonly DataMemberAttribute DataAttribute;
-
-        public ComplexTypePropertyAttribute(
-            PropertyInfo propertyInfo,
-            StructureFieldAttribute fieldAttribute,
-            DataMemberAttribute dataAttribute
-            )
-        {
-            PropertyInfo = propertyInfo;
-            FieldAttribute = fieldAttribute;
-            DataAttribute = dataAttribute;
-        }
-
-        /// <summary>
-        /// PropertyInfo
-        /// </summary>
-        public string Name => PropertyInfo.Name;
-
-        /// <summary>
-        /// Get the value of a property.
-        /// </summary>
-        public object GetValue(object o)
-        {
-            return PropertyInfo.GetValue(o);
-        }
-
-        /// <summary>
-        /// Set the value of a property.
-        /// </summary>
-        public void SetValue(object o, object v)
-        {
-            PropertyInfo.SetValue(o, v);
-        }
-
-        /// <summary>
-        /// Type of property.
-        /// </summary>
-        public Type PropertyType => PropertyInfo.PropertyType;
-
-        /// <summary>
-        /// StructureFieldAttribute
-        /// </summary>
-        public bool IsOptional => FieldAttribute.IsOptional;
-        public int ValueRank => FieldAttribute.ValueRank;
-
-        /// <summary>
-        /// DataMemberAttribute
-        /// </summary>
-        public int Order => DataAttribute.Order;
-
-        /// <summary>
-        /// Optional field mask of the property.
-        /// </summary>
-        public UInt32 OptionalFieldMask;
-    }
-
     /// <summary>
     /// Interface to access properties of a complex type.
     /// </summary>
@@ -131,9 +65,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Ordered enumerator for properties.
         /// </summary>
-        IEnumerable<ComplexTypePropertyAttribute> GetPropertyEnumerator();
-
+        IEnumerable<ComplexTypePropertyInfo> GetPropertyEnumerator();
     }
-
-
 }//namespace

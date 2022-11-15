@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -11,57 +11,19 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Xml;
-using System.ServiceModel;
-using System.Runtime.Serialization;
-using Opc.Ua.Bindings;
-using System.ServiceModel.Description;
-using System.ServiceModel.Channels;
 
 namespace Opc.Ua
 {
     /// <summary>
 	/// The base interface for client proxies.
 	/// </summary>
-    [ServiceContract(Namespace = Namespaces.OpcUaWsdl)]
     public interface IChannelBase
     {
-        /// <summary>
-        /// Gets the endpoint that the channel is connected to.
-        /// </summary>
-        [Obsolete("Should use the ITransportChannel interface to access these values.")]
-        EndpointDescription EndpointDescription { get; }
-
-        /// <summary>
-        /// Gets the endpoint configuration used when the channel was connected.
-        /// </summary>
-        [Obsolete("Should use the ITransportChannel interface to access these values.")]
-        EndpointConfiguration EndpointConfiguration { get; }
-
-        /// <summary>
-        /// Gets the message context to use with the service.
-        /// </summary>
-        [Obsolete("Should use the ITransportChannel interface to access these values.")]
-        ServiceMessageContext MessageContext { get; }
-
         /// <summary>
         /// Returns true if the channel uses the UA Binary encoding.
         /// </summary>
         bool UseBinaryEncoding { get; }
 
-        /// <summary>
-        /// Opens the channel with the server.
-        /// </summary>
-        [Obsolete("Should use the ITransportChannel interface to access this function.")]
-        void OpenChannel();
-
-        /// <summary>
-        /// Closes the channel with the server.
-        /// </summary>
-        [Obsolete("Should use the ITransportChannel interface to access this function.")]
-        void CloseChannel();
-        
         /// <summary>
         /// Schedules an outgoing request.
         /// </summary>
@@ -71,13 +33,11 @@ namespace Opc.Ua
         /// <summary>
         /// The operation contract for the InvokeService service.
         /// </summary>
-        [OperationContract(Action = Namespaces.OpcUaWsdl + "/InvokeService", ReplyAction = Namespaces.OpcUaWsdl + "/InvokeServiceResponse")]
         InvokeServiceResponseMessage InvokeService(InvokeServiceMessage request);
 
         /// <summary>
         /// The operation contract for the InvokeService service.
         /// </summary>
-        [OperationContractAttribute(AsyncPattern = true, Action = Namespaces.OpcUaWsdl + "/InvokeService", ReplyAction = Namespaces.OpcUaWsdl + "/InvokeServiceResponse")]
         IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState);
 
         /// <summary>

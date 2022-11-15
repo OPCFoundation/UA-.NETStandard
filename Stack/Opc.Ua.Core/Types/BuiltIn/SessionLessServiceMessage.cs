@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -14,15 +14,40 @@ using System;
 
 namespace Opc.Ua
 {
-
+    /// <summary>
+    /// A session-less service message.
+    /// </summary>
     public class SessionLessServiceMessage 
     {
+        /// <summary>
+        /// The VersionTime of the namespaces URIs on the server.
+        /// </summary>
+        public UInt32 UriVersion;
+
+        /// <summary>
+        /// The namespaces URIs referenced by the message.
+        /// </summary>
         public NamespaceTable NamespaceUris;
+
+        /// <summary>
+        /// The server URIs referenced by the message.
+        /// </summary>
         public StringTable ServerUris;
+
+        /// <summary>
+        /// The locale Ids referenced by the message.
+        /// </summary>
+        public StringTable LocaleIds;
+
+        /// <summary>
+        /// The message to encode or the decoded message.
+        /// </summary>
         public IEncodeable Message;
 
+        /// <inheritdoc cref="IEncodeable.Encode(IEncoder)" />
         public void Encode(IEncoder encoder)
         {
+            encoder.WriteUInt32("UriVersion", UriVersion);
             if (NamespaceUris != null && NamespaceUris.Count > 1)
             {
                 string[] uris = new string[NamespaceUris.Count - 1];
@@ -36,14 +61,14 @@ namespace Opc.Ua
             }
             else
             {
-                encoder.WriteStringArray("NamespaceUris", new string[0]);
+                encoder.WriteStringArray("NamespaceUris", Array.Empty<string>());
             }
 
             if (ServerUris != null && ServerUris.Count > 1)
             {
                 string[] uris = new string[ServerUris.Count - 1];
 
-                for (int ii = 1; ii < NamespaceUris.Count; ii++)
+                for (int ii = 1; ii < ServerUris.Count; ii++)
                 {
                     uris[ii - 1] = ServerUris.GetString((uint)ii);
                 }
@@ -52,7 +77,16 @@ namespace Opc.Ua
             }
             else
             {
-                encoder.WriteStringArray("ServerUris", new string[0]);
+                encoder.WriteStringArray("ServerUris", Array.Empty<string>());
+            }
+
+            if (LocaleIds != null && LocaleIds.Count > 1)
+            {
+                encoder.WriteStringArray("LocaleIds", LocaleIds.ToArray());
+            }
+            else
+            {
+                encoder.WriteStringArray("LocaleIds", Array.Empty<string>());
             }
 
             if (Message != null)
@@ -73,10 +107,12 @@ namespace Opc.Ua
             }
         }
 
+        /// <inheritdoc cref="IEncodeable.Decode(IDecoder)" />
         public void Decode(IDecoder decoder)
         {
-            NamespaceUris = new NamespaceTable();
+            UriVersion = decoder.ReadUInt32("UriVersion");
 
+            NamespaceUris = new NamespaceTable();
             var uris = decoder.ReadStringArray("NamespaceUris");
 
             if (uris != null && uris.Count > 0)
@@ -98,6 +134,16 @@ namespace Opc.Ua
                 }
             }
 
+            LocaleIds = new StringTable();
+            uris = decoder.ReadStringArray("LocaleIds");
+            if (uris != null && uris.Count > 0)
+            {
+                foreach (var uri in uris)
+                {
+                    LocaleIds.Append(uri);
+                }
+            }
+
             decoder.SetMappingTables(NamespaceUris, ServerUris);
 
             uint typeId = decoder.ReadUInt32("ServiceId");
@@ -115,5 +161,4 @@ namespace Opc.Ua
             }
         }
     }
-
 }//namespace

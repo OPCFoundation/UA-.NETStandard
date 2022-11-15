@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 
@@ -141,9 +142,9 @@ namespace Opc.Ua.Server
                 Server.CoreNodeManager.ImportNodes(SystemContext, PredefinedNodes.Values, true);
 
                 // hook up the server GetMonitoredItems method.
-                MethodState getMonitoredItems = (MethodState)FindPredefinedNode(
+                GetMonitoredItemsMethodState getMonitoredItems = (GetMonitoredItemsMethodState)FindPredefinedNode(
                     MethodIds.Server_GetMonitoredItems,
-                    typeof(MethodState));
+                    typeof(GetMonitoredItemsMethodState));
 
                 if (getMonitoredItems != null)
                 {
@@ -169,11 +170,86 @@ namespace Opc.Ua.Server
                         getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
                     }
                 }
+
+#if SUPPORT_DURABLE_SUBSCRIPTION
+                // hook up the server SetSubscriptionDurable method.
+                SetSubscriptionDurableMethodState setSubscriptionDurable= (SetSubscriptionDurableMethodState)FindPredefinedNode(
+                    MethodIds.Server_SetSubscriptionDurable,
+                    typeof(SetSubscriptionDurableMethodState));
+
+                if (setSubscriptionDurable != null)
+                {
+                    setSubscriptionDurable.OnCall = OnSetSubscriptionDurable;
+                }
+#else
+                // Subscription Durable mode not supported by the server.
+                ServerObjectState serverObject = (ServerObjectState)FindPredefinedNode(
+                    ObjectIds.Server,
+                    typeof(ServerObjectState));
+
+                if (serverObject != null)
+                {
+                    NodeState setSubscriptionDurableNode = serverObject.FindChild(
+                        SystemContext,
+                        BrowseNames.SetSubscriptionDurable);
+
+                    if (setSubscriptionDurableNode != null)
+                    {
+                        DeleteNode(SystemContext, MethodIds.Server_SetSubscriptionDurable);
+                        serverObject.SetSubscriptionDurable = null;
+                    }
+                }
+#endif
+
+                // hookup server ResendData method.
+
+                ResendDataMethodState resendData = (ResendDataMethodState)FindPredefinedNode(
+                    MethodIds.Server_ResendData,
+                    typeof(ResendDataMethodState));
+
+                if (resendData != null)
+                {
+                    resendData.OnCallMethod = OnResendData;
+                }
             }
         }
 
         /// <summary>
-        /// Called when a client locks the server.
+        /// Called when a client sets a subscription as durable.
+        /// </summary>
+
+        public ServiceResult OnSetSubscriptionDurable(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint subscriptionId,
+            uint lifetimeInHours,
+            ref uint revisedLifetimeInHours)
+        {
+            revisedLifetimeInHours = 0;
+
+            foreach (Subscription subscription in Server.SubscriptionManager.GetSubscriptions())
+            {
+                if (subscription.Id == subscriptionId)
+                {
+                    if (subscription.SessionId != context.SessionId)
+                    {
+                        // user tries to access subscription of different session
+                        return StatusCodes.BadUserAccessDenied;
+                    }
+
+                    ServiceResult result = subscription.SetSubscriptionDurable(lifetimeInHours, out uint revisedLifeTimeHours);
+
+                    revisedLifetimeInHours = revisedLifeTimeHours;
+                    return result;
+                }
+            }
+
+            return StatusCodes.BadSubscriptionIdInvalid;
+        }
+
+        /// <summary>
+        /// Called when a client gets the monitored items of a subscription.
         /// </summary>
         public ServiceResult OnGetMonitoredItems(
             ISystemContext context,
@@ -210,6 +286,46 @@ namespace Opc.Ua.Server
 
                     outputArguments[0] = serverHandles;
                     outputArguments[1] = clientHandles;
+
+                    return ServiceResult.Good;
+                }
+            }
+
+            return StatusCodes.BadSubscriptionIdInvalid;
+        }
+
+        /// <summary>
+        /// Called when a client initiates resending of all data monitored items in a Subscription.
+        /// </summary>
+        public ServiceResult OnResendData(
+            ISystemContext context,
+            MethodState method,
+            IList<object> inputArguments,
+            IList<object> outputArguments)
+        {
+            if (inputArguments == null || inputArguments.Count != 1)
+            {
+                return StatusCodes.BadInvalidArgument;
+            }
+
+            uint? subscriptionId = inputArguments[0] as uint?;
+
+            if (subscriptionId == null)
+            {
+                return StatusCodes.BadInvalidArgument;
+            }
+
+            foreach (Subscription subscription in Server.SubscriptionManager.GetSubscriptions())
+            {
+                if (subscription.Id == subscriptionId)
+                {
+                    if (subscription.SessionId != context.SessionId)
+                    {
+                        // user tries to access subscription of different session
+                        return StatusCodes.BadUserAccessDenied;
+                    }
+
+                    subscription.ResendData((OperationContext)((SystemContext)context)?.OperationContext);
 
                     return ServiceResult.Good;
                 }
@@ -308,6 +424,22 @@ namespace Opc.Ua.Server
 
                     return activeNode;
                 }
+                else if (passiveMethod.NodeId == MethodIds.ConditionType_ConditionRefresh2)
+                {
+                    ConditionRefresh2MethodState activeNode = new ConditionRefresh2MethodState(passiveMethod.Parent);
+                    activeNode.Create(context, passiveMethod);
+
+                    // replace the node in the parent.
+                    if (passiveMethod.Parent != null)
+                    {
+                        passiveMethod.Parent.ReplaceChild(context, activeNode);
+                    }
+
+                    activeNode.OnCall = OnConditionRefresh2;
+
+                    return activeNode;
+                }
+
 
                 return predefinedNode;
             }
@@ -343,6 +475,24 @@ namespace Opc.Ua.Server
                     return activeNode;
                 }
 
+                case ObjectTypes.HistoryServerCapabilitiesType:
+                {
+                    if (passiveNode is HistoryServerCapabilitiesState)
+                    {
+                        break;
+                    }
+
+                    HistoryServerCapabilitiesState activeNode = new HistoryServerCapabilitiesState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+
+                    // replace the node in the parent.
+                    if (passiveNode.Parent != null)
+                    {
+                        passiveNode.Parent.ReplaceChild(context, activeNode);
+                    }
+
+                    return activeNode;
+                }
             }
 
             return predefinedNode;
@@ -365,6 +515,28 @@ namespace Opc.Ua.Server
             }
 
             Server.ConditionRefresh(systemContext.OperationContext, subscriptionId);
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Handles a request to refresh conditions for a subscription and specific monitored item.
+        /// </summary>
+        private ServiceResult OnConditionRefresh2(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint subscriptionId,
+            uint monitoredItemId)
+        {
+            ServerSystemContext systemContext = context as ServerSystemContext;
+
+            if (systemContext == null)
+            {
+                systemContext = this.SystemContext;
+            }
+
+            Server.ConditionRefresh2(systemContext.OperationContext, subscriptionId, monitoredItemId);
 
             return ServiceResult.Good;
         }
@@ -573,6 +745,8 @@ namespace Opc.Ua.Server
                 diagnosticsValue.Error = StatusCodes.BadWaitingForInitialData;
                 diagnosticsValue.CopyPolicy = Opc.Ua.VariableCopyPolicy.Never;
                 diagnosticsValue.OnBeforeRead = OnBeforeReadDiagnostics;
+                // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
+                diagnosticsNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
 
                 m_serverDiagnostics = diagnosticsValue;
                 m_serverDiagnosticsCallback = updateCallback;
@@ -605,6 +779,8 @@ namespace Opc.Ua.Server
                 if (array3 != null)
                 {
                     array3.OnSimpleReadValue = OnReadDiagnosticsArray;
+                    // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
+                    array3.OnReadUserRolePermissions = OnReadUserRolePermissions;
                 }
 
                 // send initial update.
@@ -660,6 +836,9 @@ namespace Opc.Ua.Server
                 {
                     summary.AddReference(ReferenceTypeIds.HasComponent, false, sessionNode.NodeId);
                 }
+
+                // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
+                sessionNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
 
                 // initialize diagnostics node.
                 SessionDiagnosticsVariableState diagnosticsNode = sessionNode.CreateChild(
@@ -864,40 +1043,49 @@ namespace Opc.Ua.Server
                     return m_historyCapabilities;
                 }
 
-                HistoryServerCapabilitiesState state = new HistoryServerCapabilitiesState(null);
+                // search the Node in PredefinedNodes.
+                HistoryServerCapabilitiesState historyServerCapabilitiesNode = (HistoryServerCapabilitiesState)FindPredefinedNode(
+                    ObjectIds.HistoryServerCapabilities,
+                    typeof(HistoryServerCapabilitiesState));
 
-                NodeId nodeId = CreateNode(
-                    SystemContext,
-                    null,
-                    ReferenceTypeIds.HasComponent,
-                    new QualifiedName(BrowseNames.HistoryServerCapabilities),
-                    state);
-
-                state.AccessHistoryDataCapability.Value = false;
-                state.AccessHistoryEventsCapability.Value = false;
-                state.MaxReturnDataValues.Value = 0;
-                state.MaxReturnEventValues.Value = 0;
-                state.ReplaceDataCapability.Value = false;
-                state.UpdateDataCapability.Value = false;
-                state.InsertEventCapability.Value = false;
-                state.ReplaceEventCapability.Value = false;
-                state.UpdateEventCapability.Value = false;
-                state.InsertAnnotationCapability.Value = false;
-                state.InsertDataCapability.Value = false;
-                state.DeleteRawCapability.Value = false;
-                state.DeleteAtTimeCapability.Value = false;
-
-                NodeState parent = FindPredefinedNode(ObjectIds.Server_ServerCapabilities, typeof(ServerCapabilitiesState));
-
-                if (parent != null)
+                if (historyServerCapabilitiesNode == null)
                 {
-                    parent.AddReference(ReferenceTypes.HasComponent, false, state.NodeId);
-                    state.AddReference(ReferenceTypes.HasComponent, true, parent.NodeId);
+                    // create new node if not found.
+                    historyServerCapabilitiesNode = new HistoryServerCapabilitiesState(null);
+
+                    NodeId nodeId = CreateNode(
+                        SystemContext,
+                        null,
+                        ReferenceTypeIds.HasComponent,
+                        new QualifiedName(BrowseNames.HistoryServerCapabilities),
+                        historyServerCapabilitiesNode);
+
+                    historyServerCapabilitiesNode.AccessHistoryDataCapability.Value = false;
+                    historyServerCapabilitiesNode.AccessHistoryEventsCapability.Value = false;
+                    historyServerCapabilitiesNode.MaxReturnDataValues.Value = 0;
+                    historyServerCapabilitiesNode.MaxReturnEventValues.Value = 0;
+                    historyServerCapabilitiesNode.ReplaceDataCapability.Value = false;
+                    historyServerCapabilitiesNode.UpdateDataCapability.Value = false;
+                    historyServerCapabilitiesNode.InsertEventCapability.Value = false;
+                    historyServerCapabilitiesNode.ReplaceEventCapability.Value = false;
+                    historyServerCapabilitiesNode.UpdateEventCapability.Value = false;
+                    historyServerCapabilitiesNode.InsertAnnotationCapability.Value = false;
+                    historyServerCapabilitiesNode.InsertDataCapability.Value = false;
+                    historyServerCapabilitiesNode.DeleteRawCapability.Value = false;
+                    historyServerCapabilitiesNode.DeleteAtTimeCapability.Value = false;
+
+                    NodeState parent = FindPredefinedNode(ObjectIds.Server_ServerCapabilities, typeof(ServerCapabilitiesState));
+
+                    if (parent != null)
+                    {
+                        parent.AddReference(ReferenceTypes.HasComponent, false, historyServerCapabilitiesNode.NodeId);
+                        historyServerCapabilitiesNode.AddReference(ReferenceTypes.HasComponent, true, parent.NodeId);
+                    }
+
+                    AddPredefinedNode(SystemContext, historyServerCapabilitiesNode);
                 }
 
-                AddPredefinedNode(SystemContext, state);
-
-                m_historyCapabilities = state;
+                m_historyCapabilities = historyServerCapabilitiesNode;
                 return m_historyCapabilities;
             }
         }
@@ -995,6 +1183,7 @@ namespace Opc.Ua.Server
         /// Updates the session diagnostics summary structure.
         /// </summary>
         private bool UpdateSessionDiagnostics(
+            ISystemContext context,
             SessionDiagnosticsData diagnostics,
             SessionDiagnosticsDataType[] sessionArray,
             int index)
@@ -1008,7 +1197,13 @@ namespace Opc.Ua.Server
                 ref value);
 
             SessionDiagnosticsDataType newValue = value as SessionDiagnosticsDataType;
+
             sessionArray[index] = newValue;
+
+            if ((context != null) && (sessionArray?[index] != null))
+            {
+                FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
+            }
 
             // check for changes.
             if (Utils.IsEqual(newValue, diagnostics.Value.Value))
@@ -1045,6 +1240,7 @@ namespace Opc.Ua.Server
         /// Updates the session diagnostics summary structure.
         /// </summary>
         private bool UpdateSessionSecurityDiagnostics(
+            ISystemContext context,
             SessionDiagnosticsData diagnostics,
             SessionSecurityDiagnosticsDataType[] sessionArray,
             int index)
@@ -1058,7 +1254,13 @@ namespace Opc.Ua.Server
                 ref value);
 
             SessionSecurityDiagnosticsDataType newValue = value as SessionSecurityDiagnosticsDataType;
+
             sessionArray[index] = newValue;
+
+            if ((context != null) && (sessionArray?[index] != null))
+            {
+                FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
+            }
 
             // check for changes.
             if (Utils.IsEqual(newValue, diagnostics.SecurityValue.Value))
@@ -1095,6 +1297,7 @@ namespace Opc.Ua.Server
         /// Updates the subscription diagnostics summary structure.
         /// </summary>
         private bool UpdateSubscriptionDiagnostics(
+            ISystemContext context,
             SubscriptionDiagnosticsData diagnostics,
             SubscriptionDiagnosticsDataType[] subscriptionArray,
             int index)
@@ -1108,7 +1311,13 @@ namespace Opc.Ua.Server
                 ref value);
 
             SubscriptionDiagnosticsDataType newValue = value as SubscriptionDiagnosticsDataType;
+
             subscriptionArray[index] = newValue;
+
+            if ((context != null) && (subscriptionArray?[index] != null))
+            {
+                FilterOutUnAuthorized(subscriptionArray, newValue.SessionId, context, index);
+            }
 
             // check for changes.
             if (Utils.IsEqual(newValue, diagnostics.Value.Value))
@@ -1139,6 +1348,74 @@ namespace Opc.Ua.Server
             diagnostics.Value.ChangesComplete(SystemContext);
 
             return true;
+        }
+
+
+        /// <summary>
+        /// Filter out the members which corespond to users that are not allowed to see their contents
+        /// Current user is allowed to read its data, together with users which have permissions
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list"></param>
+        /// <param name="sessionId"></param>
+        /// <param name="context"></param>
+        /// <param name="index"></param>
+        private void FilterOutUnAuthorized<T>(IList<T> list, NodeId sessionId, ISystemContext context, int index)
+        {
+            if ((sessionId != context.SessionId) &&
+                    !HasApplicationSecureAdminAccess(context))
+            {
+                list[index] = default(T);
+            }
+        }
+
+        /// <summary>
+        /// Set custom role permissions for desired node
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="node"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        private ServiceResult OnReadUserRolePermissions(
+            ISystemContext context,
+            NodeState node,
+            ref RolePermissionTypeCollection value)
+        {
+            bool admitUser;
+
+            if ((node.NodeId == VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary) ||
+                 (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray))
+            {
+                admitUser = HasApplicationSecureAdminAccess(context);
+            }
+            else
+            {
+                admitUser = (node.NodeId == context.SessionId) ||
+                            HasApplicationSecureAdminAccess(context);
+            }
+
+            if (admitUser)
+            {
+                var rolePermissionTypes = from roleId in m_kWellKnownRoles
+                                          select new RolePermissionType() {
+                                              RoleId = roleId,
+                                              Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.ReadRolePermissions | PermissionType.Write)
+                                          };
+
+                value = new RolePermissionTypeCollection(rolePermissionTypes);
+            }
+            else
+            {
+                var rolePermissionTypes = from roleId in m_kWellKnownRoles
+                                          select new RolePermissionType() {
+                                              RoleId = roleId,
+                                              Permissions = (uint)PermissionType.None
+                                          };
+
+                value = new RolePermissionTypeCollection(rolePermissionTypes);
+
+            }
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -1182,22 +1459,84 @@ namespace Opc.Ua.Server
 
                 if (DateTime.UtcNow < m_lastDiagnosticsScanTime.AddSeconds(1))
                 {
+                    // diagnostic nodes already scanned.
                     return ServiceResult.Good;
                 }
 
-                DoScan(true);
-
-                // pull the value out of the node which was updated by the scan operation.
-                BaseVariableState variable = node as BaseVariableState;
-
-                if (variable != null)
+                if (node.NodeId == VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray)
                 {
-                    value = variable.Value;
+                    // read session diagnostics.
+                    SessionDiagnosticsDataType[] sessionArray = new SessionDiagnosticsDataType[m_sessions.Count];
+
+                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    {
+                        SessionDiagnosticsData diagnostics = m_sessions[ii];
+                        UpdateSessionDiagnostics(context, diagnostics, sessionArray, ii);
+                    }
+                    sessionArray = sessionArray.Where(s => s != null).ToArray();
+
+                    value = sessionArray;
+                }
+                else if (node.NodeId == VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray)
+                {
+                    // read session security diagnostics.
+                    SessionSecurityDiagnosticsDataType[] sessionSecurityArray = new SessionSecurityDiagnosticsDataType[m_sessions.Count];
+
+                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    {
+                        UpdateSessionSecurityDiagnostics(context, m_sessions[ii], sessionSecurityArray, ii);
+                    }
+                    sessionSecurityArray = sessionSecurityArray.Where(s => s != null).ToArray();
+
+                    value = sessionSecurityArray;
+                }
+                else if (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray)
+                {
+                    // read subscription diagnostics.
+                    SubscriptionDiagnosticsDataType[] subscriptionArray = new SubscriptionDiagnosticsDataType[m_subscriptions.Count];
+
+                    for (int ii = 0; ii < m_subscriptions.Count; ii++)
+                    {
+                        UpdateSubscriptionDiagnostics(context, m_subscriptions[ii], subscriptionArray, ii);
+                    }
+                    subscriptionArray = subscriptionArray.Where(s => s != null).ToArray();
+
+                    value = subscriptionArray;
                 }
 
                 return ServiceResult.Good;
             }
         }
+
+        /// <summary>
+        /// Determine if the impersonated user has admin access.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <exception cref="ServiceResultException"/>
+        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
+        private bool HasApplicationSecureAdminAccess(ISystemContext context)
+        {
+            OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
+            if (operationContext != null)
+            {
+                if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+                {
+                    return false;
+                }
+
+                SystemConfigurationIdentity user = context.UserIdentity as SystemConfigurationIdentity;
+                if (user == null ||
+                    user.TokenType == UserTokenType.Anonymous ||
+                    !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+            return false;
+        }
+
 
         /// <summary>
         /// Reports notifications for any monitored diagnostic nodes.
@@ -1226,7 +1565,7 @@ namespace Opc.Ua.Server
                     {
                         SessionDiagnosticsData diagnostics = m_sessions[ii];
 
-                        if (UpdateSessionDiagnostics(diagnostics, sessionArray, ii))
+                        if (UpdateSessionDiagnostics(null, diagnostics, sessionArray, ii))
                         {
                             sessionsChanged = true;
                         }
@@ -1250,9 +1589,9 @@ namespace Opc.Ua.Server
                     {
                         SessionDiagnosticsData diagnostics = m_sessions[ii];
 
-                        if (UpdateSessionSecurityDiagnostics(diagnostics, sessionSecurityArray, ii))
+                        if (UpdateSessionSecurityDiagnostics(null, diagnostics, sessionSecurityArray, ii))
                         {
-                            sessionsChanged = true;
+                            sessionsSecurityChanged = true;
                         }
                     }
 
@@ -1274,9 +1613,9 @@ namespace Opc.Ua.Server
                     {
                         SubscriptionDiagnosticsData diagnostics = m_subscriptions[ii];
 
-                        if (UpdateSubscriptionDiagnostics(diagnostics, subscriptionArray, ii))
+                        if (UpdateSubscriptionDiagnostics(null, diagnostics, subscriptionArray, ii))
                         {
-                            sessionsChanged = true;
+                            subscriptionsChanged = true;
                         }
                     }
 
@@ -1330,7 +1669,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error during diagnostics scan.");
+                Utils.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
 
@@ -1747,7 +2086,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error during diagnostics scan.");
+                Utils.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
         #endregion
@@ -1768,6 +2107,18 @@ namespace Opc.Ua.Server
         private List<MonitoredItem> m_sampledItems;
         private double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState m_historyCapabilities;
+        #endregion
+
+        #region Private Readonly Fields
+        private static readonly NodeId[] m_kWellKnownRoles = {
+            ObjectIds.WellKnownRole_Anonymous,
+            ObjectIds.WellKnownRole_AuthenticatedUser,
+            ObjectIds.WellKnownRole_ConfigureAdmin,
+            ObjectIds.WellKnownRole_Engineer,
+            ObjectIds.WellKnownRole_Observer,
+            ObjectIds.WellKnownRole_Operator,
+            ObjectIds.WellKnownRole_SecurityAdmin,
+            ObjectIds.WellKnownRole_Supervisor };
         #endregion
     }
 }

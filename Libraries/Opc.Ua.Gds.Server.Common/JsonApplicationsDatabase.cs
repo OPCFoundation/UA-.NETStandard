@@ -1,5 +1,5 @@
-﻿/* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+/* ========================================================================
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,42 +27,70 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.IO;
 using Newtonsoft.Json;
 
 namespace Opc.Ua.Gds.Server.Database.Linq
 {
+    /// <summary>
+    /// A GDS database with JSON storage.
+    /// </summary>
+    /// <remarks>
+    /// This db is good for testing but not for production use.
+    /// </remarks>
     public class JsonApplicationsDatabase : LinqApplicationsDatabase
     {
         #region Constructors
+        /// <summary>
+        /// Create a JSON database.
+        /// </summary>
         public JsonApplicationsDatabase(string fileName)
         {
             m_fileName = fileName;
         }
+
+        /// <summary>
+        /// Load the JSON application database.
+        /// </summary>
         static public JsonApplicationsDatabase Load(string fileName)
         {
+            if (fileName == null) throw new ArgumentNullException(nameof(fileName));
             try
             {
-                string json = File.ReadAllText(fileName);
-                JsonApplicationsDatabase db = JsonConvert.DeserializeObject<JsonApplicationsDatabase>(json);
-                db.FileName = fileName;
-                return db;
+                if (File.Exists(fileName))
+                {
+                    string json = File.ReadAllText(fileName);
+                    JsonApplicationsDatabase db = JsonConvert.DeserializeObject<JsonApplicationsDatabase>(json);
+                    db.FileName = fileName;
+                    return db;
+                }
             }
             catch
             {
-                return new JsonApplicationsDatabase(fileName);
+
             }
+            return new JsonApplicationsDatabase(fileName);
         }
         #endregion
+
         #region Public Members
+        /// <summary>
+        /// Save the complete database.
+        /// </summary>
         public override void Save()
         {
             string json = JsonConvert.SerializeObject(this, Formatting.Indented);
             File.WriteAllText(m_fileName, json);
         }
+
+        /// <summary>
+        /// Get or set the filename.
+        /// </summary>
         [JsonIgnore]
         public string FileName { get { return m_fileName; } private set { m_fileName = value; } }
         #endregion
+
         #region Private Fields
         [JsonIgnore]
         string m_fileName;

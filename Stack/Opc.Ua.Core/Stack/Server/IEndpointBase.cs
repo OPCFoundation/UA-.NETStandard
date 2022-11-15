@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.ServiceModel;
 
 namespace Opc.Ua
 {
@@ -35,13 +34,11 @@ namespace Opc.Ua
     /// <summary>
     /// The base asynchronous interface for all services exposed by UA servers.
     /// </summary>
-    [ServiceContract(Namespace = Namespaces.OpcUaWsdl)]
     public interface IEndpointBase
     {
         /// <summary>
         /// The operation contract for the InvokeService service.
         /// </summary>
-        [OperationContractAttribute(AsyncPattern = true, Action = Namespaces.OpcUaWsdl + "/InvokeService", ReplyAction = Namespaces.OpcUaWsdl + "/InvokeServiceResponse")]
         IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState);
 
         /// <summary>

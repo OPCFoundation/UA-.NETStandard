@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,12 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
-
     /// <summary>
     /// Attribute for type ids of a structure definition.
     /// </summary>
@@ -40,9 +38,20 @@ namespace Opc.Ua.Client.ComplexTypes
     public class StructureTypeIdAttribute : Attribute
     {
         #region  Public Properties
+        /// <summary>
+        /// The complex type id attribute.
+        /// </summary>
         public string ComplexTypeId { get; set; }
+
+        /// <summary>
+        /// The binary encoding id attribute.
+        /// </summary>
         public string BinaryEncodingId { get; set; }
+
+        /// <summary>
+        /// The xml encoding id attribute.
+        /// </summary>
         public string XmlEncodingId { get; set; }
-        #endregion
+        #endregion Public Properties
     }
 }//namespace

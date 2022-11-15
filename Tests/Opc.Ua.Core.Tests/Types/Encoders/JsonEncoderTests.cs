@@ -28,8 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.Serialization;
+using System.IO;
+using System.Linq;
+using System.Text;
+using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -40,13 +44,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [TestFixture, Category("JsonEncoder")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
+    [MemoryDiagnoser]
+    [DisassemblyDiagnoser]
     public class JsonEncoderTests : EncoderCommon
     {
         #region DataSource
-        static TestEnumType[] TestEnumArray = new TestEnumType[]
+        static TestEnumType[] s_testEnumArray = new TestEnumType[]
             { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred };
-        static Int32[] TestInt32Array = new Int32[]
+        static readonly Int32[] s_testInt32Array = new Int32[]
             { 2, 3, 10 };
+        static ExtensionObject s_testEncodeable = new ExtensionObject(new FooBarEncodeable(999));
 
         /// <summary>
         /// Constants used by test data set.
@@ -112,10 +119,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.UInt32, UInt32.MinValue, UInt32.MinValue.ToString(), null, true },
             {   BuiltInType.UInt32, UInt32.MaxValue, UInt32.MaxValue.ToString(), null },
 
-            {   BuiltInType.Int32, (Int32)0, null, null },
-            {   BuiltInType.Int32, (Int32)0, "0", null, true },
-            {   BuiltInType.Int32, (Int32)(-12345678), "-12345678", null },
-            {   BuiltInType.Int32, (Int32)12345678, "12345678", null },
+            {   BuiltInType.Int32, 0, null, null },
+            {   BuiltInType.Int32, 0, "0", null, true },
+            {   BuiltInType.Int32, -12345678, "-12345678", null },
+            {   BuiltInType.Int32, 12345678, "12345678", null },
             {   BuiltInType.Int32, Int32.MaxValue, Int32.MaxValue.ToString(), null },
             {   BuiltInType.Int32, Int32.MinValue, Int32.MinValue.ToString(), null },
 
@@ -244,11 +251,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             {   BuiltInType.ExtensionObject, ExtensionObject.Null, null, null},
             {   BuiltInType.ExtensionObject, new ExtensionObject(kNodeIdInt), null, null},
+            {   BuiltInType.ExtensionObject, new ExtensionObject((IEncodeable) null), null, null},
 
             {   BuiltInType.Variant, Variant.Null, "", null},
             {   BuiltInType.Variant, new Variant((SByte)123), $"{{\"Type\":{BuiltInType.SByte.ToString("d")}, \"Body\":123}}", "123"},
             {   BuiltInType.Variant, new Variant((Int16)12345), $"{{\"Type\":{BuiltInType.Int16.ToString("d")}, \"Body\":12345}}", "12345"},
-            {   BuiltInType.Variant, new Variant((Int32)1234567), $"{{\"Type\":{BuiltInType.Int32.ToString("d")}, \"Body\":1234567}}", "1234567"},
+            {   BuiltInType.Variant, new Variant(1234567), $"{{\"Type\":{BuiltInType.Int32.ToString("d")}, \"Body\":1234567}}", "1234567"},
             {   BuiltInType.Variant, new Variant((Int64)123456789), $"{{\"Type\":{BuiltInType.Int64.ToString("d")}, \"Body\":\"123456789\"}}", "\"123456789\""},
             {   BuiltInType.Variant, new Variant((Byte)123), $"{{\"Type\":{BuiltInType.Byte.ToString("d")}, \"Body\":123}}", "123"},
             {   BuiltInType.Variant, new Variant((UInt16)12345), $"{{\"Type\":{BuiltInType.UInt16.ToString("d")}, \"Body\":12345}}", "12345"},
@@ -263,30 +271,37 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Enumeration, TestEnumType.Ten, $"{TestEnumType.Ten.ToString("d")}", $"\"{TestEnumType.Ten.ToString()}_{TestEnumType.Ten.ToString("d")}\""},
             {   BuiltInType.Enumeration, (TestEnumType) 11, "11", "\"11\""},
 
-            {   BuiltInType.Enumeration, (Int32) 1, "1", "\"1\""},
+            {   BuiltInType.Enumeration,  1, "1", "\"1\""},
             {   BuiltInType.Enumeration, (Int32)TestEnumType.Two, TestEnumType.Two.ToString("d"), $"\"{TestEnumType.Two.ToString("d")}\""},
             {   BuiltInType.Enumeration, (Int32)TestEnumType.Hundred, $"{TestEnumType.Hundred.ToString("d")}", $"\"{TestEnumType.Hundred.ToString("d")}\""},
-            {   BuiltInType.Enumeration, (Int32) 22, "22", "\"22\""},
+            {   BuiltInType.Enumeration,  22, "22", "\"22\""},
 
             // arrays
-            {   BuiltInType.Enumeration, TestEnumArray, "[1,2,100]", "[\"One_1\",\"Two_2\",\"Hundred_100\"]"},
-            {   BuiltInType.Enumeration, TestInt32Array, "[2,3,10]", "[\"2\",\"3\",\"10\"]"},
+            {   BuiltInType.Enumeration, s_testEnumArray, "[1,2,100]", "[\"One_1\",\"Two_2\",\"Hundred_100\"]"},
+            {   BuiltInType.Enumeration, s_testInt32Array, "[2,3,10]", "[\"2\",\"3\",\"10\"]"},
+
+            // IEncodeable
+            {   BuiltInType.ExtensionObject, s_testEncodeable, "{\"Body\":{\"Foo\":\"bar_999\"}}", "{\"Foo\":\"bar_999\"}"}
         }.ToArray();
         #endregion
 
-        #region Setup
+        #region Test Setup
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
             ushort demoServerIndex = NameSpaceUris.GetIndexOrAppend(kDemoServer);
             Assume.That(demoServerIndex == kDemoServerIndex, $"Server Index: {demoServerIndex} != {kDemoServerIndex}");
+
+            // for validating benchmark tests
+            m_context = new ServiceMessageContext();
+            m_memoryStream = new MemoryStream();
         }
 
         [OneTimeTearDown]
         protected new void OneTimeTearDown()
         {
+            m_memoryStream.Dispose();
         }
-
 
         [SetUp]
         protected new void SetUp()
@@ -299,7 +314,91 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
         #endregion
 
+        #region Benchmark Setup
+        /// <summary>
+        /// Set up some variables for benchmarks.
+        /// </summary>
+        [GlobalSetup]
+        public void GlobalSetup()
+        {
+            m_context = new ServiceMessageContext();
+            m_memoryStream = new MemoryStream();
+        }
+
+        /// <summary>
+        /// Tear down benchmark variables.
+        /// </summary>
+        [GlobalCleanup]
+        public void GlobalCleanup()
+        {
+            m_context = null;
+            m_memoryStream.Dispose();
+            m_memoryStream = null;
+        }
+        #endregion
+
         #region Test Methods
+        /// <summary>
+        /// Validate constructor signature.
+        /// </summary>
+        [Theory]
+        public void Constructor_Default(bool useReversible, bool topLevelIsArray)
+        {
+            var context = new ServiceMessageContext();
+            var jsonEncoder = new JsonEncoder(context, useReversible, topLevelIsArray);
+            TestEncoding(jsonEncoder, topLevelIsArray);
+            var result = jsonEncoder.CloseAndReturnText();
+            Assert.IsNotEmpty(result);
+            Assert.NotNull(result);
+            TestContext.Out.WriteLine("Result:");
+            _ = PrettifyAndValidateJson(result);
+        }
+
+        /// <summary>
+        /// Use a constructor with external Stream,
+        /// keep the steam open for more encodings.
+        /// </summary>
+        [Test]
+        public void Constructor_Stream()
+        {
+            var context = new ServiceMessageContext();
+            var memoryStream = new MemoryStream();
+            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
+            {
+                TestEncoding(jsonEncoder);
+            }
+            var result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
+            Assert.IsNotEmpty(result1);
+            TestContext.Out.WriteLine("Result1:");
+            _ = PrettifyAndValidateJson(result1);
+
+            // recycle the StreamWriter, ensure the result is equal
+            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
+            {
+                TestEncoding(jsonEncoder);
+            }
+            var result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
+            Assert.IsNotEmpty(result2);
+            TestContext.Out.WriteLine("Result2:");
+            _ = PrettifyAndValidateJson(result2);
+            Assert.AreEqual(result1, result2);
+
+            // recycle the StreamWriter, ensure the result is equal,
+            // use reflection to return result in external stream
+            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
+            {
+                TestEncoding(jsonEncoder);
+                var result3 = jsonEncoder.CloseAndReturnText();
+                Assert.IsNotEmpty(result3);
+                TestContext.Out.WriteLine("Result3:");
+                _ = PrettifyAndValidateJson(result3);
+                Assert.AreEqual(result1, result3);
+            }
+
+            // ensure the memory stream was closed
+            Assert.Throws<ArgumentException>(() => _ = new StreamWriter(memoryStream));
+        }
+
         /// <summary>
         /// Verify reversible Json encoding.
         /// </summary>
@@ -329,13 +428,426 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 false,
                 jsonValidationData.IncludeDefaultValue);
         }
+
+        /// <summary>
+        /// Within a object JSON don't allow another object without fieldname.
+        /// </summary>
+        [TestCase(false, "{\"Foo\":\"bar_1\"}")]
+        [TestCase(true, "[{\"Foo\":\"bar_1\"}]")]
+        public void Test_WriteSingleEncodeableWithoutName(bool topLevelIsArray, string expected)
+        {
+            TestContext.Out.WriteLine("Expected:");
+            _ = PrettifyAndValidateJson(expected);
+
+            using (var encodeable = new FooBarEncodeable())
+            {
+                using (var encoder = new JsonEncoder(Context, true, topLevelIsArray))
+                {
+                    encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+
+                    var encoded = encoder.CloseAndReturnText();
+
+                    TestContext.Out.WriteLine("Encoded:");
+                    TestContext.Out.WriteLine(encoded);
+
+                    TestContext.Out.WriteLine("Formatted Encoded:");
+                    _ = PrettifyAndValidateJson(encoded);
+
+                    Assert.That(encoded, Is.EqualTo(expected));
+                }
+            }
+        }
+
+        /// <summary>
+        /// A single encodeable in an array cannot have a fieldname.
+        /// </summary>
+        [Test]
+        public void Test_WriteSingleEncodeableWithName()
+        {
+            var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
+            TestContext.Out.WriteLine("Expected:");
+            _ = PrettifyAndValidateJson(expected);
+
+            using (var encodeable = new FooBarEncodeable())
+            {
+                using (var encoder = new JsonEncoder(Context, true, false))
+                {
+                    encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable));
+
+                    var encoded = encoder.CloseAndReturnText();
+
+                    TestContext.Out.WriteLine("Encoded:");
+                    TestContext.Out.WriteLine(encoded);
+
+                    TestContext.Out.WriteLine("Formatted Encoded:");
+                    _ = PrettifyAndValidateJson(encoded);
+
+                    Assert.That(encoded, Is.EqualTo(expected));
+                }
+            }
+        }
+
+        /// <summary>
+        /// A single encodeable in an array cannot have a fieldname.
+        /// </summary>
+        [Test]
+        public void Test_WriteSingleEncodeableWithNameAndArrayAsTopLevel_Expect_Exception()
+        {
+            using (var encodeable = new FooBarEncodeable())
+            {
+                using (var encoder = new JsonEncoder(Context, true, true))
+                {
+                    Assert.Throws<ServiceResultException>(() => encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable)));
+                }
+            }
+        }
+
+        /// <summary>
+        /// A single encodeable in an array cannot have a fieldname.
+        /// </summary>
+        [Test]
+        public void Test_WriteMultipleEncodeableWithoutName_Expect_Exception()
+        {
+            // invalid JSON
+            // "{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}"
+            // "{{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}}"
+            using (var encodeable = new FooBarEncodeable())
+            {
+                using (var encoder = new JsonEncoder(Context, true, false))
+                {
+                    Assert.Throws<ServiceResultException>(() => {
+                        encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+                        encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+                        encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+                    }
+                    );
+                }
+            }
+        }
+
+        /// <summary>
+        /// It is not valid to have a JSON object within another object without fieldname
+        /// </summary>
+        [TestCase(true, "[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]")]
+        public void Test_WriteMultipleEncodeablesWithoutFieldNames(bool topLevelIsArray, string expected)
+        {
+            TestContext.Out.WriteLine("Expected:");
+            _ = PrettifyAndValidateJson(expected);
+
+            var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
+            try
+            {
+                using (var encoder = new JsonEncoder(Context, true, topLevelIsArray))
+                {
+                    foreach (var encodeable in encodeables)
+                    {
+                        encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+                    }
+
+                    var encoded = encoder.CloseAndReturnText();
+                    TestContext.Out.WriteLine("Encoded:");
+                    TestContext.Out.WriteLine(encoded);
+
+                    TestContext.Out.WriteLine("Formatted Encoded:");
+                    _ = PrettifyAndValidateJson(encoded);
+
+                    Assert.That(encoded, Is.EqualTo(expected));
+                }
+            }
+            finally
+            {
+                encodeables.ForEach(e => e.Dispose());
+            }
+        }
+
+        /// <summary>
+        /// Write multiple encodeables with fieldnames.
+        /// </summary>
+        [Test]
+        public void Test_WriteMultipleEncodeablesWithFieldNames()
+        {
+            var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"},\"bar_2\":{\"Foo\":\"bar_2\"},\"bar_3\":{\"Foo\":\"bar_3\"}}";
+
+            TestContext.Out.WriteLine("Expected:");
+            _ = PrettifyAndValidateJson(expected);
+
+            var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
+            try
+            {
+                using (var encoder = new JsonEncoder(Context, true, false))
+                {
+                    foreach (var encodeable in encodeables)
+                    {
+                        encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable));
+                    }
+
+                    var encoded = encoder.CloseAndReturnText();
+                    TestContext.Out.WriteLine("Encoded:");
+                    TestContext.Out.WriteLine(encoded);
+
+                    TestContext.Out.WriteLine("Formatted Encoded:");
+                    _ = PrettifyAndValidateJson(encoded);
+
+                    Assert.That(encoded, Is.EqualTo(expected));
+                }
+            }
+            finally
+            {
+                encodeables.ForEach(e => e.Dispose());
+            }
+        }
+
+        /// <summary>
+        /// Write encodeable array with fieldname.
+        /// </summary>
+        [Test]
+        public void Test_WriteEncodeableArrayWithFieldName()
+        {
+            var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
+
+            RunWriteEncodeableArrayTest(
+                "array",
+                encodeables,
+                "{\"array\":[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]}",
+                false);
+        }
+
+        /// <summary>
+        /// It is not valid to have a JSON array within an object without fieldname.
+        /// </summary>
+        [TestCase(false, "[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]")]
+        [TestCase(true, "[[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]")]
+        public void Test_WriteEncodeableArrayWithoutFieldName(bool topLevelIsArray, string expected)
+        {
+            var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
+
+            RunWriteEncodeableArrayTest(
+                null,
+                encodeables,
+                expected,
+                topLevelIsArray);
+        }
+
+        /// <summary>
+        /// Write encodeable top level array with fieldname.
+        /// </summary>
+        [Test]
+        public void Test_WriteEncodeableArrayWithFieldNameAndArrayAsTopLevel_Expect_Exception()
+        {
+            var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
+
+            Assert.Throws<ServiceResultException>(() => RunWriteEncodeableArrayTest(
+                "array",
+                encodeables,
+                "[\"array\":[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]",
+                true,
+                true));
+        }
+
+        /// <summary>
+        /// Write encodeable top level array without fieldname.
+        /// </summary>
+        [Test]
+        public void Test_WriteEncodeableArrayWithoutFieldNameAndArrayAsTopLevel()
+        {
+            var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
+
+            RunWriteEncodeableArrayTest(
+                null,
+                encodeables,
+                "[[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]",
+                true);
+        }
+
+        /// <summary>
+        /// Test if field names and values are properly escaped.
+        /// </summary>
+        [TestCase("\"Hello\".\"World\"", "\"Test\".\"Output\"",
+            "{\"\\\"Hello\\\".\\\"World\\\"\":{\"\\\"Hello\\\".\\\"World\\\"\":\"\\\"Test\\\".\\\"Output\\\"\"}}")]
+        [TestCase("\"Hello\".\"World\"\b\f\n\r\t\\", "\"Test\b\f\n\r\t\\\".\"Output\"",
+            "{\"\\\"Hello\\\".\\\"World\\\"\\b\\f\\n\\r\\t\\\\\":{\"\\\"Hello\\\".\\\"World\\\"\\b\\f\\n\\r\\t\\\\\":\"\\\"Test\\b\\f\\n\\r\\t\\\\\\\".\\\"Output\\\"\"}}")]
+        public void TestFieldValueEscapedEncodeable(string fieldname, string foo, string expected)
+        {
+            TestContext.Out.WriteLine("Expected:");
+            _ = PrettifyAndValidateJson(expected);
+
+            using (var encodeable = new FooBarEncodeable(fieldname, foo))
+            {
+                using (var encoder = new JsonEncoder(Context, true))
+                {
+                    encoder.WriteEncodeable(encodeable.FieldName, encodeable, typeof(FooBarEncodeable));
+
+                    var encoded = encoder.CloseAndReturnText();
+                    TestContext.Out.WriteLine("Encoded:");
+                    TestContext.Out.WriteLine(encoded);
+
+                    TestContext.Out.WriteLine("Formatted Encoded:");
+                    _ = PrettifyAndValidateJson(encoded);
+
+                    Assert.That(encoded, Is.EqualTo(expected));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Test if field names and values are properly escaped when used in an array.
+        /// </summary>
+        [TestCase("\"Hello\".\"World\"", "\"Test\".\"Output\"",
+            "{\"\\\"Hello\\\".\\\"World\\\"\":[" +
+            "{\"\\\"Hello\\\".\\\"World\\\"\":\"\\\"Test\\\".\\\"Output\\\"\"}," +
+            "{\"\\\"Hello\\\".\\\"World\\\"\":\"\\\"Test\\\".\\\"Output\\\"\"}" +
+            "]}")]
+        public void TestFieldValueEscapedArray(string fieldname, string foo, string expected)
+        {
+            TestContext.Out.WriteLine("Expected:");
+            _ = PrettifyAndValidateJson(expected);
+
+            using (var encodeable = new FooBarEncodeable(fieldname, foo))
+            {
+                var list = new List<IEncodeable>() { encodeable, encodeable };
+                using (var encoder = new JsonEncoder(Context, true))
+                {
+                    encoder.WriteEncodeableArray(encodeable.FieldName, list, typeof(FooBarEncodeable));
+
+                    var encoded = encoder.CloseAndReturnText();
+                    TestContext.Out.WriteLine("Encoded:");
+                    TestContext.Out.WriteLine(encoded);
+
+                    TestContext.Out.WriteLine("Formatted Encoded:");
+                    _ = PrettifyAndValidateJson(encoded);
+
+                    Assert.That(encoded, Is.EqualTo(expected));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Test if field names and values are properly escaped when used in a variant.
+        /// </summary>
+        [TestCase("\"Hello\".\"World\"", "\"Test\".\"Output\"",
+            "{\"\\\"Hello\\\".\\\"World\\\"\":" +
+            "{\"\\\"Hello\\\".\\\"World\\\"\":\"\\\"Test\\\".\\\"Output\\\"\"}" +
+            "}")]
+        public void TestFieldValueEscapedVariant(string fieldname, string foo, string expected)
+        {
+            TestContext.Out.WriteLine("Expected:");
+            _ = PrettifyAndValidateJson(expected);
+
+            using (var encodeable = new FooBarEncodeable(fieldname, foo))
+            {
+                var variant = new Variant(new ExtensionObject(encodeable));
+                // non reversible to save some space
+                using (var encoder = new JsonEncoder(Context, false))
+                {
+                    encoder.WriteVariant(encodeable.FieldName, variant);
+
+                    var encoded = encoder.CloseAndReturnText();
+                    TestContext.Out.WriteLine("Encoded:");
+                    TestContext.Out.WriteLine(encoded);
+
+                    TestContext.Out.WriteLine("Formatted Encoded:");
+                    _ = PrettifyAndValidateJson(encoded);
+
+                    Assert.That(encoded, Is.EqualTo(expected));
+                }
+            }
+        }
+        #endregion
+
+        #region Benchmarks
+        /// <summary>
+        /// Benchmark overhead to create ServiceMessageContext.
+        /// </summary>
+        [Benchmark]
+        [Test]
+        public void ServiceMessageContext()
+        {
+            _ = new ServiceMessageContext();
+        }
+
+        /// <summary>
+        /// Benchmark overhead to create MemoryStream.
+        /// </summary>
+        [Benchmark]
+        [Test]
+        public void MemoryStream()
+        {
+            using (var test = new MemoryStream())
+                _ = test.Length;
+        }
+
+        /// <summary>
+        /// Benchmark encoding with internal memory stream.
+        /// </summary>
+        [Benchmark]
+        [Test]
+        public void JsonEncoder_Constructor()
+        {
+            using (var jsonEncoder = new JsonEncoder(m_context, false))
+            {
+                TestEncoding(jsonEncoder);
+                _ = jsonEncoder.CloseAndReturnText();
+            }
+        }
         #endregion
 
         #region Private Methods
+        protected void TestEncoding(IEncoder encoder, bool topLevelIsArray = false)
+        {
+            if (topLevelIsArray)
+            {
+                encoder.WriteNodeId(null, new NodeId(10000, 0));
+                encoder.WriteNodeId(null, new NodeId(20000, 1));
+                encoder.WriteNodeId(null, new NodeId(30000, 2));
+                encoder.WriteNodeId(null, new NodeId(40000, 3));
+            }
+            else
+            {
+                encoder.WriteBoolean("Boolean", true);
+                encoder.WriteUInt64("UInt64", 1234566890);
+                encoder.WriteString("String", "The quick brown fox...");
+                encoder.WriteNodeId("NodeId", new NodeId(1234, 3));
+                encoder.WriteInt32Array("Array", new List<Int32>() { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+            }
+        }
+
+        private void RunWriteEncodeableArrayTest(string fieldName, List<FooBarEncodeable> encodeables, string expected, bool topLevelIsArray, bool noExpectedValidation = false)
+        {
+            try
+            {
+                if (!noExpectedValidation)
+                {
+                    TestContext.Out.WriteLine("Expected:");
+                    _ = PrettifyAndValidateJson(expected);
+                }
+
+                using (var encoder = new JsonEncoder(Context, true, topLevelIsArray))
+                {
+                    encoder.WriteEncodeableArray(
+                        fieldName,
+                        encodeables.Cast<IEncodeable>().ToList(),
+                        typeof(FooBarEncodeable));
+
+                    var encoded = encoder.CloseAndReturnText();
+                    TestContext.Out.WriteLine("Encoded:");
+                    TestContext.Out.WriteLine(encoded);
+
+                    TestContext.Out.WriteLine("Formatted Encoded:");
+                    _ = PrettifyAndValidateJson(encoded);
+
+                    Assert.That(encoded, Is.EqualTo(expected));
+                }
+            }
+            finally
+            {
+                encodeables.ForEach(e => e.Dispose());
+            }
+        }
         #endregion
 
         #region Private Fields
+        private IServiceMessageContext m_context;
+        private MemoryStream m_memoryStream;
         #endregion
     }
-
 }

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -29,8 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using System.Security.Cryptography.X509Certificates;
@@ -38,8 +36,8 @@ using System.Reflection;
 using System.Xml;
 using System.IO;
 using System.Runtime.Serialization;
-using Opc.Ua.Configuration;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -302,7 +300,7 @@ namespace Opc.Ua.Client.Controls
 
             if (certificate != null)
             {
-                List<string> fields = Utils.ParseDistinguishedName(certificate.Subject);
+                List<string> fields = X509Utils.ParseDistinguishedName(certificate.Subject);
 
                 for (int ii = 0; ii < fields.Count; ii++)
                 {
@@ -353,7 +351,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 // look up domains.
-                IList<string> domains = Utils.GetDomainsFromCertficate(certificate);
+                IList<string> domains = X509Utils.GetDomainsFromCertficate(certificate);
 
                 StringBuilder buffer = new StringBuilder();
 
@@ -368,7 +366,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 listItem.SubItems[3].Text = buffer.ToString();
-                listItem.SubItems[4].Text = Utils.GetApplicationUriFromCertificate(certificate);
+                listItem.SubItems[4].Text = X509Utils.GetApplicationUriFromCertificate(certificate);
                 listItem.SubItems[5].Text = String.Format("{0:yyyy-MM-dd}", certificate.NotAfter);
             }
 

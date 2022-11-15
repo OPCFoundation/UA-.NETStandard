@@ -4,11 +4,14 @@
 #---------------------------------#
 
 # version format
-version: 1.3.358.{build}-{branch}
+version: 1.4.369.{build}-{branch}
 
 
 # branches to build
 branches:
+  # whitelist
+  only:
+    - appveyor
   # blacklist
   except:
     - gh-pages
@@ -18,48 +21,30 @@ branches:
 #---------------------------------#
 
 # Build worker image (VM template)
-image: Visual Studio 2017
+image: Visual Studio 2019
 
 # scripts that are called at very beginning, before repo cloning
 init:
   - git config --global core.autocrlf input
 
 # clone directory
-clone_folder: c:\projects\UA-.NetStandardLibrary
-
-# set clone depth
-clone_depth: 5                      # clone entire repository history if not defined
+clone_folder: c:\projects\UA-.NetStandard
 
 environment:
   matrix:
   - solution_name: "UA Core Library.sln"
     test_name: "void"
     param: ""
-  - solution_name: "UA-NetStandard.sln"
+  - solution_name: "UA Reference.sln"
     test_name: "void"
     param: ""
-  - solution_name: "UA-NetStandard.sln"
+  - solution_name: "UA Reference.sln"
     test_name: "void"
     param: "/p:NoHttps=true"
-  - solution_name: "UA Global Discovery Server.sln"
-    test_name: "SampleApplications/Samples/GDS/ClientTest/GlobalDiscoveryClientTest.csproj"
-    param: ""
-  - solution_name: "UA Universal Windows.sln"
-    test_name: "void"
-    param: ""
-  - solution_name: "UA Quickstart Applications.sln"
-    test_name: "void"
-    param: ""
-  - solution_name: "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
-    test_name: "void"
-    param: ""
-  - solution_name: "SampleApplications/Workshop/Reference/UA Reference.sln"  
-    test_name: "void"
-    param: ""
 
 # this is how to allow failing jobs in the matrix
 matrix:
-  fast_finish: false     # set this flag to immediately finish build once one of the jobs fails.
+  fast_finish: true     # set this flag to immediately finish build once one of the jobs fails.
 
 # scripts to run before build
 before_build:

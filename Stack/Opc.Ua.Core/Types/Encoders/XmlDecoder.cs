@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -28,7 +28,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public XmlDecoder(ServiceMessageContext context)
+        public XmlDecoder(IServiceMessageContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             Initialize();
@@ -39,11 +39,11 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an XML element to parse.
         /// </summary>
-        public XmlDecoder(XmlElement element, ServiceMessageContext context)
+        public XmlDecoder(XmlElement element, IServiceMessageContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             Initialize();
-            m_reader = XmlReader.Create(new StringReader(element.OuterXml));
+            m_reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
             m_context = context;
             m_nestingLevel = 0;
         }
@@ -51,7 +51,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a XML reader.
         /// </summary>
-        public XmlDecoder(System.Type systemType, XmlReader reader, ServiceMessageContext context)
+        public XmlDecoder(System.Type systemType, XmlReader reader, IServiceMessageContext context)
         {
             Initialize();
 
@@ -249,7 +249,6 @@ namespace Opc.Ua
                         depth--;
                     }
                 }
-
                 else if (m_reader.NodeType == XmlNodeType.Element)
                 {
                     if (m_reader.LocalName == qname.Name && m_reader.NamespaceURI == qname.Namespace)
@@ -550,7 +549,7 @@ namespace Opc.Ua
             if (systemType != null)
             {
                 PushNamespace(m_reader.NamespaceURI);
-                var encodeable = ReadEncodeable(m_reader.LocalName, systemType);
+                var encodeable = ReadEncodeable(m_reader.LocalName, systemType, typeId);
                 PopNamespace();
 
                 return encodeable;
@@ -562,7 +561,8 @@ namespace Opc.Ua
             // return undecoded xml body.
             var xmlString = m_reader.ReadOuterXml();
 
-            using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings() { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+            using (StringReader stream = new StringReader(xmlString))
+            using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
             {
                 document.Load(reader);
             }
@@ -604,7 +604,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the decoder.
         /// </summary>
-        public ServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context => m_context;
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -809,7 +809,6 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-
                 string xml = ReadString();
 
                 if (!String.IsNullOrEmpty(xml))
@@ -989,7 +988,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    value = new byte[0];
+                    value = Array.Empty<byte>();
                 }
 
                 // check the length.
@@ -1004,7 +1003,7 @@ namespace Opc.Ua
 
             if (!isNil)
             {
-                return new byte[0];
+                return Array.Empty<byte>();
             }
 
             return null;
@@ -1015,9 +1014,9 @@ namespace Opc.Ua
         /// </summary>
         private void ExtractXml(StringBuilder builder)
         {
-            builder.Append("<");
+            builder.Append('<');
             builder.Append(m_reader.Prefix);
-            builder.Append(":");
+            builder.Append(':');
             builder.Append(m_reader.LocalName);
 
             if (m_reader.HasAttributes)
@@ -1026,11 +1025,11 @@ namespace Opc.Ua
                 {
                     m_reader.MoveToAttribute(ii);
 
-                    builder.Append(" ");
+                    builder.Append(' ');
                     builder.Append(m_reader.Name);
                     builder.Append("='");
                     builder.Append(m_reader.Value);
-                    builder.Append("'");
+                    builder.Append('\'');
                 }
 
                 m_reader.MoveToElement(); // Moves the reader back to the element node.
@@ -1356,8 +1355,8 @@ namespace Opc.Ua
                     }
                     catch (Exception ex)
                     {
-                        Utils.Trace(ex, "Error reading variant.");
-                        value = new Variant(StatusCodes.BadEncodingError);
+                        Utils.LogError(ex, "XmlDecoder: Error reading variant.");
+                        value = new Variant(StatusCodes.BadDecodingError);
                     }
                     EndField("Value");
                 }
@@ -1403,9 +1402,16 @@ namespace Opc.Ua
         /// </summary>
         public ExtensionObject ReadExtensionObject(string fieldName)
         {
-            if (!BeginField(fieldName, true))
+            bool isNil;
+
+            if (!BeginField(fieldName, true, out isNil))
             {
-                return null;
+                if (isNil)
+                {
+                    return null;
+                }
+
+                return ExtensionObject.Null;
             }
 
             PushNamespace(Namespaces.OpcUaXsd);
@@ -1418,7 +1424,7 @@ namespace Opc.Ua
 
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
             {
-                Utils.Trace(
+                Utils.LogWarning(
                     "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
                     typeId);
             }
@@ -1456,9 +1462,11 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an encodeable object from the stream.
         /// </summary>
-        public IEncodeable ReadEncodeable(
-            string fieldName,
-            System.Type systemType)
+        /// <param name="fieldName">The encodeable object field name</param>
+        /// <param name="systemType">The system type of the encopdeable object to be read</param>
+        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
+        /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
+        public IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
@@ -1469,6 +1477,17 @@ namespace Opc.Ua
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
                     Utils.Format("Type does not support IEncodeable interface: '{0}'", systemType.FullName));
+            }
+
+            if (encodeableTypeId != null)
+            {
+                // set type identifier for custom complex data types before decode.
+                IComplexTypeInstance complexTypeInstance = value as IComplexTypeInstance;
+
+                if (complexTypeInstance != null)
+                {
+                    complexTypeInstance.TypeId = encodeableTypeId;
+                }
             }
 
             // check the nesting level for avoiding a stack overflow.
@@ -2497,9 +2516,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads an encodeable object array from the stream.
+        /// Reads an encodeable array from the stream.
         /// </summary>
-        public Array ReadEncodeableArray(string fieldName, System.Type systemType)
+        /// <param name="fieldName">The encodeable array field name</param>
+        /// <param name="systemType">The system type of the encopdeable objects to be read object</param>
+        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
+        /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
+        public Array ReadEncodeableArray(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
@@ -2514,7 +2537,7 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
-                    encodeables.Add(ReadEncodeable(xmlName.Name, systemType));
+                    encodeables.Add(ReadEncodeable(xmlName.Name, systemType, encodeableTypeId));
                 }
 
                 // check the length.
@@ -2593,6 +2616,57 @@ namespace Opc.Ua
 
             return Array.CreateInstance(enumType, 0);
         }
+
+        /// <inheritdoc/>
+        public Array ReadArray(string fieldName, int valueRank, BuiltInType builtInType, Type systemType, ExpandedNodeId encodeableTypeId = null)
+        {
+            if (valueRank == ValueRanks.OneDimension)
+            {
+                /*One dimensional Array parameters are always encoded by wrapping the elements in a container element 
+                 * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
+                 * The name of the element in the array shall be the type name.*/
+                return ReadArrayElements(fieldName, builtInType, systemType, encodeableTypeId);
+            }
+            // read matrix/array.
+            else if (valueRank > ValueRanks.OneDimension)
+            {
+                Array elements = null;
+                Int32Collection dimensions = null;
+
+                if (BeginField(fieldName, true))
+                {
+                    PushNamespace(Namespaces.OpcUaXsd);
+                    // dimensions are written before elements when encoding multi dimensional array!! UA Specs
+                    dimensions = ReadInt32Array("Dimensions");
+
+                    elements = ReadArrayElements("Elements", builtInType, systemType, encodeableTypeId);
+
+                    PopNamespace();
+
+                    EndField(fieldName);
+                }
+
+                if (elements == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError, "The Matrix contains invalid elements");
+                }
+
+                Matrix matrix;
+                if (dimensions != null && dimensions.Count > 0)
+                {
+                    matrix = new Matrix(elements, builtInType, dimensions.ToArray());
+                }
+                else
+                {
+                    matrix = new Matrix(elements, builtInType);
+                }
+
+                return matrix.ToArray();
+            }
+
+            throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                "Invalid ValueRank {0} for Array", valueRank);
+        }
         #endregion
 
         #region Private Methods
@@ -2601,6 +2675,17 @@ namespace Opc.Ua
         /// </summary>
         private Matrix ReadMatrix(string fieldName)
         {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             Array elements = null;
             Int32Collection dimensions = null;
             TypeInfo typeInfo = null;
@@ -2623,6 +2708,8 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
 
+            m_nestingLevel--;
+
             if (elements == null)
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, "The Matrix contains invalid elements");
@@ -2634,6 +2721,234 @@ namespace Opc.Ua
             }
 
             return new Matrix(elements, typeInfo.BuiltInType);
+        }
+
+        /// <summary>
+        /// Read array items from current ListOf element
+        /// </summary>
+        /// <param name="fieldName">provides the fieldName for the array</param>
+        /// <param name="builtInType">provides the BuiltInType of the elements that are read</param>
+        /// <param name="systemType">The system type of the elements to read.</param>
+        /// <param name="encodeableTypeId">provides the type id of the encodeable element</param>
+        private Array ReadArrayElements(string fieldName, BuiltInType builtInType, Type systemType, ExpandedNodeId encodeableTypeId)
+        {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
+
+            // skip whitespace.
+            while (m_reader.NodeType != XmlNodeType.Element)
+            {
+                m_reader.Read();
+            }
+
+            try
+            {
+                m_namespaces.Push(Namespaces.OpcUaXsd);
+
+                // process array types.
+
+                switch (builtInType)
+                {
+                    case BuiltInType.Boolean:
+                    {
+                        BooleanCollection collection = ReadBooleanArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.SByte:
+                    {
+                        SByteCollection collection = ReadSByteArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Byte:
+                    {
+                        ByteCollection collection = ReadByteArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Int16:
+                    {
+                        Int16Collection collection = ReadInt16Array(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.UInt16:
+                    {
+                        UInt16Collection collection = ReadUInt16Array(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Enumeration:
+                    case BuiltInType.Int32:
+                    {
+                        Int32Collection collection = ReadInt32Array(fieldName);
+                        if (collection != null)
+                        {
+                            if (builtInType == BuiltInType.Enumeration)
+                            {
+                                DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
+                                if (systemType?.IsEnum == true)
+                                {
+                                    Array array = Array.CreateInstance(systemType, collection.Count);
+                                    int ii = 0;
+                                    foreach (var item in collection)
+                                    {
+                                        array.SetValue(Enum.ToObject(systemType, item), ii++);
+                                    }
+                                    return array;
+                                }
+                            }
+                            return collection.ToArray();
+                        }
+                        return null;
+                    }
+                    case BuiltInType.UInt32:
+                    {
+                        UInt32Collection collection = ReadUInt32Array(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Int64:
+                    {
+                        Int64Collection collection = ReadInt64Array(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.UInt64:
+                    {
+                        UInt64Collection collection = ReadUInt64Array(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Float:
+                    {
+                        FloatCollection collection = ReadFloatArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Double:
+                    {
+                        DoubleCollection collection = ReadDoubleArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.String:
+                    {
+                        StringCollection collection = ReadStringArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.DateTime:
+                    {
+                        DateTimeCollection collection = ReadDateTimeArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Guid:
+                    {
+                        UuidCollection collection = ReadGuidArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.ByteString:
+                    {
+                        ByteStringCollection collection = ReadByteStringArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.XmlElement:
+                    {
+                        XmlElementCollection collection = ReadXmlElementArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.NodeId:
+                    {
+                        NodeIdCollection collection = ReadNodeIdArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.ExpandedNodeId:
+                    {
+                        ExpandedNodeIdCollection collection = ReadExpandedNodeIdArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.StatusCode:
+                    {
+                        StatusCodeCollection collection = ReadStatusCodeArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.DiagnosticInfo:
+                    {
+                        DiagnosticInfoCollection collection = ReadDiagnosticInfoArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.QualifiedName:
+                    {
+                        QualifiedNameCollection collection = ReadQualifiedNameArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.LocalizedText:
+                    {
+                        LocalizedTextCollection collection = ReadLocalizedTextArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.ExtensionObject:
+                    {
+                        ExtensionObjectCollection collection = ReadExtensionObjectArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.DataValue:
+                    {
+                        DataValueCollection collection = ReadDataValueArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Variant:
+                    {
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
+                        {
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                        }
+
+                        VariantCollection collection = ReadVariantArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    default:
+                    {
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
+                        {
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                        }
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Cannot decode unknown type in Array object with BuiltInType: {0}.",
+                            builtInType);
+                    }
+                }
+            }
+            finally
+            {
+                m_namespaces.Pop();
+                m_nestingLevel--;
+            }
         }
 
         /// <summary>
@@ -2775,12 +3090,27 @@ namespace Opc.Ua
 
             return (m_reader.LocalName == elementName && m_reader.NamespaceURI == m_namespaces.Peek());
         }
+
+        /// <summary>
+        /// Get the system type from the type factory if not specified by caller.
+        /// </summary>
+        /// <param name="systemType">The reference to the system type, or null</param>
+        /// <param name="encodeableTypeId">The encodeable type id of the system type.</param>
+        /// <returns>If the system type is assignable to <see cref="IEncodeable"/> </returns>
+        private bool DetermineIEncodeableSystemType(ref Type systemType, ExpandedNodeId encodeableTypeId)
+        {
+            if (encodeableTypeId != null && systemType == null)
+            {
+                systemType = Context.Factory.GetSystemType(encodeableTypeId);
+            }
+            return typeof(IEncodeable).IsAssignableFrom(systemType);
+        }
         #endregion
 
         #region Private Fields
         private XmlReader m_reader;
         private Stack<string> m_namespaces;
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;

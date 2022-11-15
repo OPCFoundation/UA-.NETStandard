@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -16,6 +16,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -594,7 +595,7 @@ namespace Opc.Ua.Bindings
 
                     if (SecurityMode != MessageSecurityMode.None)
                     {
-                        if (receiverCertificate.GetRSAPublicKey().KeySize <= TcpMessageLimits.KeySizeExtraPadding)
+                        if (X509Utils.GetRSAPublicKeySize(receiverCertificate) <= TcpMessageLimits.KeySizeExtraPadding)
                         {
                             // need to reserve one byte for the padding.
                             plainTextSize++;
@@ -968,7 +969,7 @@ namespace Opc.Ua.Bindings
 
             if (!Verify(dataToVerify, signature, senderCertificate))
             {
-                Utils.Trace("Could not verify signature on message.");
+                Utils.LogWarning("Could not verify signature on message.");
                 throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the signature on the message.");
             }
 
@@ -978,7 +979,7 @@ namespace Opc.Ua.Bindings
             if (SecurityMode != MessageSecurityMode.None)
             {
                 int paddingEnd = -1;
-                if (receiverCertificate.GetRSAPublicKey().KeySize > TcpMessageLimits.KeySizeExtraPadding)
+                if (X509Utils.GetRSAPublicKeySize(receiverCertificate) > TcpMessageLimits.KeySizeExtraPadding)
                 {
                     paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
                     paddingCount = plainText.Array[paddingEnd - 1] + plainText.Array[paddingEnd] * 256;
@@ -1022,8 +1023,8 @@ namespace Opc.Ua.Bindings
             headerSize += decoder.Position;
             decoder.Close();
 
-            Utils.Trace("Security Policy: {0}", SecurityPolicyUri);
-            Utils.Trace("Sender Certificate: {0}", (senderCertificate != null) ? senderCertificate.Subject : "(none)");
+            Utils.LogInfo("Security Policy: {0}", SecurityPolicyUri);
+            Utils.LogCertificate("Sender Certificate:", senderCertificate);
 
             // return the body.
             return new ArraySegment<byte>(

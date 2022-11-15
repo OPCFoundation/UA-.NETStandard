@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -33,20 +33,27 @@ namespace Opc.Ua.Schema
         {
             m_knownFiles = new Dictionary<string, string>();
             m_loadedFiles = new Dictionary<string, object>();
+            m_importFiles = new Dictionary<string, byte[]>();
         }
 
         /// <summary>
         /// Intializes the object with a file table.
         /// </summary>
-        public SchemaValidator(Dictionary<string, string> knownFiles)
+        public SchemaValidator(IDictionary<string, string> knownFiles)
         {
-            m_knownFiles = knownFiles;
+            m_knownFiles = knownFiles ?? new Dictionary<string, string>();
             m_loadedFiles = new Dictionary<string, object>();
+            m_importFiles = new Dictionary<string, byte[]>();
+        }
 
-            if (m_knownFiles == null)
-            {
-                m_knownFiles = new Dictionary<string, string>();
-            }
+        /// <summary>
+        /// Intializes the object with a import table.
+        /// </summary>
+        public SchemaValidator(IDictionary<string, byte[]> importFiles)
+        {
+            m_knownFiles = new Dictionary<string, string>();
+            m_loadedFiles = new Dictionary<string, object>();
+            m_importFiles = importFiles ?? new Dictionary<string, byte[]>();
         }
         #endregion
 
@@ -65,6 +72,11 @@ namespace Opc.Ua.Schema
         /// A table of files which have been loaded.
         /// </summary>
         public IDictionary<string, object> LoadedFiles => m_loadedFiles;
+
+        /// <summary>
+        /// A table of import files.
+        /// </summary>
+        public IDictionary<string, byte[]> ImportFiles => m_importFiles;
         #endregion
 
         #region Protected Methods
@@ -116,7 +128,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Loads an input file for validation.
         /// </summary>
-        protected object LoadInput(System.Type type, Stream stream)
+        protected object LoadInput(Type type, Stream stream)
         {
             m_loadedFiles.Clear();
 
@@ -130,7 +142,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Loads an input file for validation.
         /// </summary>
-        protected object LoadInput(System.Type type, string path)
+        protected object LoadInput(Type type, string path)
         {
             m_loadedFiles.Clear();
 
@@ -144,12 +156,21 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Loads the dictionary from a file.
         /// </summary>
-        protected object Load(System.Type type, string namespaceUri, string path)
+        protected object Load(Type type, string namespaceUri, string path, Assembly assembly = null)
         {
             // check if already loaded.
             if (m_loadedFiles.ContainsKey(namespaceUri))
             {
                 return m_loadedFiles[namespaceUri];
+            }
+
+            // check if namespace specified in the import table.
+            if (m_importFiles.TryGetValue(namespaceUri, out byte[] schema))
+            {
+                using (Stream memoryStream = new MemoryStream(schema))
+                {
+                    return LoadFile(type, memoryStream);
+                }
             }
 
             // check if a valid path provided.
@@ -178,7 +199,7 @@ namespace Opc.Ua.Schema
                 }
 
                 // load embedded resource.
-                return LoadResource(type, location, null);
+                return LoadResource(type, location, assembly);
             }
 
             if (!String.IsNullOrEmpty(path))
@@ -186,7 +207,7 @@ namespace Opc.Ua.Schema
                 if (!File.Exists(path))
                 {
                     // load embedded resource.
-                    return LoadResource(type, path, null);
+                    return LoadResource(type, path, assembly);
                 }
 
                 // check for file in the same directory as the input file.
@@ -208,49 +229,39 @@ namespace Opc.Ua.Schema
                 }
             }
 
-            throw Exception("Cannot import file '{0}' from '{1}'.", namespaceUri, path);
+            throw Exception("Cannot import namespace '{0}' from '{1}'.", namespaceUri, path);
         }
 
         /// <summary>
         /// Loads a schema from a file.
         /// </summary>
-        protected static object LoadFile(System.Type type, string path)
+        protected static object LoadFile(Type type, string path)
         {
-            StreamReader reader = new StreamReader(new FileStream(path, FileMode.Open));
-
-            try
+            using (StreamReader reader = new StreamReader(new FileStream(path, FileMode.Open)))
+            using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
             {
                 XmlSerializer serializer = new XmlSerializer(type);
-                return serializer.Deserialize(reader);
-            }
-            finally
-            {
-                reader.Dispose();
+                return serializer.Deserialize(xmlReader);
             }
         }
 
         /// <summary>
         /// Loads a schema from a file.
         /// </summary>
-        protected static object LoadFile(System.Type type, Stream stream)
+        protected static object LoadFile(Type type, Stream stream)
         {
-            StreamReader reader = new StreamReader(stream);
-
-            try
+            using (StreamReader reader = new StreamReader(stream))
+            using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
             {
                 XmlSerializer serializer = new XmlSerializer(type);
-                return serializer.Deserialize(reader);
-            }
-            finally
-            {
-                reader.Dispose();
+                return serializer.Deserialize(xmlReader);
             }
         }
 
         /// <summary>
         /// Loads a schema from an embedded resource.
         /// </summary>
-        protected static object LoadResource(System.Type type, string path, Assembly assembly)
+        protected static object LoadResource(Type type, string path, Assembly assembly)
         {
             try
             {
@@ -259,17 +270,13 @@ namespace Opc.Ua.Schema
                     assembly = typeof(SchemaValidator).GetTypeInfo().Assembly;
                 }
 
-                StreamReader reader = new StreamReader(assembly.GetManifestResourceStream(path));
-
-                try
+                using (StreamReader reader = new StreamReader(assembly.GetManifestResourceStream(path)))
+                using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
                 {
                     XmlSerializer serializer = new XmlSerializer(type);
-                    return serializer.Deserialize(reader);
+                    return serializer.Deserialize(xmlReader);
                 }
-                finally
-                {
-                    reader.Dispose();
-                }
+
             }
             catch (Exception e)
             {
@@ -303,11 +310,12 @@ namespace Opc.Ua.Schema
         {
             return null;
         }
-
         #endregion
+
         #region Private Fields
-        private Dictionary<string, string> m_knownFiles;
-        private Dictionary<string, object> m_loadedFiles;
+        private IDictionary<string, string> m_knownFiles;
+        private IDictionary<string, object> m_loadedFiles;
+        private IDictionary<string, byte[]> m_importFiles;
         #endregion
     }
 }

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -85,7 +85,7 @@ namespace Opc.Ua.Gds.Server
         /// </remarks>
         protected override MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            Utils.Trace("Creating the Node Managers.");
+            Utils.LogInfo("Creating the Node Managers.");
 
             List<INodeManager> nodeManagers = new List<INodeManager>
             {
@@ -150,7 +150,7 @@ namespace Opc.Ua.Gds.Server
                 UserNameIdentityToken userNameToken = securityToken as UserNameIdentityToken;
                 if (userNameToken != null)
                 {
-                    lock (m_lock)
+                    lock (Lock)
                     {
                         m_contexts.Add(context.RequestId, new ImpersonationContext());
                     }
@@ -167,7 +167,7 @@ namespace Opc.Ua.Gds.Server
         {
             ImpersonationContext impersonationContext = null;
 
-            lock (m_lock)
+            lock (Lock)
             {
                 if (m_contexts.TryGetValue(context.RequestId, out impersonationContext))
                 {
@@ -195,7 +195,7 @@ namespace Opc.Ua.Gds.Server
                         case "sysadmin":
                             {
                                 args.Identity = new SystemConfigurationIdentity(new UserIdentity(userNameToken));
-                                Utils.Trace("SystemConfigurationAdmin Token Accepted: {0}", args.Identity.DisplayName);
+                                Utils.LogInfo("SystemConfigurationAdmin Token Accepted: {0}", args.Identity.DisplayName);
                                 return;
                             }
 
@@ -203,7 +203,7 @@ namespace Opc.Ua.Gds.Server
                         case "appadmin":
                             {
                                 args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), GdsRole.ApplicationAdmin);
-                                Utils.Trace("ApplicationAdmin Token Accepted: {0}", args.Identity.DisplayName);
+                                Utils.LogInfo("ApplicationAdmin Token Accepted: {0}", args.Identity.DisplayName);
                                 return;
                             }
 
@@ -211,7 +211,7 @@ namespace Opc.Ua.Gds.Server
                         case "appuser":
                             {
                                 args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), GdsRole.ApplicationUser);
-                                Utils.Trace("ApplicationUser Token Accepted: {0}", args.Identity.DisplayName);
+                                Utils.LogInfo("ApplicationUser Token Accepted: {0}", args.Identity.DisplayName);
                                 return;
                             }
                     }
@@ -228,7 +228,7 @@ namespace Opc.Ua.Gds.Server
                 // todo: is cert listed in admin list? then 
                 // role = GdsRole.ApplicationAdmin;
 
-                Utils.Trace("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, role.ToString());
+                Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, role.ToString());
                 args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token), role);
                 return;
             }

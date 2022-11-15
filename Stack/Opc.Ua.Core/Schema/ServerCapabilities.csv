@@ -1,9 +1,9 @@
-NA,No capability information is available. Cannot be used in combination with any other capability.
+﻿NA,No capability information is available. Cannot be used in combination with any other capability.
 DA,Provides current data.
 HD,Provides historical data.
 AC,Provides alarms and conditions that may require operator interaction.
 HE,Provides historical alarms and events.
-GDS,Supports the Global Discovery Server information model.
+GDS,Supports the Global Discovery Server information model. 
 LDS,Only supports the Discovery Services. Cannot be used in combination with any other capability.
 DI,Supports the Device Integration (DI) information model (see DI).
 ADI,Supports the Analyser Device Integration (ADI) information model (see ADI).
@@ -13,6 +13,7 @@ PLC,Supports the PLCopen information model (see PLCopen).
 S95,Supports the ISA95 information model (see ISA-95).
 RCP,Supports the reverse connect capabilities defined in Part 6.
 PUB,Supports the Publisher capabilities defined in Part 14.
+NTRS,The server is part of a non-transparent redundant server set defined in Part 4.
 AUTOID,Supports the AutoID information model.
 MDIS,Supports the MDIS information model.
 CNC,Supports the information model for Computerized Numerical Control (CNC) systems.
@@ -31,3 +32,8 @@ DEXPI,Supports the DEXPI information model.
 IOLINK,Supports the IOLINK information model.
 VROBOT,Supports the VDMA ROBOTICS information model.
 PNO,Supports the ProfiNET information model.
+PADIM,Supports the information model for Process Automation Devices.
+ALIAS,Supports the AliasNames capabilities.
+SKS,Supports the Security Key Servers (SKS) capabilities.
+FXAC,Supports the UA FX Automation Component information model.
+FXCM,Supports the UA FX Connection Manager information model.

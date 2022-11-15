@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -11,17 +11,11 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using System.Xml;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Reflection;
-using System.Threading;
 
 namespace Opc.Ua
-{       
+{
     /// <summary> 
     /// The base class for all instance nodes.
     /// </summary>
@@ -134,19 +128,19 @@ namespace Opc.Ua
         public string GetDisplayPath(int maxLength, char seperator)
         {
             string name = GetNonNullText(this);
-            
+
             if (m_parent == null)
             {
                 return name;
             }
-            
+
             StringBuilder buffer = new StringBuilder();
-              
+
             if (maxLength > 2)
             {
                 NodeState parent = m_parent;
                 List<string> names = new List<string>();
-                
+
                 while (parent != null)
                 {
                     BaseInstanceState instance = parent as BaseInstanceState;
@@ -155,25 +149,25 @@ namespace Opc.Ua
                     {
                         break;
                     }
-                   
+
                     parent = instance.Parent;
-                    
+
                     string parentName = GetNonNullText(parent);
                     names.Add(parentName);
 
-                    if (names.Count == maxLength-2)
+                    if (names.Count == maxLength - 2)
                     {
                         break;
                     }
                 }
-                 
-                for (int ii = names.Count-1; ii >= 0; ii--)
+
+                for (int ii = names.Count - 1; ii >= 0; ii--)
                 {
                     buffer.Append(names[ii]);
                     buffer.Append(seperator);
                 }
             }
-            
+
             buffer.Append(GetNonNullText(m_parent));
             buffer.Append(seperator);
             buffer.Append(name);
@@ -202,7 +196,7 @@ namespace Opc.Ua
                     return node.NodeClass.ToString();
                 }
             }
-                
+
             return node.DisplayName.Text;
         }
 
@@ -213,7 +207,7 @@ namespace Opc.Ua
         {
             get { return m_numericId; }
             set { m_numericId = value; }
-        }     
+        }
 
         /// <summary>
         /// The type of reference from the parent node to the instance.
@@ -221,10 +215,10 @@ namespace Opc.Ua
         public NodeId ReferenceTypeId
         {
             get
-            { 
-                return m_referenceTypeId;  
+            {
+                return m_referenceTypeId;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_referenceTypeId, value))
@@ -242,10 +236,10 @@ namespace Opc.Ua
         public NodeId TypeDefinitionId
         {
             get
-            { 
-                return m_typeDefinitionId;  
+            {
+                return m_typeDefinitionId;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_typeDefinitionId, value))
@@ -263,10 +257,10 @@ namespace Opc.Ua
         public NodeId ModellingRuleId
         {
             get
-            { 
-                return m_modellingRuleId;  
+            {
+                return m_modellingRuleId;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_modellingRuleId, value))
@@ -379,7 +373,7 @@ namespace Opc.Ua
                     }
 
                     // process next element in path.
-                    if (jj < field.BrowsePath.Count-1)
+                    if (jj < field.BrowsePath.Count - 1)
                     {
                         parent = child;
                         continue;
@@ -459,10 +453,10 @@ namespace Opc.Ua
 
         /// <summary cref="IFilterTarget.GetAttributeValue" />
         public virtual object GetAttributeValue(
-            FilterContext context, 
-            NodeId typeDefinitionId, 
-            IList<QualifiedName> relativePath, 
-            uint attributeId, 
+            FilterContext context,
+            NodeId typeDefinitionId,
+            IList<QualifiedName> relativePath,
+            uint attributeId,
             NumericRange indexRange)
         {
             // check the type definition.
@@ -475,7 +469,7 @@ namespace Opc.Ua
             }
 
             // read the child attribute.
-            DataValue dataValue = new DataValue();   
+            DataValue dataValue = new DataValue();
 
             ServiceResult result = ReadChildAttribute(
                 null,
@@ -483,7 +477,7 @@ namespace Opc.Ua
                 0,
                 attributeId,
                 dataValue);
-            
+
             if (ServiceResult.IsBad(result))
             {
                 return null;
@@ -495,7 +489,7 @@ namespace Opc.Ua
             if (value != null)
             {
                 result = indexRange.ApplyRange(ref value);
-                
+
                 if (ServiceResult.IsBad(result))
                 {
                     return null;
@@ -520,7 +514,7 @@ namespace Opc.Ua
             if (this.Parent != null)
             {
                 NodeId referenceTypeId = this.ReferenceTypeId;
-                
+
                 if (NodeId.IsNull(referenceTypeId))
                 {
                     referenceTypeId = ReferenceTypeIds.HasComponent;
@@ -529,7 +523,7 @@ namespace Opc.Ua
                 node.ReferenceTable.Add(referenceTypeId, true, this.Parent.NodeId);
             }
 
-            if (!NodeId.IsNull(this.TypeDefinitionId))
+            if (!NodeId.IsNull(m_typeDefinitionId) && IsObjectOrVariable)
             {
                 node.ReferenceTable.Add(ReferenceTypeIds.HasTypeDefinition, false, this.TypeDefinitionId);
             }
@@ -537,7 +531,7 @@ namespace Opc.Ua
             if (!NodeId.IsNull(this.ModellingRuleId))
             {
                 node.ReferenceTable.Add(ReferenceTypeIds.HasModellingRule, false, this.ModellingRuleId);
-            }            
+            }
         }
 
         /// <summary>
@@ -573,7 +567,7 @@ namespace Opc.Ua
 
             encoder.PopNamespace();
         }
-        
+
         /// <summary>
         /// Returns a mask which indicates which attributes have non-default value.
         /// </summary>
@@ -602,7 +596,7 @@ namespace Opc.Ua
             {
                 attributesToSave |= AttributesToSave.NumericId;
             }
-            
+
             return attributesToSave;
         }
 
@@ -686,7 +680,7 @@ namespace Opc.Ua
 
             if (decoder.Peek("TypeDefinitionId"))
             {
-               TypeDefinitionId = decoder.ReadNodeId("TypeDefinitionId");
+                TypeDefinitionId = decoder.ReadNodeId("TypeDefinitionId");
             }
 
             if (decoder.Peek("ModellingRuleId"))
@@ -711,7 +705,7 @@ namespace Opc.Ua
         {
             base.PopulateBrowser(context, browser);
 
-            if (!NodeId.IsNull(m_typeDefinitionId))
+            if (!NodeId.IsNull(m_typeDefinitionId) && IsObjectOrVariable)
             {
                 if (browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false))
                 {
@@ -739,7 +733,9 @@ namespace Opc.Ua
             }
         }
         #endregion
-        
+
+        private bool IsObjectOrVariable => ((this.NodeClass & (NodeClass.Variable | NodeClass.Object)) != 0);
+
         #region Private Fields
         private NodeState m_parent;
         private NodeId m_referenceTypeId;

@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -47,21 +47,16 @@ namespace Opc.Ua
                 element = element.NextSibling;
             }
 
-            XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml));
-
-            try
+            using (XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings()))
             {
                 DataContractSerializer serializer = new DataContractSerializer(typeof(ConfigurationLocation));
                 ConfigurationLocation configuration = serializer.ReadObject(reader) as ConfigurationLocation;
                 return configuration;
             }
-            finally
-            {
-                reader.Dispose();
-            }
         }
         #endregion
     }
+
     /// <summary>
     /// Represents the location of a configuration file.
     /// </summary>
@@ -96,11 +91,11 @@ namespace Opc.Ua
         /// Gets the file that was used to load the configuration.
         /// </summary>
         /// <value>The source file path.</value>
-        public string SourceFilePath
-        {
-            get { return m_sourceFilePath; }
-        }
+        public string SourceFilePath => m_sourceFilePath;
 
+        /// <summary>
+        /// Gets or sets the certificate validator which is configured to use.
+        /// </summary>
         public CertificateValidator CertificateValidator
         {
             get { return m_certificateValidator; }
@@ -113,8 +108,6 @@ namespace Opc.Ua
         /// <returns>A list of domain names.</returns>
         public IList<string> GetServerDomainNames()
         {
-            List<string> domainNames = new List<string>();
-
             StringCollection baseAddresses = new StringCollection();
 
             if (this.ServerConfiguration != null)
@@ -143,6 +136,7 @@ namespace Opc.Ua
                 }
             }
 
+            var domainNames = new List<string>();
             for (int ii = 0; ii < baseAddresses.Count; ii++)
             {
                 Uri url = Utils.ParseUri(baseAddresses[ii]);
@@ -176,7 +170,7 @@ namespace Opc.Ua
         /// Creates the message context from the configuration.
         /// </summary>
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
-        public ServiceMessageContext CreateMessageContext(bool clonedFactory=false)
+        public ServiceMessageContext CreateMessageContext(bool clonedFactory = false)
         {
             ServiceMessageContext messageContext = new ServiceMessageContext();
 
@@ -202,7 +196,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>A new instance of a ServiceMessageContext object.</value>
         [Obsolete("Warning: Behavior changed return a copy instead of a reference. Should call CreateMessageContext() instead.")]
-        public ServiceMessageContext MessageContext
+        public IServiceMessageContext MessageContext
         {
             get
             {
@@ -221,9 +215,9 @@ namespace Opc.Ua
         /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType)
+        public static Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType)
         {
-            return await Load(sectionName, applicationType, typeof(ApplicationConfiguration));
+            return Load(sectionName, applicationType, typeof(ApplicationConfiguration));
         }
 
         /// <summary>
@@ -233,7 +227,7 @@ namespace Opc.Ua
         /// <param name="applicationType">A description for the ApplicationType DataType.</param>
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType, Type systemType)
+        public static Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType, Type systemType)
         {
             string filePath = GetFilePathFromAppConfig(sectionName);
 
@@ -241,14 +235,15 @@ namespace Opc.Ua
 
             if (!file.Exists)
             {
+                var message = new StringBuilder();
+                message.AppendFormat("Configuration file does not exist: {0}", filePath);
+                message.AppendLine();
+                message.AppendFormat("Current directory is: {0}", Directory.GetCurrentDirectory());
                 throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "Configuration file does not exist: {0}\r\nCurrent directory is: {1}",
-                    filePath,
-                    Directory.GetCurrentDirectory());
+                    StatusCodes.BadConfigurationError, message.ToString());
             }
 
-            return await Load(file, applicationType, systemType);
+            return Load(file, applicationType, systemType);
         }
 
         /// <summary>
@@ -260,33 +255,30 @@ namespace Opc.Ua
         /// <remarks>Use this method to ensure the configuration is not changed during loading.</remarks>
         public static ApplicationConfiguration LoadWithNoValidation(FileInfo file, Type systemType)
         {
-            FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
-
-            try
+            using (var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
             {
-                DataContractSerializer serializer = new DataContractSerializer(systemType);
-
-                ApplicationConfiguration configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
-
-                if (configuration != null)
+                try
                 {
-                    configuration.m_sourceFilePath = file.FullName;
-                }
+                    DataContractSerializer serializer = new DataContractSerializer(systemType);
 
-                return configuration;
-            }
-            catch (Exception e)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    e,
-                    "Configuration file could not be loaded: {0}\r\nError is: {1}",
-                    file.FullName,
-                    e.Message);
-            }
-            finally
-            {
-                stream.Dispose();
+                    ApplicationConfiguration configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
+
+                    if (configuration != null)
+                    {
+                        configuration.m_sourceFilePath = file.FullName;
+                    }
+
+                    return configuration;
+                }
+                catch (Exception e)
+                {
+                    var message = new StringBuilder();
+                    message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
+                    message.AppendLine();
+                    message.AppendFormat("Error is: {0}", e.Message);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError, e, message.ToString());
+                }
             }
         }
 
@@ -297,9 +289,9 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(FileInfo file, ApplicationType applicationType, Type systemType)
+        public static Task<ApplicationConfiguration> Load(FileInfo file, ApplicationType applicationType, Type systemType)
         {
-            return await ApplicationConfiguration.Load(file, applicationType, systemType, true);
+            return ApplicationConfiguration.Load(file, applicationType, systemType, true);
         }
 
         /// <summary>
@@ -309,17 +301,60 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(FileInfo file, ApplicationType applicationType, Type systemType, bool applyTraceSettings)
+        public static async Task<ApplicationConfiguration> Load(
+            FileInfo file,
+            ApplicationType applicationType,
+            Type systemType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null)
         {
             ApplicationConfiguration configuration = null;
 
-            if (systemType == null)
+            try
             {
-                systemType = typeof(ApplicationConfiguration);
+                using (FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
+                {
+                    configuration = await Load(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider).ConfigureAwait(false);
+                }
+            }
+            catch (Exception e)
+            {
+                var message = new StringBuilder();
+                message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
+                message.AppendLine();
+                message.Append(e.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError, e, message.ToString());
             }
 
-            FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
+            if (configuration != null)
+            {
+                configuration.m_sourceFilePath = file.FullName;
+            }
+
+            return configuration;
+        }
+
+        /// <summary>
+        /// Loads and validates the application configuration from a configuration section.
+        /// </summary>
+        /// <param name="stream">The stream.</param>
+        /// <param name="applicationType">Type of the application.</param>
+        /// <param name="systemType">Type of the system.</param>
+        /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="certificatePasswordProvider">The certificate password provider.</param>
+        /// <returns>Application configuration</returns>
+        public static async Task<ApplicationConfiguration> Load(
+            Stream stream,
+            ApplicationType applicationType,
+            Type systemType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null)
+        {
+            ApplicationConfiguration configuration = null;
+            systemType = systemType ?? typeof(ApplicationConfiguration);
 
             try
             {
@@ -328,16 +363,12 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
+                var message = new StringBuilder();
+                message.AppendFormat("Configuration could not be loaded.");
+                message.AppendLine();
+                message.AppendFormat("Error is: {0}", e.Message);
                 throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    e,
-                    "Configuration file could not be loaded: {0}\r\nError is: {1}",
-                    file.FullName,
-                    e.Message);
-            }
-            finally
-            {
-                stream.Dispose();
+                    StatusCodes.BadConfigurationError, e, message.ToString());
             }
 
             if (configuration != null)
@@ -348,9 +379,9 @@ namespace Opc.Ua
                     configuration.TraceConfiguration.ApplySettings();
                 }
 
-                await configuration.Validate(applicationType);
+                configuration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
 
-                configuration.m_sourceFilePath = file.FullName;
+                await configuration.Validate(applicationType).ConfigureAwait(false);
             }
 
             return configuration;
@@ -366,14 +397,7 @@ namespace Opc.Ua
         {
             // convert to absolute file path (expands environment strings).
             string absolutePath = Utils.GetAbsoluteFilePath(sectionName + ".Config.xml", true, false, false);
-            if (absolutePath != null)
-            {
-                return absolutePath;
-            }
-            else
-            {
-                return sectionName + ".Config.xml";
-            }
+            return (absolutePath != null) ? absolutePath : sectionName + ".Config.xml";
         }
 
         /// <summary>
@@ -383,14 +407,10 @@ namespace Opc.Ua
         /// <remarks>Calls GetType() on the current instance and passes that to the DataContractSerializer.</remarks>
         public void SaveToFile(string filePath)
         {
-            Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
-
-            XmlWriterSettings settings = new XmlWriterSettings();
-
-            settings.Encoding = System.Text.Encoding.UTF8;
-            settings.Indent = true;
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
 
+            using (Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite))
             using (XmlWriter writer = XmlDictionaryWriter.Create(ostrm, settings))
             {
                 DataContractSerializer serializer = new DataContractSerializer(GetType());
@@ -417,20 +437,19 @@ namespace Opc.Ua
             SecurityConfiguration.Validate();
 
             // load private key
-            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
+            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
 
-            //  generate a default uri if null
-            if (String.IsNullOrEmpty(ApplicationUri))
+            Func<string> generateDefaultUri = () =>
             {
-                StringBuilder buffer = new StringBuilder();
+                var sb = new StringBuilder();
+                sb.Append("urn:");
+                sb.Append(Utils.GetHostName());
+                sb.Append(':');
+                sb.Append(ApplicationName);
+                return sb.ToString();
+            };
 
-                buffer.Append("urn:");
-                buffer.Append(Utils.GetHostName());
-                buffer.Append(":");
-                buffer.Append(ApplicationName);
-
-                m_applicationUri = buffer.ToString();
-            }
+            if (String.IsNullOrEmpty(ApplicationUri)) m_applicationUri = generateDefaultUri();
 
             if (applicationType == ApplicationType.Client || applicationType == ApplicationType.ClientAndServer)
             {
@@ -465,7 +484,7 @@ namespace Opc.Ua
             // toggle the state of the hi-res clock.
             HiResClock.Disabled = m_disableHiResClock;
 
-            if (m_disableHiResClock)
+            if (HiResClock.Disabled)
             {
                 if (m_serverConfiguration != null)
                 {
@@ -476,9 +495,7 @@ namespace Opc.Ua
                 }
             }
 
-            // create the certificate validator.
-            m_certificateValidator = new CertificateValidator();
-            await m_certificateValidator.Update(this.SecurityConfiguration);
+            await m_certificateValidator.Update(this.SecurityConfiguration).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -579,16 +596,6 @@ namespace Opc.Ua
         public void UpdateExtension<T>(XmlQualifiedName elementName, object value)
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value);
-        }
-
-        /// <summary>
-        /// Updates the extension.
-        /// </summary>
-        /// <param name="type">The type.</param>
-        /// <param name="value">The value.</param>
-        [Obsolete("Not non-functional. Replaced by a template version UpdateExtension<T>")]
-        public void UpdateExtension(Type type, object value)
-        {
         }
         #endregion
     }

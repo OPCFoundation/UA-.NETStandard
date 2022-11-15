@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -10,12 +10,15 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+//#define TRACE_MEMORY
+//#define TRACK_MEMORY 
+
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 
 namespace Opc.Ua.Bindings
 {
-    
     #region BufferCollection Class
     /// <summary>
     /// A collection of buffers.
@@ -58,7 +61,7 @@ namespace Opc.Ua.Bindings
             Add(new ArraySegment<byte>(array, offset, count));
         }
         #endregion
-        
+
         #region Public Methods
         /// <summary>
         /// Returns the buffers to the manager before clearing the collection.
@@ -118,8 +121,9 @@ namespace Opc.Ua.Bindings
         /// <param name="maxBufferSize">Max size of the buffer.</param>
         public BufferManager(string name, int maxPoolSize, int maxBufferSize)
         {
+            int maxArrayLength = maxBufferSize + m_cookieLength;
             m_name = name;
-            m_manager = System.ServiceModel.Channels.BufferManager.CreateBufferManager(maxPoolSize, maxBufferSize + m_cookieLength);
+            m_arrayPool = ArrayPool<byte>.Create(maxArrayLength, 4);
             m_maxBufferSize = maxBufferSize;
         }
         #endregion
@@ -140,7 +144,7 @@ namespace Opc.Ua.Bindings
 
             lock (m_lock)
             {
-                byte[] buffer = m_manager.TakeBuffer(size + m_cookieLength);
+                byte[] buffer = m_arrayPool.Rent(size + m_cookieLength);
 #if TRACK_MEMORY
                 byte[] bytes = BitConverter.GetBytes(++m_id);
                 Array.Copy(bytes, 0, buffer, buffer.Length-5, bytes.Length);                
@@ -157,7 +161,7 @@ namespace Opc.Ua.Bindings
                 m_allocations[m_id] = allocation;
 #endif
 #if TRACE_MEMORY
-                Utils.Trace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
+                Utils.EventLog.Trace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
 #endif
                 buffer[buffer.Length - 1] = m_cookieUnlocked;
                 return buffer;
@@ -179,8 +183,8 @@ namespace Opc.Ua.Bindings
 
             lock (m_lock)
             {
-                int id = BitConverter.ToInt32(buffer, buffer.Length-5);       
-         
+                int id = BitConverter.ToInt32(buffer, buffer.Length - 5);
+
                 Allocation allocation = null;
 
                 if (m_allocations.TryGetValue(id, out allocation))
@@ -189,7 +193,7 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        Utils.Trace("{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***", 
+                        Utils.EventLog.Trace("{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***", 
                             m_name,
                             allocation.Id, 
                             allocation.Owner, 
@@ -199,7 +203,7 @@ namespace Opc.Ua.Bindings
             }
 #endif
 #if TRACE_MEMORY
-            Utils.Trace("{0:X}:TransferBuffer({1:X},{2:X},{3})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner);
+            Utils.EventLog.Trace("{0:X}:TransferBuffer({1:X},{2:X},{3})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner);
 #endif
         }
 
@@ -209,14 +213,14 @@ namespace Opc.Ua.Bindings
         /// <param name="buffer">The buffer.</param>
         public static void LockBuffer(byte[] buffer)
         {
-            if (buffer[buffer.Length-1] != m_cookieUnlocked)
+            if (buffer[buffer.Length - 1] != m_cookieUnlocked)
             {
                 throw new InvalidOperationException("Buffer is already locked.");
             }
 #if TRACE_MEMORY
-            Utils.Trace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+            Utils.EventLog.Trace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
-            buffer[buffer.Length-1] = m_cookieLocked;
+            buffer[buffer.Length - 1] = m_cookieLocked;
         }
 
         /// <summary>
@@ -225,14 +229,14 @@ namespace Opc.Ua.Bindings
         /// <param name="buffer">The buffer.</param>
         public static void UnlockBuffer(byte[] buffer)
         {
-            if (buffer[buffer.Length-1] != m_cookieLocked)
+            if (buffer[buffer.Length - 1] != m_cookieLocked)
             {
                 throw new InvalidOperationException("Buffer is not locked.");
             }
 #if TRACE_MEMORY
-            Utils.Trace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+            Utils.EventLog.Trace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
-            buffer[buffer.Length-1] = m_cookieUnlocked;
+            buffer[buffer.Length - 1] = m_cookieUnlocked;
         }
 
         /// <summary>
@@ -250,9 +254,9 @@ namespace Opc.Ua.Bindings
             lock (m_lock)
             {
 #if TRACE_MEMORY
-                Utils.Trace("{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, --m_buffersTaken);
+                Utils.EventLog.Trace("{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, --m_buffersTaken);
 #endif
-                if (buffer[buffer.Length-1] != m_cookieUnlocked)
+                if (buffer[buffer.Length - 1] != m_cookieUnlocked)
                 {
                     throw new InvalidOperationException("Buffer has been locked.");
                 }
@@ -262,9 +266,9 @@ namespace Opc.Ua.Bindings
 
 #if TRACK_MEMORY
                 m_allocated -= buffer.Length;
-                
+
                 int id = BitConverter.ToInt32(buffer, buffer.Length-5);       
-         
+
                 Allocation allocation = null;
 
                 if (m_allocations.TryGetValue(id, out allocation))
@@ -273,7 +277,7 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        Utils.Trace("{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***", 
+                        Utils.EventLog.Trace("{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***", 
                             m_name,
                             allocation.Id, 
                             allocation.Owner, 
@@ -284,7 +288,7 @@ namespace Opc.Ua.Bindings
 
                 m_allocations.Remove(id);
                                
-                //Utils.Trace("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
+                Utils.EventLog.Trace("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
 
                 foreach (KeyValuePair<int,Allocation> current in m_allocations)
                 {
@@ -303,7 +307,7 @@ namespace Opc.Ua.Bindings
                     {        
                         if (allocation.Reported < age)
                         {
-                            Utils.Trace("{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}", 
+                            Utils.EventLog.Trace("{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}", 
                                 m_name,
                                 allocation.Id, 
                                 allocation.Owner, 
@@ -327,20 +331,19 @@ namespace Opc.Ua.Bindings
                     }
                 }
 #endif
-
-                m_manager.ReturnBuffer(buffer);
+                m_arrayPool.Return(buffer);
             }
         }
-#endregion
-        
-#region Private Fields
+        #endregion
+
+        #region Private Fields
         private object m_lock = new object();
         private string m_name;
         private int m_maxBufferSize;
 #if TRACE_MEMORY
         private int m_buffersTaken = 0;
 #endif
-        private System.ServiceModel.Channels.BufferManager m_manager;
+        private ArrayPool<byte> m_arrayPool;
         const byte m_cookieLocked = 0xa5;
         const byte m_cookieUnlocked = 0x5a;
 #if TRACK_MEMORY

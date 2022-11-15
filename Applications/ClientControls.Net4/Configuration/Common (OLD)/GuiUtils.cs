@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -29,7 +29,9 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -66,7 +68,7 @@ namespace Opc.Ua.Client.Controls
 
             ExceptionDlg.Show(caption, e);
         }
-        
+
         /// <summary>
         /// Defines names for the available 16x16 icons.
         /// </summary>
@@ -240,39 +242,96 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 form.Text = Utils.Format("{0} (UA TCP - C#)", text);
-            } 
+            }
+        }
+
+        /// <summary>
+        /// Handles a domain validation error.
+        /// </summary>
+        /// <param name="caption">The caller's text is used as the caption of the <see cref="MessageBox"/> shown to provide details about the error.</param>
+        public static bool HandleDomainCheckError(string caption, ServiceResult serviceResult, X509Certificate2 certificate = null)
+        {
+            StringBuilder buffer = new StringBuilder();
+            buffer.AppendFormat("Certificate could not be validated!\r\n");
+            buffer.AppendFormat("Validation error(s): \r\n");
+            buffer.AppendFormat("\t{0}\r\n", serviceResult.StatusCode);
+            if (certificate != null)
+            {
+                buffer.AppendFormat("\r\nSubject: {0}\r\n", certificate.Subject);
+                buffer.AppendFormat("Issuer: {0}\r\n", X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer)
+                    ? "Self-signed" : certificate.Issuer);
+                buffer.AppendFormat("Valid From: {0}\r\n", certificate.NotBefore);
+                buffer.AppendFormat("Valid To: {0}\r\n", certificate.NotAfter);
+                buffer.AppendFormat("Thumbprint: {0}\r\n\r\n", certificate.Thumbprint);
+                var domains = X509Utils.GetDomainsFromCertficate(certificate);
+                if (domains.Count > 0)
+                {
+                    bool comma = false;
+                    buffer.AppendFormat("Domains:");
+                    foreach (var domain in domains)
+                    {
+                        if (comma)
+                        {
+                            buffer.Append(",");
+                        }
+                        buffer.AppendFormat(" {0}", domain);
+                        comma = true;
+                    }
+                    buffer.AppendLine();
+                }
+            }
+            buffer.Append("This certificate validation error indicates that the hostname used to connect");
+            buffer.Append(" is not listed as a valid hostname in the server certificate.");
+            buffer.Append("\r\n\r\nIgnore error and disable the hostname verification?");
+
+            if (MessageBox.Show(buffer.ToString(), caption, MessageBoxButtons.YesNo) == DialogResult.Yes)
+            {
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
         /// Handles a certificate validation error.
         /// </summary>
-        /// <param name="caller">The caller's text is used as the caption of the <see cref="MessageBox"/> shown to provide details about the error.</param>
+        /// <param name="form">The caller's form is used as the caption of the <see cref="MessageBox"/> shown to provide details about the error.</param>
         /// <param name="validator">The validator (not used).</param>
         /// <param name="e">The <see cref="Opc.Ua.CertificateValidationEventArgs"/> instance event arguments provided when a certificate validation error occurs.</param>
-        public static void HandleCertificateValidationError(Form caller, CertificateValidator validator, CertificateValidationEventArgs e)
-        {       
+        public static void HandleCertificateValidationError(Form form, CertificateValidator validator, CertificateValidationEventArgs e)
+        {
+            HandleCertificateValidationError(form.Text, validator, e);
+        }
+
+        /// <summary>
+        /// Handles a certificate validation error.
+        /// </summary>
+        /// <param name="caption">The caller's text is used as the caption of the <see cref="MessageBox"/> shown to provide details about the error.</param>
+        /// <param name="validator">The validator (not used).</param>
+        /// <param name="e">The <see cref="Opc.Ua.CertificateValidationEventArgs"/> instance event arguments provided when a certificate validation error occurs.</param>
+        public static void HandleCertificateValidationError(string caption, CertificateValidator validator, CertificateValidationEventArgs e)
+        {
             StringBuilder buffer = new StringBuilder();
 
-            buffer.AppendFormat("Certificate could not be validated!\r\n");
-            buffer.AppendFormat("Validation error(s): \r\n");
-            buffer.AppendFormat("\t{0}\r\n", e.Error.StatusCode);
-            if (e.Error.InnerResult != null)
+            buffer.Append("Certificate could not be validated!\r\n");
+            buffer.Append("Validation error(s): \r\n");
+            ServiceResult error = e.Error;
+            while (error != null)
             {
-                buffer.AppendFormat("\t{0}\r\n", e.Error.InnerResult.StatusCode);
+                buffer.AppendFormat("- {0}\r\n", error.ToString().Split('\r', '\n').FirstOrDefault());
+                error = error.InnerResult;
             }
             buffer.AppendFormat("\r\nSubject: {0}\r\n", e.Certificate.Subject);
-            buffer.AppendFormat("Issuer: {0}\r\n", (e.Certificate.Subject == e.Certificate.Issuer)?"Self-signed":e.Certificate.Issuer);
+            buffer.AppendFormat("Issuer: {0}\r\n", (e.Certificate.Subject == e.Certificate.Issuer) ? "Self-signed" : e.Certificate.Issuer);
             buffer.AppendFormat("Valid From: {0}\r\n", e.Certificate.NotBefore);
             buffer.AppendFormat("Valid To: {0}\r\n", e.Certificate.NotAfter);
             buffer.AppendFormat("Thumbprint: {0}\r\n\r\n", e.Certificate.Thumbprint);
-            buffer.AppendFormat("The security certificate was not issued by a trusted certificate authority. ");
-            buffer.AppendFormat("Security certificate problems may indicate an attempt to intercept any data you send ");
-            buffer.AppendFormat("to a server or to allow an untrusted client to connect to your server.");
-            buffer.AppendFormat("\r\n\r\nAccept anyway?");
+            buffer.Append("Certificate validation errors may indicate an attempt to intercept any data you send ");
+            buffer.Append("to a server or to allow an untrusted client to connect to your server.");
+            buffer.Append("\r\n\r\nAccept anyway?");
 
-            if (MessageBox.Show(buffer.ToString(), caller.Text, MessageBoxButtons.YesNo) == DialogResult.Yes)
+            if (MessageBox.Show(buffer.ToString(), caption, MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
-                e.Accept = true;
+                e.AcceptAll = true;
             }
         }
 
@@ -294,7 +353,7 @@ namespace Opc.Ua.Client.Controls
                 {
                     return System.String.Empty;
                 }
-                
+
                 if (type == typeof(byte[]))
                 {
                     return new byte[0];
@@ -438,7 +497,7 @@ namespace Opc.Ua.Client.Controls
 
                     return null;
                 }
-                    
+
                 case BuiltInType.String:
                 {
                     return new StringValueEditDlg().ShowDialog((string)value);
@@ -461,7 +520,7 @@ namespace Opc.Ua.Client.Controls
 
             return new ComplexValueEditDlg().ShowDialog(value);
         }
-        
+
         /// <summary>
         /// Returns to display icon for the target of a reference.
         /// </summary>
@@ -474,14 +533,14 @@ namespace Opc.Ua.Client.Controls
         /// Returns to display icon for the target of a reference.
         /// </summary>
         public static string GetTargetIcon(Session session, NodeClass nodeClass, ExpandedNodeId typeDefinitionId)
-        { 
+        {
             // make sure the type definition is in the cache.
             INode typeDefinition = session.NodeCache.Find(typeDefinitionId);
 
             switch (nodeClass)
             {
                 case NodeClass.Object:
-                {                    
+                {
                     if (session.TypeTree.IsTypeOf(typeDefinitionId, ObjectTypes.FolderType))
                     {
                         return "Folder";
@@ -489,16 +548,16 @@ namespace Opc.Ua.Client.Controls
 
                     return "Object";
                 }
-                    
+
                 case NodeClass.Variable:
-                {                    
+                {
                     if (session.TypeTree.IsTypeOf(typeDefinitionId, VariableTypes.PropertyType))
                     {
                         return "Property";
                     }
 
                     return "Variable";
-                }                   
+                }
             }
 
             return nodeClass.ToString();

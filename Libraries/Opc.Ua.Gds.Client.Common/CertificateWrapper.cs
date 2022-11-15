@@ -1,5 +1,5 @@
-﻿/* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+/* ========================================================================
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -191,7 +192,10 @@ namespace Opc.Ua.Gds.Client
             {
                 if (Certificate != null)
                 {
-                    return Certificate.PublicKey.Key.KeySize;
+#if ECC_SUPPORT
+                    // TODO                    
+#endif
+                    return X509Utils.GetRSAPublicKeySize(Certificate);
                 }
 
                 return 0;
@@ -209,7 +213,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     try
                     {
-                        return Utils.GetApplicationUriFromCertificate(Certificate);
+                        return X509Utils.GetApplicationUriFromCertificate(Certificate);
                     }
                     catch (Exception e)
                     {
@@ -232,7 +236,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     try
                     {
-                        return Utils.GetDomainsFromCertficate(Certificate);
+                        return X509Utils.GetDomainsFromCertficate(Certificate);
                     }
                     catch (Exception e)
                     {

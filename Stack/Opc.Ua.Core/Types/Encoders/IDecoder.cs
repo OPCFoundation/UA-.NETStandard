@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -28,13 +28,13 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the decoder.
         /// </summary>
-        ServiceMessageContext Context { get; }
+        IServiceMessageContext Context { get; }
 
         /// <summary>
-        /// Sets the mapping tables to use during decoding.
+        /// Initializes the tables used to map namespace and server uris during decoding.
         /// </summary>
-        /// <param name="namespaceUris">The namespace uris.</param>
-        /// <param name="serverUris">The server uris.</param>
+        /// <param name="namespaceUris">The namespaces URIs referenced by the data being decoded.</param>
+        /// <param name="serverUris">The server URIs referenced by the data being decoded.</param>
         void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris);
 
         /// <summary>
@@ -173,14 +173,18 @@ namespace Opc.Ua
         ExtensionObject ReadExtensionObject(string fieldName);
 
         /// <summary>
-        ///  Reads an encodeable object from the stream.
+        /// Reads an encodeable object from the stream.
         /// </summary>
-        IEncodeable ReadEncodeable(string fieldName, System.Type systemType);
+        /// <param name="fieldName">The encodeable object field name</param>
+        /// <param name="systemType">The system type of the encopdeable object to be read</param>
+        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
+        /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
+        IEncodeable ReadEncodeable(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null);
 
         /// <summary>
         ///  Reads an enumerated value from the stream.
         /// </summary>
-        Enum ReadEnumerated(string fieldName, System.Type enumType);
+        Enum ReadEnumerated(string fieldName, Type enumType);
 
         /// <summary>
         /// Reads a boolean array from the stream.
@@ -308,13 +312,29 @@ namespace Opc.Ua
         ExtensionObjectCollection ReadExtensionObjectArray(string fieldName);
 
         /// <summary>
-        /// Reads an encodeable object array from the stream.
+        /// Reads an encodeable array from the stream.
         /// </summary>
-        Array ReadEncodeableArray(string fieldName, System.Type systemType);
+        /// <param name="fieldName">The encodeable array field name</param>
+        /// <param name="systemType">The system type of the encopdeable objects to be read object</param>
+        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
+        /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
+        Array ReadEncodeableArray(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null);
 
         /// <summary>
         /// Reads an enumerated value array from the stream.
         /// </summary>
-        Array ReadEnumeratedArray(string fieldName, System.Type enumType);
+        Array ReadEnumeratedArray(string fieldName, Type enumType);
+
+        /// <summary>
+        /// Reads an array with the specified valueRank and the specified BuiltInType.
+        /// </summary>
+        /// <param name="fieldName">The array field name.</param>
+        /// <param name="valueRank">The value rank of the array.</param>
+        /// <param name="builtInType">The builtInType of the array elements.</param>
+        /// <param name="systemType">The system type of an encodeable or enum element of the array.</param>
+        /// <param name="encodeableTypeId">The type id of an encodeable or enum element of the array.</param>
+        /// <returns>An array of the specified builtInType, systemType or encodeableTypeId.</returns>
+        Array ReadArray(string fieldName, int valueRank, BuiltInType builtInType,
+            Type systemType = null, ExpandedNodeId encodeableTypeId = null);
     }
 }

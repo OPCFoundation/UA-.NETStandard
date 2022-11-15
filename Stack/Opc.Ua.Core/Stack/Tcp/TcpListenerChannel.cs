@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -82,13 +83,51 @@ namespace Opc.Ua.Bindings
         public virtual string ChannelName => "TCPLISTENERCHANNEL";
 
         /// <summary>
+        /// The TCP channel listener.
+        /// </summary>
+        protected ITcpChannelListener Listener => m_listener;
+
+        /// <summary>
         /// Sets the callback used to receive notifications of new events.
         /// </summary>
         public void SetRequestReceivedCallback(TcpChannelRequestEventHandler callback)
         {
             lock (DataLock)
             {
-                m_RequestReceived = callback;
+                m_requestReceived = callback;
+            }
+        }
+
+        /// <summary>
+        /// Sets the callback used to raise channel audit events.
+        /// </summary>
+        public void SetReportOpenSecureChannellAuditCalback(ReportAuditOpenSecureChannelEventHandler callback)
+        {
+            lock (DataLock)
+            {
+                m_reportAuditOpenSecureChannelEvent = callback;
+            }
+        }
+
+        /// <summary>
+        /// Sets the callback used to raise channel audit events.
+        /// </summary>
+        public void SetReportCloseSecureChannellAuditCalback(ReportAuditCloseSecureChannelEventHandler callback)
+        {
+            lock (DataLock)
+            {
+                m_reportAuditCloseSecureChannelEvent = callback;
+            }
+        }        
+
+        /// <summary>
+        /// Sets the callback used to raise channel audit events.
+        /// </summary>
+        public void SetReportCertificateAuditCalback(ReportAuditCertificateEventHandler callback)
+        {
+            lock (DataLock)
+            {
+                m_reportAuditCertificateEvent = callback;
             }
         }
 
@@ -111,7 +150,9 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Connecting;
 
                 Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize);
-                Utils.Trace("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
+
+                Utils.LogInfo("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
+
                 Socket.ReadNextMessage();
 
                 // automatically clean up the channel if no hello received.
@@ -135,7 +176,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                Utils.Trace("Channel {0}: SendResponse {1}", ChannelId, requestId);
+                Utils.EventLog.SendResponse((int)ChannelId, (int)requestId);
 
                 BufferCollection buffers = null;
 
@@ -227,13 +268,13 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                Utils.Trace(
+                Utils.LogError(
                     "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                     ChannelName,
                     (Socket != null) ? Socket.Handle : 0,
                     (CurrentToken != null) ? CurrentToken.ChannelId : 0,
                     (CurrentToken != null) ? CurrentToken.TokenId : 0,
-                    reason.ToLongString());
+                    reason);
 
                 CompleteReverseHello(new ServiceResultException(reason));
 
@@ -250,7 +291,6 @@ namespace Opc.Ua.Bindings
                     {
                         SendErrorMessage(reason);
                     }
-
                 }
 
                 State = TcpChannelState.Faulted;
@@ -307,13 +347,13 @@ namespace Opc.Ua.Bindings
                     reason = new ServiceResult(StatusCodes.BadTimeout);
                 }
 
-                Utils.Trace(
+                Utils.LogInfo(
                     "{0} Cleanup Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                     ChannelName,
                     (Socket != null) ? Socket.Handle : 0,
                     (CurrentToken != null) ? CurrentToken.ChannelId : 0,
                     (CurrentToken != null) ? CurrentToken.TokenId : 0,
-                    reason.ToLongString());
+                    reason.ToString());
 
                 // close channel.
                 ChannelClosed();
@@ -364,7 +404,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected error re-sending request (ID={0}).", response.Key);
+                    Utils.LogError(e, "Unexpected error re-sending request (ID={0}).", response.Key);
                 }
             }
         }
@@ -374,7 +414,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendErrorMessage(ServiceResult error)
         {
-            Utils.Trace("Channel {0}: SendErrorMessage()", ChannelId);
+            Utils.LogTrace("ChannelId {0}: SendErrorMessage={1}", ChannelId, error.StatusCode);
 
             byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "SendErrorMessage");
 
@@ -407,7 +447,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(ChannelToken token, uint requestId, ServiceResult fault)
         {
-            Utils.Trace("Channel {0} Request {1}: SendServiceFault()", ChannelId, requestId);
+            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault={2}", ChannelId, requestId, fault.StatusCode);
 
             BufferCollection buffers = null;
 
@@ -482,7 +522,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(uint requestId, ServiceResult fault)
         {
-            Utils.Trace("Channel {0} Request {1}: SendServiceFault()", ChannelId, requestId);
+            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault={2}", ChannelId, requestId, fault.StatusCode);
 
             BufferCollection chunksToSend = null;
 
@@ -537,6 +577,13 @@ namespace Opc.Ua.Bindings
             throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Set the flag if a response is required for the use case of reverse connect.
+        /// </summary>
+        protected void SetResponseRequired(bool responseRequired)
+        {
+            m_responseRequired = responseRequired;
+        }
         #endregion
 
         #region Connect/Reconnect Sequence
@@ -549,11 +596,45 @@ namespace Opc.Ua.Bindings
         }
         #endregion
 
+        #region Protected Functions
+        /// <summary>
+        /// Reset the sorted dictionary of queued responses after reconnect.
+        /// </summary>
+        protected void ResetQueuedResponses(Action<object> action)
+        {
+            Task.Factory.StartNew(action, m_queuedResponses);
+            m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
+        }
+
+        /// <summary>
+        /// The channel request event handler.
+        /// </summary>
+        protected TcpChannelRequestEventHandler RequestReceived => m_requestReceived;
+
+        /// <summary>
+        /// The report open secure channel audit event handler.
+        /// </summary>
+        protected ReportAuditOpenSecureChannelEventHandler ReportAuditOpenSecureChannelEvent => m_reportAuditOpenSecureChannelEvent;
+
+        /// <summary>
+        /// The report close secure channel audit event handler.
+        /// </summary>
+        protected ReportAuditCloseSecureChannelEventHandler ReportAuditCloseSecureChannelEvent => m_reportAuditCloseSecureChannelEvent;
+
+        /// <summary>
+        /// The report certificate audit event handler.
+        /// </summary>
+        protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent => m_reportAuditCertificateEvent;
+        #endregion
+
         #region Private Fields
-        protected ITcpChannelListener m_listener;
-        protected bool m_responseRequired;
-        protected SortedDictionary<uint, IServiceResponse> m_queuedResponses;
-        protected TcpChannelRequestEventHandler m_RequestReceived;
+        private ITcpChannelListener m_listener;
+        private bool m_responseRequired;
+        private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
+        private TcpChannelRequestEventHandler m_requestReceived;
+        private ReportAuditOpenSecureChannelEventHandler m_reportAuditOpenSecureChannelEvent;
+        private ReportAuditCloseSecureChannelEventHandler m_reportAuditCloseSecureChannelEvent;
+        private ReportAuditCertificateEventHandler m_reportAuditCertificateEvent;
         private long m_lastTokenId;
         private Timer m_cleanupTimer;
         #endregion
@@ -568,5 +649,20 @@ namespace Opc.Ua.Bindings
     /// Used to report the status of the channel.
     /// </summary>
     public delegate void TcpChannelStatusEventHandler(TcpServerChannel channel, ServiceResult status, bool closed);
+
+    /// <summary>
+    /// Used to report an open secure channel audit event.
+    /// </summary>
+    public delegate void ReportAuditOpenSecureChannelEventHandler(TcpServerChannel channel, OpenSecureChannelRequest request, X509Certificate2 clientCertificate, Exception exception);
+
+    /// <summary>
+    /// Used to report a close secure channel audit event
+    /// </summary>
+    public delegate void ReportAuditCloseSecureChannelEventHandler(TcpServerChannel channel, Exception exception);
+
+    /// <summary>
+    /// Used to report an open secure channel audit event.
+    /// </summary>
+    public delegate void ReportAuditCertificateEventHandler(X509Certificate2 clientCertificate, Exception exception);
 
 }

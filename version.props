@@ -1,11 +1,18 @@
 <Project>
-  <PropertyGroup>
-    <VersionPrefix>1.04.362</VersionPrefix>
-    <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
-    <Copyright>Copyright © 2004-2020 OPC Foundation, Inc</Copyright>
-    <Company>OPC Foundation</Company>
-    <Authors>OPC Foundation</Authors>
-    <NeutralLanguage>en-US</NeutralLanguage>
-    <Product>OPC UA SDK</Product>
+  <ItemGroup Condition="$(NBGV_PublicRelease) != 'True' AND '$(CODEQL_RUNNER)' == ''">
+    <!-- Note: Keep Version 3.5.119, it is known working for 4 digit versioning -->
+    <PackageReference Include="Nerdbank.GitVersioning" Version="3.5.119">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <PropertyGroup Condition="'$(NBGV_PublicRelease)' == 'True'">
+    <Version>$(NBGV_Version)$(NBGV_PrereleaseVersion)</Version>
+    <VersionPrefix>$(NBGV_SimpleVersion)</VersionPrefix>
+    <VersionSuffix>$(NBGV_VersionRevision)$(NBGV_PrereleaseVersion)</VersionSuffix>
+    <AssemblyVersion>$(NBGV_SimpleVersion)</AssemblyVersion>
+    <FileVersion>$(NBGV_Version)</FileVersion>
+    <PackageVersion>$(NBGV_Version)$(NBGV_PrereleaseVersion)</PackageVersion>
   </PropertyGroup>
 </Project>
+

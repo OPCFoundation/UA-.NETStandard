@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -31,7 +31,7 @@ namespace Opc.Ua
 
             // cache the namespace index used to qualify the element browse names and node ids.
             int index = context.NamespaceUris.GetIndex(ElementNamespaceUri);
- 
+
             if (index >= 0)
             {
                 ElementNamespaceIndex = (ushort)index;
@@ -78,13 +78,13 @@ namespace Opc.Ua
             {
                 get { return m_number; }
             }
-            
+
             private uint m_id;
             private string m_name;
             private uint m_number;
         }
         #endregion
-        
+
         #region Protected Members
         /// <summary>
         /// The namespace index used to qualify the element browse names and node ids.
@@ -94,7 +94,7 @@ namespace Opc.Ua
             get { return m_elementNamespaceIndex; }
             set { m_elementNamespaceIndex = value; }
         }
-        
+
         /// <summary>
         /// The table of states belonging to the state machine.
         /// </summary>
@@ -102,7 +102,7 @@ namespace Opc.Ua
         {
             get { return Namespaces.OpcUa; }
         }
-                
+
         /// <summary>
         /// The table of states belonging to the state machine.
         /// </summary>
@@ -110,7 +110,7 @@ namespace Opc.Ua
         {
             get { return null; }
         }
-        
+
         /// <summary>
         /// The table of transitions belonging to the state machine.
         /// </summary>
@@ -118,7 +118,7 @@ namespace Opc.Ua
         {
             get { return null; }
         }
-        
+
         /// <summary>
         /// The mapping between transitions and their from and to states.
         /// </summary>
@@ -126,7 +126,7 @@ namespace Opc.Ua
         {
             get { return null; }
         }
-        
+
         /// <summary>
         /// The mapping between causes, the current state and a transition.
         /// </summary>
@@ -143,7 +143,7 @@ namespace Opc.Ua
             get { return m_lastState; }
             set { m_lastState = value; }
         }
-        
+
         /// <summary>
         /// Returns the current state of for the state machine.
         /// </summary>
@@ -151,14 +151,14 @@ namespace Opc.Ua
         {
             if (CurrentState == null || CurrentState.Id == null || CurrentState.Value == null)
             {
-                return 0; 
+                return 0;
             }
 
             NodeId value = CurrentState.Id.Value;
 
             if (ElementNamespaceIndex != value.NamespaceIndex || value.IdType != IdType.Numeric)
             {
-                return 0; 
+                return 0;
             }
 
             return (uint)value.Identifier;
@@ -187,15 +187,15 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                if (transitionMappings[ii,0] == transitionId && transitionMappings[ii,1] == currentState)
+                if (transitionMappings[ii, 0] == transitionId && transitionMappings[ii, 1] == currentState)
                 {
-                    return transitionMappings[ii,2];
+                    return transitionMappings[ii, 2];
                 }
-            }                
+            }
 
             return 0;
         }
-                
+
         /// <summary>
         /// Checks if the transition has an effect.
         /// </summary>
@@ -212,11 +212,11 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                if (transitionMappings[ii,0] == transitionId)
+                if (transitionMappings[ii, 0] == transitionId)
                 {
-                    return transitionMappings[ii,3] != 0;
+                    return transitionMappings[ii, 3] != 0;
                 }
-            }                
+            }
 
             return false;
         }
@@ -244,12 +244,12 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                if (causeMappings[ii,0] == causeId && causeMappings[ii,1] == currentState)
+                if (causeMappings[ii, 0] == causeId && causeMappings[ii, 1] == currentState)
                 {
-                    return causeMappings[ii,2];
+                    return causeMappings[ii, 2];
                 }
             }
-                
+
             return 0;
         }
 
@@ -410,7 +410,7 @@ namespace Opc.Ua
         /// </summary>
         public StateMachineTransitionHandler OnAfterTransition;
         #endregion
-                
+
         #region Public Interface
         /// <summary>
         /// If true transition events will not be produced by the state machine.
@@ -420,7 +420,7 @@ namespace Opc.Ua
             get { return m_suppressTransitionEvents; }
             set { m_suppressTransitionEvents = value; }
         }
-        
+
         /// <summary>
         /// Invokes the callback function if it has been specified.
         /// </summary>
@@ -446,7 +446,7 @@ namespace Opc.Ua
             }
 
             return ServiceResult.Good;
-        }        
+        }
 
         /// <summary>
         /// Checks if the cause is permitted given the current state and returns the associated transition.
@@ -464,9 +464,9 @@ namespace Opc.Ua
             {
                 ServiceResult result = InvokeCallback(
                     OnCheckUserPermission,
-                    context, 
-                    this, 
-                    transitionId, 
+                    context,
+                    this,
+                    transitionId,
                     causeId,
                     null,
                     null);
@@ -495,8 +495,8 @@ namespace Opc.Ua
         /// Invokes the specified cause.
         /// </summary>
         public virtual ServiceResult DoCause(
-            ISystemContext context, 
-            MethodState causeMethod, 
+            ISystemContext context,
+            MethodState causeMethod,
             uint causeId,
             IList<object> inputArguments,
             IList<object> outputArguments)
@@ -516,9 +516,9 @@ namespace Opc.Ua
                 // check access rights.
                 result = InvokeCallback(
                     OnCheckUserPermission,
-                    context, 
-                    this, 
-                    transitionId, 
+                    context,
+                    this,
+                    transitionId,
                     causeId,
                     inputArguments,
                     outputArguments);
@@ -530,7 +530,7 @@ namespace Opc.Ua
 
                 // do the transition.
                 result = DoTransition(context, transitionId, causeId, inputArguments, outputArguments);
-
+                
                 if (ServiceResult.IsBad(result))
                 {
                     return result;
@@ -545,12 +545,18 @@ namespace Opc.Ua
                 if (this.AreEventsMonitored)
                 {
                     AuditUpdateStateEventState e = CreateAuditEvent(context, causeMethod, causeId);
-                    UpdateAuditEvent(context, causeMethod, causeId, e, result);
+                    UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
                     ReportEvent(context, e);
-                }
-            }        
 
-            return result;    
+                    if(m_causeId != causeId)
+                    {
+                        ReportAuditProgramTransitionEvent(context, causeMethod, causeId, inputArguments, result);
+                        m_causeId = causeId;
+                    }
+                }
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -563,17 +569,18 @@ namespace Opc.Ua
         {
             return new AuditUpdateStateEventState(null);
         }
-        
+
         /// <summary>
         /// Updates an audit event after the method is invoked.
         /// </summary>
         protected virtual void UpdateAuditEvent(
             ISystemContext context,
             MethodState causeMethod,
+            IList<object> inputArguments,
             uint causeId,
             AuditUpdateStateEventState e,
             ServiceResult result)
-        {            
+        {
             TranslationInfo info = new TranslationInfo(
                 "StateTransition",
                 "en-US",
@@ -588,14 +595,50 @@ namespace Opc.Ua
                 new LocalizedText(info),
                 ServiceResult.IsGood(result),
                 DateTime.UtcNow);
-            
-            e.MethodId = new PropertyState<NodeId>(e);
-            e.MethodId.Value = causeMethod.NodeId;
 
+            e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+            e.SetChildValue(context, BrowseNames.SourceName, $"Method/{causeMethod.BrowseName.Name}", false);
+            e.SetChildValue(context, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
+
+            // AuditUpdateMethodStateEventType properties
+            e.SetChildValue(context, BrowseNames.MethodId, causeMethod.NodeId, false);
+            e.SetChildValue(context, BrowseNames.InputArguments, inputArguments, false);
+
+            // AuditUpdateStateEventType properties
             e.SetChildValue(context, BrowseNames.OldStateId, LastState, false);
             e.SetChildValue(context, BrowseNames.NewStateId, CurrentState, false);
         }
 
+        /// <summary>
+        /// Reports AuditProgramTransition event
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="causeMethod"></param>
+        /// <param name="causeId"></param>
+        /// <param name="inputArguments"></param>
+        /// <param name="result"></param>
+        protected virtual void ReportAuditProgramTransitionEvent(ISystemContext context,
+            MethodState causeMethod,
+            uint causeId,
+            IList<object> inputArguments,
+            ServiceResult result)
+        {
+            try
+            {
+                AuditProgramTransitionEventState e = new AuditProgramTransitionEventState(null);
+
+                UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
+
+                e.SetChildValue(context, BrowseNames.TransitionNumber, LastTransition.Number.Value, false);
+
+                ReportEvent(context, e);
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Error while reporting AuditProgramTransitionEvent event.");
+            }
+
+        }
         /// <summary>
         /// Updates the state machine to reflect the successful processing of a method.
         /// </summary>
@@ -637,8 +680,8 @@ namespace Opc.Ua
         /// Causes the specified transition to occur.
         /// </summary>
         public ServiceResult DoTransition(
-            ISystemContext context, 
-            uint transitionId, 
+            ISystemContext context,
+            uint transitionId,
             uint causeId,
             IList<object> inputArguments,
             IList<object> outputArguments)
@@ -659,13 +702,13 @@ namespace Opc.Ua
                     return StatusCodes.BadUserAccessDenied;
                 }
             }
-            
+
             // do any pre-transition processing.
             ServiceResult result = InvokeCallback(
                 OnBeforeTransition,
-                context, 
-                this, 
-                transitionId, 
+                context,
+                this,
+                transitionId,
                 causeId,
                 inputArguments,
                 outputArguments);
@@ -682,7 +725,7 @@ namespace Opc.Ua
             }
 
             m_lastState.SetChildValue(context, null, CurrentState, false);
-            
+
             // update state and transition variables.
             UpdateStateVariable(context, newState, CurrentState);
             UpdateTransitionVariable(context, transitionId, LastTransition);
@@ -690,18 +733,18 @@ namespace Opc.Ua
             // do any post-transition processing.
             InvokeCallback(
                 OnAfterTransition,
-                context, 
-                this, 
-                transitionId, 
+                context,
+                this,
+                transitionId,
                 causeId,
                 inputArguments,
                 outputArguments);
-            
+
             // report the event.
             if (this.AreEventsMonitored && !m_suppressTransitionEvents)
             {
                 TransitionEventState e = CreateTransitionEvent(context, transitionId, causeId);
-
+                
                 if (e != null)
                 {
                     UpdateTransitionEvent(context, transitionId, causeId, e);
@@ -727,7 +770,7 @@ namespace Opc.Ua
 
             return null;
         }
-        
+
         /// <summary>
         /// Updates a transition event after the transition is complete.
         /// </summary>
@@ -736,7 +779,7 @@ namespace Opc.Ua
             uint transitionId,
             uint causeId,
             TransitionEventState e)
-        {            
+        {
             TranslationInfo info = new TranslationInfo(
                 "StateTransition",
                 "en-US",
@@ -749,7 +792,7 @@ namespace Opc.Ua
                 this,
                 EventSeverity.Medium,
                 new LocalizedText(info));
-        
+
             e.SetChildValue(context, BrowseNames.FromState, LastState, false);
             e.SetChildValue(context, BrowseNames.ToState, CurrentState, false);
             e.SetChildValue(context, BrowseNames.Transition, LastTransition, false);
@@ -759,12 +802,13 @@ namespace Opc.Ua
         #region Private Fields
         private ushort m_elementNamespaceIndex;
         private FiniteStateVariableState m_lastState;
+        private uint m_causeId;
         private bool m_suppressTransitionEvents;
         #endregion
     }
 
     /// <summary>
-    /// A delegate used to recieve notifications when a state machine transition occurs.
+    /// A delegate used to receive notifications when a state machine transition occurs.
     /// </summary>
     public delegate ServiceResult StateMachineTransitionHandler(
         ISystemContext context,

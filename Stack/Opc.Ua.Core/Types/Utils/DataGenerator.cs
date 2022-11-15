@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -730,20 +730,34 @@ namespace Opc.Ua.Test
         #endregion
 
         #region String
-        /// <summary cref="GetRandom(Type)" />
+        /// <summary>
+        /// Creates a random string with a random locale.
+        /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public string GetRandomString()
         {
             return CreateString(GetRandomLocale(), false);
         }
+
+        /// <summary>
+        /// Creates a random string for the locale.
+        /// </summary>
         public string GetRandomString(string locale)
         {
             return CreateString(locale, false);
         }
+
+        /// <summary>
+        /// Creates a random symbol with a random locale.
+        /// </summary>
         public string GetRandomSymbol()
         {
             return CreateString(GetRandomLocale(), true);
         }
+
+        /// <summary>
+        /// Creates a random symbol for the locale.
+        /// </summary>
         public string GetRandomSymbol(string locale)
         {
             return CreateString(locale, false);
@@ -1025,6 +1039,9 @@ namespace Opc.Ua.Test
         #endregion
 
         #region DataValue
+        /// <summary>
+        /// Get a random DataValue.
+        /// </summary>
         public DataValue GetRandomDataValue()
         {
             Variant variant = GetRandomVariant();
@@ -1036,6 +1053,9 @@ namespace Opc.Ua.Test
         #endregion
 
         #region DiagnosticInfo
+        /// <summary>
+        /// Get random diagnostic info.
+        /// </summary>
         public DiagnosticInfo GetRandomDiagnosticInfo()
         {
             // TODO: return random values
@@ -1092,10 +1112,10 @@ namespace Opc.Ua.Test
             new BoundaryValues(typeof(DateTime), DateTime.MinValue, DateTime.MaxValue, new DateTime(1099, 1, 1), Utils.TimeBase, new DateTime(2039, 4, 4), new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)),
             new BoundaryValues(typeof(Guid), Guid.Empty),
             new BoundaryValues(typeof(Uuid), Uuid.Empty),
-            new BoundaryValues(typeof(byte[]), null, new byte[0]),
+            new BoundaryValues(typeof(byte[]), null, Array.Empty<byte>()),
             new BoundaryValues(typeof(XmlElement), null ),
-            new BoundaryValues(typeof(NodeId), null, NodeId.Null, new NodeId(Guid.Empty), new NodeId(String.Empty), new NodeId(new byte[0]) ),
-            new BoundaryValues(typeof(ExpandedNodeId), null, ExpandedNodeId.Null, new ExpandedNodeId(Guid.Empty), new ExpandedNodeId(String.Empty), new ExpandedNodeId(new byte[0]) ),
+            new BoundaryValues(typeof(NodeId), null, NodeId.Null, new NodeId(Guid.Empty), new NodeId(String.Empty), new NodeId(Array.Empty<byte>()) ),
+            new BoundaryValues(typeof(ExpandedNodeId), null, ExpandedNodeId.Null, new ExpandedNodeId(Guid.Empty), new ExpandedNodeId(String.Empty), new ExpandedNodeId(Array.Empty<byte>()) ),
             new BoundaryValues(typeof(QualifiedName), null, QualifiedName.Null ),
             new BoundaryValues(typeof(LocalizedText), null, LocalizedText.Null ),
             new BoundaryValues(typeof(StatusCode), StatusCodes.Good, StatusCodes.Uncertain, StatusCodes.Bad ),

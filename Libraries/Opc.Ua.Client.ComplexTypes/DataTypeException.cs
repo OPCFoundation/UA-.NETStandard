@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -31,71 +31,108 @@ using System;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
-
     /// <summary>
-    /// Exception is thrown if data type is not found.
+    /// Exception is thrown if the data type is not found.
     /// </summary>
+    [Serializable]
     public class DataTypeNotFoundException : Exception
     {
-        public ExpandedNodeId nodeId;
-        public string typeName;
+        /// <summary>
+        /// The nodeId of the data type.
+        /// </summary>
+        public ExpandedNodeIdCollection NodeIds { get; }
 
-        public DataTypeNotFoundException(ExpandedNodeId nodeId)
+        /// <summary>
+        /// Create the exception.
+        /// </summary>
+        /// <param name="nodeIds">The collection of nodeId of the data types not found.</param>
+        public DataTypeNotFoundException(ExpandedNodeIdCollection nodeIds)
         {
-            this.nodeId = nodeId;
+            this.NodeIds = nodeIds;
         }
 
-        public DataTypeNotFoundException(string typeName, string message)
+        /// <summary>
+        /// Create the exception.
+        /// </summary>
+        /// <param name="nodeIds">The collection of nodeId of the data types not found.</param>
+        /// <param name="message">The exception message.</param>
+        public DataTypeNotFoundException(ExpandedNodeIdCollection nodeIds, string message)
             : base(message)
         {
-            this.nodeId = NodeId.Null;
-            this.typeName = typeName;
+            this.NodeIds = nodeIds;
         }
 
-        public DataTypeNotFoundException(ExpandedNodeId nodeId, string message)
-            : base(message)
-        {
-            this.nodeId = nodeId;
-        }
-
-        public DataTypeNotFoundException(ExpandedNodeId nodeId, string message, Exception inner)
+        /// <summary>
+        /// Create the exception.
+        /// </summary>
+        /// <param name="nodeIds">The collection of nodeId of the data types not found.</param>
+        /// <param name="message">The exception message.</param>
+        /// <param name="inner">The inner exception.</param>
+        public DataTypeNotFoundException(ExpandedNodeIdCollection nodeIds, string message, Exception inner)
             : base(message, inner)
         {
-            this.nodeId = nodeId;
+            this.NodeIds = nodeIds;
         }
     }
 
     /// <summary>
     /// DataType is not supported due to structure or value rank.
     /// </summary>
+    [Serializable]
     public class DataTypeNotSupportedException : Exception
     {
-        public ExpandedNodeId nodeId;
-        public string typeName;
+        /// <summary>
+        /// The nodeId of the data type.
+        /// </summary>
+        public ExpandedNodeId NodeId { get; }
 
+        /// <summary>
+        /// The name of the data type.
+        /// </summary>
+        public string TypeName { get; }
+
+        /// <summary>
+        /// Create the exception.
+        /// </summary>
+        /// <param name="nodeId">The nodeId of the data type.</param>
         public DataTypeNotSupportedException(ExpandedNodeId nodeId)
         {
-            this.nodeId = nodeId;
+            this.NodeId = nodeId;
         }
 
+        /// <summary>
+        /// Create the exception.
+        /// </summary>
+        /// <param name="typeName">The name of the type.</param>
+        /// <param name="message">The exception message.</param>
         public DataTypeNotSupportedException(string typeName, string message)
             : base(message)
         {
-            this.nodeId = NodeId.Null;
-            this.typeName = typeName;
+            this.NodeId = Ua.NodeId.Null;
+            this.TypeName = typeName;
         }
 
+        /// <summary>
+        /// Create the exception.
+        /// </summary>
+        /// <param name="nodeId">The nodeId of the data type.</param>
+        /// <param name="message">The exception message.</param>
         public DataTypeNotSupportedException(ExpandedNodeId nodeId, string message)
             : base(message)
         {
-            this.nodeId = nodeId;
+            this.NodeId = nodeId;
         }
 
+        /// <summary>
+        /// Create the exception.
+        /// </summary>
+        /// <param name="nodeId">The nodeId of the data type.</param>
+        /// <param name="message">The exception message.</param>
+        /// <param name="inner">The inner exception.</param>
         public DataTypeNotSupportedException(ExpandedNodeId nodeId, string message, Exception inner)
             : base(message, inner)
         {
-            this.nodeId = nodeId;
+            this.NodeId = nodeId;
         }
     }
-
 }//namespace

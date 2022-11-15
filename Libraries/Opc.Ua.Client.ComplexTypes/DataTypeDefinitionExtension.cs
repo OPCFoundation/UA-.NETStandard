@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,7 +41,7 @@ namespace Opc.Ua.Client.ComplexTypes
     {
         #region Public Extensions
         /// <summary>
-        /// Convert a binary schema type definition to a 
+        /// Convert a binary schema type definition to a
         /// StructureDefinition.
         /// </summary>
         /// <remarks>
@@ -51,7 +50,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// - Nested types and typed arrays with length field.
         /// The converter has the following known restrictions:
         /// - Support only for V1.03 structured types which can be mapped to the V1.04
-        /// structured type definition. 
+        /// structured type definition.
         /// The following dictionary tags cause bail out for a structure:
         /// - use of a terminator of length in bytes
         /// - an array length field is not a direct predecessor of the array
@@ -63,7 +62,8 @@ namespace Opc.Ua.Client.ComplexTypes
             this Schema.Binary.StructuredType structuredType,
             ExpandedNodeId defaultEncodingId,
             Dictionary<XmlQualifiedName, NodeId> typeDictionary,
-            NamespaceTable namespaceTable)
+            NamespaceTable namespaceTable,
+            NodeId dataTypeNodeId)
         {
             var structureDefinition = new StructureDefinition() {
                 BaseDataType = null,
@@ -160,11 +160,20 @@ namespace Opc.Ua.Client.ComplexTypes
                     throw new DataTypeNotSupportedException(
                         "Bitwise option selectors must have 32 bits.");
                 }
-
+                NodeId fieldDataTypeNodeId;
+                if(field.TypeName == structuredType.QName)
+                {
+                    // recursive type
+                    fieldDataTypeNodeId = dataTypeNodeId;
+                }
+                else
+                {
+                    fieldDataTypeNodeId = field.TypeName.ToNodeId(typeDictionary);
+                }
                 var dataTypeField = new StructureField() {
                     Name = field.Name,
                     Description = null,
-                    DataType = field.TypeName.ToNodeId(typeDictionary),
+                    DataType = fieldDataTypeNodeId,
                     IsOptional = false,
                     MaxStringLength = 0,
                     ArrayDimensions = null,
@@ -181,7 +190,7 @@ namespace Opc.Ua.Client.ComplexTypes
                             "The length field must precede the type field of an array.");
                     }
                     lastField.Name = field.Name;
-                    lastField.DataType = field.TypeName.ToNodeId(typeDictionary);
+                    lastField.DataType = fieldDataTypeNodeId;
                     lastField.ValueRank = 1;
                 }
                 else
@@ -205,17 +214,14 @@ namespace Opc.Ua.Client.ComplexTypes
                         }
                         dataTypeFieldPosition++;
                     }
-                    else
+                    else if (field.SwitchField != null)
                     {
-                        if (field.SwitchField != null)
+                        dataTypeField.IsOptional = true;
+                        byte value;
+                        if (!switchFieldBits.TryGetValue(field.SwitchField, out value))
                         {
-                            dataTypeField.IsOptional = true;
-                            byte value;
-                            if (!switchFieldBits.TryGetValue(field.SwitchField, out value))
-                            {
-                                throw new DataTypeNotSupportedException(
-                                    $"The switch field for {field.SwitchField} does not exist.");
-                            }
+                            throw new DataTypeNotSupportedException(
+                                $"The switch field for {field.SwitchField} does not exist.");
                         }
                     }
                     structureDefinition.Fields.Add(dataTypeField);
@@ -261,8 +267,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 var internalField = typeof(DataTypeIds).GetField(typeName.Name);
                 if (internalField == null)
                 {
-                    throw new DataTypeNotFoundException(
-                        $"The type {typeName.Name} was not found in the internal type factory.");
+                    // The type was not found in the internal type factory.
+                    return NodeId.Null;
                 }
                 return (NodeId)internalField.GetValue(typeName.Name);
             }
@@ -270,13 +276,12 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))
                 {
-                    throw new DataTypeNotFoundException(
-                        typeName.Name,
-                        $"The type {typeName.Name} in namespace {typeName.Namespace} was not found.");
+                    // The type was not found in the namespace
+                    return NodeId.Null;
                 }
                 return referenceId;
             }
         }
-        #endregion
+        #endregion Public Extensions
     }
 }//namespace

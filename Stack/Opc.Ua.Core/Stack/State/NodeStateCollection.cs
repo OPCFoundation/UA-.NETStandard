@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -12,18 +12,17 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.Text;
 using System.IO;
 using System.Reflection;
 using System.Runtime.Serialization;
+using System.Xml;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// Stores a collection of nodes.
     /// </summary>
-    public class NodeStateCollection : List<NodeState>
+    public partial class NodeStateCollection : List<NodeState>
     {
         #region Constructors
         /// <summary>
@@ -60,26 +59,21 @@ namespace Opc.Ua
         public void SaveAsNodeSet(ISystemContext context, Stream ostrm)
         {
             NodeTable nodeTable = new NodeTable(context.NamespaceUris, context.ServerUris, null);
-            
+
             for (int ii = 0; ii < this.Count; ii++)
             {
                 this[ii].Export(context, nodeTable);
             }
 
             NodeSet nodeSet = new NodeSet();
-            
+
             foreach (ILocalNode node in nodeTable)
             {
                 nodeSet.Add(node, nodeTable.NamespaceUris, nodeTable.ServerUris);
             }
 
-            XmlWriterSettings settings = new XmlWriterSettings();
-
-            settings.Encoding = Encoding.UTF8;
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
-            settings.ConformanceLevel = ConformanceLevel.Document;
-            settings.Indent = true;
-
             using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
             {
                 DataContractSerializer serializer = new DataContractSerializer(typeof(NodeSet));
@@ -142,10 +136,21 @@ namespace Opc.Ua
             new AliasToUse(BrowseNames.HasTypeDefinition, ReferenceTypeIds.HasTypeDefinition),
             new AliasToUse(BrowseNames.HasModellingRule, ReferenceTypeIds.HasModellingRule),
             new AliasToUse(BrowseNames.HasEncoding, ReferenceTypeIds.HasEncoding),
-            new AliasToUse(BrowseNames.HasDescription, ReferenceTypeIds.HasDescription)
+            new AliasToUse(BrowseNames.HasDescription, ReferenceTypeIds.HasDescription),
+            new AliasToUse(BrowseNames.HasCause, ReferenceTypeIds.HasCause),
+            new AliasToUse(BrowseNames.ToState, ReferenceTypeIds.ToState),
+            new AliasToUse(BrowseNames.FromState, ReferenceTypeIds.FromState),
+            new AliasToUse(BrowseNames.HasEffect, ReferenceTypeIds.HasEffect),
+            new AliasToUse(BrowseNames.HasTrueSubState, ReferenceTypeIds.HasTrueSubState),
+            new AliasToUse(BrowseNames.HasFalseSubState, ReferenceTypeIds.HasFalseSubState),
+            new AliasToUse(BrowseNames.HasDictionaryEntry, ReferenceTypeIds.HasDictionaryEntry),
+            new AliasToUse(BrowseNames.HasCondition, ReferenceTypeIds.HasCondition),
+            new AliasToUse(BrowseNames.HasGuard, ReferenceTypeIds.HasGuard),
+            new AliasToUse(BrowseNames.HasAddIn, ReferenceTypeIds.HasAddIn),
+            new AliasToUse(BrowseNames.HasInterface, ReferenceTypeIds.HasInterface)
         };
         #endregion
-        
+
         /// <summary>
         /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
         /// </summary>
@@ -189,18 +194,14 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsXml(ISystemContext context, Stream ostrm, bool keepStreamOpen)
         {
-            XmlWriterSettings settings = new XmlWriterSettings();
-
-            settings.Encoding = Encoding.UTF8;
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = !keepStreamOpen;
-            settings.ConformanceLevel = ConformanceLevel.Document;
-            settings.Indent = true;
 
-            ServiceMessageContext messageContext = new ServiceMessageContext();
-
-            messageContext.NamespaceUris = context.NamespaceUris;
-            messageContext.ServerUris = context.ServerUris;
-            messageContext.Factory = context.EncodeableFactory;
+            ServiceMessageContext messageContext = new ServiceMessageContext {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Factory = context.EncodeableFactory
+            };
 
             using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
             {
@@ -333,7 +334,7 @@ namespace Opc.Ua
             messageContext.ServerUris = context.ServerUris;
             messageContext.Factory = context.EncodeableFactory;
 
-            using (XmlReader reader = XmlReader.Create(istrm))
+            using (XmlReader reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings()))
             {
                 XmlQualifiedName root = new XmlQualifiedName("ListOfNodeState", Namespaces.OpcUaXsd);
                 XmlDecoder decoder = new XmlDecoder(null, reader, messageContext);
@@ -406,7 +407,7 @@ namespace Opc.Ua
             if (resourcePath == null) throw new ArgumentNullException(nameof(resourcePath));
 
             if (assembly == null) throw new ArgumentNullException(nameof(assembly));
-            
+
             Stream istrm = assembly.GetManifestResourceStream(resourcePath);
             if (istrm == null)
             {
@@ -434,7 +435,7 @@ namespace Opc.Ua
             if (resourcePath == null) throw new ArgumentNullException(nameof(resourcePath));
 
             if (assembly == null) throw new ArgumentNullException(nameof(assembly));
-            
+
             Stream istrm = assembly.GetManifestResourceStream(resourcePath);
             if (istrm == null)
             {
@@ -449,7 +450,7 @@ namespace Opc.Ua
 
             LoadFromBinary(context, istrm, updateTables);
         }
-#endregion
+        #endregion
     }
 
     /// <summary>
@@ -468,11 +469,11 @@ namespace Opc.Ua
         /// <param name="typeDefinitionId">The type definition.</param>
         /// <returns>Returns null if the type is not known.</returns>
         public virtual NodeState CreateInstance(
-            ISystemContext context, 
+            ISystemContext context,
             NodeState parent,
             NodeClass nodeClass,
-            QualifiedName browseName, 
-            NodeId referenceTypeId, 
+            QualifiedName browseName,
+            NodeId referenceTypeId,
             NodeId typeDefinitionId)
         {
             NodeState child = null;
@@ -562,7 +563,7 @@ namespace Opc.Ua
         {
             if (NodeId.IsNull(typeDefinitionId)) throw new ArgumentNullException(nameof(typeDefinitionId));
             if (type == null) throw new ArgumentNullException(nameof(type));
-            
+
             if (m_types == null)
             {
                 m_types = new NodeIdDictionary<Type>();
@@ -584,7 +585,7 @@ namespace Opc.Ua
                 m_types.Remove(typeDefinitionId);
             }
         }
-        
+
         private NodeIdDictionary<Type> m_types;
     }
 }

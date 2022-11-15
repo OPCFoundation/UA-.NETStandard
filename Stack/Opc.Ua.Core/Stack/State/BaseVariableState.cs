@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -11,14 +11,11 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
-using System.IO;
 using System.Runtime.Serialization;
 using System.Reflection;
-using System.Threading;
 
 namespace Opc.Ua
 {
@@ -38,6 +35,8 @@ namespace Opc.Ua
             m_timestamp = DateTime.MinValue;
             m_accessLevel = m_userAccessLevel = AccessLevels.CurrentRead;
             m_copyPolicy = VariableCopyPolicy.CopyOnRead;
+            m_valueTouched = false;
+            m_statusCode = StatusCodes.BadWaitingForInitialData;
         }
         #endregion
 
@@ -53,9 +52,9 @@ namespace Opc.Ua
 
             if (instance != null)
             {
+                // The value will be set to default(T) if the originating value is null
                 m_value = ExtractValueFromVariant(context, instance.m_value, false);
                 m_timestamp = instance.m_timestamp;
-                m_statusCode = instance.m_statusCode;
                 m_dataType = instance.m_dataType;
                 m_valueRank = instance.m_valueRank;
                 m_arrayDimensions = null;
@@ -63,6 +62,7 @@ namespace Opc.Ua
                 m_userAccessLevel = instance.m_userAccessLevel;
                 m_minimumSamplingInterval = instance.m_minimumSamplingInterval;
                 m_historizing = instance.m_historizing;
+                m_valueTouched = instance.m_valueTouched;
 
                 if (instance.m_arrayDimensions != null)
                 {
@@ -389,7 +389,6 @@ namespace Opc.Ua
                 {
                     decoder = new BinaryDecoder(extension.Body as byte[], messageContext);
                 }
-
                 else if (extension.Encoding == ExtensionObjectEncoding.Xml)
                 {
                     decoder = new XmlDecoder(extension.Body as XmlElement, messageContext);
@@ -467,7 +466,14 @@ namespace Opc.Ua
                     ChangeMasks |= NodeStateChangeMasks.Value;
                 }
 
+                if (!m_valueTouched)
+                {
+                    StatusCode = StatusCodes.Good;
+                }
+
                 m_value = value;
+
+                m_valueTouched = true;
             }
         }
 
@@ -883,7 +889,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected error exporting node:" + e.Message);
+                    Utils.LogError("Unexpected error exporting node:" + e.Message);
                 }
             }
         }
@@ -1221,7 +1227,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="arrayDimensions">The array dimensions.</param>
         /// <returns>The XML string value.</returns>
-        internal static string ArrayDimensionsToXml(IList<uint> arrayDimensions)
+        public static string ArrayDimensionsToXml(IList<uint> arrayDimensions)
         {
             if (arrayDimensions == null)
             {
@@ -1248,7 +1254,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The XML string value.</param>
         /// <returns>The array dimensions list.</returns>
-        internal static ReadOnlyList<uint> ArrayDimensionsFromXml(string value)
+        public static ReadOnlyList<uint> ArrayDimensionsFromXml(string value)
         {
             if (String.IsNullOrEmpty(value))
             {
@@ -1486,7 +1492,11 @@ namespace Opc.Ua
                 return StatusCodes.BadNotReadable;
             }
 
-            if ((m_userAccessLevel & AccessLevels.CurrentRead) == 0)
+            // check the user access level for the variable.
+            byte userAccessLevel = m_userAccessLevel;
+            OnReadUserAccessLevel?.Invoke(context, this, ref userAccessLevel);
+
+            if ((userAccessLevel & AccessLevels.CurrentRead) == 0)
             {
                 return StatusCodes.BadUserAccessDenied;
             }
@@ -1867,7 +1877,11 @@ namespace Opc.Ua
                 return StatusCodes.BadNotWritable;
             }
 
-            if ((m_userAccessLevel & AccessLevels.CurrentWrite) == 0)
+            // check the user access level for the variable.
+            byte userAccessLevel = m_userAccessLevel;
+            OnReadUserAccessLevel?.Invoke(context, this, ref userAccessLevel);
+
+            if ((userAccessLevel & AccessLevels.CurrentWrite) == 0)
             {
                 return StatusCodes.BadUserAccessDenied;
             }
@@ -1996,6 +2010,7 @@ namespace Opc.Ua
         private object m_value;
         private bool m_isValueType;
         private DateTime m_timestamp;
+        private bool m_valueTouched;
         private StatusCode m_statusCode;
         private NodeId m_dataType;
         private int m_valueRank;
@@ -2020,6 +2035,7 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState(NodeState parent) : base(parent)
         {
+            StatusCode = StatusCodes.BadWaitingForInitialData;
         }
 
         /// <summary>
@@ -2141,6 +2157,7 @@ namespace Opc.Ua
         {
             if (parent != null)
             {
+                StatusCode = StatusCodes.BadWaitingForInitialData;
                 ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
             }
         }
@@ -2607,7 +2624,7 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    
+
     /// <summary>
     /// Used to receive notifications when the value attribute is read or written.
     /// </summary>
@@ -2640,6 +2657,6 @@ namespace Opc.Ua
         /// <summary>
         /// Data is copied when it is written and when it is read.
         /// </summary>
-        Always = 0x3
+        Always = CopyOnWrite | CopyOnRead
     }
 }

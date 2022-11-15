@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -234,7 +234,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // check if at least on good value exists.
+            // check if at least one good value exists.
             if (!goodValueExists)
             {
                 return GetNoDataValue(slice);
@@ -418,10 +418,16 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // check if at least on good value exists.
+            // check if at least one good value exists.
             if (!goodValueExists)
             {
-                return GetNoDataValue(slice);
+                DataValue noDataValue = GetNoDataValue(slice);
+                // check if interval is partial and set the flag accordingly
+                if (slice.Partial)
+                {
+                    noDataValue.StatusCode = noDataValue.StatusCode.SetAggregateBits(AggregateBits.Partial);
+                }
+                return noDataValue;
             }
 
             // determine the calculated value to return.

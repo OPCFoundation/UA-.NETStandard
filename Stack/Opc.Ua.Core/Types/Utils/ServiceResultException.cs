@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -30,11 +30,6 @@ namespace Opc.Ua
         public ServiceResultException() : base(Strings.DefaultMessage)
         {
             m_status = StatusCodes.Bad;
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0}", m_status);
-            }
         }
 
         /// <summary>
@@ -43,11 +38,6 @@ namespace Opc.Ua
         public ServiceResultException(string message) : base(message)
         {
             m_status = StatusCodes.Bad;
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0} {1}", m_status, message);
-            }
         }
 
         /// <summary>
@@ -56,11 +46,6 @@ namespace Opc.Ua
         public ServiceResultException(Exception e, uint defaultCode) : base(e.Message, e)
         {
             m_status = ServiceResult.Create(e, defaultCode, String.Empty);
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0} {1} {2}", m_status, e.GetType().Name, e.Message);
-            }
         }
 
         /// <summary>
@@ -69,11 +54,6 @@ namespace Opc.Ua
         public ServiceResultException(string message, Exception e) : base(message, e)
         {
             m_status = StatusCodes.Bad;
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0} {1} {2}", m_status, e.GetType().Name, message);
-            }
         }
 
         /// <summary>
@@ -82,11 +62,6 @@ namespace Opc.Ua
         public ServiceResultException(uint statusCode) : base(GetMessage(statusCode))
         {
             m_status = new ServiceResult(statusCode);
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0}", m_status);
-            }
         }
 
         /// <summary>
@@ -95,11 +70,6 @@ namespace Opc.Ua
         public ServiceResultException(uint statusCode, string message) : base(message)
         {
             m_status = new ServiceResult(statusCode, message);
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0} {1}", m_status, message);
-            }
         }
 
         /// <summary>
@@ -108,11 +78,6 @@ namespace Opc.Ua
         public ServiceResultException(uint statusCode, Exception e) : base(GetMessage(statusCode), e)
         {
             m_status = new ServiceResult(statusCode, e);
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0} {1} {2}", m_status, e.GetType().Name, e.Message);
-            }
         }
 
         /// <summary>
@@ -121,11 +86,6 @@ namespace Opc.Ua
         public ServiceResultException(uint statusCode, string message, Exception e) : base(message, e)
         {
             m_status = new ServiceResult(statusCode, message, e);
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0} {1} {2}", m_status, e.GetType().Name, message);
-            }
         }
 
         /// <summary>
@@ -140,12 +100,6 @@ namespace Opc.Ua
             else
             {
                 m_status = new ServiceResult(StatusCodes.Bad);
-            }
-
-            // avoid false warnings in the log file when closing the channel.
-            if (((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0) && (status == null || (status != null && status.Code != StatusCodes.BadSecureChannelClosed)))
-            {
-                Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0}", m_status);
             }
         }
         #endregion
@@ -189,14 +143,13 @@ namespace Opc.Ua
 
         #region Public Methods
         /// <summary>
-        /// Returns a formatted string with the contents of exeception.
+        /// Returns a formatted string with the contents of exception.
         /// </summary>
         public string ToLongString()
         {
             StringBuilder buffer = new StringBuilder();
 
-            buffer.Append(Message);
-            buffer.Append("\r\n");
+            buffer.AppendLine(Message);
             buffer.Append(m_status.ToLongString());
 
             return buffer.ToString();
@@ -241,9 +194,9 @@ namespace Opc.Ua
 
         #region Private Methods
         /// <summary>
-		/// Extracts an exception message from a Result object.
-		/// </summary>
-		private static string GetMessage(ServiceResult status)
+        /// Extracts an exception message from a Result object.
+        /// </summary>
+        private static string GetMessage(ServiceResult status)
         {
             if (status == null)
             {

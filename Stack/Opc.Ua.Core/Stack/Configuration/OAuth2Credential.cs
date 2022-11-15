@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Serialization;
+
+// suppress warnings until OAuth 2.0 is supported
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 namespace Opc.Ua
 {
@@ -122,7 +124,7 @@ namespace Opc.Ua
         {
             if (serverApplicationUri == null || !Uri.IsWellFormedUriString(serverApplicationUri, UriKind.Absolute))
             {
-                throw new ArgumentException("serverApplicationUri");
+                throw new ArgumentException("Invalid application Uri specified.", nameof(serverApplicationUri));
             }
 
             OAuth2CredentialCollection list = Load(configuration);
@@ -141,8 +143,7 @@ namespace Opc.Ua
 
                             if (uri == serverApplicationUri)
                             {
-                                var credential = new OAuth2Credential()
-                                {
+                                var credential = new OAuth2Credential() {
                                     AuthorityUrl = ii.AuthorityUrl,
                                     GrantType = ii.GrantType,
                                     ClientId = ii.ClientId,
@@ -167,7 +168,7 @@ namespace Opc.Ua
         {
             if (authorityUrl == null || !Uri.IsWellFormedUriString(authorityUrl, UriKind.Absolute))
             {
-                throw new ArgumentException("authorityUrl");
+                throw new ArgumentException("The authority Url is invalid.", nameof(authorityUrl));
             }
 
             if (!authorityUrl.EndsWith("/"))
@@ -185,15 +186,14 @@ namespace Opc.Ua
                     // in a real system explicit host names would be used so this would have no effect.
                     var uri = ii.AuthorityUrl.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant());
 
-                    if (!uri.EndsWith("/"))
+                    if (!uri.EndsWith("/", StringComparison.Ordinal))
                     {
                         uri += "/";
                     }
 
-                    if (String.Compare(uri, authorityUrl, StringComparison.OrdinalIgnoreCase) == 0)
+                    if (String.Equals(uri, authorityUrl, StringComparison.OrdinalIgnoreCase))
                     {
-                        var credential = new OAuth2Credential()
-                        {
+                        var credential = new OAuth2Credential() {
                             AuthorityUrl = authorityUrl,
                             GrantType = ii.GrantType,
                             ClientId = ii.ClientId,

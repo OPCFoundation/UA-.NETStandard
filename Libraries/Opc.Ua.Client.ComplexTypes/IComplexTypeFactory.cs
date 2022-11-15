@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -52,7 +51,7 @@ namespace Opc.Ua.Client.ComplexTypes
     }
 
     /// <summary>
-    /// Interface to dynamically build custom 
+    /// Interface to dynamically build custom
     /// enum types and structured types.
     /// </summary>
     public interface IComplexTypeBuilder
@@ -61,6 +60,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Target namespace information.
         /// </summary>
         string TargetNamespace { get; }
+
+        /// <summary>
+        /// Target namespace index.
+        /// </summary>
         int TargetNamespaceIndex { get; }
 
         /// <summary>
@@ -114,6 +117,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create a property field of a class with get and set.
         /// </summary>
         void AddField(StructureField field, Type fieldType, int order);
+
+        /// <summary>
+        /// The type of the structure of the field.
+        /// </summary>
+        Type GetStructureType(int valueRank);
 
         /// <summary>
         /// Finish the type creation and returns the new type.

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -36,7 +36,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The interface that a server exposes to objects that it contains.
     /// </summary>
-    public static class ServerUtils
+    public static partial class ServerUtils
     {
         private enum EventType
         {

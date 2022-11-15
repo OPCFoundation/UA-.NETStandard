@@ -1,64 +1,70 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;netstandard2.0</TargetFrameworks>
-    <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
-    <LangVersion>6</LangVersion>
+    <DefineConstants>$(DefineConstants);NET_STANDARD;NET_STANDARD_ASYNC</DefineConstants>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
-    <PackageId>Opc.Ua.Core</PackageId>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Core</PackageId>
     <RootNamespace>Opc.Ua</RootNamespace>
     <Description>OPC UA Core Class Library</Description>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <DefineConstants Condition=" '$(NoHttps)' == 'true' ">$(DefineConstants);NO_HTTPS</DefineConstants>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-  
+
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Schema\Opc.Ua.NodeSet2.xml" />
     <None Remove="Schema\Opc.Ua.Types.bsd" />
+    <None Remove="Schema\Opc.Ua.Types.xsd" />
+    <None Remove="Schema\UANodeSet.xsd" />
     <None Remove="Types\Schemas\BuiltInTypes.bsd" />
     <None Remove="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
-    <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes;Types\Utils\LocalizedData.txt;Schema\ServerCapabilities.csv" />
+    <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
+    <EmbeddedResource Include="Schema\UANodeSet.xsd" />
+    <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes" />
+    <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
+    <EmbeddedResource Include="Schema\ServerCapabilities.csv" />
     <EmbeddedResource Include="Types\Schemas\BuiltInTypes.bsd" />
     <EmbeddedResource Include="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
 
+  <Choose>
+    <!-- Note: Due to incompatibilities of Microsoft.Extensions Nuget packages between versions 3.x and 6.0,
+         use latest versions only on .NET 5/6, otherwise 3.1.x -->
+    <When Condition="'$(TargetFramework)' == 'net5.0' OR '$(TargetFramework)' == 'net6.0'">
+      <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.2" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.28" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
+
   <ItemGroup>
-    <PackageReference Include="Portable.BouncyCastle" Version="1.8.4" />
-    <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <Reference Include="System.IdentityModel" />
-    <Reference Include="System.IdentityModel.Selectors" />
-    <Reference Include="System.Security" />
-    <Reference Include="System.ServiceModel" />
-    <Reference Include="System.Net.Http" />
-  </ItemGroup>
-  
-  <ItemGroup Condition="$(DefineConstants.Contains('NO_HTTPS'))=='false'">
-    <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.2.0" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="System.Data.Common" Version="4.3.0" />
-    <PackageReference Include="System.ServiceModel.Primitives" Version="4.5.3" />
-    <PackageReference Include="System.Net.NameResolution" Version="4.3.0" />
-    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.4.0" />
-    <PackageReference Include="System.Net.Websockets.Client" Version="4.3.2" />
-  </ItemGroup>
-    
   <ItemGroup>
     <Folder Include="Properties\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
   </ItemGroup>
   
   <Target Name="GetPackagingOutputs" />

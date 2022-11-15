@@ -1,5 +1,5 @@
-﻿/* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+/* ========================================================================
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,16 +27,31 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-
 namespace Opc.Ua.Gds.Server
 {
+    /// <summary>
+    /// The state of a certificate request.
+    /// </summary>
     public enum CertificateRequestState
     {
+        /// <summary>
+        /// The certificate request is New.
+        /// </summary>
         New,
+
+        /// <summary>
+        /// The certificate request is Approved.
+        /// </summary>
         Approved,
+
+        /// <summary>
+        /// The certificate request is Rejected.
+        /// </summary>
         Rejected,
+
+        /// <summary>
+        /// The certificate request is Accepted.
+        /// </summary>
         Accepted
     }
 
@@ -45,9 +60,25 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public interface ICertificateRequest
     {
+        /// <summary>
+        /// Initialize a certificate request.
+        /// </summary>
         void Initialize();
+
+        /// <summary>
+        /// The namesapce index.
+        /// </summary>
         ushort NamespaceIndex { get; set; }
 
+        /// <summary>
+        /// Start a signing request for an application.
+        /// </summary>
+        /// <param name="applicationId">The id of the application.</param>
+        /// <param name="certificateGroupId">The target group for the signing request.</param>
+        /// <param name="certificateTypeId">The certificate type.</param>
+        /// <param name="certificateRequest">The certificate signing request (CSR).</param>
+        /// <param name="authorityId">The authority requesting the certificate.</param>
+        /// <returns>The id of the signing request.</returns>
         NodeId StartSigningRequest(
             NodeId applicationId,
             string certificateGroupId,
@@ -55,6 +86,18 @@ namespace Opc.Ua.Gds.Server
             byte[] certificateRequest,
             string authorityId);
 
+        /// <summary>
+        /// Start a request for a new key pair.
+        /// </summary>
+        /// <param name="applicationId">The id of the application.</param>
+        /// <param name="certificateGroupId">The target group for the signing request.</param>
+        /// <param name="certificateTypeId">The certificate type.</param>
+        /// <param name="subjectName">The subject for the certificate</param>
+        /// <param name="domainNames">The domain names for the certficate.</param>
+        /// <param name="privateKeyFormat">The private key format, PEM or PFX.</param>
+        /// <param name="privateKeyPassword">The password for the private key.</param>
+        /// <param name="authorityId">The authority requesting the certificate.</param>
+        /// <returns>The id of the key pair request.</returns>
         NodeId StartNewKeyPairRequest(
             NodeId applicationId,
             string certificateGroupId,
@@ -65,14 +108,33 @@ namespace Opc.Ua.Gds.Server
             string privateKeyPassword,
             string authorityId);
 
+        /// <summary>
+        /// Approve or reject a request.
+        /// </summary>
+        /// <param name="requestId">The id of the request.</param>
+        /// <param name="isRejected">Whether the request is rejected.</param>
         void ApproveRequest(
-            NodeId requestId, 
+            NodeId requestId,
             bool isRejected);
 
+        /// <summary>
+        /// Accept the request.
+        /// </summary>
+        /// <param name="requestId">The request id.</param>
+        /// <param name="certificate">The accepted certificate.</param>
         void AcceptRequest(
             NodeId requestId,
-            byte [] certificate);
+            byte[] certificate);
 
+        /// <summary>
+        /// Finish the request.
+        /// </summary>
+        /// <param name="applicationId">The id of the application.</param>
+        /// <param name="requestId">The request id.</param>
+        /// <param name="certificateGroupId">The group id.</param>
+        /// <param name="certificateTypeId">The certificate type.</param>
+        /// <param name="signedCertificate">The signed certificate.</param>
+        /// <param name="privateKey">The private key, if requested.</param>
         CertificateRequestState FinishRequest(
             NodeId applicationId,
             NodeId requestId,
@@ -82,6 +144,18 @@ namespace Opc.Ua.Gds.Server
             out byte[] privateKey
             );
 
+        /// <summary>
+        /// Read a certificate request.
+        /// </summary>
+        /// <param name="applicationId">The id of the application.</param>
+        /// <param name="requestId">The request id.</param>
+        /// <param name="certificateGroupId">The group id.</param>
+        /// <param name="certificateTypeId">The certificate type.</param>
+        /// <param name="certificateRequest"></param>
+        /// <param name="subjectName">The subject for the certificate</param>
+        /// <param name="domainNames">The domain names for the certficate.</param>
+        /// <param name="privateKeyFormat">The private key format, PEM or PFX.</param>
+        /// <param name="privateKeyPassword">The password for the private key.</param>
         CertificateRequestState ReadRequest(
             NodeId applicationId,
             NodeId requestId,

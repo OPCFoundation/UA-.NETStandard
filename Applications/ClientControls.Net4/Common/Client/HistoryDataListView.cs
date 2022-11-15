@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -480,7 +480,7 @@ namespace Opc.Ua.Client.Controls
                     {
                         ILocalNode aggregate = m_session.NodeCache.Find(reference.TargetId) as ILocalNode;
 
-                        if (aggregate != null || aggregate.TypeDefinitionId == ObjectTypeIds.AggregateFunctionType)
+                        if (aggregate != null && aggregate.TypeDefinitionId == ObjectTypeIds.AggregateFunctionType)
                         {
                             AvailableAggregate item = new AvailableAggregate();
                             item.NodeId = aggregate.NodeId;

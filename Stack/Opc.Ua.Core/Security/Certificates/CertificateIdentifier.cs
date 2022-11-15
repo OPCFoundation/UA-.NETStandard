@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -12,10 +12,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -28,14 +30,14 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -50,10 +52,10 @@ namespace Opc.Ua
 
         #region Overridden Methods
         /// <summary>
-        /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// Returns a <see cref="String"/> that represents the current <see cref="Object"/>.
         /// </summary>
         /// <returns>
-        /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// A <see cref="String"/> that represents the current <see cref="Object"/>.
         /// </returns>
         public override string ToString()
         {
@@ -137,51 +139,60 @@ namespace Opc.Ua
             get { return m_validationOptions; }
             set { m_validationOptions = value; }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Gets or sets the actual certificate.
         /// </summary>
         /// <value>The X509 certificate used by this instance.</value>
         public X509Certificate2 Certificate
         {
-            get { return m_certificate;  }
+            get { return m_certificate; }
             set { m_certificate = value; }
         }
+        #endregion
 
+        #region Public Methods
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
-        public async Task<X509Certificate2> Find()
+        public Task<X509Certificate2> Find()
         {
-            return await Find(false);
+            return Find(false);
         }
 
         /// <summary>
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKey(String password)
+        public Task<X509Certificate2> LoadPrivateKey(string password)
+            => LoadPrivateKeyEx(password != null ? new CertificatePasswordProvider(password) : null);
+
+        /// <summary>
+        /// Loads the private key for the certificate with an optional password.
+        /// </summary>
+        public async Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider)
         {
-            if (this.StoreType == CertificateStoreType.Directory)
-            {                
-                using (DirectoryCertificateStore store = new DirectoryCertificateStore())
+            if (this.StoreType != CertificateStoreType.X509Store)
+            {
+                using (ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType))
                 {
-                    store.Open(this.StorePath);
-                    m_certificate = store.LoadPrivateKey(this.Thumbprint, this.SubjectName, password);
-                    return m_certificate;
+                    if (store.SupportsLoadPrivateKey)
+                    {
+                        store.Open(this.StorePath, false);
+                        string password = passwordProvider?.GetPassword(this);
+                        m_certificate = await store.LoadPrivateKey(this.Thumbprint, this.SubjectName, password).ConfigureAwait(false);
+                        return m_certificate;
+                    }
                 }
             }
-            
-            return await Find(true);
+            return await Find(true).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
         /// <param name="needPrivateKey">if set to <c>true</c> the returned certificate must contain the private key.</param>
-        /// <returns>An instance of the <see cref="X509Certificate2"/> that is emebeded by this instance or find it in 
-        /// the selected strore pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/>.</returns>
+        /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in 
+        /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/>.</returns>
         public async Task<X509Certificate2> Find(bool needPrivateKey)
         {
             X509Certificate2 certificate = null;
@@ -196,14 +207,22 @@ namespace Opc.Ua
                 // open store.
                 using (ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType))
                 {
-                    store.Open(StorePath);
+                    store.Open(StorePath, false);
 
-                    X509Certificate2Collection collection = await store.Enumerate();
+                    X509Certificate2Collection collection = await store.Enumerate().ConfigureAwait(false);
 
                     certificate = Find(collection, m_thumbprint, m_subjectName, needPrivateKey);
 
                     if (certificate != null)
                     {
+                        if (needPrivateKey && store.SupportsLoadPrivateKey)
+                        {
+                            var message = new StringBuilder();
+                            message.AppendLine("Loaded a certificate with private key from store {0}.");
+                            message.AppendLine("Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).");
+                            Utils.LogWarning(message.ToString(), StoreType);
+                        }
+
                         m_certificate = certificate;
                     }
                 }
@@ -316,9 +335,9 @@ namespace Opc.Ua
                             return certificate;
                         }
 
-                        List<string> subjectName2 = Utils.ParseDistinguishedName(subjectName);
+                        List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
 
-                        if (Utils.CompareDistinguishedName(certificate, subjectName2))
+                        if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
                         {
                             return certificate;
                         }
@@ -330,13 +349,13 @@ namespace Opc.Ua
             // find by subject name.
             if (!String.IsNullOrEmpty(subjectName))
             {
-                List<string> subjectName2 = Utils.ParseDistinguishedName(subjectName);
+                List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
 
                 foreach (X509Certificate2 certificate in collection)
                 {
-                    if (Utils.CompareDistinguishedName(certificate, subjectName2))
+                    if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
                     {
-                        if (!needPrivateKey || certificate.HasPrivateKey)
+                        if ((!needPrivateKey || certificate.HasPrivateKey) && X509Utils.GetRSAPublicKeySize(certificate) >= 0)
                         {
                             return certificate;
                         }
@@ -347,7 +366,7 @@ namespace Opc.Ua
 
                 foreach (X509Certificate2 certificate in collection)
                 {
-                    if (!needPrivateKey || certificate.HasPrivateKey)
+                    if ((!needPrivateKey || certificate.HasPrivateKey) && X509Utils.GetRSAPublicKeySize(certificate) >= 0)
                     {
                         return certificate;
                     }
@@ -433,16 +452,16 @@ namespace Opc.Ua
 
             byte[] rawData = encodedData;
             byte[] data = certificate.RawData;
-        
+
             int processedBytes = data.Length;
-            
+
             if (encodedData.Length < processedBytes)
             {
-                byte[] buffer = new byte[encodedData.Length-processedBytes];
+                byte[] buffer = new byte[encodedData.Length - processedBytes];
 
                 do
                 {
-                    Array.Copy(encodedData, processedBytes, buffer, 0, encodedData.Length-processedBytes);
+                    Array.Copy(encodedData, processedBytes, buffer, 0, encodedData.Length - processedBytes);
 
                     if (!IsValidCertificateBlob(buffer))
                     {
@@ -461,20 +480,23 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns an object that can be used to access the store containing the certificate.
+        /// Returns an object to access the store containing the certificate.
         /// </summary>
-        /// <returns>An instance of the <see cref="ICertificateStore"/> poined out by the current value of </returns>
+        /// <remarks>
+        /// Opens a store which contains public and private keys.
+        /// </remarks>
+        /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
         public ICertificateStore OpenStore()
         {
             ICertificateStore store = CertificateStoreIdentifier.CreateStore(this.StoreType);
-            store.Open(this.StorePath);
+            store.Open(this.StorePath, false);
             return store;
         }
         #endregion
 
         #region Private Methods
         /// <summary>
-        /// Checks if the certificate data represents a valid X509v3 certificate.
+        /// Checks if the certificate data represents a valid X509v3 certificate header.
         /// </summary>
         /// <param name="rawData">The raw data of a <see cref="X509Certificate2"/> object.</param>
         /// <returns>
@@ -495,7 +517,7 @@ namespace Opc.Ua
             }
 
             // extract length.
-            int length = 0;
+            int length;
             byte octet = rawData[1];
 
             // check for short for encoding.
@@ -503,7 +525,7 @@ namespace Opc.Ua
             {
                 length = octet & 0x7F;
 
-                if (2+length < rawData.Length)
+                if (2 + length < rawData.Length)
                 {
                     return false;
                 }
@@ -513,8 +535,8 @@ namespace Opc.Ua
 
             // extract number of bytes for the length.
             int lengthBytes = octet & 0x7F;
-            
-            if (rawData.Length <= 2+lengthBytes)
+
+            if (rawData.Length <= 2 + lengthBytes)
             {
                 return false;
             }
@@ -528,13 +550,13 @@ namespace Opc.Ua
             // extract length.
             length = rawData[2];
 
-            for (int ii = 0; ii < lengthBytes-1; ii++)
+            for (int ii = 0; ii < lengthBytes - 1; ii++)
             {
                 length <<= 8;
-                length |= rawData[ii+3];
+                length |= rawData[ii + 3];
             }
 
-            if (2+lengthBytes+length > rawData.Length)
+            if (2 + lengthBytes + length > rawData.Length)
             {
                 return false;
             }
@@ -568,14 +590,15 @@ namespace Opc.Ua
 
             return collection;
         }
-        
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -591,40 +614,35 @@ namespace Opc.Ua
         #endregion
 
         #region ICertificateStore Members
-        /// <summary>
-        /// Opens the store at the specified location.
-        /// </summary>
-        /// <param name="location">The location.</param>
+        /// <inheritdoc/>
         /// <remarks>
-        /// The syntax depends on the store implementation.
+        /// The certificate identifier store ignores the location.
         /// </remarks>
-        public void Open(string location)
+        public void Open(string location, bool noPrivateKeys)
         {
             // nothing to do.
         }
 
-        /// <summary>
-        /// Closes the store.
-        /// </summary>
+        /// <inheritdoc/>
         public void Close()
         {
             // nothing to do.
         }
 
-        /// <summary>
-        /// Enumerates the certificates in the store.
-        /// </summary>
-        /// <remarks>
-        /// Identifiers which do not refer to valid certificates are ignored.
-        /// </remarks>
-        /// <returns>The list of valid certificates in the store.</returns>
+        /// <inheritdoc/>
+        public string StoreType => string.Empty;
+
+        /// <inheritdoc/>
+        public string StorePath => string.Empty;
+
+        /// <inheritdoc/>
         public async Task<X509Certificate2Collection> Enumerate()
         {
             X509Certificate2Collection collection = new X509Certificate2Collection();
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].Find(false);
+                X509Certificate2 certificate = await this[ii].Find(false).ConfigureAwait(false);
 
                 if (certificate != null)
                 {
@@ -635,17 +653,14 @@ namespace Opc.Ua
             return collection;
         }
 
-        /// <summary>
-        /// Adds a certificate to the store.
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
+        /// <inheritdoc/>
         public async Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                X509Certificate2 current = await this[ii].Find(false);
+                X509Certificate2 current = await this[ii].Find(false).ConfigureAwait(false);
 
                 if (current != null && current.Thumbprint == certificate.Thumbprint)
                 {
@@ -660,11 +675,7 @@ namespace Opc.Ua
             this.Add(new CertificateIdentifier(certificate));
         }
 
-        /// <summary>
-        /// Deletes a certificate from the store.
-        /// </summary>
-        /// <param name="thumbprint">The thumbprint.</param>
-        /// <returns>True if the certificate exists.</returns>
+        /// <inheritdoc/>
         public async Task<bool> Delete(string thumbprint)
         {
             if (String.IsNullOrEmpty(thumbprint))
@@ -674,7 +685,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].Find(false);
+                X509Certificate2 certificate = await this[ii].Find(false).ConfigureAwait(false);
 
                 if (certificate != null && certificate.Thumbprint == thumbprint)
                 {
@@ -686,11 +697,7 @@ namespace Opc.Ua
             return false;
         }
 
-        /// <summary>
-        /// Finds the certificate with the specified thumprint.
-        /// </summary>
-        /// <param name="thumbprint">The thumbprint.</param>
-        /// <returns>The matching certificate</returns>
+        /// <inheritdoc/>
         public async Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
             if (String.IsNullOrEmpty(thumbprint))
@@ -700,7 +707,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].Find(false);
+                X509Certificate2 certificate = await this[ii].Find(false).ConfigureAwait(false);
 
                 if (certificate != null && certificate.Thumbprint == thumbprint)
                 {
@@ -711,47 +718,44 @@ namespace Opc.Ua
             return new X509Certificate2Collection();
         }
 
-        /// <summary>
-        /// Whether the store support CRLs.
-        /// </summary>
-        public bool SupportsCRLs { get { return false; } }
+        /// <inheritdoc/>
+        public bool SupportsLoadPrivateKey => false;
 
-        /// <summary>
-        /// Checks if issuer has revoked the certificate.
-        /// </summary>
-        public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
+        /// <inheritdoc/>
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
         {
-            return StatusCodes.BadNotSupported;
-        }
-        
-        /// <summary>
-        /// Returns the CRLs in the store.
-        /// </summary>
-        public List<X509CRL> EnumerateCRLs()
-        {
-            return new List<X509CRL>();
+            return Task.FromResult<X509Certificate2>(null);
         }
 
-        /// <summary>
-        /// Returns the CRLs for the issuer.
-        /// </summary>
-        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        /// <inheritdoc/>
+        public bool SupportsCRLs => false;
+
+        /// <inheritdoc/>
+        public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
-            return new List<X509CRL>();
+            return Task.FromResult((StatusCode)StatusCodes.BadNotSupported);
         }
 
-        /// <summary>
-        /// Adds a CRL to the store.
-        /// </summary>
-        public void AddCRL(X509CRL crl)
+        /// <inheritdoc/>
+        public Task<X509CRLCollection> EnumerateCRLs()
+        {
+            return Task.FromResult(new X509CRLCollection());
+        }
+
+        /// <inheritdoc/>
+        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        {
+            return Task.FromResult(new X509CRLCollection());
+        }
+
+        /// <inheritdoc/>
+        public Task AddCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
-        /// <summary>
-        /// Removes a CRL from the store.
-        /// </summary>
-        public bool DeleteCRL(X509CRL crl)
+        /// <inheritdoc/>
+        public Task<bool> DeleteCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }

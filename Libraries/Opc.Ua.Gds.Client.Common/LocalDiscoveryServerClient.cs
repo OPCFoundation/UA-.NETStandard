@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -67,7 +67,7 @@ namespace Opc.Ua.Gds.Client
         #region Public Properties
         public ApplicationConfiguration ApplicationConfiguration { get; private set; }
 
-        public ServiceMessageContext MessageContext { get; private set; }
+        public IServiceMessageContext MessageContext { get; private set; }
 
         public string[] PreferredLocales { get; set; }
 
@@ -105,8 +105,7 @@ namespace Opc.Ua.Gds.Client
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
-            FindServersData data = new FindServersData(callback, callbackData, client.OperationTimeout)
-            {
+            FindServersData data = new FindServersData(callback, callbackData, client.OperationTimeout) {
                 DiscoveryClient = client
             };
 
@@ -127,7 +126,7 @@ namespace Opc.Ua.Gds.Client
 
             if (data == null)
             {
-                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", "success");
+                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
 
             try
@@ -201,8 +200,7 @@ namespace Opc.Ua.Gds.Client
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
-            GetEndpointsData data = new GetEndpointsData(callback, callbackData, client.OperationTimeout)
-            {
+            GetEndpointsData data = new GetEndpointsData(callback, callbackData, client.OperationTimeout) {
                 DiscoveryClient = client
             };
 
@@ -223,7 +221,7 @@ namespace Opc.Ua.Gds.Client
 
             if (data == null)
             {
-                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", "success");
+                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
 
             try
@@ -318,8 +316,7 @@ namespace Opc.Ua.Gds.Client
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
-            FindServersOnNetworkData data = new FindServersOnNetworkData(callback, callbackData, client.OperationTimeout)
-            {
+            FindServersOnNetworkData data = new FindServersOnNetworkData(callback, callbackData, client.OperationTimeout) {
                 DiscoveryClient = client
             };
 
@@ -340,7 +337,7 @@ namespace Opc.Ua.Gds.Client
 
             if (data == null)
             {
-                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", "success");
+                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
 
             try
@@ -404,7 +401,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (String.IsNullOrEmpty(endpointUrl))
             {
-                endpointUrl = DefaultUrl;
+                endpointUrl = kDefaultUrl;
             }
 
             if (!Uri.IsWellFormedUriString(endpointUrl, UriKind.Absolute))
@@ -412,7 +409,7 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException("Not a valid URL.", nameof(endpointUrl));
             }
 
-            ServiceMessageContext context = ApplicationConfiguration.CreateMessageContext();
+            IServiceMessageContext context = ApplicationConfiguration.CreateMessageContext();
 
             EndpointConfiguration configuration = EndpointConfiguration.Create(ApplicationConfiguration);
 
@@ -433,7 +430,7 @@ namespace Opc.Ua.Gds.Client
         #endregion
 
         #region Private Fields
-        private const string DefaultUrl = "opc.tcp://localhost:4840";
+        private const string kDefaultUrl = "opc.tcp://localhost:4840";
         #endregion
     }
 }

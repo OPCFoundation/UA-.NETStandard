@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.Serialization;
@@ -77,18 +77,18 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// Build the StructureDefiniton attribute for a complex type.
+        /// Build the StructureDefinition attribute for a complex type.
         /// </summary>
-        public static void StructureDefinitonAttribute(
+        public static void StructureDefinitionAttribute(
             this TypeBuilder typeBuilder,
             StructureDefinition structureDefinition)
         {
             var attributeType = typeof(StructureDefinitionAttribute);
-            var baseDataType = StructureDefinitionAttribute.FromBaseType(structureDefinition.BaseDataType);
+            var baseDataType = ComplexTypes.StructureDefinitionAttribute.FromBaseType(structureDefinition.BaseDataType);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             CustomAttributeBuilder builder = new CustomAttributeBuilder(
                 ctorInfo,
-                new object[0],  // constructor arguments
+                Array.Empty<object>(),  // constructor arguments
                 new[]           // properties to assign
                 {
                     attributeType.GetProperty("DefaultEncodingId"),
@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             CustomAttributeBuilder builder = new CustomAttributeBuilder(
                 ctorInfo,
-                new object[0],  // constructor arguments
+                Array.Empty<object>(),  // constructor arguments
                 new[]           // properties to assign
                 {
                     attributeType.GetProperty("ComplexTypeId"),
@@ -143,21 +143,34 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             var attributeType = typeof(StructureFieldAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
-            CustomAttributeBuilder builder = new CustomAttributeBuilder(
-                ctorInfo,
-                new object[0],  // constructor arguments
-                new[]           // properties to assign
-                {
+            var pi = new List<PropertyInfo>()
+            {
                     attributeType.GetProperty("ValueRank"),
                     attributeType.GetProperty("MaxStringLength"),
                     attributeType.GetProperty("IsOptional")
-                },
-                new object[]    // values to assign
-                {
+            };
+
+            var pv = new List<object>() {
                     structureField.ValueRank,
                     structureField.MaxStringLength,
-                    structureField.IsOptional
-                });
+                    structureField.IsOptional,
+            };
+
+            // only unambigious built in types get the info,
+            // IEncodeable types are handled by type property as BuiltInType.Null 
+            Int32 builtInType = (Int32)TypeInfo.GetBuiltInType(structureField.DataType);
+            if (builtInType > (Int32)BuiltInType.Null)
+            {
+                pi.Add(attributeType.GetProperty("BuiltInType"));
+                pv.Add(builtInType);
+            }
+
+            CustomAttributeBuilder builder = new CustomAttributeBuilder(
+                ctorInfo,
+                Array.Empty<object>(),  // constructor arguments
+                pi.ToArray(),           // properties to assign
+                pv.ToArray()            // values to assign
+            );
             typeBuilder.SetCustomAttribute(builder);
         }
 
@@ -171,7 +184,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             CustomAttributeBuilder builder = new CustomAttributeBuilder(
                 ctorInfo,
-                new object[0],  // constructor arguments
+                Array.Empty<object>(),  // constructor arguments
                 new[]           // properties to assign
                 {
                     attributeType.GetProperty("Value")
@@ -182,7 +195,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 });
             typeBuilder.SetCustomAttribute(builder);
         }
-        #endregion
+        #endregion Extensions
 
         #region Private Static Members
         /// <summary>
@@ -194,7 +207,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             CustomAttributeBuilder builder = new CustomAttributeBuilder(
                 ctorInfo,
-                new object[0],  // constructor arguments
+                Array.Empty<object>(),  // constructor arguments
                 new[]           // properties to assign
                 {
                     attributeType.GetProperty("Name"),
@@ -219,7 +232,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             CustomAttributeBuilder builder = new CustomAttributeBuilder(
                 ctorInfo,
-                new object[0],  // constructor arguments
+                Array.Empty<object>(),  // constructor arguments
                 new[]           // properties to assign
                 {
                     attributeType.GetProperty("Namespace")
@@ -230,7 +243,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 });
             return builder;
         }
-        #endregion
+        #endregion Private Static Members
 
     }
 }//namespace

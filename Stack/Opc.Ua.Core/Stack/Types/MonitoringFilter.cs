@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.ServiceModel;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -195,25 +194,29 @@ namespace Opc.Ua
                 {
                     if (ServiceResult.IsBad(selectResult))
                     {
-                        buffer.AppendFormat("Select Clause Error: {0}\r\n", selectResult.ToString());
+                        buffer.AppendFormat("Select Clause Error: {0}", selectResult.ToString());
+                        buffer.AppendLine();
                     }
                 }
 
                 if (ServiceResult.IsBad(WhereClauseResult.Status))
                 {                    
-                    buffer.AppendFormat("Where Clause Error: {0}\r\n", WhereClauseResult.Status.ToString());
-                    
+                    buffer.AppendFormat("Where Clause Error: {0}", WhereClauseResult.Status.ToString());
+                    buffer.AppendLine();
+
                     foreach (ContentFilter.ElementResult elementResult in WhereClauseResult.ElementResults)
                     {
                         if (elementResult != null && ServiceResult.IsBad(elementResult.Status))
                         {
-                            buffer.AppendFormat("Element Error: {0}\r\n", elementResult.Status.ToString());
-                                                        
+                            buffer.AppendFormat("Element Error: {0}", elementResult.Status.ToString());
+                            buffer.AppendLine();
+
                             foreach (ServiceResult operandResult in elementResult.OperandResults)
                             {
                                 if (ServiceResult.IsBad(operandResult))
                                 {
-                                    buffer.AppendFormat("Operand Error: {0}\r\n",operandResult.ToString());
+                                    buffer.AppendFormat("Operand Error: {0}",operandResult.ToString());
+                                    buffer.AppendLine();
                                 }
                             }
                         }

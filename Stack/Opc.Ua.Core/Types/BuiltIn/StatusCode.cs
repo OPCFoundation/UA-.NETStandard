@@ -1,6 +1,6 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
+     - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
@@ -90,7 +90,8 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Name = "StatusCode", Namespace = Namespaces.OpcUaXsd)]
-    public struct StatusCode : IComparable, IFormattable
+    public struct StatusCode : IComparable, IFormattable,
+        IComparable<StatusCode>, IEquatable<StatusCode>
     {
         #region Constructors
 
@@ -202,8 +203,8 @@ namespace Opc.Ua
         /// </remarks>
         public uint SubCode
         {
-            get { return m_code & 0x0FFF000; }
-            set { m_code = 0x0FFF000 & value; }
+            get { return m_code & 0x0FFF0000; }
+            set { m_code = 0x0FFF0000 & value; }
         }
         #endregion
 
@@ -426,10 +427,10 @@ namespace Opc.Ua
         /// <param name="obj">The object to compare to *this* object</param>
         public int CompareTo(object obj)
         {
-            // check for reference equality.
-            if (Object.ReferenceEquals(obj, this))
+            // compare codes
+            if (obj is StatusCode)
             {
-                return 0;
+                return m_code.CompareTo(((StatusCode)obj).m_code);
             }
 
             // check for null.
@@ -444,14 +445,21 @@ namespace Opc.Ua
                 return m_code.CompareTo((uint)obj);
             }
 
-            // compare codes.
-            if (obj is StatusCode)
-            {
-                return m_code.CompareTo(((StatusCode)obj).m_code);
-            }
-
             // objects not comparable.
             return -1;
+        }
+
+        /// <summary>
+        /// Compares the instance to another object.
+        /// </summary>
+        /// <remarks>
+        /// Compares the instance to another object.
+        /// </remarks>
+        /// <param name="other">The StatusCode to compare to *this* object</param>
+        public int CompareTo(StatusCode other)
+        {
+            // check for status code.
+            return m_code.CompareTo(other.Code);
         }
         #endregion
 
@@ -495,6 +503,18 @@ namespace Opc.Ua
         public override bool Equals(object obj)
         {
             return CompareTo(obj) == 0;
+        }
+
+        /// <summary>
+        /// Determines if the specified object is equal to the object.
+        /// </summary>
+        /// <remarks>
+        /// Determines if the specified object is equal to the object.
+        /// </remarks>
+        /// <param name="other">The StatusCode to compare to *this* object</param>
+        public bool Equals(StatusCode other)
+        {
+            return CompareTo(other) == 0;
         }
 
         /// <summary>
@@ -576,11 +596,6 @@ namespace Opc.Ua
         /// <param name="b">The second object being compared to</param>
         public static bool operator ==(StatusCode a, StatusCode b)
         {
-            if (Object.ReferenceEquals(a, null))
-            {
-                return Object.ReferenceEquals(b, null);
-            }
-
             return a.Equals(b);
         }
 
@@ -607,11 +622,6 @@ namespace Opc.Ua
         /// <param name="b">The second object being compared to</param>
         public static bool operator ==(StatusCode a, uint b)
         {
-            if (Object.ReferenceEquals(a, null))
-            {
-                return false;
-            }
-
             return a.Equals(b);
         }
 
