@@ -273,11 +273,12 @@ namespace Opc.Ua
                 foreach (EndpointDescription discoveryEndPoint in endpoints)
                 {
                     Uri discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
-                    if  ( (endpointUrl.Scheme == discoveryEndPointUri.Scheme) && (endpointUrl.Port == discoveryEndPointUri.Port))
+                    if ((endpointUrl.Scheme == discoveryEndPointUri.Scheme) &&
+                        (endpointUrl.Port == discoveryEndPointUri.Port))
                     {
                         UriBuilder builder = new UriBuilder(discoveryEndPointUri);
                         builder.Host = endpointUrl.DnsSafeHost;
-                        discoveryEndPoint.EndpointUrl = builder.ToString();
+                        discoveryEndPoint.EndpointUrl = builder.Uri.OriginalString;
                     }
 
                     if (discoveryEndPoint.Server != null &&
@@ -313,12 +314,12 @@ namespace Opc.Ua
             IServiceMessageContext messageContext,
             X509Certificate2 clientCertificate = null)
         {
-            // create a dummy description.
-            EndpointDescription endpoint = new EndpointDescription();
-
-            endpoint.EndpointUrl = discoveryUrl.ToString();
-            endpoint.SecurityMode = MessageSecurityMode.None;
-            endpoint.SecurityPolicyUri = SecurityPolicies.None;
+            // create a default description.
+            EndpointDescription endpoint = new EndpointDescription {
+                EndpointUrl = discoveryUrl.OriginalString,
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
@@ -344,7 +345,7 @@ namespace Opc.Ua
         {
             // create a default description.
             var endpoint = new EndpointDescription {
-                EndpointUrl = connection.EndpointUrl.ToString(),
+                EndpointUrl = connection.EndpointUrl.OriginalString,
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None
             };
@@ -375,7 +376,7 @@ namespace Opc.Ua
         {
             // create a default description.
             var endpoint = new EndpointDescription {
-                EndpointUrl = discoveryUrl.ToString(),
+                EndpointUrl = discoveryUrl.OriginalString,
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None
             };
