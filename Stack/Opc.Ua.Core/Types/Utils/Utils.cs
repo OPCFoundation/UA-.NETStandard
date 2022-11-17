@@ -1758,6 +1758,13 @@ namespace Opc.Ua
                 return node.CloneNode(true);
             }
 
+            // use ICloneable if supported
+            ICloneable cloneable = value as ICloneable;
+            if (cloneable != null)
+            {
+                return cloneable.Clone();
+            }
+
             // copy ExtensionObject.
             {
                 ExtensionObject castedObject = value as ExtensionObject;

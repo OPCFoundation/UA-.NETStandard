@@ -67,16 +67,6 @@ stages:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      framework: net472
-      agents: '@{ windows = "windows-2022" }'
-      jobnamesuffix: net472
-  - template: .azurepipelines/test.yml
-    parameters:
-      framework: netcoreapp2.1
-      configuration: Release
-  - template: .azurepipelines/test.yml
-    parameters:
-      configuration: Release
       framework: netcoreapp3.1
       jobnamesuffix: core3
 - stage: test6release

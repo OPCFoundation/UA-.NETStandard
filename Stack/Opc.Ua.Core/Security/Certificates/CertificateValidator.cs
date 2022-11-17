@@ -563,19 +563,7 @@ namespace Opc.Ua
                                     Utils.LogCertificate("Saved issuer certificate: ", certificate);
                                 }
                                 leafCertificate = false;
-                                store.Delete(certificate.Thumbprint);
-                                // save only public key
-                                if (certificate.HasPrivateKey)
-                                {
-                                    using (var cert = new X509Certificate2(certificate.RawData))
-                                    {
-                                        store.Add(cert);
-                                    }
-                                }
-                                else
-                                {
-                                    store.Add(certificate);
-                                }
+                                store.Add(certificate).GetAwaiter().GetResult();
                             }
                         }
                         finally

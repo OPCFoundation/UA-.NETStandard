@@ -312,17 +312,11 @@ namespace Opc.Ua.Security.Certificates
             int bytes = 0;
             try
             {
-                m_rsaPublicKey = RSA.Create();
 #if NET472_OR_GREATER
-                var asymmetricKeyParameter = Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey);
-                var rsaKeyParameters = asymmetricKeyParameter as Org.BouncyCastle.Crypto.Parameters.RsaKeyParameters;
-                var parameters = new RSAParameters {
-                    Exponent = rsaKeyParameters.Exponent.ToByteArrayUnsigned(),
-                    Modulus = rsaKeyParameters.Modulus.ToByteArrayUnsigned()
-                };
-                m_rsaPublicKey.ImportParameters(parameters);
+                m_rsaPublicKey = BouncyCastle.X509Utils.SetRSAPublicKey(publicKey);
                 bytes = publicKey.Length;
 #else
+                m_rsaPublicKey = RSA.Create();
                 m_rsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
 #endif
             }
