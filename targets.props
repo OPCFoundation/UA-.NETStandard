@@ -1,8 +1,10 @@
 <Project>
   <!-- Uncomment to suppress warning that .NET Core 2.1 is used with .NET 6 library. -->
+  <!--
   <PropertyGroup>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
   </PropertyGroup>
+  -->
   <Choose>
     <!-- Note: .NET Core 2.x is end of life, removed netcoreapp2.1 from any target. -->
     <!-- Note: .NET Framework 4.6.2 deprecated for .372, removed net462 from any target. -->
