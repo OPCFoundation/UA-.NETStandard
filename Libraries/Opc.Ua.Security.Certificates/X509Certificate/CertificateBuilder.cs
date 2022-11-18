@@ -275,7 +275,21 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 m_ecdsaPublicKey = ECDsa.Create();
+#if NET472_OR_GREATER
+                var asymmetricKeyParameter = Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey);
+                var ecKeyParameters = asymmetricKeyParameter as Org.BouncyCastle.Crypto.Parameters.ECKeyParameters;
+                var parameters = new ECParameters {
+                    Curve = default(ECCurve),
+                    Q = new ECPoint() {
+                        X = ecKeyParameters.Parameters.G.XCoord.ToBigInteger().ToByteArrayUnsigned(),
+                        Y = ecKeyParameters.Parameters.G.YCoord.ToBigInteger().ToByteArrayUnsigned(),
+                    }
+                };
+                m_ecdsaPublicKey.ImportParameters(parameters);
+                bytes = publicKey.Length;
+#else
                 m_ecdsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
+#endif
             }
             catch (Exception e)
             {

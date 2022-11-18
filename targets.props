@@ -1,10 +1,8 @@
 <Project>
   <!-- Uncomment to suppress warning that .NET Core 2.1 is used with .NET 6 library. -->
-  <!--
   <PropertyGroup>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
   </PropertyGroup>
-  -->
   <Choose>
     <!-- Note: .NET Core 2.x is end of life, removed netcoreapp2.1 from any target. -->
     <!-- Visual Studio 2022, supports .NET Framework 4.6.2, .NET Framework 4.8, .NET Core 3.1 and .NET 6 -->
@@ -21,12 +19,12 @@
     <!-- Visual Studio 2019, supports .NET Framework 4.6.2 and .NET Core 3.1 -->
     <When  Condition="'$(VisualStudioVersion)' == '16.0'">
       <PropertyGroup>
-        <AppTargetFrameworks>netcoreapp3.1;net462</AppTargetFrameworks>
+        <AppTargetFrameworks>net5.0;netcoreapp3.1;net462</AppTargetFrameworks>
         <AppTargetFramework>netcoreapp3.1</AppTargetFramework>
-        <TestsTargetFrameworks>net462;netcoreapp3.1</TestsTargetFrameworks>
-        <LibTargetFrameworks>net462;netstandard2.0;netstandard2.1</LibTargetFrameworks>
-        <LibxTargetFrameworks>net462;netstandard2.1</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>net462;netstandard2.0;netcoreapp3.1</HttpsTargetFrameworks>
+        <TestsTargetFrameworks>net462;net472;netcoreapp2.1;netcoreapp3.1;net5.0</TestsTargetFrameworks>
+        <LibTargetFrameworks>net462;net472;netstandard2.0;netstandard2.1;net5.0</LibTargetFrameworks>
+        <LibxTargetFrameworks>net462;net472;netcoreapp2.1;netstandard2.1;net5.0</LibxTargetFrameworks>
+        <HttpsTargetFrameworks>net462;net472;netstandard2.0;netcoreapp3.1;net5.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
     <!-- Visual Studio 2017 and earlier, support only .NET Framework 4.6.2 because .NET Core 2.x is end of life. -->

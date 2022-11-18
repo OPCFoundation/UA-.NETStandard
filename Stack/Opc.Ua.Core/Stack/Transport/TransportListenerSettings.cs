@@ -39,25 +39,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the server certificate.
+        /// Gets or sets the server certificate type provider.
         /// </summary>
-        public X509Certificate2 ServerCertificate
+        public CertificateTypesProvider ServerCertificateTypesProvider
         {
-            get { return m_serverCertificate; }
-            set { m_serverCertificate = value; }
+            get { return m_serverCertificateTypes; }
+            set { m_serverCertificateTypes = value; }
         }
 
-        /// <summary>
-        /// Gets or sets the server certificate chain.
-        /// </summary>
-        /// <value>
-        /// The server certificate chain.
-        /// </value>
-        public X509Certificate2Collection ServerCertificateChain
-        {
-            get { return m_serverCertificateChain; }
-            set { m_serverCertificateChain = value; }
-        }
 
         /// <summary>
         /// Gets or Sets the certificate validator.
@@ -122,8 +111,7 @@ namespace Opc.Ua
         #region Private Fields
         private EndpointDescriptionCollection m_descriptions;
         private EndpointConfiguration m_configuration;
-        private X509Certificate2 m_serverCertificate;
-        private X509Certificate2Collection m_serverCertificateChain;
+        private CertificateTypesProvider m_serverCertificateTypes;
         private ICertificateValidator m_certificateValidator;
         private NamespaceTable m_namespaceUris;
         private IEncodeableFactory m_channelFactory;

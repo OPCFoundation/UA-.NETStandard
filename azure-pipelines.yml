@@ -67,12 +67,6 @@ stages:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      framework: net48
-      agents: '@{ windows = "windows-2019" }'
-      jobnamesuffix: net48  
-  - template: .azurepipelines/test.yml
-    parameters:
-      configuration: Release
       framework: netcoreapp3.1
       jobnamesuffix: core3
 - stage: test6release
@@ -106,6 +100,12 @@ stages:
     parameters:
       framework: netcoreapp3.1
       configuration: Debug
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Debug
+      framework: net6.0
+      agents: '@{ windows = "windows-2022"; linux = "ubuntu-18.04"; mac = "macOS-10.15" }'
+      jobnamesuffix: net60debug
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'

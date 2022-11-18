@@ -35,22 +35,6 @@ namespace Opc.Ua.Bindings
             IMessageSocketFactory socketFactory,
             ChannelQuotas quotas,
             X509Certificate2 clientCertificate,
-            X509Certificate2 serverCertificate,
-            EndpointDescription endpoint)
-         :
-            this(contextId, bufferManager, socketFactory, quotas, clientCertificate, null, serverCertificate, endpoint)
-        {
-        }
-
-        /// <summary>
-        /// Creates a channel for for a client.
-        /// </summary>
-        public UaSCUaBinaryClientChannel(
-            string contextId,
-            BufferManager bufferManager,
-            IMessageSocketFactory socketFactory,
-            ChannelQuotas quotas,
-            X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
             X509Certificate2 serverCertificate,
             EndpointDescription endpoint)
@@ -493,7 +477,7 @@ namespace Opc.Ua.Bindings
         {
             // create a new token.
             ChannelToken token = CreateToken();
-            token.ClientNonce = CreateNonce();
+            token.ClientNonce = CreateNonce(ClientCertificate);
 
             // construct the request.
             OpenSecureChannelRequest request = new OpenSecureChannelRequest();
@@ -614,6 +598,11 @@ namespace Opc.Ua.Bindings
                 m_requestedToken.TokenId = response.SecurityToken.TokenId;
                 m_requestedToken.Lifetime = (int)response.SecurityToken.RevisedLifetime;
                 m_requestedToken.ServerNonce = response.ServerNonce;
+
+                if (!ValidateNonce(ServerCertificate, response.ServerNonce))
+                {
+                    throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                }
 
                 string implementation = String.Format(g_ImplementationString, m_socketFactory.Implementation);
 

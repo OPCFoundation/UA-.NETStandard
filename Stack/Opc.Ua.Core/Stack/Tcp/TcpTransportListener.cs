@@ -133,8 +133,7 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
             // save the server certificate.
-            m_serverCertificate = settings.ServerCertificate;
-            m_serverCertificateChain = settings.ServerCertificateChain;
+            m_serverCertificateTypesProvider = settings.ServerCertificateTypesProvider;
 
             m_bufferManager = new BufferManager("Server", (int)Int32.MaxValue, m_quotas.MaxBufferSize);
             m_channels = new Dictionary<uint, TcpListenerChannel>();
@@ -226,7 +225,7 @@ namespace Opc.Ua.Bindings
                 this,
                 m_bufferManager,
                 m_quotas,
-                m_serverCertificate,
+                m_serverCertificateTypesProvider,
                 m_descriptions);
 
             uint channelId = GetNextChannelId();
@@ -432,16 +431,16 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void CertificateUpdate(
             ICertificateValidator validator,
-            X509Certificate2 serverCertificate,
-            X509Certificate2Collection serverCertificateChain)
+            CertificateTypesProvider certificateTypesProvider
+            )
         {
             m_quotas.CertificateValidator = validator;
-            m_serverCertificate = serverCertificate;
-            m_serverCertificateChain = serverCertificateChain;
+            m_serverCertificateTypesProvider = certificateTypesProvider;
             foreach (var description in m_descriptions)
             {
                 if (description.ServerCertificate != null)
                 {
+                    var serverCertificate = certificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
                     description.ServerCertificate = serverCertificate.RawData;
                 }
             }
@@ -493,8 +492,7 @@ namespace Opc.Ua.Bindings
                                     this,
                                     m_bufferManager,
                                     m_quotas,
-                                    m_serverCertificate,
-                                    m_serverCertificateChain,
+                                    m_serverCertificateTypesProvider,
                                     m_descriptions);
                             }
 
@@ -703,8 +701,7 @@ namespace Opc.Ua.Bindings
         private EndpointDescriptionCollection m_descriptions;
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;
-        private X509Certificate2 m_serverCertificate;
-        private X509Certificate2Collection m_serverCertificateChain;
+        private CertificateTypesProvider m_serverCertificateTypesProvider;
         private uint m_lastChannelId;
         private Socket m_listeningSocket;
         private Socket m_listeningSocketIPv6;

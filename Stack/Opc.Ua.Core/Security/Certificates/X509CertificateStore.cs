@@ -222,6 +222,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, NodeId certificateType, string password)
+        {
+            return Task.FromResult<X509Certificate2>(null);
+        }
+
+        /// <inheritdoc/>
         /// <remarks>CRLs are not supported here.</remarks>
         public bool SupportsCRLs => false;
 

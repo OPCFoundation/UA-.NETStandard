@@ -623,35 +623,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The server's application instance certificate.
+        /// The server's application instance certificate types provider.
         /// </summary>
-        /// <value>The instance X.509 certificate.</value>
-        protected X509Certificate2 InstanceCertificate
+        /// <value>The provider for the X.509 certificates.</value>
+        public CertificateTypesProvider InstanceCertificateTypesProvider
         {
             get
             {
-                return (X509Certificate2)m_instanceCertificate;
+                return m_InstanceCertificateTypesProvider;
             }
 
             private set
             {
-                m_instanceCertificate = value;
-            }
-        }
-
-        /// <summary>
-        /// Gets the instance certificate chain.
-        /// </summary>
-        protected X509Certificate2Collection InstanceCertificateChain
-        {
-            get
-            {
-                return m_instanceCertificateChain;
-            }
-
-            private set
-            {
-                m_instanceCertificateChain = value;
+                m_InstanceCertificateTypesProvider = value;
             }
         }
 
@@ -777,10 +761,10 @@ namespace Opc.Ua
         protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
         {
             // disconnect all sessions
-            InstanceCertificate = e.SecurityConfiguration.ApplicationCertificate.Certificate;
+            InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
             foreach (var listener in TransportListeners)
             {
-                listener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, null);
+                listener.CertificateUpdate(e.CertificateValidator, InstanceCertificateTypesProvider);
             }
         }
 
@@ -807,7 +791,7 @@ namespace Opc.Ua
 
                 settings.Descriptions = endpoints;
                 settings.Configuration = endpointConfiguration;
-                settings.ServerCertificate = InstanceCertificate;
+                settings.ServerCertificateTypesProvider = InstanceCertificateTypesProvider;
                 settings.CertificateValidator = certificateValidator;
                 settings.NamespaceUris = MessageContext.NamespaceUris;
                 settings.Factory = MessageContext.Factory;
@@ -1270,33 +1254,38 @@ namespace Opc.Ua
             }
 
             // load the instance certificate.
-            if (configuration.SecurityConfiguration.ApplicationCertificate != null)
+            X509Certificate2 defaultInstanceCertificate = null;
+            InstanceCertificateTypesProvider = new CertificateTypesProvider(configuration);
+            foreach (var securityPolicy in configuration.ServerConfiguration.SecurityPolicies)
             {
-                InstanceCertificate = configuration.SecurityConfiguration.ApplicationCertificate.Find(true).GetAwaiter().GetResult();
-            }
+                if (securityPolicy.SecurityMode == MessageSecurityMode.None)
+                {
+                    continue;
+                }
 
-            if (InstanceCertificate == null)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadConfigurationError,
-                    "Server does not have an instance certificate assigned.");
-            }
+                var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(securityPolicy.SecurityPolicyUri);
 
-            if (!InstanceCertificate.HasPrivateKey)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadConfigurationError,
-                    "Server does not have access to the private key for the instance certificate.");
-            }
+                if (instanceCertificate == null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        "Server does not have an instance certificate assigned.");
+                }
 
-            // load certificate chain.
-            InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
-            List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-            configuration.CertificateValidator.GetIssuers(InstanceCertificateChain, issuers).Wait();
+                if (!instanceCertificate.HasPrivateKey)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        "Server does not have access to the private key for the instance certificate.");
+                }
 
-            for (int i = 0; i < issuers.Count; i++)
-            {
-                InstanceCertificateChain.Add(issuers[i].Certificate);
+                if (defaultInstanceCertificate == null)
+                {
+                    defaultInstanceCertificate = instanceCertificate;
+                }
+
+                // preload chain 
+                InstanceCertificateTypesProvider.LoadCertificateChainAsync(instanceCertificate).GetAwaiter().GetResult();
             }
 
             // use the message context from the configuration to ensure the channels are using the same one.
@@ -1307,7 +1296,10 @@ namespace Opc.Ua
             // assign a unique identifier if none specified.
             if (String.IsNullOrEmpty(configuration.ApplicationUri))
             {
-                configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(InstanceCertificate);
+                var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(
+                    configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
+
+                configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(instanceCertificate);
 
                 if (String.IsNullOrEmpty(configuration.ApplicationUri))
                 {
@@ -1323,9 +1315,9 @@ namespace Opc.Ua
             MessageContext.NamespaceUris.Append(configuration.ApplicationUri);
 
             // assign an instance name.
-            if (String.IsNullOrEmpty(configuration.ApplicationName) && InstanceCertificate != null)
+            if (String.IsNullOrEmpty(configuration.ApplicationName) && defaultInstanceCertificate != null)
             {
-                configuration.ApplicationName = InstanceCertificate.GetNameInfo(X509NameType.DnsName, false);
+                configuration.ApplicationName = defaultInstanceCertificate.GetNameInfo(X509NameType.DnsName, false);
             }
 
             // save the certificate validator.
@@ -1630,8 +1622,7 @@ namespace Opc.Ua
         private object m_messageContext;
         private object m_serverError;
         private object m_certificateValidator;
-        private object m_instanceCertificate;
-        private X509Certificate2Collection m_instanceCertificateChain;
+        private CertificateTypesProvider m_InstanceCertificateTypesProvider;
         private object m_serverProperties;
         private object m_configuration;
         private object m_serverDescription;

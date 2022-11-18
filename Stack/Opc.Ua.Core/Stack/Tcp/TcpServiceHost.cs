@@ -42,8 +42,7 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            X509Certificate2 instanceCertificate,
-            X509Certificate2Collection instanceCertificateChain)
+            CertificateTypesProvider instanceCertificateTypesProvider)
         {
             // generate a unique host name.
             string hostName = "/Tcp";
@@ -100,21 +99,17 @@ namespace Opc.Ua.Bindings
 
                         if (requireEncryption)
                         {
-                            description.ServerCertificate = instanceCertificate.RawData;
-
-                            // check if complete chain should be sent.
-                            if (configuration.SecurityConfiguration.SendCertificateChain &&
-                                instanceCertificateChain != null &&
-                                instanceCertificateChain.Count > 0)
+                            if (instanceCertificateTypesProvider != null)
                             {
-                                List<byte> serverCertificateChain = new List<byte>();
+                                var instanceCertificate = instanceCertificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
+                                description.ServerCertificate = instanceCertificate?.RawData;
 
-                                for (int i = 0; i < instanceCertificateChain.Count; i++)
+                                // check if complete chain should be sent.
+                                if (instanceCertificate != null &&
+                                    configuration.SecurityConfiguration.SendCertificateChain)
                                 {
-                                    serverCertificateChain.AddRange(instanceCertificateChain[i].RawData);
+                                    description.ServerCertificate = instanceCertificateTypesProvider.LoadCertificateChainRawAsync(instanceCertificate).GetAwaiter().GetResult();
                                 }
-
-                                description.ServerCertificate = serverCertificateChain.ToArray();
                             }
                         }
 

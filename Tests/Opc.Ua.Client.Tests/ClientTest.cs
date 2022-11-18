@@ -512,7 +512,36 @@ namespace Opc.Ua.Client.Tests
             StructureDefinition structureDefinition = dataTypeDefinition.Body as StructureDefinition;
             Assert.AreEqual(ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary, structureDefinition.DefaultEncodingId);
         }
+#if mist
+        [Test]
+        public async Task ReadWriteDataTypeDefinition()
+        {
+            // Test Read a DataType Node
+            var typeId = DataTypeIds.PubSubGroupDataType;
+            var node = m_session.ReadNode(typeId);
+            Assert.NotNull(node);
+            var dataTypeNode = (DataTypeNode)node;
+            Assert.NotNull(dataTypeNode);
+            var dataTypeDefinition = dataTypeNode.DataTypeDefinition;
+            Assert.NotNull(dataTypeDefinition);
+            Assert.True(dataTypeDefinition is ExtensionObject);
+            Assert.NotNull(dataTypeDefinition.Body);
+            Assert.True(dataTypeDefinition.Body is StructureDefinition);
+            StructureDefinition structureDefinition = dataTypeDefinition.Body as StructureDefinition;
+            Assert.AreEqual(ObjectIds.PubSubGroupDataType_Encoding_DefaultBinary, structureDefinition.DefaultEncodingId);
+            structureDefinition.DefaultEncodingId = ObjectIds.PubSubGroupDataType_Encoding_DefaultJson;
 
+            var writeValueCollection = new WriteValueCollection();
+            writeValueCollection.Add(new WriteValue() {
+                AttributeId = Attributes.DataTypeDefinition,
+                NodeId = typeId,
+                Value = new DataValue(new Variant(dataTypeDefinition))
+            });
+            var response = await m_session.WriteAsync(null, writeValueCollection, CancellationToken.None);
+            Assert.AreEqual(StatusCodes.BadNotWritable, response.Results[0].Code);
+            Assert.NotNull(response);
+        }
+#endif
         [Theory, Order(400)]
         public async Task BrowseFullAddressSpace(string securityPolicy, bool operationLimits = false)
         {

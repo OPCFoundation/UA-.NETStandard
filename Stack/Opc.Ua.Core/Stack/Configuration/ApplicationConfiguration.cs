@@ -436,11 +436,13 @@ namespace Opc.Ua
 
             SecurityConfiguration.Validate();
 
-            // load private key
-            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
-
-            Func<string> generateDefaultUri = () =>
+            // load private keys
+            foreach (var applicationCertificate in SecurityConfiguration.ApplicationCertificates)
             {
+                await applicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
+            }
+
+            Func<string> generateDefaultUri = () => {
                 var sb = new StringBuilder();
                 sb.Append("urn:");
                 sb.Append(Utils.GetHostName());
@@ -547,7 +549,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not load configuration from file: {0}", filePath);
+                Utils.LogError(e, "Could not load configuration from file: {0}", filePath);
             }
             finally
             {

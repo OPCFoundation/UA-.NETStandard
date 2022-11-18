@@ -104,7 +104,9 @@ namespace Opc.Ua.Configuration
             var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
             ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
                 // app cert store
+#pragma warning disable CS0618 // Type or member is obsolete
                 ApplicationCertificate = new CertificateIdentifier() {
+#pragma warning restore CS0618 // Type or member is obsolete
                     StoreType = appStoreType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Application, appRoot),
                     SubjectName = Utils.ReplaceDCLocalhost(subjectName)
@@ -273,9 +275,23 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerSelected AddEccSignPolicies()
+        {
+            AddEccSecurityPolicies(true);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerSelected AddEccSignAndEncryptPolicies()
+        {
+            AddEccSecurityPolicies(false);
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerSelected AddPolicy(MessageSecurityMode securityMode, string securityPolicy)
         {
-            if (SecurityPolicies.GetDisplayName(securityPolicy) == null) throw new ArgumentException("Unknown security policy", nameof(securityPolicy));
+            if (!SecurityPolicies.IsValidSecurityPolicyUri(securityPolicy)) throw new ArgumentException("Unknown security policy", nameof(securityPolicy));
             if (securityMode == MessageSecurityMode.None || securityPolicy.Equals(SecurityPolicies.None)) throw new ArgumentException("Use AddUnsecurePolicyNone to add no security policy.");
             InternalAddPolicy(ApplicationConfiguration.ServerConfiguration.SecurityPolicies, securityMode, securityPolicy);
             return this;
@@ -293,6 +309,13 @@ namespace Opc.Ua.Configuration
         {
             if (userTokenPolicy == null) throw new ArgumentNullException(nameof(userTokenPolicy));
             ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificateTypes(string types)
+        {
+            ApplicationConfiguration.SecurityConfiguration.ApplicationCertificateTypes = types;
             return this;
         }
 
@@ -867,20 +890,10 @@ namespace Opc.Ua.Configuration
         private void AddSecurityPolicies(bool includeSign = false, bool deprecated = false, bool policyNone = false)
         {
             // create list of supported policies
-            string[] defaultPolicyUris = SecurityPolicies.GetDefaultUris();
+            var defaultPolicyUris = SecurityPolicies.GetDefaultUris().ToList();
             if (deprecated)
             {
-                var names = SecurityPolicies.GetDisplayNames();
-                var deprecatedPolicyList = new List<string>();
-                foreach (var name in names)
-                {
-                    var uri = SecurityPolicies.GetUri(name);
-                    if (uri != null)
-                    {
-                        deprecatedPolicyList.Add(uri);
-                    }
-                }
-                defaultPolicyUris = deprecatedPolicyList.ToArray();
+                defaultPolicyUris.AddRange(SecurityPolicies.GetDefaultDeprecatedUris());
             }
 
             foreach (MessageSecurityMode securityMode in typeof(MessageSecurityMode).GetEnumValues())
@@ -897,6 +910,23 @@ namespace Opc.Ua.Configuration
                     {
                         InternalAddPolicy(policies, securityMode, policyUri);
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Add default Ecc policies.
+        /// </summary>
+        private void AddEccSecurityPolicies(bool sign = false)
+        {
+            // create list of supported policies
+            var defaultPolicyUris = SecurityPolicies.GetDefaultEccUris();
+            MessageSecurityMode securityMode = sign ? MessageSecurityMode.Sign : MessageSecurityMode.SignAndEncrypt;
+            {
+                var policies = ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                foreach (var policyUri in defaultPolicyUris)
+                {
+                    InternalAddPolicy(policies, securityMode, policyUri);
                 }
             }
         }

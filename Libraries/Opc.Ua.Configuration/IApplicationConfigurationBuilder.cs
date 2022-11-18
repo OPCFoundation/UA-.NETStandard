@@ -338,6 +338,22 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies(bool addPolicies = true);
 
         /// <summary>
+        /// Add the ECCsign security policies to the server configuration.
+        /// </summary>
+        /// <remarks>
+        /// The policies are only added if the platform supports the ECC policies.
+        /// </remarks>
+        IApplicationConfigurationBuilderServerSelected AddEccSignPolicies();
+
+        /// <summary>
+        /// Add the ECC sign and encrypt security policies to the server configuration.
+        /// </summary>
+        /// <remarks>
+        /// The policies are only added if the platform supports the ECC policies.
+        /// </remarks>
+        IApplicationConfigurationBuilderServerSelected AddEccSignAndEncryptPolicies();
+
+        /// <summary>
         /// Add the specified security policy with the specified security mode.
         /// </summary>
         /// <param name="securityMode">The message security mode to add the policy to.</param>
@@ -391,6 +407,16 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderExtension,
         IApplicationConfigurationBuilderCreate
     {
+        /// <summary>
+        /// The certificate types that should be supported.
+        /// </summary>
+        /// <remarks>
+        /// At this time the following types are supported, if the platform OS and .NET version can handle it.
+        /// Rsa,nistP256,nistP384,brainpoolP256r1,brainpoolP384r1
+        /// </remarks>
+        /// <param name="types">A comma seperated list of supported types</param>
+        IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificateTypes(string types);
+
         /// <summary>
         /// Whether an unknown application certificate should be accepted
         /// once all other security checks passed.

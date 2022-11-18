@@ -162,7 +162,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the validator with the current state of the configuration.
         /// </summary>
-        public virtual async Task Update(SecurityConfiguration configuration)
+        public virtual Task Update(SecurityConfiguration configuration)
         {
             if (configuration == null)
             {
@@ -197,11 +197,15 @@ namespace Opc.Ua
                     m_useValidatedCertificates = configuration.UseValidatedCertificates;
                 }
             }
+            /*
+                        if (configuration.ApplicationCertificate != null)
+                        {
+                            m_applicationCertificate = await configuration.ApplicationCertificate.Find(true).ConfigureAwait(false);
 
-            if (configuration.ApplicationCertificate != null)
-            {
-                m_applicationCertificate = await configuration.ApplicationCertificate.Find(true).ConfigureAwait(false);
-            }
+                            // TODO
+                        }
+            */
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -209,13 +213,20 @@ namespace Opc.Ua
         /// </summary>
         public virtual async Task UpdateCertificate(SecurityConfiguration securityConfiguration)
         {
+            // TODO
             lock (m_lock)
             {
-                securityConfiguration.ApplicationCertificate.Certificate = null;
+                foreach (var applicationCertificate in securityConfiguration.ApplicationCertificates)
+                {
+                    applicationCertificate.DisposeCertificate();
+                }
             }
 
-            await securityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(
-                securityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
+            foreach (var applicationCertificate in securityConfiguration.ApplicationCertificates)
+            {
+                await applicationCertificate.LoadPrivateKeyEx(
+                    securityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
+            }
             await Update(securityConfiguration).ConfigureAwait(false);
 
             lock (m_callbackLock)
@@ -672,8 +683,19 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the issuers for the certificates.
         /// </summary>
+        public Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers, bool checkRevocationStatus)
+        {
+            return GetIssuersNoExceptionsOnGetIssuer(certificates, issuers,
+                null, // ensures legacy behavior is respected
+                checkRevocationStatus
+                );
+        }
+
+        /// <summary>
+        /// Returns the issuers for the certificates.
+        /// </summary>
         public async Task<bool> GetIssuersNoExceptionsOnGetIssuer(X509Certificate2Collection certificates,
-            List<CertificateIdentifier> issuers, Dictionary<X509Certificate2, ServiceResultException> validationErrors)
+            List<CertificateIdentifier> issuers, Dictionary<X509Certificate2, ServiceResultException> validationErrors, bool checkRevocationStatus)
         {
             bool isTrusted = false;
             CertificateIdentifier issuer = null;
@@ -696,22 +718,22 @@ namespace Opc.Ua
 
                 if (validationErrors != null)
                 {
-                    (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
+                    (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_trustedCertificateList, m_trustedCertificateStore, checkRevocationStatus).ConfigureAwait(false);
                 }
                 else
                 {
-                    issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
+                    issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, checkRevocationStatus).ConfigureAwait(false);
                 }
 
                 if (issuer == null)
                 {
                     if (validationErrors != null)
                     {
-                        (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
+                        (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_issuerCertificateList, m_issuerCertificateStore, checkRevocationStatus).ConfigureAwait(false);
                     }
                     else
                     {
-                        issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
+                        issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, checkRevocationStatus).ConfigureAwait(false);
                     }
 
                     if (issuer == null)
@@ -759,7 +781,7 @@ namespace Opc.Ua
         public Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
         {
             return GetIssuersNoExceptionsOnGetIssuer(
-                certificates, issuers, null // ensures legacy behavior is respected
+                certificates, issuers, null, true // ensures legacy behavior is respected
                 );
         }
 
@@ -768,9 +790,21 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <param name="issuers">The issuers.</param>
+        /// <param name="checkRevocationStatus">If the revocation status of the issuers should be checked.</param>
+        public Task<bool> GetIssuers(X509Certificate2 certificate, List<CertificateIdentifier> issuers, bool checkRevocationStatus)
+        {
+            return GetIssuers(new X509Certificate2Collection { certificate }, issuers, checkRevocationStatus);
+        }
+
+        /// <summary>
+        /// Returns the issuers for the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <param name="issuers">The issuers.</param>
+        /// <returns></returns>
         public Task<bool> GetIssuers(X509Certificate2 certificate, List<CertificateIdentifier> issuers)
         {
-            return GetIssuers(new X509Certificate2Collection { certificate }, issuers);
+            return GetIssuers(new X509Certificate2Collection { certificate }, issuers, true);
         }
 
         /// <summary>
@@ -948,7 +982,7 @@ namespace Opc.Ua
             List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
             Dictionary<X509Certificate2, ServiceResultException> validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
 
-            bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuer(certificates, issuers, validationErrors).ConfigureAwait(false);
+            bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuer(certificates, issuers, validationErrors, true).ConfigureAwait(false);
 
             ServiceResult sresult = PopulateSresultWithValidationErrors(validationErrors);
 
@@ -1117,7 +1151,10 @@ namespace Opc.Ua
             // check if certificate is trusted.
             if (trustedCertificate == null && !isIssuerTrusted)
             {
-                if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
+                // TODO ECC cert
+                bool isApplicationCertificate = true;
+                if (isApplicationCertificate)
+                //if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
                 {
                     var message = "Certificate is not trusted.";
                     sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
@@ -1135,13 +1172,25 @@ namespace Opc.Ua
                     );
             }
 
+            bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
+
             // check if certificate is valid for use as app/sw or user cert
             X509KeyUsageFlags certificateKeyUsage = X509Utils.GetKeyUsage(certificate);
-
-            if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
+            if (isECDsaSignature)
             {
-                sresult = new ServiceResult(StatusCodes.BadCertificateUseNotAllowed,
-                    null, null, "Usage of certificate is not allowed.", null, sresult);
+                if ((certificateKeyUsage & X509KeyUsageFlags.DigitalSignature) == 0)
+                {
+                    sresult = new ServiceResult(StatusCodes.BadCertificateUseNotAllowed,
+                        null, null, "Usage of ECDSA certificate is not allowed.", null, sresult);
+                }
+            }
+            else
+            {
+                if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
+                {
+                    sresult = new ServiceResult(StatusCodes.BadCertificateUseNotAllowed,
+                        null, null, "Usage of RSA certificate is not allowed.", null, sresult);
+                }
             }
 
             // check if minimum requirements are met
@@ -1151,13 +1200,18 @@ namespace Opc.Ua
                     null, null, "SHA1 signed certificates are not trusted.", null, sresult);
             }
 
-            int keySize = X509Utils.GetRSAPublicKeySize(certificate);
-            if (keySize < m_minimumCertificateKeySize)
+            if (!isECDsaSignature)
             {
-                sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
-                    null, null,
-                    $"Certificate doesn't meet minimum key length requirement. ({keySize}<{m_minimumCertificateKeySize})",
-                    null, sresult);
+                int keySize = X509Utils.GetRSAPublicKeySize(certificate);
+                if (keySize < m_minimumCertificateKeySize)
+                {
+                    sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
+                        null, null, "Certificate doesn't meet minimum key length requirement.", null, sresult);
+                }
+            }
+            else
+            {
+                // TODO: check if curve type is secure enough for profile
             }
 
             if (issuedByCA && chainIncomplete)
@@ -1458,7 +1512,7 @@ namespace Opc.Ua
         {
             return oid.Value == "1.3.14.3.2.29" ||     // sha1RSA
                 oid.Value == "1.2.840.10040.4.3" ||    // sha1DSA
-                oid.Value == "1.2.840.10045.4.1" ||    // sha1ECDSA
+                oid.Value == Oids.ECDsaWithSha1 ||     // sha1ECDSA
                 oid.Value == "1.2.840.113549.1.1.5" || // sha1RSA
                 oid.Value == "1.3.14.3.2.13" ||        // sha1DSA
                 oid.Value == "1.3.14.3.2.27";          // dsaSHA1
@@ -1595,7 +1649,7 @@ namespace Opc.Ua
         private CertificateStoreIdentifier m_rejectedCertificateStore;
         private event CertificateValidationEventHandler m_CertificateValidation;
         private event CertificateUpdateEventHandler m_CertificateUpdate;
-        private X509Certificate2 m_applicationCertificate;
+        //private X509Certificate2 m_applicationCertificate;
         private ProtectFlags m_protectFlags;
         private bool m_autoAcceptUntrustedCertificates;
         private bool m_rejectSHA1SignedCertificates;

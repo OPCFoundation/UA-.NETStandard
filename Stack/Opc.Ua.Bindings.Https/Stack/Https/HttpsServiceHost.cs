@@ -41,8 +41,7 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            X509Certificate2 instanceCertificate,
-            X509Certificate2Collection instanceCertificateChain
+            CertificateTypesProvider certificateTypesProvider
             )
         {
             // generate a unique host name.
@@ -109,22 +108,15 @@ namespace Opc.Ua.Bindings
                     description.EndpointUrl = uri.ToString();
                     description.Server = serverDescription;
 
-                    if (instanceCertificate != null)
+                    if (certificateTypesProvider != null)
                     {
+                        var instanceCertificate = certificateTypesProvider.GetInstanceCertificate(bestPolicy.SecurityPolicyUri);
                         description.ServerCertificate = instanceCertificate.RawData;
+
                         // check if complete chain should be sent.
-                        if (configuration.SecurityConfiguration.SendCertificateChain &&
-                            instanceCertificateChain != null &&
-                            instanceCertificateChain.Count > 0)
+                        if (configuration.SecurityConfiguration.SendCertificateChain)
                         {
-                            List<byte> serverCertificateChain = new List<byte>();
-
-                            for (int i = 0; i < instanceCertificateChain.Count; i++)
-                            {
-                                serverCertificateChain.AddRange(instanceCertificateChain[i].RawData);
-                            }
-
-                            description.ServerCertificate = serverCertificateChain.ToArray();
+                            description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRawAsync(instanceCertificate).GetAwaiter().GetResult();
                         }
                     }
 
@@ -148,9 +140,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // create the host.
-                ServiceHost serviceHost = serverBase.CreateServiceHost(serverBase, uris.ToArray());
-
-                hosts[hostName] = serviceHost;
+                hosts[hostName] = serverBase.CreateServiceHost(serverBase, uris.ToArray());
             }
 
             return endpoints;
