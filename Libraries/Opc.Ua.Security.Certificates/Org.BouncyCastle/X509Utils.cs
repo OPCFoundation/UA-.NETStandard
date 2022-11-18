@@ -104,18 +104,18 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// Get public key parameters from a X509Certificate2
         /// </summary>
-        internal static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
+        internal static RsaKeyParameters GetRsaPublicKeyParameter(X509Certificate2 certificate)
         {
             using (RSA rsa = certificate.GetRSAPublicKey())
             {
-                return GetPublicKeyParameter(rsa);
+                return GetRsaPublicKeyParameter(rsa);
             }
         }
 
         /// <summary>
         /// Get public key parameters from a RSA.
         /// </summary>
-        internal static RsaKeyParameters GetPublicKeyParameter(RSA rsa)
+        internal static RsaKeyParameters GetRsaPublicKeyParameter(RSA rsa)
         {
             RSAParameters rsaParams = rsa.ExportParameters(false);
             return new RsaKeyParameters(
@@ -128,20 +128,24 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// Get private key parameters from a X509Certificate2.
         /// The private key must be exportable.
         /// </summary>
-        internal static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
+        internal static RsaPrivateCrtKeyParameters GetRsaPrivateKeyParameter(X509Certificate2 certificate)
         {
             // try to get signing/private key from certificate passed in
             using (RSA rsa = certificate.GetRSAPrivateKey())
             {
-                return GetPrivateKeyParameter(rsa);
+                if (rsa != null)
+                {
+                    return GetRsaPrivateKeyParameter(rsa);
+                }
             }
+            return null;
         }
 
         /// <summary>
         /// Get private key parameters from a RSA private key.
         /// The private key must be exportable.
         /// </summary>
-        internal static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(RSA rsa)
+        internal static RsaPrivateCrtKeyParameters GetRsaPrivateKeyParameter(RSA rsa)
         {
             RSAParameters rsaParams = rsa.ExportParameters(true);
             return new RsaPrivateCrtKeyParameters(
@@ -155,6 +159,25 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 new BigInteger(1, rsaParams.InverseQ));
         }
 
+#if NET472_OR_GREATER
+        /// <summary>
+        /// Get private key parameters from a ECDsa private key.
+        /// The private key must be exportable.
+        /// </summary>
+        internal static ECPrivateKeyParameters GetECPrivateKeyParameter(ECDsa ec)
+        {
+            ECParameters ecParams = ec.ExportParameters(true);
+            BigInteger d = new BigInteger(1, ecParams.D);
+            throw new NotImplementedException(nameof(GetECPrivateKeyParameter));
+#if TODO
+            ECDomainParameters parameters = new ECDomainParameters(
+                new Org.BouncyCastle.Math.EC.ECCurve(
+                new BigInteger(1, ecParams.Q));
+
+            return new ECPrivateKeyParameters(d, parameters);
+#endif
+        }
+#endif
 
         /// <summary>
         /// Get the serial number from a certificate as BigInteger.

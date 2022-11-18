@@ -35,27 +35,10 @@ namespace Opc.Ua.Bindings
             ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            X509Certificate2 serverCertificate,
+            CertificateTypesProvider serverCertificateTypesProvider,
             EndpointDescriptionCollection endpoints)
         :
-            this(contextId, listener, bufferManager, quotas, serverCertificate, null, endpoints)
-        {
-            m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
-        }
-
-        /// <summary>
-        /// Attaches the object to an existing socket.
-        /// </summary>
-        public TcpServerChannel(
-            string contextId,
-            ITcpChannelListener listener,
-            BufferManager bufferManager,
-            ChannelQuotas quotas,
-            X509Certificate2 serverCertificate,
-            X509Certificate2Collection serverCertificateChain,
-            EndpointDescriptionCollection endpoints)
-        :
-            base(contextId, listener, bufferManager, quotas, serverCertificate, serverCertificateChain, endpoints)
+            base(contextId, listener, bufferManager, quotas, serverCertificateTypesProvider, endpoints)
         {
             m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
         }
@@ -602,11 +585,11 @@ namespace Opc.Ua.Bindings
                 ChannelToken token = CreateToken();
 
                 token.TokenId = GetNewTokenId();
-                token.ServerNonce = CreateNonce();
+                token.ServerNonce = CreateNonce(ServerCertificate);
                 // check the client nonce.
                 token.ClientNonce = request.ClientNonce;
 
-                if (!ValidateNonce(token.ClientNonce))
+                if (!ValidateNonce(ClientCertificate, token.ClientNonce))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "Client nonce is not the correct length or not random enough.");
                 }

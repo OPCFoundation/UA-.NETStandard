@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 namespace Opc.Ua
@@ -57,8 +56,7 @@ namespace Opc.Ua
         /// </summary>
         void CertificateUpdate(
             ICertificateValidator validator,
-            X509Certificate2 serverCertificate,
-            X509Certificate2Collection serverCertificateChain);
+            CertificateTypesProvider serverCertificateTypes);
 
         /// <summary>
         /// Raised when a new connection is waiting for a client.

@@ -67,8 +67,6 @@ namespace Opc.Ua
                     CertificateValidator = null,
                     NamespaceUris = null,
                     Factory = null,
-                    ServerCertificate = null,
-                    ServerCertificateChain = null,
                     ReverseConnectListener = true
                 };
 

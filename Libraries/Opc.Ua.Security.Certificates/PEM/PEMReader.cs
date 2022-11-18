@@ -41,7 +41,7 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public static class PEMReader
     {
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Import a PKCS#8 private key or RSA private key from PEM.
         /// The PKCS#8 private key may be encrypted using a password.
@@ -109,10 +109,10 @@ namespace Opc.Ua.Security.Certificates
             }
             throw new ArgumentException("No private PEM key found.");
         }
-        #endregion
+#endregion
 
-        #region Private Methods
-        #endregion
+#region Private Methods
+#endregion
     }
 }
 #endif

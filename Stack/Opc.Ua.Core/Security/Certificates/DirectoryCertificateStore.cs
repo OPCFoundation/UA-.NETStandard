@@ -336,9 +336,18 @@ namespace Opc.Ua
         public bool SupportsLoadPrivateKey => true;
 
         /// <summary>
-        /// Loads the private key from a PFX/PEM file in the certificate store.
+        /// Loads the private key certificate with RSA signature from a PFX file in the certificate store.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        [Obsolete("Use LoadPrivateKey with certificateType.")]
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        {
+            return LoadPrivateKey(thumbprint, subjectName, null, password);
+        }
+
+        /// <summary>
+        /// Loads the private key from a PFX file in the certificate store.
+        /// </summary>
+        public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, NodeId certificateType, string password)
         {
             if (NoPrivateKeys || m_privateKeySubdir == null ||
                 m_certificateSubdir == null || !m_certificateSubdir.Exists)
@@ -389,8 +398,7 @@ namespace Opc.Ua
                             }
                         }
 
-                        // skip if not RSA certificate
-                        if (X509Utils.GetRSAPublicKeySize(certificate) < 0)
+                        if (!CertificateIdentifier.ValidateCertificateType(certificate, certificateType))
                         {
                             continue;
                         }
@@ -421,7 +429,7 @@ namespace Opc.Ua
                                         privateKeyFilePfx.FullName,
                                         password,
                                         flag);
-                                    if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                                    if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                     {
                                         Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PFX private key for [{0}].", certificate.Thumbprint);
                                         return certificate;
@@ -442,7 +450,7 @@ namespace Opc.Ua
                             {
                                 byte[] pemDataBlob = File.ReadAllBytes(privateKeyFilePem.FullName);
                                 certificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, password);
-                                if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                                if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                 {
                                     Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PEM private key for [{0}].", certificate.Thumbprint);
                                     return certificate;
@@ -849,6 +857,14 @@ namespace Opc.Ua
                 }
 
                 fileName.Append(ch);
+            }
+
+            var signatureQualifier = X509Utils.GetECDsaQualifier(certificate);
+            if (!string.IsNullOrEmpty(signatureQualifier))
+            {
+                fileName.Append(" [");
+                fileName.Append(signatureQualifier);
+                fileName.Append(']');
             }
 
             fileName.Append(" [");

@@ -41,8 +41,7 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            X509Certificate2 instanceCertificate,
-            X509Certificate2Collection instanceCertificateChain
+            CertificateTypesProvider certificateTypesProvider
             )
         {
             // generate a unique host name.
@@ -107,24 +106,17 @@ namespace Opc.Ua.Bindings
                 description.EndpointUrl = uri.ToString();
                 description.Server = serverDescription;
 
-                if (instanceCertificate != null)
-                {
-                    description.ServerCertificate = instanceCertificate.RawData;
-                    // check if complete chain should be sent.
-                    if (configuration.SecurityConfiguration.SendCertificateChain &&
-                        instanceCertificateChain != null &&
-                        instanceCertificateChain.Count > 1)
+                    if (certificateTypesProvider != null)
                     {
-                        List<byte> serverCertificateChain = new List<byte>();
+                        var instanceCertificate = certificateTypesProvider.GetInstanceCertificate(bestPolicy.SecurityPolicyUri);
+                        description.ServerCertificate = instanceCertificate.RawData;
 
-                        for (int i = 0; i < instanceCertificateChain.Count; i++)
+                        // check if complete chain should be sent.
+                        if (configuration.SecurityConfiguration.SendCertificateChain)
                         {
-                            serverCertificateChain.AddRange(instanceCertificateChain[i].RawData);
+                            description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRawAsync(instanceCertificate).GetAwaiter().GetResult();
                         }
-
-                        description.ServerCertificate = serverCertificateChain.ToArray();
                     }
-                }
 
                 description.SecurityMode = bestPolicy.SecurityMode;
                 description.SecurityPolicyUri = bestPolicy.SecurityPolicyUri;
@@ -145,10 +137,9 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            // create the host.
-            ServiceHost serviceHost = serverBase.CreateServiceHost(serverBase, uris.ToArray());
-
-            hosts[hostName] = serviceHost;
+                // create the host.
+                hosts[hostName] = serverBase.CreateServiceHost(serverBase, uris.ToArray());
+            }
 
             return endpoints;
         }

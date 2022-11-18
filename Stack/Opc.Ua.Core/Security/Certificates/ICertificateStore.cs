@@ -86,7 +86,19 @@ namespace Opc.Ua
         /// <param name="password">The certificate password.</param>
         /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
         /// <returns>The matching certificate with private key</returns>
+        [Obsolete("Must specify certificate type.")]
         Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password);
+
+        /// <summary>
+        /// Finds the certificate with the specified thumprint.
+        /// </summary>
+        /// <param name="thumbprint">The thumbprint.</param>
+        /// <param name="subjectName">The certificate subject.</param>
+        /// <param name="certificateType">The certificate type to load.</param>
+        /// <param name="password">The certificate password.</param>
+        /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
+        /// <returns>The matching certificate with private key</returns>
+        Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, NodeId certificateType, string password);
 
         /// <summary>
         /// Checks if issuer has revoked the certificate.

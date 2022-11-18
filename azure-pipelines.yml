@@ -100,6 +100,12 @@ stages:
     parameters:
       framework: netcoreapp3.1
       configuration: Debug
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Debug
+      framework: net6.0
+      agents: '@{ windows = "windows-2022"; linux = "ubuntu-18.04"; mac = "macOS-10.15" }'
+      jobnamesuffix: net60debug
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
