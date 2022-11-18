@@ -261,4 +261,3 @@ OPC\ Foundation/
 /Microsoft.CodeDom.Providers.DotNetCompilerPlatform.xml
 /SampleApplications/Samples/OPCOutput
 !**/Assets/*.*
-/Tests/Opc.Ua.Client.Tests/SubscriptionTest.xml
