@@ -1224,9 +1224,17 @@ namespace Opc.Ua.Server
                 {
                     exception = exception.InnerException;
                 }
+
                 if (exception is ServiceResultException sre)
                 {
-                    statusCode = sre.InnerResult.StatusCode;
+                    if (sre.InnerResult != null)
+                    {
+                        statusCode = sre.InnerResult.StatusCode;
+                    }
+                    else
+                    {
+                        statusCode = sre.StatusCode;
+                    }
                 }
 
                 ISystemContext systemContext = server.DefaultAuditContext;
