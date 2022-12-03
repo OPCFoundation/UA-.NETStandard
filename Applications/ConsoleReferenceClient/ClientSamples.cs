@@ -646,7 +646,7 @@ namespace Quickstarts
         /// Outputs elapsed time information for perf testing and lists all
         /// types that were successfully added to the session encodeable type factory.
         /// </remarks>
-        public async Task LoadTypeSystem(ISession session, bool disableDataTypeDefinition = false)
+        public async Task LoadTypeSystem(ISession session)
         {
             m_output.WriteLine("Load the server type system.");
 
@@ -654,7 +654,6 @@ namespace Quickstarts
             stopWatch.Start();
 
             var complexTypeSystem = new ComplexTypeSystem(session);
-            complexTypeSystem.DisableDataTypeDefinition = disableDataTypeDefinition;
             await complexTypeSystem.Load().ConfigureAwait(false);
 
             stopWatch.Stop();

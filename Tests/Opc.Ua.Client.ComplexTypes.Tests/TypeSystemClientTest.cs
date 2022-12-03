@@ -166,12 +166,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             }
         }
 
-        [Theory, Order(200)]
-        public async Task BrowseComplexTypesServer(bool disableDataTypeDefinition)
+        [Test, Order(200)]
+        public async Task BrowseComplexTypesServer()
         {
             var samples = new ClientSamples(TestContext.Out, null, null, true);
 
-            await samples.LoadTypeSystem(Session, disableDataTypeDefinition).ConfigureAwait(false);
+            await samples.LoadTypeSystem(Session).ConfigureAwait(false);
 
             ReferenceDescriptionCollection referenceDescriptions =
                 samples.BrowseFullAddressSpace(this, Objects.RootFolder);
@@ -192,12 +192,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             }
         }
 
-        [Theory, Order(300)]
-        public async Task FetchComplexTypesServer(bool disableDataTypeDefinition)
+        [Test, Order(300)]
+        public async Task FetchComplexTypesServer()
         {
             var samples = new ClientSamples(TestContext.Out, null, null, true);
 
-            await samples.LoadTypeSystem(m_session, disableDataTypeDefinition).ConfigureAwait(false);
+            await samples.LoadTypeSystem(m_session).ConfigureAwait(false);
 
             IList<INode> allNodes = null;
             allNodes = samples.FetchAllNodesNodeCache(
