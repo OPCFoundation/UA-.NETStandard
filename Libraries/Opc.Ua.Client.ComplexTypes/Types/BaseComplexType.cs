@@ -642,9 +642,9 @@ namespace Opc.Ua.Client.ComplexTypes
             m_propertyList = m_propertyList.OrderBy(p => p.Order).ToList();
             m_propertyDict = m_propertyList.ToDictionary(p => p.Name, p => p);
         }
-#endregion Private Members
+        #endregion Private Members
 
-#region Protected Properties
+        #region Protected Properties
         /// <summary>
         /// Provide XmlNamespace based on systemType
         /// </summary>
@@ -660,9 +660,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 return m_xmlName != null ? m_xmlName.Namespace : string.Empty;
             }
         }
-#endregion
+        #endregion
 
-#region Protected Fields
+        #region Protected Fields
         /// <summary>
         /// The list of properties of this complex type.
         /// </summary>
@@ -672,12 +672,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The list of properties as dictionary.
         /// </summary>
         protected Dictionary<string, ComplexTypePropertyInfo> m_propertyDict;
-#endregion Protected Fields
+        #endregion Protected Fields
 
-#region Private Fields
+        #region Private Fields
         private IServiceMessageContext m_context;
         private StructureBaseDataType m_structureBaseType;
         private XmlQualifiedName m_xmlName;
-#endregion Private Fields
+        #endregion Private Fields
     }
 }//namespace
