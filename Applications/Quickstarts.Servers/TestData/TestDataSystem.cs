@@ -648,68 +648,85 @@ namespace TestData
         {
             if (m_generator.GetRandomBoolean())
             {
-                ScalarValueDataType value = new ScalarValueDataType();
 
-                value.BooleanValue = m_generator.GetRandom<bool>(false);
-                value.SByteValue = m_generator.GetRandom<sbyte>(false);
-                value.ByteValue = m_generator.GetRandom<byte>(false);
-                value.Int16Value = m_generator.GetRandom<short>(false);
-                value.UInt16Value = m_generator.GetRandom<ushort>(false);
-                value.Int32Value = m_generator.GetRandom<int>(false);
-                value.UInt32Value = m_generator.GetRandom<uint>(false);
-                value.Int64Value = m_generator.GetRandom<long>(false);
-                value.UInt64Value = m_generator.GetRandom<ulong>(false);
-                value.FloatValue = m_generator.GetRandom<float>(false);
-                value.DoubleValue = m_generator.GetRandom<double>(false);
-                value.StringValue = m_generator.GetRandom<string>(false);
-                value.DateTimeValue = m_generator.GetRandom<DateTime>(false);
-                value.GuidValue = m_generator.GetRandom<Uuid>(false);
-                value.ByteStringValue = m_generator.GetRandom<byte[]>(false);
-                value.XmlElementValue = m_generator.GetRandom<XmlElement>(false);
-                value.NodeIdValue = m_generator.GetRandom<Opc.Ua.NodeId>(false);
-                value.ExpandedNodeIdValue = m_generator.GetRandom<ExpandedNodeId>(false);
-                value.QualifiedNameValue = m_generator.GetRandom<QualifiedName>(false);
-                value.LocalizedTextValue = m_generator.GetRandom<LocalizedText>(false);
-                value.StatusCodeValue = m_generator.GetRandom<StatusCode>(false);
-                value.VariantValue = m_generator.GetRandomVariant(false);
-
+                ScalarValueDataType value = GetRandomScalarValueDataType();
                 return new ExtensionObject(value.TypeId, value);
             }
             else
             {
-                ArrayValueDataType value = new ArrayValueDataType();
-
-                value.BooleanValue = m_generator.GetRandomArray<bool>(false, 10, false);
-                value.SByteValue = m_generator.GetRandomArray<sbyte>(false, 10, false);
-                value.ByteValue = m_generator.GetRandomArray<byte>(false, 10, false);
-                value.Int16Value = m_generator.GetRandomArray<short>(false, 10, false);
-                value.UInt16Value = m_generator.GetRandomArray<ushort>(false, 10, false);
-                value.Int32Value = m_generator.GetRandomArray<int>(false, 10, false);
-                value.UInt32Value = m_generator.GetRandomArray<uint>(false, 10, false);
-                value.Int64Value = m_generator.GetRandomArray<long>(false, 10, false);
-                value.UInt64Value = m_generator.GetRandomArray<ulong>(false, 10, false);
-                value.FloatValue = m_generator.GetRandomArray<float>(false, 10, false);
-                value.DoubleValue = m_generator.GetRandomArray<double>(false, 10, false);
-                value.StringValue = m_generator.GetRandomArray<string>(false, 10, false);
-                value.DateTimeValue = m_generator.GetRandomArray<DateTime>(false, 10, false);
-                value.GuidValue = m_generator.GetRandomArray<Uuid>(false, 10, false);
-                value.ByteStringValue = m_generator.GetRandomArray<byte[]>(false, 10, false);
-                value.XmlElementValue = m_generator.GetRandomArray<XmlElement>(false, 10, false);
-                value.NodeIdValue = m_generator.GetRandomArray<Opc.Ua.NodeId>(false, 10, false);
-                value.ExpandedNodeIdValue = m_generator.GetRandomArray<ExpandedNodeId>(false, 10, false);
-                value.QualifiedNameValue = m_generator.GetRandomArray<QualifiedName>(false, 10, false);
-                value.LocalizedTextValue = m_generator.GetRandomArray<LocalizedText>(false, 10, false);
-                value.StatusCodeValue = m_generator.GetRandomArray<StatusCode>(false, 10, false);
-
-                object[] values = m_generator.GetRandomArray<object>(false, 10, false);
-
-                for (int ii = 0; values != null && ii < values.Length; ii++)
-                {
-                    value.VariantValue.Add(new Variant(values[ii]));
-                }
+                ArrayValueDataType value = GetRandomArrayValueDataType();
 
                 return new ExtensionObject(value.TypeId, value);
             }
+        }
+
+        public ScalarValueDataType GetRandomScalarValueDataType()
+        {
+            ScalarValueDataType value = new ScalarValueDataType {
+                BooleanValue = m_generator.GetRandom<bool>(false),
+                SByteValue = m_generator.GetRandom<sbyte>(false),
+                ByteValue = m_generator.GetRandom<byte>(false),
+                Int16Value = m_generator.GetRandom<short>(false),
+                UInt16Value = m_generator.GetRandom<ushort>(false),
+                Int32Value = m_generator.GetRandom<int>(false),
+                UInt32Value = m_generator.GetRandom<uint>(false),
+                Int64Value = m_generator.GetRandom<long>(false),
+                UInt64Value = m_generator.GetRandom<ulong>(false),
+                FloatValue = m_generator.GetRandom<float>(false),
+                DoubleValue = m_generator.GetRandom<double>(false),
+                StringValue = m_generator.GetRandom<string>(false),
+                DateTimeValue = m_generator.GetRandom<DateTime>(false),
+                GuidValue = m_generator.GetRandom<Uuid>(false),
+                ByteStringValue = m_generator.GetRandom<byte[]>(false),
+                XmlElementValue = m_generator.GetRandom<XmlElement>(false),
+                NodeIdValue = m_generator.GetRandom<Opc.Ua.NodeId>(false),
+                ExpandedNodeIdValue = m_generator.GetRandom<ExpandedNodeId>(false),
+                QualifiedNameValue = m_generator.GetRandom<QualifiedName>(false),
+                LocalizedTextValue = m_generator.GetRandom<LocalizedText>(false),
+                StatusCodeValue = m_generator.GetRandom<StatusCode>(false),
+                VariantValue = m_generator.GetRandomVariant(false),
+                IntegerValue = new Variant(m_generator.GetRandomInteger()),
+                UIntegerValue = new Variant(m_generator.GetRandomUInteger()),
+                NumberValue = new Variant(m_generator.GetRandomNumber()),
+            };
+
+            return value;
+        }
+
+        public ArrayValueDataType GetRandomArrayValueDataType()
+        {
+            ArrayValueDataType value = new ArrayValueDataType {
+                BooleanValue = m_generator.GetRandomArray<bool>(false, 10, false),
+                SByteValue = m_generator.GetRandomArray<sbyte>(false, 10, false),
+                ByteValue = m_generator.GetRandomArray<byte>(false, 10, false),
+                Int16Value = m_generator.GetRandomArray<short>(false, 10, false),
+                UInt16Value = m_generator.GetRandomArray<ushort>(false, 10, false),
+                Int32Value = m_generator.GetRandomArray<int>(false, 10, false),
+                UInt32Value = m_generator.GetRandomArray<uint>(false, 10, false),
+                Int64Value = m_generator.GetRandomArray<long>(false, 10, false),
+                UInt64Value = m_generator.GetRandomArray<ulong>(false, 10, false),
+                FloatValue = m_generator.GetRandomArray<float>(false, 10, false),
+                DoubleValue = m_generator.GetRandomArray<double>(false, 10, false),
+                StringValue = m_generator.GetRandomArray<string>(false, 10, false),
+                DateTimeValue = m_generator.GetRandomArray<DateTime>(false, 10, false),
+                GuidValue = m_generator.GetRandomArray<Uuid>(false, 10, false),
+                ByteStringValue = m_generator.GetRandomArray<byte[]>(false, 10, false),
+                XmlElementValue = m_generator.GetRandomArray<XmlElement>(false, 10, false),
+                NodeIdValue = m_generator.GetRandomArray<Opc.Ua.NodeId>(false, 10, false),
+                ExpandedNodeIdValue = m_generator.GetRandomArray<ExpandedNodeId>(false, 10, false),
+                QualifiedNameValue = m_generator.GetRandomArray<QualifiedName>(false, 10, false),
+                LocalizedTextValue = m_generator.GetRandomArray<LocalizedText>(false, 10, false),
+                StatusCodeValue = m_generator.GetRandomArray<StatusCode>(false, 10, false)
+            };
+
+            object[] values = m_generator.GetRandomArray<object>(false, 10, false);
+
+            for (int ii = 0; values != null && ii < values.Length; ii++)
+            {
+                value.VariantValue.Add(new Variant(values[ii]));
+            }
+
+            return value;
         }
 
         public void StartMonitoringValue(uint monitoredItemId, double samplingInterval, BaseVariableState variable)

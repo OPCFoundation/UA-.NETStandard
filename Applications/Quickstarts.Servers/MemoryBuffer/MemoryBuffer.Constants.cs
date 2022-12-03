@@ -38,173 +38,123 @@ using Opc.Ua;
 namespace MemoryBuffer
 {
     #region Object Identifiers
-    /// <summary>
-    /// A class that declares constants for all Objects in the Model Design.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class Objects
     {
-        /// <summary>
-        /// The identifier for the MemoryBuffers Object.
-        /// </summary>
+        /// <remarks />
         public const uint MemoryBuffers = 1025;
     }
     #endregion
 
     #region ObjectType Identifiers
-    /// <summary>
-    /// A class that declares constants for all ObjectTypes in the Model Design.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class ObjectTypes
     {
-        /// <summary>
-        /// The identifier for the MemoryBufferType ObjectType.
-        /// </summary>
+        /// <remarks />
         public const uint MemoryBufferType = 1000;
     }
     #endregion
 
     #region Variable Identifiers
-    /// <summary>
-    /// A class that declares constants for all Variables in the Model Design.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class Variables
     {
-        /// <summary>
-        /// The identifier for the MemoryBufferType_StartAddress Variable.
-        /// </summary>
+        /// <remarks />
         public const uint MemoryBufferType_StartAddress = 1003;
 
-        /// <summary>
-        /// The identifier for the MemoryBufferType_SizeInBytes Variable.
-        /// </summary>
+        /// <remarks />
         public const uint MemoryBufferType_SizeInBytes = 1004;
     }
     #endregion
 
     #region VariableType Identifiers
-    /// <summary>
-    /// A class that declares constants for all VariableTypes in the Model Design.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class VariableTypes
     {
-        /// <summary>
-        /// The identifier for the MemoryTagType VariableType.
-        /// </summary>
+        /// <remarks />
         public const uint MemoryTagType = 1018;
     }
     #endregion
 
     #region Object Node Identifiers
-    /// <summary>
-    /// A class that declares constants for all Objects in the Model Design.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class ObjectIds
     {
-        /// <summary>
-        /// The identifier for the MemoryBuffers Object.
-        /// </summary>
+        /// <remarks />
         public static readonly ExpandedNodeId MemoryBuffers = new ExpandedNodeId(MemoryBuffer.Objects.MemoryBuffers, MemoryBuffer.Namespaces.MemoryBuffer);
     }
     #endregion
 
     #region ObjectType Node Identifiers
-    /// <summary>
-    /// A class that declares constants for all ObjectTypes in the Model Design.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class ObjectTypeIds
     {
-        /// <summary>
-        /// The identifier for the MemoryBufferType ObjectType.
-        /// </summary>
+        /// <remarks />
         public static readonly ExpandedNodeId MemoryBufferType = new ExpandedNodeId(MemoryBuffer.ObjectTypes.MemoryBufferType, MemoryBuffer.Namespaces.MemoryBuffer);
     }
     #endregion
 
     #region Variable Node Identifiers
-    /// <summary>
-    /// A class that declares constants for all Variables in the Model Design.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class VariableIds
     {
-        /// <summary>
-        /// The identifier for the MemoryBufferType_StartAddress Variable.
-        /// </summary>
+        /// <remarks />
         public static readonly ExpandedNodeId MemoryBufferType_StartAddress = new ExpandedNodeId(MemoryBuffer.Variables.MemoryBufferType_StartAddress, MemoryBuffer.Namespaces.MemoryBuffer);
 
-        /// <summary>
-        /// The identifier for the MemoryBufferType_SizeInBytes Variable.
-        /// </summary>
+        /// <remarks />
         public static readonly ExpandedNodeId MemoryBufferType_SizeInBytes = new ExpandedNodeId(MemoryBuffer.Variables.MemoryBufferType_SizeInBytes, MemoryBuffer.Namespaces.MemoryBuffer);
     }
     #endregion
 
     #region VariableType Node Identifiers
-    /// <summary>
-    /// A class that declares constants for all VariableTypes in the Model Design.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class VariableTypeIds
     {
-        /// <summary>
-        /// The identifier for the MemoryTagType VariableType.
-        /// </summary>
+        /// <remarks />
         public static readonly ExpandedNodeId MemoryTagType = new ExpandedNodeId(MemoryBuffer.VariableTypes.MemoryTagType, MemoryBuffer.Namespaces.MemoryBuffer);
     }
     #endregion
 
     #region BrowseName Declarations
-    /// <summary>
-    /// Declares all of the BrowseNames used in the Model Design.
-    /// </summary>
+    /// <remarks />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class BrowseNames
     {
-        /// <summary>
-        /// The BrowseName for the MemoryBuffers component.
-        /// </summary>
+        /// <remarks />
         public const string MemoryBuffers = "MemoryBuffers";
 
-        /// <summary>
-        /// The BrowseName for the MemoryBufferType component.
-        /// </summary>
+        /// <remarks />
         public const string MemoryBufferType = "MemoryBufferType";
 
-        /// <summary>
-        /// The BrowseName for the MemoryTagType component.
-        /// </summary>
+        /// <remarks />
         public const string MemoryTagType = "MemoryTagType";
 
-        /// <summary>
-        /// The BrowseName for the SizeInBytes component.
-        /// </summary>
+        /// <remarks />
         public const string SizeInBytes = "SizeInBytes";
 
-        /// <summary>
-        /// The BrowseName for the StartAddress component.
-        /// </summary>
+        /// <remarks />
         public const string StartAddress = "StartAddress";
     }
     #endregion
 
     #region Namespace Declarations
-    /// <summary>
-    /// Defines constants for all namespaces referenced by the model design.
-    /// </summary>
+    /// <remarks />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class Namespaces
     {

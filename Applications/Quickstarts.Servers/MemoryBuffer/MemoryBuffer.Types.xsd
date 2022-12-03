@@ -5,6 +5,12 @@
   targetNamespace="http://samples.org/UA/MemoryBuffer"
   elementFormDefault="qualified"
 >
+  <xs:annotation>
+    <xs:appinfo>
+      <tns:Model ModelUri="http://samples.org/UA/MemoryBuffer" Version="1.0.0" PublicationDate="2021-11-02T21:05:19.9952005Z" />
+    </xs:appinfo>
+  </xs:annotation>
+  
   <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" />
 
 </xs:schema>

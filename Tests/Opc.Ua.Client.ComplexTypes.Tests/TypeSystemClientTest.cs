@@ -31,12 +31,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Tests;
-using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
+using Quickstarts;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests
@@ -47,8 +46,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [NonParallelizable]
-    public class TypeSystemClientTest
+    public class TypeSystemClientTest : IUAClient
     {
+        public ISession Session => m_session;
+
         const int kMaxReferences = 100;
         const int kMaxTimeout = 10000;
         ServerFixture<ReferenceServer> m_serverFixture;
@@ -162,6 +163,59 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             foreach (var type in types)
             {
                 TestContext.Out.WriteLine("Type: {0} ", type.FullName);
+            }
+        }
+
+        [Theory, Order(200)]
+        public async Task BrowseComplexTypesServer(bool disableDataTypeDefinition)
+        {
+            var samples = new ClientSamples(TestContext.Out, null, null, true);
+
+            await samples.LoadTypeSystem(Session, disableDataTypeDefinition).ConfigureAwait(false);
+
+            ReferenceDescriptionCollection referenceDescriptions =
+                samples.BrowseFullAddressSpace(this, Objects.RootFolder);
+
+            TestContext.Out.WriteLine("References: {0}", referenceDescriptions.Count);
+
+            NodeIdCollection variableIds = new NodeIdCollection(referenceDescriptions
+                .Where(r => r.NodeClass == NodeClass.Variable && r.TypeDefinition.NamespaceIndex != 0)
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)));
+
+            TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
+
+            (var values, var serviceResults) = await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
+
+            foreach (var serviceResult in serviceResults)
+            {
+                Assert.IsTrue(ServiceResult.IsGood(serviceResult));
+            }
+        }
+
+        [Theory, Order(300)]
+        public async Task FetchComplexTypesServer(bool disableDataTypeDefinition)
+        {
+            var samples = new ClientSamples(TestContext.Out, null, null, true);
+
+            await samples.LoadTypeSystem(m_session, disableDataTypeDefinition).ConfigureAwait(false);
+
+            IList<INode> allNodes = null;
+            allNodes = samples.FetchAllNodesNodeCache(
+                this, Objects.RootFolder, true, true, false);
+
+            TestContext.Out.WriteLine("References: {0}", allNodes.Count);
+
+            NodeIdCollection variableIds = new NodeIdCollection(allNodes
+                .Where(r => r.NodeClass == NodeClass.Variable && ((VariableNode)r).DataType.NamespaceIndex != 0)
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)));
+
+            TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
+
+            (var values, var serviceResults) = await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
+
+            foreach (var serviceResult in serviceResults)
+            {
+                Assert.IsTrue(ServiceResult.IsGood(serviceResult));
             }
         }
         #endregion

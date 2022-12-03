@@ -38,35 +38,25 @@ namespace TestData
 {
     #region GenerateValuesMethodState Class
     #if (!OPCUA_EXCLUDE_GenerateValuesMethodState)
-    /// <summary>
-    /// Stores an instance of the GenerateValuesMethodType Method.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class GenerateValuesMethodState : MethodState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public GenerateValuesMethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
+        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new GenerateValuesMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -74,9 +64,7 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -94,9 +82,7 @@ namespace TestData
         #endregion
 
         #region Event Callbacks
-        /// <summary>
-        /// Raised when the the method is called.
-        /// </summary>
+        /// <remarks />
         public GenerateValuesMethodStateMethodCallHandler OnCall;
         #endregion
 
@@ -104,9 +90,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Invokes the method, returns the result and output argument.
-        /// </summary>
+        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -118,20 +102,20 @@ namespace TestData
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint iterations = (uint)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     iterations);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -139,9 +123,7 @@ namespace TestData
         #endregion
     }
 
-    /// <summary>
-    /// Used to receive notifications when the method is called.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     public delegate ServiceResult GenerateValuesMethodStateMethodCallHandler(
         ISystemContext _context,
@@ -153,33 +135,25 @@ namespace TestData
 
     #region GenerateValuesEventState Class
     #if (!OPCUA_EXCLUDE_GenerateValuesEventState)
-    /// <summary>
-    /// Stores an instance of the GenerateValuesEventType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class GenerateValuesEventState : BaseEventState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public GenerateValuesEventState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.GenerateValuesEventType, TestData.Namespaces.TestData, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -187,18 +161,14 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -262,11 +232,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -283,10 +249,8 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -364,33 +328,25 @@ namespace TestData
 
     #region TestDataObjectState Class
     #if (!OPCUA_EXCLUDE_TestDataObjectState)
-    /// <summary>
-    /// Stores an instance of the TestDataObjectType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class TestDataObjectState : BaseObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public TestDataObjectState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.TestDataObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -398,18 +354,14 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -523,11 +475,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -549,10 +497,8 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -650,37 +596,39 @@ namespace TestData
     #endif
     #endregion
 
-    #region ScalarValue1MethodState Class
-    #if (!OPCUA_EXCLUDE_ScalarValue1MethodState)
-    /// <summary>
-    /// Stores an instance of the ScalarValue1MethodType Method.
-    /// </summary>
+    #region TestDataVariableState Class
+    #if (!OPCUA_EXCLUDE_TestDataVariableState)
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class ScalarValue1MethodState : MethodState
+    public partial class TestDataVariableState : BaseDataVariableState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
-        public ScalarValue1MethodState(NodeState parent) : base(parent)
+        /// <remarks />
+        public TestDataVariableState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
-        public new static NodeState Construct(NodeState parent)
+        /// <remarks />
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return new ScalarValue1MethodState(parent);
+            return Opc.Ua.NodeId.Create(TestData.VariableTypes.TestDataVariableType, TestData.Namespaces.TestData, namespaceUris);
+        }
+
+        /// <remarks />
+        protected override NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.DataTypes.BaseDataType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        /// <remarks />
+        protected override int GetDefaultValueRank()
+        {
+            return ValueRanks.Scalar;
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -688,9 +636,2666 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <remarks />
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////FWCBAgIAAAABABwAAABUZXN0RGF0YVZh" +
+           "cmlhYmxlVHlwZUluc3RhbmNlAQHpAwEB6QPpAwAAABgBAf////8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    #region TestDataVariableState<T> Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public class TestDataVariableState<T> : TestDataVariableState
+    {
+        #region Constructors
+        /// <remarks />
+        public TestDataVariableState(NodeState parent) : base(parent)
+        {
+            Value = default(T);
+        }
+
+        /// <remarks />
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+
+            Value = default(T);
+            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <remarks />
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+        #endregion
+
+        #region Public Members
+        /// <remarks />
+        public new T Value
+        {
+            get
+            {
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
+            }
+
+            set
+            {
+                ((BaseVariableState)this).Value = value;
+            }
+        }
+        #endregion
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ScalarValueVariableState Class
+    #if (!OPCUA_EXCLUDE_ScalarValueVariableState)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class ScalarValueVariableState : TestDataVariableState<ScalarValueDataType>
+    {
+        #region Constructors
+        /// <remarks />
+        public ScalarValueVariableState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <remarks />
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(TestData.VariableTypes.ScalarValueVariableType, TestData.Namespaces.TestData, namespaceUris);
+        }
+
+        /// <remarks />
+        protected override NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(TestData.DataTypes.ScalarValueDataType, TestData.Namespaces.TestData, namespaceUris);
+        }
+
+        /// <remarks />
+        protected override int GetDefaultValueRank()
+        {
+            return ValueRanks.Scalar;
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <remarks />
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <remarks />
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <remarks />
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////FWCBAgIAAAABAB8AAABTY2FsYXJWYWx1" +
+           "ZVZhcmlhYmxlVHlwZUluc3RhbmNlAQHqAwEB6gPqAwAAAQHgJAEB/////xsAAAAVYIkKAgAAAAEADAAA" +
+           "AEJvb2xlYW5WYWx1ZQEB6wMALgBE6wMAAAAB/////wEB/////wAAAAAVYIkKAgAAAAEACgAAAFNCeXRl" +
+           "VmFsdWUBAewDAC4AROwDAAAAAv////8BAf////8AAAAAFWCJCgIAAAABAAkAAABCeXRlVmFsdWUBAe0D" +
+           "AC4ARO0DAAAAA/////8BAf////8AAAAAFWCJCgIAAAABAAoAAABJbnQxNlZhbHVlAQHuAwAuAETuAwAA" +
+           "AAT/////AQH/////AAAAABVgiQoCAAAAAQALAAAAVUludDE2VmFsdWUBAe8DAC4ARO8DAAAABf////8B" +
+           "Af////8AAAAAFWCJCgIAAAABAAoAAABJbnQzMlZhbHVlAQHwAwAuAETwAwAAAAb/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAQALAAAAVUludDMyVmFsdWUBAfEDAC4ARPEDAAAAB/////8BAf////8AAAAAFWCJCgIA" +
+           "AAABAAoAAABJbnQ2NFZhbHVlAQHyAwAuAETyAwAAAAj/////AQH/////AAAAABVgiQoCAAAAAQALAAAA" +
+           "VUludDY0VmFsdWUBAfMDAC4ARPMDAAAACf////8BAf////8AAAAAFWCJCgIAAAABAAoAAABGbG9hdFZh" +
+           "bHVlAQH0AwAuAET0AwAAAAr/////AQH/////AAAAABVgiQoCAAAAAQALAAAARG91YmxlVmFsdWUBAfUD" +
+           "AC4ARPUDAAAAC/////8BAf////8AAAAAFWCJCgIAAAABAAsAAABTdHJpbmdWYWx1ZQEB9gMALgBE9gMA" +
+           "AAAM/////wEB/////wAAAAAVYIkKAgAAAAEADQAAAERhdGVUaW1lVmFsdWUBAfcDAC4ARPcDAAAADf//" +
+           "//8BAf////8AAAAAFWCJCgIAAAABAAkAAABHdWlkVmFsdWUBAfgDAC4ARPgDAAAADv////8BAf////8A" +
+           "AAAAFWCJCgIAAAABAA8AAABCeXRlU3RyaW5nVmFsdWUBAfkDAC4ARPkDAAAAD/////8BAf////8AAAAA" +
+           "FWCJCgIAAAABAA8AAABYbWxFbGVtZW50VmFsdWUBAfoDAC4ARPoDAAAAEP////8BAf////8AAAAAFWCJ" +
+           "CgIAAAABAAsAAABOb2RlSWRWYWx1ZQEB+wMALgBE+wMAAAAR/////wEB/////wAAAAAVYIkKAgAAAAEA" +
+           "EwAAAEV4cGFuZGVkTm9kZUlkVmFsdWUBAfwDAC4ARPwDAAAAEv////8BAf////8AAAAAFWCJCgIAAAAB" +
+           "ABIAAABRdWFsaWZpZWROYW1lVmFsdWUBAf0DAC4ARP0DAAAAFP////8BAf////8AAAAAFWCJCgIAAAAB" +
+           "ABIAAABMb2NhbGl6ZWRUZXh0VmFsdWUBAf4DAC4ARP4DAAAAFf////8BAf////8AAAAAFWCJCgIAAAAB" +
+           "AA8AAABTdGF0dXNDb2RlVmFsdWUBAf8DAC4ARP8DAAAAE/////8BAf////8AAAAAFWCJCgIAAAABAAwA" +
+           "AABWYXJpYW50VmFsdWUBAQYEAC4ARAYEAAAAGP////8BAf////8AAAAAFWCJCgIAAAABABAAAABFbnVt" +
+           "ZXJhdGlvblZhbHVlAQEHBAAuAEQHBAAAAB3/////AQH/////AAAAABVgiQoCAAAAAQAOAAAAU3RydWN0" +
+           "dXJlVmFsdWUBAQgEAC4ARAgEAAAAFv////8BAf////8AAAAAFWCJCgIAAAABAAsAAABOdW1iZXJWYWx1" +
+           "ZQEBCQQALgBECQQAAAAa/////wEB/////wAAAAAVYIkKAgAAAAEADAAAAEludGVnZXJWYWx1ZQEBCgQA" +
+           "LgBECgQAAAAb/////wEB/////wAAAAAVYIkKAgAAAAEADQAAAFVJbnRlZ2VyVmFsdWUBAQsEAC4ARAsE" +
+           "AAAAHP////8BAf////8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public PropertyState<bool> BooleanValue
+        {
+            get
+            {
+                return m_booleanValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_booleanValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_booleanValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<sbyte> SByteValue
+        {
+            get
+            {
+                return m_sByteValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_sByteValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_sByteValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<byte> ByteValue
+        {
+            get
+            {
+                return m_byteValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_byteValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_byteValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<short> Int16Value
+        {
+            get
+            {
+                return m_int16Value;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_int16Value, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_int16Value = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<ushort> UInt16Value
+        {
+            get
+            {
+                return m_uInt16Value;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_uInt16Value, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_uInt16Value = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<int> Int32Value
+        {
+            get
+            {
+                return m_int32Value;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_int32Value, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_int32Value = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> UInt32Value
+        {
+            get
+            {
+                return m_uInt32Value;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_uInt32Value, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_uInt32Value = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<long> Int64Value
+        {
+            get
+            {
+                return m_int64Value;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_int64Value, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_int64Value = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<ulong> UInt64Value
+        {
+            get
+            {
+                return m_uInt64Value;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_uInt64Value, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_uInt64Value = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<float> FloatValue
+        {
+            get
+            {
+                return m_floatValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_floatValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_floatValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<double> DoubleValue
+        {
+            get
+            {
+                return m_doubleValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_doubleValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_doubleValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<string> StringValue
+        {
+            get
+            {
+                return m_stringValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_stringValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_stringValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<DateTime> DateTimeValue
+        {
+            get
+            {
+                return m_dateTimeValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_dateTimeValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_dateTimeValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<Guid> GuidValue
+        {
+            get
+            {
+                return m_guidValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_guidValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_guidValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<byte[]> ByteStringValue
+        {
+            get
+            {
+                return m_byteStringValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_byteStringValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_byteStringValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<XmlElement> XmlElementValue
+        {
+            get
+            {
+                return m_xmlElementValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_xmlElementValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_xmlElementValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<NodeId> NodeIdValue
+        {
+            get
+            {
+                return m_nodeIdValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_nodeIdValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_nodeIdValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<ExpandedNodeId> ExpandedNodeIdValue
+        {
+            get
+            {
+                return m_expandedNodeIdValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_expandedNodeIdValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_expandedNodeIdValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<QualifiedName> QualifiedNameValue
+        {
+            get
+            {
+                return m_qualifiedNameValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_qualifiedNameValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_qualifiedNameValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<LocalizedText> LocalizedTextValue
+        {
+            get
+            {
+                return m_localizedTextValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_localizedTextValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_localizedTextValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<StatusCode> StatusCodeValue
+        {
+            get
+            {
+                return m_statusCodeValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_statusCodeValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_statusCodeValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState VariantValue
+        {
+            get
+            {
+                return m_variantValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_variantValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_variantValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState EnumerationValue
+        {
+            get
+            {
+                return m_enumerationValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_enumerationValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_enumerationValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<ExtensionObject> StructureValue
+        {
+            get
+            {
+                return m_structureValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_structureValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_structureValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState NumberValue
+        {
+            get
+            {
+                return m_numberValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_numberValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_numberValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState IntegerValue
+        {
+            get
+            {
+                return m_integerValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_integerValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_integerValue = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState UIntegerValue
+        {
+            get
+            {
+                return m_uIntegerValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_uIntegerValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_uIntegerValue = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <remarks />
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_booleanValue != null)
+            {
+                children.Add(m_booleanValue);
+            }
+
+            if (m_sByteValue != null)
+            {
+                children.Add(m_sByteValue);
+            }
+
+            if (m_byteValue != null)
+            {
+                children.Add(m_byteValue);
+            }
+
+            if (m_int16Value != null)
+            {
+                children.Add(m_int16Value);
+            }
+
+            if (m_uInt16Value != null)
+            {
+                children.Add(m_uInt16Value);
+            }
+
+            if (m_int32Value != null)
+            {
+                children.Add(m_int32Value);
+            }
+
+            if (m_uInt32Value != null)
+            {
+                children.Add(m_uInt32Value);
+            }
+
+            if (m_int64Value != null)
+            {
+                children.Add(m_int64Value);
+            }
+
+            if (m_uInt64Value != null)
+            {
+                children.Add(m_uInt64Value);
+            }
+
+            if (m_floatValue != null)
+            {
+                children.Add(m_floatValue);
+            }
+
+            if (m_doubleValue != null)
+            {
+                children.Add(m_doubleValue);
+            }
+
+            if (m_stringValue != null)
+            {
+                children.Add(m_stringValue);
+            }
+
+            if (m_dateTimeValue != null)
+            {
+                children.Add(m_dateTimeValue);
+            }
+
+            if (m_guidValue != null)
+            {
+                children.Add(m_guidValue);
+            }
+
+            if (m_byteStringValue != null)
+            {
+                children.Add(m_byteStringValue);
+            }
+
+            if (m_xmlElementValue != null)
+            {
+                children.Add(m_xmlElementValue);
+            }
+
+            if (m_nodeIdValue != null)
+            {
+                children.Add(m_nodeIdValue);
+            }
+
+            if (m_expandedNodeIdValue != null)
+            {
+                children.Add(m_expandedNodeIdValue);
+            }
+
+            if (m_qualifiedNameValue != null)
+            {
+                children.Add(m_qualifiedNameValue);
+            }
+
+            if (m_localizedTextValue != null)
+            {
+                children.Add(m_localizedTextValue);
+            }
+
+            if (m_statusCodeValue != null)
+            {
+                children.Add(m_statusCodeValue);
+            }
+
+            if (m_variantValue != null)
+            {
+                children.Add(m_variantValue);
+            }
+
+            if (m_enumerationValue != null)
+            {
+                children.Add(m_enumerationValue);
+            }
+
+            if (m_structureValue != null)
+            {
+                children.Add(m_structureValue);
+            }
+
+            if (m_numberValue != null)
+            {
+                children.Add(m_numberValue);
+            }
+
+            if (m_integerValue != null)
+            {
+                children.Add(m_integerValue);
+            }
+
+            if (m_uIntegerValue != null)
+            {
+                children.Add(m_uIntegerValue);
+            }
+
+            base.GetChildren(context, children);
+        }
+            
+        /// <remarks />
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case TestData.BrowseNames.BooleanValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (BooleanValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                BooleanValue = new PropertyState<bool>(this);
+                            }
+                            else
+                            {
+                                BooleanValue = (PropertyState<bool>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = BooleanValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.SByteValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (SByteValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                SByteValue = new PropertyState<sbyte>(this);
+                            }
+                            else
+                            {
+                                SByteValue = (PropertyState<sbyte>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = SByteValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.ByteValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ByteValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ByteValue = new PropertyState<byte>(this);
+                            }
+                            else
+                            {
+                                ByteValue = (PropertyState<byte>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ByteValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.Int16Value:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Int16Value == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Int16Value = new PropertyState<short>(this);
+                            }
+                            else
+                            {
+                                Int16Value = (PropertyState<short>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Int16Value;
+                    break;
+                }
+
+                case TestData.BrowseNames.UInt16Value:
+                {
+                    if (createOrReplace)
+                    {
+                        if (UInt16Value == null)
+                        {
+                            if (replacement == null)
+                            {
+                                UInt16Value = new PropertyState<ushort>(this);
+                            }
+                            else
+                            {
+                                UInt16Value = (PropertyState<ushort>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = UInt16Value;
+                    break;
+                }
+
+                case TestData.BrowseNames.Int32Value:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Int32Value == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Int32Value = new PropertyState<int>(this);
+                            }
+                            else
+                            {
+                                Int32Value = (PropertyState<int>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Int32Value;
+                    break;
+                }
+
+                case TestData.BrowseNames.UInt32Value:
+                {
+                    if (createOrReplace)
+                    {
+                        if (UInt32Value == null)
+                        {
+                            if (replacement == null)
+                            {
+                                UInt32Value = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                UInt32Value = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = UInt32Value;
+                    break;
+                }
+
+                case TestData.BrowseNames.Int64Value:
+                {
+                    if (createOrReplace)
+                    {
+                        if (Int64Value == null)
+                        {
+                            if (replacement == null)
+                            {
+                                Int64Value = new PropertyState<long>(this);
+                            }
+                            else
+                            {
+                                Int64Value = (PropertyState<long>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = Int64Value;
+                    break;
+                }
+
+                case TestData.BrowseNames.UInt64Value:
+                {
+                    if (createOrReplace)
+                    {
+                        if (UInt64Value == null)
+                        {
+                            if (replacement == null)
+                            {
+                                UInt64Value = new PropertyState<ulong>(this);
+                            }
+                            else
+                            {
+                                UInt64Value = (PropertyState<ulong>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = UInt64Value;
+                    break;
+                }
+
+                case TestData.BrowseNames.FloatValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (FloatValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                FloatValue = new PropertyState<float>(this);
+                            }
+                            else
+                            {
+                                FloatValue = (PropertyState<float>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = FloatValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.DoubleValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DoubleValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DoubleValue = new PropertyState<double>(this);
+                            }
+                            else
+                            {
+                                DoubleValue = (PropertyState<double>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DoubleValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.StringValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (StringValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                StringValue = new PropertyState<string>(this);
+                            }
+                            else
+                            {
+                                StringValue = (PropertyState<string>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = StringValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.DateTimeValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (DateTimeValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                DateTimeValue = new PropertyState<DateTime>(this);
+                            }
+                            else
+                            {
+                                DateTimeValue = (PropertyState<DateTime>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = DateTimeValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.GuidValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (GuidValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                GuidValue = new PropertyState<Guid>(this);
+                            }
+                            else
+                            {
+                                GuidValue = (PropertyState<Guid>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = GuidValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.ByteStringValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ByteStringValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ByteStringValue = new PropertyState<byte[]>(this);
+                            }
+                            else
+                            {
+                                ByteStringValue = (PropertyState<byte[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ByteStringValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.XmlElementValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (XmlElementValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                XmlElementValue = new PropertyState<XmlElement>(this);
+                            }
+                            else
+                            {
+                                XmlElementValue = (PropertyState<XmlElement>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = XmlElementValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.NodeIdValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (NodeIdValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                NodeIdValue = new PropertyState<NodeId>(this);
+                            }
+                            else
+                            {
+                                NodeIdValue = (PropertyState<NodeId>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = NodeIdValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.ExpandedNodeIdValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ExpandedNodeIdValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ExpandedNodeIdValue = new PropertyState<ExpandedNodeId>(this);
+                            }
+                            else
+                            {
+                                ExpandedNodeIdValue = (PropertyState<ExpandedNodeId>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ExpandedNodeIdValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.QualifiedNameValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (QualifiedNameValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                QualifiedNameValue = new PropertyState<QualifiedName>(this);
+                            }
+                            else
+                            {
+                                QualifiedNameValue = (PropertyState<QualifiedName>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = QualifiedNameValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.LocalizedTextValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (LocalizedTextValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                LocalizedTextValue = new PropertyState<LocalizedText>(this);
+                            }
+                            else
+                            {
+                                LocalizedTextValue = (PropertyState<LocalizedText>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = LocalizedTextValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.StatusCodeValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (StatusCodeValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                StatusCodeValue = new PropertyState<StatusCode>(this);
+                            }
+                            else
+                            {
+                                StatusCodeValue = (PropertyState<StatusCode>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = StatusCodeValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.VariantValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (VariantValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                VariantValue = new PropertyState(this);
+                            }
+                            else
+                            {
+                                VariantValue = (PropertyState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = VariantValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.EnumerationValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (EnumerationValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                EnumerationValue = new PropertyState(this);
+                            }
+                            else
+                            {
+                                EnumerationValue = (PropertyState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = EnumerationValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.StructureValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (StructureValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                StructureValue = new PropertyState<ExtensionObject>(this);
+                            }
+                            else
+                            {
+                                StructureValue = (PropertyState<ExtensionObject>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = StructureValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.NumberValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (NumberValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                NumberValue = new PropertyState(this);
+                            }
+                            else
+                            {
+                                NumberValue = (PropertyState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = NumberValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.IntegerValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (IntegerValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                IntegerValue = new PropertyState(this);
+                            }
+                            else
+                            {
+                                IntegerValue = (PropertyState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = IntegerValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.UIntegerValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (UIntegerValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                UIntegerValue = new PropertyState(this);
+                            }
+                            else
+                            {
+                                UIntegerValue = (PropertyState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = UIntegerValue;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private PropertyState<bool> m_booleanValue;
+        private PropertyState<sbyte> m_sByteValue;
+        private PropertyState<byte> m_byteValue;
+        private PropertyState<short> m_int16Value;
+        private PropertyState<ushort> m_uInt16Value;
+        private PropertyState<int> m_int32Value;
+        private PropertyState<uint> m_uInt32Value;
+        private PropertyState<long> m_int64Value;
+        private PropertyState<ulong> m_uInt64Value;
+        private PropertyState<float> m_floatValue;
+        private PropertyState<double> m_doubleValue;
+        private PropertyState<string> m_stringValue;
+        private PropertyState<DateTime> m_dateTimeValue;
+        private PropertyState<Guid> m_guidValue;
+        private PropertyState<byte[]> m_byteStringValue;
+        private PropertyState<XmlElement> m_xmlElementValue;
+        private PropertyState<NodeId> m_nodeIdValue;
+        private PropertyState<ExpandedNodeId> m_expandedNodeIdValue;
+        private PropertyState<QualifiedName> m_qualifiedNameValue;
+        private PropertyState<LocalizedText> m_localizedTextValue;
+        private PropertyState<StatusCode> m_statusCodeValue;
+        private PropertyState m_variantValue;
+        private PropertyState m_enumerationValue;
+        private PropertyState<ExtensionObject> m_structureValue;
+        private PropertyState m_numberValue;
+        private PropertyState m_integerValue;
+        private PropertyState m_uIntegerValue;
+        #endregion
+    }
+
+    #region ScalarValueVariableValue Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public class ScalarValueVariableValue : BaseVariableValue
+    {
+        #region Constructors
+        /// <remarks />
+        public ScalarValueVariableValue(ScalarValueVariableState variable, ScalarValueDataType value, object dataLock) : base(dataLock)
+        {
+            m_value = value;
+
+            if (m_value == null)
+            {
+                m_value = new ScalarValueDataType();
+            }
+
+            Initialize(variable);
+        }
+        #endregion
+
+        #region Public Members
+        /// <remarks />
+        public ScalarValueVariableState Variable
+        {
+            get { return m_variable; }
+        }
+
+        /// <remarks />
+        public ScalarValueDataType Value
+        {
+            get { return m_value;  }
+            set { m_value = value; }
+        }
+        #endregion
+
+        #region Private Methods
+        private void Initialize(ScalarValueVariableState variable)
+        {
+            lock (Lock)
+            {
+                m_variable = variable;
+
+                variable.Value = m_value;
+
+                variable.OnReadValue = OnReadValue;
+                variable.OnSimpleWriteValue = OnWriteValue;
+
+                BaseVariableState instance = null;
+                List<BaseInstanceState> updateList = new List<BaseInstanceState>();
+                updateList.Add(variable);
+
+                instance = m_variable.BooleanValue;
+                instance.OnReadValue = OnRead_BooleanValue;
+                instance.OnSimpleWriteValue = OnWrite_BooleanValue;
+                updateList.Add(instance);
+                instance = m_variable.SByteValue;
+                instance.OnReadValue = OnRead_SByteValue;
+                instance.OnSimpleWriteValue = OnWrite_SByteValue;
+                updateList.Add(instance);
+                instance = m_variable.ByteValue;
+                instance.OnReadValue = OnRead_ByteValue;
+                instance.OnSimpleWriteValue = OnWrite_ByteValue;
+                updateList.Add(instance);
+                instance = m_variable.Int16Value;
+                instance.OnReadValue = OnRead_Int16Value;
+                instance.OnSimpleWriteValue = OnWrite_Int16Value;
+                updateList.Add(instance);
+                instance = m_variable.UInt16Value;
+                instance.OnReadValue = OnRead_UInt16Value;
+                instance.OnSimpleWriteValue = OnWrite_UInt16Value;
+                updateList.Add(instance);
+                instance = m_variable.Int32Value;
+                instance.OnReadValue = OnRead_Int32Value;
+                instance.OnSimpleWriteValue = OnWrite_Int32Value;
+                updateList.Add(instance);
+                instance = m_variable.UInt32Value;
+                instance.OnReadValue = OnRead_UInt32Value;
+                instance.OnSimpleWriteValue = OnWrite_UInt32Value;
+                updateList.Add(instance);
+                instance = m_variable.Int64Value;
+                instance.OnReadValue = OnRead_Int64Value;
+                instance.OnSimpleWriteValue = OnWrite_Int64Value;
+                updateList.Add(instance);
+                instance = m_variable.UInt64Value;
+                instance.OnReadValue = OnRead_UInt64Value;
+                instance.OnSimpleWriteValue = OnWrite_UInt64Value;
+                updateList.Add(instance);
+                instance = m_variable.FloatValue;
+                instance.OnReadValue = OnRead_FloatValue;
+                instance.OnSimpleWriteValue = OnWrite_FloatValue;
+                updateList.Add(instance);
+                instance = m_variable.DoubleValue;
+                instance.OnReadValue = OnRead_DoubleValue;
+                instance.OnSimpleWriteValue = OnWrite_DoubleValue;
+                updateList.Add(instance);
+                instance = m_variable.StringValue;
+                instance.OnReadValue = OnRead_StringValue;
+                instance.OnSimpleWriteValue = OnWrite_StringValue;
+                updateList.Add(instance);
+                instance = m_variable.DateTimeValue;
+                instance.OnReadValue = OnRead_DateTimeValue;
+                instance.OnSimpleWriteValue = OnWrite_DateTimeValue;
+                updateList.Add(instance);
+                instance = m_variable.GuidValue;
+                instance.OnReadValue = OnRead_GuidValue;
+                instance.OnSimpleWriteValue = OnWrite_GuidValue;
+                updateList.Add(instance);
+                instance = m_variable.ByteStringValue;
+                instance.OnReadValue = OnRead_ByteStringValue;
+                instance.OnSimpleWriteValue = OnWrite_ByteStringValue;
+                updateList.Add(instance);
+                instance = m_variable.XmlElementValue;
+                instance.OnReadValue = OnRead_XmlElementValue;
+                instance.OnSimpleWriteValue = OnWrite_XmlElementValue;
+                updateList.Add(instance);
+                instance = m_variable.NodeIdValue;
+                instance.OnReadValue = OnRead_NodeIdValue;
+                instance.OnSimpleWriteValue = OnWrite_NodeIdValue;
+                updateList.Add(instance);
+                instance = m_variable.ExpandedNodeIdValue;
+                instance.OnReadValue = OnRead_ExpandedNodeIdValue;
+                instance.OnSimpleWriteValue = OnWrite_ExpandedNodeIdValue;
+                updateList.Add(instance);
+                instance = m_variable.QualifiedNameValue;
+                instance.OnReadValue = OnRead_QualifiedNameValue;
+                instance.OnSimpleWriteValue = OnWrite_QualifiedNameValue;
+                updateList.Add(instance);
+                instance = m_variable.LocalizedTextValue;
+                instance.OnReadValue = OnRead_LocalizedTextValue;
+                instance.OnSimpleWriteValue = OnWrite_LocalizedTextValue;
+                updateList.Add(instance);
+                instance = m_variable.StatusCodeValue;
+                instance.OnReadValue = OnRead_StatusCodeValue;
+                instance.OnSimpleWriteValue = OnWrite_StatusCodeValue;
+                updateList.Add(instance);
+                instance = m_variable.VariantValue;
+                instance.OnReadValue = OnRead_VariantValue;
+                instance.OnSimpleWriteValue = OnWrite_VariantValue;
+                updateList.Add(instance);
+                instance = m_variable.EnumerationValue;
+                instance.OnReadValue = OnRead_EnumerationValue;
+                instance.OnSimpleWriteValue = OnWrite_EnumerationValue;
+                updateList.Add(instance);
+                instance = m_variable.StructureValue;
+                instance.OnReadValue = OnRead_StructureValue;
+                instance.OnSimpleWriteValue = OnWrite_StructureValue;
+                updateList.Add(instance);
+                instance = m_variable.NumberValue;
+                instance.OnReadValue = OnRead_NumberValue;
+                instance.OnSimpleWriteValue = OnWrite_NumberValue;
+                updateList.Add(instance);
+                instance = m_variable.IntegerValue;
+                instance.OnReadValue = OnRead_IntegerValue;
+                instance.OnSimpleWriteValue = OnWrite_IntegerValue;
+                updateList.Add(instance);
+                instance = m_variable.UIntegerValue;
+                instance.OnReadValue = OnRead_UIntegerValue;
+                instance.OnSimpleWriteValue = OnWrite_UIntegerValue;
+                updateList.Add(instance);
+
+                SetUpdateList(updateList);
+            }
+        }
+
+        /// <remarks />
+        protected ServiceResult OnReadValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value = (ScalarValueDataType)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+
+        #region BooleanValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_BooleanValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.BooleanValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_BooleanValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.BooleanValue = (bool)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region SByteValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_SByteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.SByteValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_SByteValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.SByteValue = (sbyte)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region ByteValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_ByteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.ByteValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_ByteValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.ByteValue = (byte)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region Int16Value Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_Int16Value(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.Int16Value;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_Int16Value(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.Int16Value = (short)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region UInt16Value Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_UInt16Value(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.UInt16Value;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_UInt16Value(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.UInt16Value = (ushort)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region Int32Value Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_Int32Value(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.Int32Value;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_Int32Value(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.Int32Value = (int)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region UInt32Value Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_UInt32Value(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.UInt32Value;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_UInt32Value(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.UInt32Value = (uint)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region Int64Value Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_Int64Value(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.Int64Value;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_Int64Value(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.Int64Value = (long)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region UInt64Value Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_UInt64Value(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.UInt64Value;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_UInt64Value(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.UInt64Value = (ulong)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region FloatValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_FloatValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.FloatValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_FloatValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.FloatValue = (float)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region DoubleValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_DoubleValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.DoubleValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_DoubleValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.DoubleValue = (double)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region StringValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_StringValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.StringValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_StringValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.StringValue = (string)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region DateTimeValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_DateTimeValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.DateTimeValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_DateTimeValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.DateTimeValue = (DateTime)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region GuidValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_GuidValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.GuidValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_GuidValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.GuidValue = (Uuid)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region ByteStringValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_ByteStringValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.ByteStringValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_ByteStringValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.ByteStringValue = (byte[])Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region XmlElementValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_XmlElementValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.XmlElementValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_XmlElementValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.XmlElementValue = (XmlElement)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region NodeIdValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_NodeIdValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.NodeIdValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_NodeIdValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.NodeIdValue = (NodeId)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region ExpandedNodeIdValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_ExpandedNodeIdValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.ExpandedNodeIdValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_ExpandedNodeIdValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.ExpandedNodeIdValue = (ExpandedNodeId)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region QualifiedNameValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_QualifiedNameValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.QualifiedNameValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_QualifiedNameValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.QualifiedNameValue = (QualifiedName)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region LocalizedTextValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_LocalizedTextValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.LocalizedTextValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_LocalizedTextValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.LocalizedTextValue = (LocalizedText)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region StatusCodeValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_StatusCodeValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.StatusCodeValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_StatusCodeValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.StatusCodeValue = (StatusCode)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region VariantValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_VariantValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.VariantValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_VariantValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.VariantValue = (Variant)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region EnumerationValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_EnumerationValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.EnumerationValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_EnumerationValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.EnumerationValue = (int)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region StructureValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_StructureValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.StructureValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_StructureValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.StructureValue = (ExtensionObject)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region NumberValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_NumberValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.NumberValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_NumberValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.NumberValue = (Variant)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region IntegerValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_IntegerValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.IntegerValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_IntegerValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.IntegerValue = (Variant)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region UIntegerValue Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_UIntegerValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.UIntegerValue;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_UIntegerValue(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.UIntegerValue = (Variant)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+        #endregion
+
+        #region Private Fields
+        private ScalarValueDataType m_value;
+        private ScalarValueVariableState m_variable;
+        #endregion
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ScalarValue1MethodState Class
+    #if (!OPCUA_EXCLUDE_ScalarValue1MethodState)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class ScalarValue1MethodState : MethodState
+    {
+        #region Constructors
+        /// <remarks />
+        public ScalarValue1MethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <remarks />
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new ScalarValue1MethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <remarks />
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -719,9 +3324,7 @@ namespace TestData
         #endregion
 
         #region Event Callbacks
-        /// <summary>
-        /// Raised when the the method is called.
-        /// </summary>
+        /// <remarks />
         public ScalarValue1MethodStateMethodCallHandler OnCall;
         #endregion
 
@@ -729,9 +3332,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Invokes the method, returns the result and output argument.
-        /// </summary>
+        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -743,7 +3344,7 @@ namespace TestData
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             bool booleanIn = (bool)_inputArguments[0];
             sbyte sByteIn = (sbyte)_inputArguments[1];
@@ -771,7 +3372,7 @@ namespace TestData
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -811,7 +3412,7 @@ namespace TestData
             _outputArguments[9] = floatOut;
             _outputArguments[10] = doubleOut;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -819,9 +3420,7 @@ namespace TestData
         #endregion
     }
 
-    /// <summary>
-    /// Used to receive notifications when the method is called.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     public delegate ServiceResult ScalarValue1MethodStateMethodCallHandler(
         ISystemContext _context,
@@ -854,35 +3453,25 @@ namespace TestData
 
     #region ScalarValue2MethodState Class
     #if (!OPCUA_EXCLUDE_ScalarValue2MethodState)
-    /// <summary>
-    /// Stores an instance of the ScalarValue2MethodType Method.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class ScalarValue2MethodState : MethodState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public ScalarValue2MethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
+        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new ScalarValue2MethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -890,9 +3479,7 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -921,9 +3508,7 @@ namespace TestData
         #endregion
 
         #region Event Callbacks
-        /// <summary>
-        /// Raised when the the method is called.
-        /// </summary>
+        /// <remarks />
         public ScalarValue2MethodStateMethodCallHandler OnCall;
         #endregion
 
@@ -931,9 +3516,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Invokes the method, returns the result and output argument.
-        /// </summary>
+        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -945,7 +3528,7 @@ namespace TestData
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string stringIn = (string)_inputArguments[0];
             DateTime dateTimeIn = (DateTime)_inputArguments[1];
@@ -971,7 +3554,7 @@ namespace TestData
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -1008,7 +3591,7 @@ namespace TestData
             _outputArguments[8] = localizedTextOut;
             _outputArguments[9] = statusCodeOut;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -1016,9 +3599,7 @@ namespace TestData
         #endregion
     }
 
-    /// <summary>
-    /// Used to receive notifications when the method is called.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     public delegate ServiceResult ScalarValue2MethodStateMethodCallHandler(
         ISystemContext _context,
@@ -1049,35 +3630,25 @@ namespace TestData
 
     #region ScalarValue3MethodState Class
     #if (!OPCUA_EXCLUDE_ScalarValue3MethodState)
-    /// <summary>
-    /// Stores an instance of the ScalarValue3MethodType Method.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class ScalarValue3MethodState : MethodState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public ScalarValue3MethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
+        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new ScalarValue3MethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1085,9 +3656,7 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1108,9 +3677,7 @@ namespace TestData
         #endregion
 
         #region Event Callbacks
-        /// <summary>
-        /// Raised when the the method is called.
-        /// </summary>
+        /// <remarks />
         public ScalarValue3MethodStateMethodCallHandler OnCall;
         #endregion
 
@@ -1118,9 +3685,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Invokes the method, returns the result and output argument.
-        /// </summary>
+        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -1132,7 +3697,7 @@ namespace TestData
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             object variantIn = (object)_inputArguments[0];
             int enumerationIn = (int)_inputArguments[1];
@@ -1144,7 +3709,7 @@ namespace TestData
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -1160,7 +3725,7 @@ namespace TestData
             _outputArguments[1] = enumerationOut;
             _outputArguments[2] = structureOut;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -1168,9 +3733,7 @@ namespace TestData
         #endregion
     }
 
-    /// <summary>
-    /// Used to receive notifications when the method is called.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     public delegate ServiceResult ScalarValue3MethodStateMethodCallHandler(
         ISystemContext _context,
@@ -1187,33 +3750,25 @@ namespace TestData
 
     #region ScalarValueObjectState Class
     #if (!OPCUA_EXCLUDE_ScalarValueObjectState)
-    /// <summary>
-    /// Stores an instance of the ScalarValueObjectType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class ScalarValueObjectState : TestDataObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public ScalarValueObjectState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.ScalarValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1221,18 +3776,14 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1730,7 +4281,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public BaseDataVariableState<int> EnumerationValue
+        public BaseDataVariableState EnumerationValue
         {
             get
             {
@@ -1826,11 +4377,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -1972,10 +4519,8 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -2461,11 +5006,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                EnumerationValue = new BaseDataVariableState<int>(this);
+                                EnumerationValue = new BaseDataVariableState(this);
                             }
                             else
                             {
-                                EnumerationValue = (BaseDataVariableState<int>)replacement;
+                                EnumerationValue = (BaseDataVariableState)replacement;
                             }
                         }
                     }
@@ -2591,7 +5136,7 @@ namespace TestData
         private BaseDataVariableState<LocalizedText> m_localizedTextValue;
         private BaseDataVariableState<StatusCode> m_statusCodeValue;
         private BaseDataVariableState m_variantValue;
-        private BaseDataVariableState<int> m_enumerationValue;
+        private BaseDataVariableState m_enumerationValue;
         private BaseDataVariableState<ExtensionObject> m_structureValue;
         private BaseDataVariableState m_numberValue;
         private BaseDataVariableState m_integerValue;
@@ -2603,33 +5148,25 @@ namespace TestData
 
     #region AnalogScalarValueObjectState Class
     #if (!OPCUA_EXCLUDE_AnalogScalarValueObjectState)
-    /// <summary>
-    /// Stores an instance of the AnalogScalarValueObjectType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class AnalogScalarValueObjectState : TestDataObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public AnalogScalarValueObjectState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.AnalogScalarValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -2637,18 +5174,14 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -2975,11 +5508,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -3051,10 +5580,8 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -3374,35 +5901,25 @@ namespace TestData
 
     #region ArrayValue1MethodState Class
     #if (!OPCUA_EXCLUDE_ArrayValue1MethodState)
-    /// <summary>
-    /// Stores an instance of the ArrayValue1MethodType Method.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class ArrayValue1MethodState : MethodState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public ArrayValue1MethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
+        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new ArrayValue1MethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -3410,9 +5927,7 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -3443,9 +5958,7 @@ namespace TestData
         #endregion
 
         #region Event Callbacks
-        /// <summary>
-        /// Raised when the the method is called.
-        /// </summary>
+        /// <remarks />
         public ArrayValue1MethodStateMethodCallHandler OnCall;
         #endregion
 
@@ -3453,9 +5966,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Invokes the method, returns the result and output argument.
-        /// </summary>
+        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -3467,7 +5978,7 @@ namespace TestData
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             bool[] booleanIn = (bool[])_inputArguments[0];
             sbyte[] sByteIn = (sbyte[])_inputArguments[1];
@@ -3495,7 +6006,7 @@ namespace TestData
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -3535,7 +6046,7 @@ namespace TestData
             _outputArguments[9] = floatOut;
             _outputArguments[10] = doubleOut;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -3543,9 +6054,7 @@ namespace TestData
         #endregion
     }
 
-    /// <summary>
-    /// Used to receive notifications when the method is called.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     public delegate ServiceResult ArrayValue1MethodStateMethodCallHandler(
         ISystemContext _context,
@@ -3578,35 +6087,25 @@ namespace TestData
 
     #region ArrayValue2MethodState Class
     #if (!OPCUA_EXCLUDE_ArrayValue2MethodState)
-    /// <summary>
-    /// Stores an instance of the ArrayValue2MethodType Method.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class ArrayValue2MethodState : MethodState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public ArrayValue2MethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
+        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new ArrayValue2MethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -3614,9 +6113,7 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -3647,9 +6144,7 @@ namespace TestData
         #endregion
 
         #region Event Callbacks
-        /// <summary>
-        /// Raised when the the method is called.
-        /// </summary>
+        /// <remarks />
         public ArrayValue2MethodStateMethodCallHandler OnCall;
         #endregion
 
@@ -3657,9 +6152,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Invokes the method, returns the result and output argument.
-        /// </summary>
+        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -3671,7 +6164,7 @@ namespace TestData
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string[] stringIn = (string[])_inputArguments[0];
             DateTime[] dateTimeIn = (DateTime[])_inputArguments[1];
@@ -3697,7 +6190,7 @@ namespace TestData
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -3734,7 +6227,7 @@ namespace TestData
             _outputArguments[8] = localizedTextOut;
             _outputArguments[9] = statusCodeOut;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -3742,9 +6235,7 @@ namespace TestData
         #endregion
     }
 
-    /// <summary>
-    /// Used to receive notifications when the method is called.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     public delegate ServiceResult ArrayValue2MethodStateMethodCallHandler(
         ISystemContext _context,
@@ -3775,35 +6266,25 @@ namespace TestData
 
     #region ArrayValue3MethodState Class
     #if (!OPCUA_EXCLUDE_ArrayValue3MethodState)
-    /// <summary>
-    /// Stores an instance of the ArrayValue3MethodType Method.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class ArrayValue3MethodState : MethodState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public ArrayValue3MethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
+        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new ArrayValue3MethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -3811,9 +6292,7 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -3834,9 +6313,7 @@ namespace TestData
         #endregion
 
         #region Event Callbacks
-        /// <summary>
-        /// Raised when the the method is called.
-        /// </summary>
+        /// <remarks />
         public ArrayValue3MethodStateMethodCallHandler OnCall;
         #endregion
 
@@ -3844,9 +6321,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Invokes the method, returns the result and output argument.
-        /// </summary>
+        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -3858,7 +6333,7 @@ namespace TestData
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             Variant[] variantIn = (Variant[])_inputArguments[0];
             int[] enumerationIn = (int[])_inputArguments[1];
@@ -3870,7 +6345,7 @@ namespace TestData
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -3886,7 +6361,7 @@ namespace TestData
             _outputArguments[1] = enumerationOut;
             _outputArguments[2] = structureOut;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -3894,9 +6369,7 @@ namespace TestData
         #endregion
     }
 
-    /// <summary>
-    /// Used to receive notifications when the method is called.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     public delegate ServiceResult ArrayValue3MethodStateMethodCallHandler(
         ISystemContext _context,
@@ -3913,33 +6386,25 @@ namespace TestData
 
     #region ArrayValueObjectState Class
     #if (!OPCUA_EXCLUDE_ArrayValueObjectState)
-    /// <summary>
-    /// Stores an instance of the ArrayValueObjectType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class ArrayValueObjectState : TestDataObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public ArrayValueObjectState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.ArrayValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -3947,18 +6412,14 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -4556,11 +7017,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -4702,10 +7159,8 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -5333,33 +7788,25 @@ namespace TestData
 
     #region AnalogArrayValueObjectState Class
     #if (!OPCUA_EXCLUDE_AnalogArrayValueObjectState)
-    /// <summary>
-    /// Stores an instance of the AnalogArrayValueObjectType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class AnalogArrayValueObjectState : TestDataObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public AnalogArrayValueObjectState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.AnalogArrayValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -5367,18 +7814,14 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -5706,11 +8149,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -5782,10 +8221,8 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -6105,33 +8542,25 @@ namespace TestData
 
     #region UserScalarValueObjectState Class
     #if (!OPCUA_EXCLUDE_UserScalarValueObjectState)
-    /// <summary>
-    /// Stores an instance of the UserScalarValueObjectType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class UserScalarValueObjectState : TestDataObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public UserScalarValueObjectState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.UserScalarValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -6139,18 +8568,14 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -6645,11 +9070,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -6766,10 +9187,8 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -7287,35 +9706,25 @@ namespace TestData
 
     #region UserScalarValue1MethodState Class
     #if (!OPCUA_EXCLUDE_UserScalarValue1MethodState)
-    /// <summary>
-    /// Stores an instance of the UserScalarValue1MethodType Method.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class UserScalarValue1MethodState : MethodState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public UserScalarValue1MethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
+        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new UserScalarValue1MethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -7323,9 +9732,7 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -7356,9 +9763,7 @@ namespace TestData
         #endregion
 
         #region Event Callbacks
-        /// <summary>
-        /// Raised when the the method is called.
-        /// </summary>
+        /// <remarks />
         public UserScalarValue1MethodStateMethodCallHandler OnCall;
         #endregion
 
@@ -7366,9 +9771,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Invokes the method, returns the result and output argument.
-        /// </summary>
+        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -7380,7 +9783,7 @@ namespace TestData
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             bool booleanIn = (bool)_inputArguments[0];
             sbyte sByteIn = (sbyte)_inputArguments[1];
@@ -7410,7 +9813,7 @@ namespace TestData
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -7453,7 +9856,7 @@ namespace TestData
             _outputArguments[10] = doubleOut;
             _outputArguments[11] = stringOut;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -7461,9 +9864,7 @@ namespace TestData
         #endregion
     }
 
-    /// <summary>
-    /// Used to receive notifications when the method is called.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     public delegate ServiceResult UserScalarValue1MethodStateMethodCallHandler(
         ISystemContext _context,
@@ -7498,35 +9899,25 @@ namespace TestData
 
     #region UserScalarValue2MethodState Class
     #if (!OPCUA_EXCLUDE_UserScalarValue2MethodState)
-    /// <summary>
-    /// Stores an instance of the UserScalarValue2MethodType Method.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class UserScalarValue2MethodState : MethodState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public UserScalarValue2MethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
+        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new UserScalarValue2MethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -7534,9 +9925,7 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -7566,9 +9955,7 @@ namespace TestData
         #endregion
 
         #region Event Callbacks
-        /// <summary>
-        /// Raised when the the method is called.
-        /// </summary>
+        /// <remarks />
         public UserScalarValue2MethodStateMethodCallHandler OnCall;
         #endregion
 
@@ -7576,9 +9963,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Invokes the method, returns the result and output argument.
-        /// </summary>
+        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -7590,7 +9975,7 @@ namespace TestData
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             DateTime dateTimeIn = (DateTime)_inputArguments[0];
             Uuid guidIn = (Uuid)_inputArguments[1];
@@ -7616,7 +10001,7 @@ namespace TestData
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -7653,7 +10038,7 @@ namespace TestData
             _outputArguments[8] = statusCodeOut;
             _outputArguments[9] = variantOut;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -7661,9 +10046,7 @@ namespace TestData
         #endregion
     }
 
-    /// <summary>
-    /// Used to receive notifications when the method is called.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     public delegate ServiceResult UserScalarValue2MethodStateMethodCallHandler(
         ISystemContext _context,
@@ -7694,33 +10077,25 @@ namespace TestData
 
     #region UserArrayValueObjectState Class
     #if (!OPCUA_EXCLUDE_UserArrayValueObjectState)
-    /// <summary>
-    /// Stores an instance of the UserArrayValueObjectType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class UserArrayValueObjectState : TestDataObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public UserArrayValueObjectState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.UserArrayValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -7728,18 +10103,14 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -8237,11 +10608,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -8358,10 +10725,8 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -8879,35 +11244,25 @@ namespace TestData
 
     #region UserArrayValue1MethodState Class
     #if (!OPCUA_EXCLUDE_UserArrayValue1MethodState)
-    /// <summary>
-    /// Stores an instance of the UserArrayValue1MethodType Method.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class UserArrayValue1MethodState : MethodState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public UserArrayValue1MethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
+        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new UserArrayValue1MethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -8915,9 +11270,7 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -8950,9 +11303,7 @@ namespace TestData
         #endregion
 
         #region Event Callbacks
-        /// <summary>
-        /// Raised when the the method is called.
-        /// </summary>
+        /// <remarks />
         public UserArrayValue1MethodStateMethodCallHandler OnCall;
         #endregion
 
@@ -8960,9 +11311,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Invokes the method, returns the result and output argument.
-        /// </summary>
+        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -8974,7 +11323,7 @@ namespace TestData
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             bool[] booleanIn = (bool[])_inputArguments[0];
             sbyte[] sByteIn = (sbyte[])_inputArguments[1];
@@ -9004,7 +11353,7 @@ namespace TestData
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -9047,7 +11396,7 @@ namespace TestData
             _outputArguments[10] = doubleOut;
             _outputArguments[11] = stringOut;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -9055,9 +11404,7 @@ namespace TestData
         #endregion
     }
 
-    /// <summary>
-    /// Used to receive notifications when the method is called.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     public delegate ServiceResult UserArrayValue1MethodStateMethodCallHandler(
         ISystemContext _context,
@@ -9092,35 +11439,25 @@ namespace TestData
 
     #region UserArrayValue2MethodState Class
     #if (!OPCUA_EXCLUDE_UserArrayValue2MethodState)
-    /// <summary>
-    /// Stores an instance of the UserArrayValue2MethodType Method.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class UserArrayValue2MethodState : MethodState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public UserArrayValue2MethodState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
+        /// <remarks />
         public new static NodeState Construct(NodeState parent)
         {
             return new UserArrayValue2MethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -9128,9 +11465,7 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -9162,9 +11497,7 @@ namespace TestData
         #endregion
 
         #region Event Callbacks
-        /// <summary>
-        /// Raised when the the method is called.
-        /// </summary>
+        /// <remarks />
         public UserArrayValue2MethodStateMethodCallHandler OnCall;
         #endregion
 
@@ -9172,9 +11505,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Invokes the method, returns the result and output argument.
-        /// </summary>
+        /// <remarks />
         protected override ServiceResult Call(
             ISystemContext _context,
             NodeId _objectId,
@@ -9186,7 +11517,7 @@ namespace TestData
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             DateTime[] dateTimeIn = (DateTime[])_inputArguments[0];
             Uuid[] guidIn = (Uuid[])_inputArguments[1];
@@ -9212,7 +11543,7 @@ namespace TestData
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -9249,7 +11580,7 @@ namespace TestData
             _outputArguments[8] = statusCodeOut;
             _outputArguments[9] = variantOut;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -9257,9 +11588,7 @@ namespace TestData
         #endregion
     }
 
-    /// <summary>
-    /// Used to receive notifications when the method is called.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     public delegate ServiceResult UserArrayValue2MethodStateMethodCallHandler(
         ISystemContext _context,
@@ -9290,33 +11619,25 @@ namespace TestData
 
     #region MethodTestState Class
     #if (!OPCUA_EXCLUDE_MethodTestState)
-    /// <summary>
-    /// Stores an instance of the MethodTestType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class MethodTestState : FolderState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public MethodTestState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.MethodTestType, TestData.Namespaces.TestData, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -9324,18 +11645,14 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -9688,11 +12005,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -9749,10 +12062,8 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -10006,33 +12317,25 @@ namespace TestData
 
     #region TestSystemConditionState Class
     #if (!OPCUA_EXCLUDE_TestSystemConditionState)
-    /// <summary>
-    /// Stores an instance of the TestSystemConditionType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class TestSystemConditionState : ConditionState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public TestSystemConditionState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.TestSystemConditionType, TestData.Namespaces.TestData, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -10040,18 +12343,14 @@ namespace TestData
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -10114,11 +12413,7 @@ namespace TestData
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -10130,10 +12425,8 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,

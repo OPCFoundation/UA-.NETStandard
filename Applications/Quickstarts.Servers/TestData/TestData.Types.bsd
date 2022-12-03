@@ -33,9 +33,9 @@
     <opc:Field Name="VariantValue" TypeName="ua:Variant" />
     <opc:Field Name="EnumerationValue" TypeName="opc:Int32" />
     <opc:Field Name="StructureValue" TypeName="ua:ExtensionObject" />
-    <opc:Field Name="Number" TypeName="ua:Variant" />
-    <opc:Field Name="Integer" TypeName="ua:Variant" />
-    <opc:Field Name="UInteger" TypeName="ua:Variant" />
+    <opc:Field Name="NumberValue" TypeName="ua:Variant" />
+    <opc:Field Name="IntegerValue" TypeName="ua:Variant" />
+    <opc:Field Name="UIntegerValue" TypeName="ua:Variant" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="ArrayValueDataType" BaseType="ua:ExtensionObject">

@@ -121,11 +121,46 @@
       <opc:Field Name="VariantValue" DataType="ua:BaseDataType" />
       <opc:Field Name="EnumerationValue" DataType="ua:Enumeration" />
       <opc:Field Name="StructureValue" DataType="ua:Structure" />
-      <opc:Field Name="Number" DataType="ua:Number" />
-      <opc:Field Name="Integer" DataType="ua:Integer" />
-      <opc:Field Name="UInteger" DataType="ua:UInteger" />
+      <opc:Field Name="NumberValue" DataType="ua:Number" />
+      <opc:Field Name="IntegerValue" DataType="ua:Integer" />
+      <opc:Field Name="UIntegerValue" DataType="ua:UInteger" />
     </opc:Fields>
   </opc:DataType>
+
+  <opc:VariableType SymbolicName="TestDataVariableType" BaseType="ua:BaseDataVariableType">
+  </opc:VariableType>
+
+  <opc:VariableType SymbolicName="ScalarValueVariableType" DataType="ScalarValueDataType" BaseType="TestDataVariableType">
+    <opc:Children>
+      <opc:Property SymbolicName="BooleanValue" DataType="ua:Boolean" ModellingRule="Mandatory"/>
+      <opc:Property SymbolicName="SByteValue" DataType="ua:SByte" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="ByteValue" DataType="ua:Byte" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="Int16Value" DataType="ua:Int16" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="UInt16Value" DataType="ua:UInt16" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="Int32Value" DataType="ua:Int32" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="UInt32Value" DataType="ua:UInt32" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="Int64Value" DataType="ua:Int64" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="UInt64Value" DataType="ua:UInt64" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="FloatValue" DataType="ua:Float" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="DoubleValue" DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="StringValue" DataType="ua:String" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="DateTimeValue" DataType="ua:DateTime" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="GuidValue" DataType="ua:Guid" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="ByteStringValue" DataType="ua:ByteString" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="XmlElementValue" DataType="ua:XmlElement" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="NodeIdValue" DataType="ua:NodeId" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="ExpandedNodeIdValue" DataType="ua:ExpandedNodeId" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="QualifiedNameValue" DataType="ua:QualifiedName" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="LocalizedTextValue" DataType="ua:LocalizedText" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="StatusCodeValue" DataType="ua:StatusCode" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="VariantValue" DataType="ua:BaseDataType" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="EnumerationValue" DataType="ua:Enumeration" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="StructureValue" DataType="ua:Structure" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="NumberValue" DataType="ua:Number" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="IntegerValue" DataType="ua:Integer" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="UIntegerValue" DataType="ua:UInteger" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:VariableType>
 
   <opc:Method SymbolicName="ScalarValue1MethodType" ModellingRule="Mandatory">
     <opc:InputArguments>
@@ -638,7 +673,6 @@
       <opc:Field Name="StatusComments" DataType="WorkOrderStatusType" ValueRank="Array" />
     </opc:Fields>
   </opc:DataType>
-  
 -->
 
   <opc:DataType SymbolicName="WorkOrderStatusType" BaseType="ua:Structure">
@@ -759,6 +793,11 @@
             <opc:TargetId>Data_Static_Array</opc:TargetId>
           </opc:Reference>
         </opc:References>
+      </opc:Object>
+      <opc:Object SymbolicName="Structures" TypeDefinition="ua:FolderType">
+        <opc:Children>
+          <opc:Variable SymbolicName="Scalar" DataType="ScalarValueDataType" TypeDefinition="ScalarValueVariableType" ModellingRule="Mandatory"/>
+        </opc:Children>
       </opc:Object>
       <opc:Object SymbolicName="Dynamic" TypeDefinition="ua:FolderType" SupportsEvents="true">
         <opc:Children>
