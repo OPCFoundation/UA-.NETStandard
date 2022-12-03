@@ -439,7 +439,6 @@ namespace Opc.Ua.Client.ComplexTypes
                 case BuiltInType.Byte: encoder.WriteByte(name, (Byte)property.GetValue(this)); break;
                 case BuiltInType.Int16: encoder.WriteInt16(name, (Int16)property.GetValue(this)); break;
                 case BuiltInType.UInt16: encoder.WriteUInt16(name, (UInt16)property.GetValue(this)); break;
-                case BuiltInType.Enumeration: encoder.WriteEnumerated(name, (Enum)property.GetValue(this)); break;
                 case BuiltInType.Int32: encoder.WriteInt32(name, (Int32)property.GetValue(this)); break;
                 case BuiltInType.UInt32: encoder.WriteUInt32(name, (UInt32)property.GetValue(this)); break;
                 case BuiltInType.Int64: encoder.WriteInt64(name, (Int64)property.GetValue(this)); break;
@@ -460,6 +459,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 case BuiltInType.DataValue: encoder.WriteDataValue(name, (DataValue)property.GetValue(this)); break;
                 case BuiltInType.Variant: encoder.WriteVariant(name, (Variant)property.GetValue(this)); break;
                 case BuiltInType.ExtensionObject: encoder.WriteExtensionObject(name, (ExtensionObject)property.GetValue(this)); break;
+                case BuiltInType.Enumeration:
+                    if (propertyType.IsEnum)
+                    {
+                        encoder.WriteEnumerated(name, (Enum)property.GetValue(this));
+                        break;
+                    }
+                    goto case BuiltInType.Int32;
                 default:
                     if (typeof(IEncodeable).IsAssignableFrom(propertyType))
                     {
@@ -535,7 +541,6 @@ namespace Opc.Ua.Client.ComplexTypes
                 case BuiltInType.Byte: property.SetValue(this, decoder.ReadByte(name)); break;
                 case BuiltInType.Int16: property.SetValue(this, decoder.ReadInt16(name)); break;
                 case BuiltInType.UInt16: property.SetValue(this, decoder.ReadUInt16(name)); break;
-                case BuiltInType.Enumeration: property.SetValue(this, decoder.ReadEnumerated(name, propertyType)); break;
                 case BuiltInType.Int32: property.SetValue(this, decoder.ReadInt32(name)); break;
                 case BuiltInType.UInt32: property.SetValue(this, decoder.ReadUInt32(name)); break;
                 case BuiltInType.Int64: property.SetValue(this, decoder.ReadInt64(name)); break;
@@ -563,6 +568,12 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     property.SetValue(this, decoder.ReadExtensionObject(name));
                     break;
+                case BuiltInType.Enumeration:
+                    if (propertyType.IsEnum)
+                    {
+                        property.SetValue(this, decoder.ReadEnumerated(name, propertyType)); break;
+                    }
+                    goto case BuiltInType.Int32;
                 default:
                     if (typeof(IEncodeable).IsAssignableFrom(propertyType))
                     {
@@ -631,9 +642,9 @@ namespace Opc.Ua.Client.ComplexTypes
             m_propertyList = m_propertyList.OrderBy(p => p.Order).ToList();
             m_propertyDict = m_propertyList.ToDictionary(p => p.Name, p => p);
         }
-        #endregion Private Members
+#endregion Private Members
 
-        #region Protected Properties
+#region Protected Properties
         /// <summary>
         /// Provide XmlNamespace based on systemType
         /// </summary>
@@ -649,9 +660,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 return m_xmlName != null ? m_xmlName.Namespace : string.Empty;
             }
         }
-        #endregion
+#endregion
 
-        #region Protected Fields
+#region Protected Fields
         /// <summary>
         /// The list of properties of this complex type.
         /// </summary>
@@ -661,12 +672,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The list of properties as dictionary.
         /// </summary>
         protected Dictionary<string, ComplexTypePropertyInfo> m_propertyDict;
-        #endregion Protected Fields
+#endregion Protected Fields
 
-        #region Private Fields
+#region Private Fields
         private IServiceMessageContext m_context;
         private StructureBaseDataType m_structureBaseType;
         private XmlQualifiedName m_xmlName;
-        #endregion Private Fields
+#endregion Private Fields
     }
 }//namespace
