@@ -20,14 +20,14 @@ IF ERRORLEVEL 1 (
 )
 
 echo Building TestData
-%MODELCOMPILER% compile -version v104 -id "1000" -d2 "%MODELROOT%/TestData/TestDataDesign.xml" -cg "%MODELROOT%/TestData/TestDataDesign.csv" -o2 "%MODELROOT%/TestData"
+%MODELCOMPILER% compile -version v104 -d2 "%MODELROOT%/TestData/TestDataDesign.xml" -cg "%MODELROOT%/TestData/TestDataDesign.csv" -o2 "%MODELROOT%/TestData"
 IF %ERRORLEVEL% EQU 0 echo Success!
 
 echo Building MemoryBuffer
-%MODELCOMPILER% compile -version v104 -id 2000 -d2 "%MODELROOT%/MemoryBuffer/MemoryBufferDesign.xml" -cg "%MODELROOT%/MemoryBuffer/MemoryBufferDesign.csv" -o2 "%MODELROOT%/MemoryBuffer" 
+%MODELCOMPILER% compile -version v104 -d2 "%MODELROOT%/MemoryBuffer/MemoryBufferDesign.xml" -cg "%MODELROOT%/MemoryBuffer/MemoryBufferDesign.csv" -o2 "%MODELROOT%/MemoryBuffer" 
 IF %ERRORLEVEL% EQU 0 echo Success!
 
 echo Building BoilerDesign
-%MODELCOMPILER% compile -version v104 -id 3000 -d2 "%MODELROOT%/Boiler/BoilerDesign.xml" -c "%MODELROOT%/Boiler/BoilerDesign.csv" -o2 "%MODELROOT%/Boiler"
+%MODELCOMPILER% compile -version v104 -d2 "%MODELROOT%/Boiler/BoilerDesign.xml" -c "%MODELROOT%/Boiler/BoilerDesign.csv" -o2 "%MODELROOT%/Boiler"
 IF %ERRORLEVEL% EQU 0 echo Success!
 
