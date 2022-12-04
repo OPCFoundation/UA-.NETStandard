@@ -276,45 +276,16 @@ namespace Opc.Ua.Client.ComplexTypes
             // here to return the BuiltInType.Variant.
             // Other DataTypes which map directly to .NET types in
             // <see cref="TypeInfo.GetSystemType(BuiltInType, int)"/>
+            // are handled in <see cref="TypeInfo.GetBuiltInType()"/>
             switch ((uint)builtInType)
             {
                 // supertypes of numbers
-                case DataTypes.Integer: 
-                case DataTypes.UInteger: 
+                case DataTypes.Integer:
+                case DataTypes.UInteger:
                 case DataTypes.Number: return BuiltInType.Variant;
-                // subtype of DateTime
-                case DataTypes.UtcTime: return BuiltInType.DateTime;
-                // subtype of ByteString
-                case DataTypes.ApplicationInstanceCertificate:
-                case DataTypes.AudioDataType:
-                case DataTypes.ContinuationPoint:
-                case DataTypes.Image:
-                case DataTypes.ImageBMP:
-                case DataTypes.ImageGIF:
-                case DataTypes.ImageJPG:
-                case DataTypes.ImagePNG: return BuiltInType.ByteString;
-                // subtype of NodeId
-                case DataTypes.SessionAuthenticationToken: return BuiltInType.NodeId;
-                // subtype of Double
-                case DataTypes.Duration: return BuiltInType.Double;
-                // subtype of UInt32
-                case DataTypes.IntegerId:
-                case DataTypes.Index:
-                case DataTypes.VersionTime:
-                case DataTypes.Counter: return BuiltInType.UInt32;
-                // subtype of UInt64
-                case DataTypes.BitFieldMaskDataType: return BuiltInType.UInt64;
-                // subtype of String
-                case DataTypes.DateString:
-                case DataTypes.DecimalString:
-                case DataTypes.DurationString:
-                case DataTypes.LocaleId:
-                case DataTypes.NormalizedString:
-                case DataTypes.NumericRange:
-                case DataTypes.TimeString: return BuiltInType.String;
             }
 
-            return BuiltInType.Null;
+            return TypeInfo.GetBuiltInType(datatypeId);
         }
         #endregion Private Static Members
 
