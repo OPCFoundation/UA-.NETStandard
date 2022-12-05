@@ -367,7 +367,8 @@ namespace Quickstarts.ConsoleReferenceClient
             NodeId startingNode,
             bool fetchTree = false,
             bool addRootNode = false,
-            bool filterUATypes = true)
+            bool filterUATypes = true,
+            bool clearNodeCache = true)
         {
             var stopwatch = new Stopwatch();
             var nodeDictionary = new Dictionary<ExpandedNodeId, INode>();
@@ -376,19 +377,15 @@ namespace Quickstarts.ConsoleReferenceClient
                     startingNode
                 };
 
-            // clear NodeCache to fetch all nodes from server
-            uaClient.Session.NodeCache.Clear();
-
             // start
             stopwatch.Start();
 
-            // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
-            var bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
-            var namespaceUris = uaClient.Session.NamespaceUris;
-            var referenceTypes = typeof(ReferenceTypeIds)
-                     .GetFields(bindingFlags)
-                     .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
-            uaClient.Session.FetchTypeTree(new ExpandedNodeIdCollection(referenceTypes));
+            if (clearNodeCache)
+            {
+                // clear NodeCache to fetch all nodes from server
+                uaClient.Session.NodeCache.Clear();
+                FetchReferenceIdTypes(uaClient.Session);
+            }
 
             // add root node
             if (addRootNode)
@@ -666,6 +663,28 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
                 }
             }
+        }
+        #endregion
+
+        #region Fetch ReferenceId Types
+        /// <summary>
+        /// Read all ReferenceTypeIds from the server that are not known by the client.
+        /// To reduce the number of calls due to traversal call pyramid, start with all
+        /// known reference types to reduce the number of FetchReferences/FetchNodes calls.
+        /// </summary>
+        /// <remarks>
+        /// The NodeCache needs this information to function properly with subtypes of hierarchical calls.
+        /// </remarks>
+        /// <param name="session">The session to use</param>
+        void FetchReferenceIdTypes(Session session)
+        {
+            // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
+            var bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+            var namespaceUris = session.NamespaceUris;
+            var referenceTypes = typeof(ReferenceTypeIds)
+                     .GetFields(bindingFlags)
+                     .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
+            session.FetchTypeTree(new ExpandedNodeIdCollection(referenceTypes));
         }
         #endregion
 
