@@ -231,7 +231,7 @@ namespace Opc.Ua.Security.Certificates
 
                 var pkcs10CertificationRequest = new Pkcs10CertificationRequest(
                     signatureFactory,
-                    new CertificateFactoryX509Name(true, certificate.Subject),
+                    new CertificateFactoryX509Name(certificate.SubjectName),
                     publicKey,
                     attributes);
 
@@ -262,14 +262,14 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="cg">The cert generator</param>
         private void CreateMandatoryFields(X509V3CertificateGenerator cg)
         {
-            m_subjectDN = new CertificateFactoryX509Name(SubjectName.Name);
+            m_subjectDN = new CertificateFactoryX509Name(SubjectName);
             // subject and issuer DN, issuer of issuer for AKI
             m_issuerDN = null;
             m_issuerIssuerAKI = null;
             if (IssuerCAKeyCert != null)
             {
-                m_issuerDN = new CertificateFactoryX509Name(IssuerCAKeyCert.Subject);
-                m_issuerIssuerAKI = new CertificateFactoryX509Name(IssuerCAKeyCert.Issuer);
+                m_issuerDN = new CertificateFactoryX509Name(IssuerCAKeyCert.SubjectName);
+                m_issuerIssuerAKI = new CertificateFactoryX509Name(IssuerCAKeyCert.IssuerName);
             }
             else
             {
