@@ -1007,6 +1007,12 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
+                // channel may already be closed
+                if (State == TcpChannelState.Closed)
+                {
+                    return;
+                }
+
                 // clear an unprocessed chunks.
                 SaveIntermediateChunk(0, new ArraySegment<byte>(), false);
 
