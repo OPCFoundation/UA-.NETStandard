@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,41 +27,78 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+using System.IO;
+using EmbedIO;
+using EmbedIO.WebApi;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Swan.Logging;
+using Swan;
+using System.Threading;
+using EmbedIO.Files;
+using EmbedIO.Actions;
+using System.Text;
+using EmbedIO.Routing;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     /// <summary>
     /// Tests for the CertificateValidator class with
-    /// 
+    /// permutations of the AuthorityKeyIdentifier.
     /// </summary>
     [TestFixture, Category("CertificateValidator")]
     [NonParallelizable]
+    [TestFixtureSource(nameof(FixtureArgs))]
     [SetCulture("en-us")]
 
     class CertificateValidatorAlternate
     {
         const string kCaSubject = "CN=Root";
         const string kCaAltSubject = "CN=rOOT";
+
+        public static readonly object[] FixtureArgs = {
+            new object [] { kCaSubject },
+            new object [] { kCaAltSubject }
+        };
+
+        public CertificateValidatorAlternate(string altSubject = kCaSubject)
+        {
+            m_altSubject = altSubject;
+        }
+
+        // the root and alternate root CA
+        private string m_altSubject;
         private X509Certificate2 m_rootCert;
         private X509Certificate2 m_rootAltCert;
         private X509CRL m_rootCrl;
         private TemporaryCertValidator m_validator;
         private CertificateValidator m_certValidator;
+        // A web server to host root CA and CRL
+        private IWebServer m_webServer = null;
+        private string m_webServerUrl;
+        private string m_webServerPath;
+        private string m_altCertFilename;
 
         #region Test Setup
         /// <summary>
-        /// Set up a Server fixture.
+        /// Set up a web server and root CAs.
         /// </summary>
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
+            var crlName = "root.crl";
+            m_webServerUrl = "http://127.0.0.1:9696/";
+
+            var crlExtension = X509Extensions.BuildX509CRLDistributionPoints(m_webServerUrl + crlName);
+
             // create the root cert
             m_rootCert = CertificateFactory.CreateCertificate(kCaSubject)
+                .AddExtension(crlExtension)
                 .SetLifeTime(25 * 12)
                 .SetCAConstraint()
                 .CreateForRSA();
@@ -69,23 +106,40 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // default empty root CRL
             m_rootCrl = CertificateFactory.RevokeCertificate(m_rootCert, null, null);
 
-            // a valid app cert
-            var appCert = CertificateFactory.CreateCertificate("CN=AppCert")
-                .SetIssuer(m_rootCert)
-                .CreateForRSA();
-
             // create cert validator for test, add trusted root cert
             m_validator = TemporaryCertValidator.Create();
             await m_validator.TrustedStore.Add(m_rootCert).ConfigureAwait(false);
             await m_validator.TrustedStore.AddCRL(m_rootCrl).ConfigureAwait(false);
             m_certValidator = m_validator.Update();
 
-            // create a root with same serial number but modified Subject
-            m_rootAltCert = CertificateFactory.CreateCertificate(kCaAltSubject)
+            // create a root with same serial number but modified Subject / key pair
+            m_rootAltCert = CertificateFactory.CreateCertificate(m_altSubject)
                 .SetLifeTime(25 * 12)
                 .SetSerialNumber(m_rootCert.GetSerialNumber())
                 .SetCAConstraint()
                 .CreateForRSA();
+
+            try
+            {
+                // temp location for hosted CA cert
+                m_webServerPath = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
+
+                // Start a disposable web server.
+                m_webServer = CreateWebServer(m_webServerUrl, m_webServerPath, CancellationToken.None);
+
+                // filename for the alternate certificate
+                m_altCertFilename = m_rootAltCert.SerialNumber + ".der";
+
+                // write alternate root cert to http store
+                File.WriteAllBytes(m_webServerPath + m_altCertFilename, m_rootAltCert.RawData);
+
+                // write crl to http store
+                File.WriteAllBytes(m_webServerPath + crlName, m_rootCrl.RawData);
+            }
+            catch
+            {
+                Assert.Ignore("Web server could not start at: {0}", m_webServerUrl);
+            }
         }
 
         /// <summary>
@@ -97,6 +151,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Utils.SilentDispose(m_rootCert);
             Utils.SilentDispose(m_rootAltCert);
             Utils.SilentDispose(m_certValidator);
+            Utils.SilentDispose(m_webServer);
+            Directory.Delete(m_webServerPath, true);
         }
 
         /// <summary>
@@ -135,31 +191,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// Alternate Root without KeyID.
-        /// </summary>
-        [Theory]
-        public void AlternateRootCertificateWithoutKeyID(bool rejectUnknownRevocationStatus)
-        {
-            // create app cert from alternate root
-            using (var altAppCert = CertificateFactory.CreateCertificate("CN=AlternateAppCert")
-                .SetIssuer(m_rootAltCert)
-                .CreateForRSA())
-            {
-                Assert.NotNull(altAppCert);
-
-                m_certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
-                var result = Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(altAppCert));
-
-                TestContext.Out.WriteLine(result.Message);
-            }
-        }
-
-        /// <summary>
         /// Certificate with combinations of optional fields in the AKI.
         /// </summary>
         [Theory]
         public void CertificateWithAuthorityKeyID(bool subjectKeyIdentifier, bool issuerName, bool serialNumber)
         {
+            var certBuilder = CertificateFactory.CreateCertificate("CN=AppCert");
+
             // force exception if SKI is not present
             var ski = m_rootCert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
 
@@ -169,18 +207,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     (X500DistinguishedName)(issuerName ? m_rootCert.IssuerName : null),
                     (byte[])(serialNumber ? m_rootCert.GetSerialNumber() : null));
 
+            TestContext.Out.WriteLine("Extension: {0}", authorityKeyIdentifier.Format(true));
+
+            certBuilder.AddExtension(authorityKeyIdentifier);
+
             // a valid app cert
-            using (var appCert = CertificateFactory.CreateCertificate("CN=AppCert")
-                .AddExtension(authorityKeyIdentifier)
+            using (var appCert = certBuilder
                 .SetIssuer(m_rootCert)
                 .CreateForRSA())
             {
                 m_certValidator.RejectUnknownRevocationStatus = false;
-
-                // ensure behavior is preserved, no chain building without KeyID/serial
                 if (!subjectKeyIdentifier && !serialNumber)
                 {
-                    // should not pass!
                     var result = Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(appCert));
                     TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
                 }
@@ -192,31 +230,24 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// Create an app certificate from the alternate root,
-        /// validate that any combination of AKI is not validated.
+        /// App cert from alternate Root without KeyID.
         /// </summary>
         [Theory]
-        public void AlternateCertificateWithAuthorityKeyID(bool subjectKeyIdentifier, bool issuerName, bool serialNumber)
+        public void AlternateRootCertificateWithoutAuthorityKeyID(bool rejectUnknownRevocationStatus)
         {
-            // force exception if SKI is not present
-            var ski = m_rootAltCert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
+            var certBuilder = CertificateFactory.CreateCertificate("CN=AlternateAppCert");
+            var caIssuerUrl = new List<string>();
+            caIssuerUrl.Add(m_webServerUrl + m_altCertFilename);
+            var extension = X509Extensions.BuildX509AuthorityInformationAccess(caIssuerUrl.ToArray());
+            certBuilder.AddExtension(extension);
+            TestContext.Out.WriteLine("Extension: {0}", extension.Format(true));
 
-            // create a certificate with special key info / no key id
-            X509Extension authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(
-                    (byte[])(subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null),
-                    (X500DistinguishedName)(issuerName ? m_rootAltCert.IssuerName : null),
-                    (byte[])(serialNumber ? m_rootAltCert.GetSerialNumber() : null));
-
-            // create the certificate from the alternate root
-            using (var altAppCert = CertificateFactory.CreateCertificate("CN=AltAppCert")
-                .AddExtension(authorityKeyIdentifier)
-                .SetIssuer(m_rootAltCert)
-                .CreateForRSA())
+            // create app cert from alternate root
+            using (var altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA())
             {
                 Assert.NotNull(altAppCert);
 
-                // should not pass!
-                m_certValidator.RejectUnknownRevocationStatus = false;
+                m_certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
                 var result = Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(altAppCert));
 
                 TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
@@ -225,23 +256,32 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <summary>
         /// Create an app certificate from the alternate root,
-        /// with keyID based on the trusted root.
+        /// validate that any combination of AKI is not validated.
         /// </summary>
         [Theory]
-        public void AlternateCertificateWithTrustedAuthorityKeyID(bool subjectKeyIdentifier, bool issuerName, bool serialNumber)
+        public void AlternateRootCertificateWithAuthorityKeyID(bool subjectKeyIdentifier, bool issuerName, bool serialNumber)
         {
+            var certBuilder = CertificateFactory.CreateCertificate("CN=AltAppCert");
+
             // force exception if SKI is not present
-            var ski = m_rootCert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
+            var ski = m_rootAltCert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
 
             // create a certificate with special key info / no key id
             X509Extension authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(
                     (byte[])(subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null),
-                    (X500DistinguishedName)(issuerName ? m_rootCert.IssuerName : null),
-                    (byte[])(serialNumber ? m_rootCert.GetSerialNumber() : null));
+                    (X500DistinguishedName)(issuerName ? m_rootAltCert.IssuerName : null),
+                    (byte[])(serialNumber ? m_rootAltCert.GetSerialNumber() : null));
+            certBuilder.AddExtension(authorityKeyIdentifier);
+            TestContext.Out.WriteLine("Extension: {0}", authorityKeyIdentifier.Format(true));
+
+            var caIssuerUrl = new List<string>();
+            caIssuerUrl.Add(m_webServerUrl + m_altCertFilename);
+            var extension = X509Extensions.BuildX509AuthorityInformationAccess(caIssuerUrl.ToArray());
+            certBuilder.AddExtension(extension);
+            TestContext.Out.WriteLine("Extension: {0}", extension.Format(true));
 
             // create the certificate from the alternate root
-            using (var altAppCert = CertificateFactory.CreateCertificate("CN=AltAppCert")
-                .AddExtension(authorityKeyIdentifier)
+            using (var altAppCert = certBuilder
                 .SetIssuer(m_rootAltCert)
                 .CreateForRSA())
             {
@@ -250,9 +290,124 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // should not pass!
                 m_certValidator.RejectUnknownRevocationStatus = false;
                 var result = Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(altAppCert));
-
                 TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
             }
+        }
+
+        /// <summary>
+        /// Validate a chain with a loop is detected.
+        /// </summary>
+        [Test, Timeout(10000)]
+        public async Task VerifyLoopChainIsDetected()
+        {
+            const string rootSubject = "CN=Root";
+            const string subCASubject = "CN=Sub";
+            const string leafSubject = "CN=Leaf";
+
+            RSA rsa = RSA.Create();
+            var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+
+            using (var rootCert = CertificateFactory.CreateCertificate(rootSubject)
+                .SetCAConstraint()
+                .SetRSAPublicKey(rsa)
+                .CreateForRSA(generator))
+            using (var subCACert = CertificateFactory.CreateCertificate(subCASubject)
+                .SetCAConstraint()
+                .SetIssuer(rootCert)
+                .CreateForRSA(generator))
+            using (var rootReverseCert = CertificateFactory.CreateCertificate(rootSubject)
+                .SetCAConstraint()
+                .SetSerialNumber(rootCert.GetSerialNumber())
+                .SetIssuer(subCACert)
+                .SetRSAPublicKey(rsa)
+                .CreateForRSA())
+            using (var leafCert = CertificateFactory.CreateCertificate(leafSubject)
+                .SetIssuer(subCACert)
+                .CreateForRSA())
+            {
+                // validate cert chain
+                using (var validator = TemporaryCertValidator.Create())
+                {
+                    await validator.IssuerStore.Add(rootCert).ConfigureAwait(false);
+                    await validator.TrustedStore.Add(subCACert).ConfigureAwait(false);
+                    var certValidator = validator.Update();
+                    certValidator.Validate(leafCert);
+                }
+
+                // validate using server/client chain sent over the wire
+                var collection = new X509Certificate2Collection {
+                    leafCert,
+                    subCACert,
+                    rootReverseCert
+                };
+                using (var validator = TemporaryCertValidator.Create())
+                {
+                    var certValidator = validator.Update();
+                    var result = Assert.Throws<ServiceResultException>(() => certValidator.Validate(collection));
+
+                    TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
+                }
+
+                // validate using cert chain in issuer and trusted store
+                using (var validator = TemporaryCertValidator.Create())
+                {
+                    await validator.IssuerStore.Add(rootReverseCert).ConfigureAwait(false);
+                    await validator.TrustedStore.Add(subCACert).ConfigureAwait(false);
+                    var certValidator = validator.Update();
+                    var result = Assert.Throws<ServiceResultException>(() => certValidator.Validate(collection));
+
+                    TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Create and configure web server. 
+        /// </summary>
+        private static IWebServer CreateWebServer(string url, string tempPath, CancellationToken ct)
+        {
+            if (!Directory.Exists(tempPath))
+            {
+                TestContext.Out.WriteLine("Create folder: {0}", tempPath);
+                Directory.CreateDirectory(tempPath);
+            }
+
+            TestContext.Out.WriteLine("Start Web server at: {0}", url);
+
+            // Tiny web server does not respond to localhost or ::1, use 127.0.0.1
+            string embedioUrl = url.Replace("localhost", "*");
+            var server = new WebServer(o => o
+                    .WithUrlPrefix(embedioUrl)
+                    .WithMode(HttpListenerMode.EmbedIO))
+                .WithModule(new ActionModule("/", HttpVerbs.Get, async ctx => {
+                    TestContext.Out.WriteLine("GET: {0}", ctx.RequestedPath);
+                    // return the certificate as binary blob
+                    var path = Path.Combine(tempPath, ctx.RequestedPath.Substring(1));
+                    var certBlob = File.ReadAllBytes(path);
+                    ctx.Response.ContentEncoding = null;
+                    ctx.Response.ContentType = "application/x-x509-ca-cert";
+                    ctx.Response.OutputStream.Write(certBlob, 0, certBlob.Length);
+                    ctx.SetHandled();
+                    await Task.Delay(0);
+                }));
+#if STATIC_FOLDER // returns error 406 when GET certificate is called by .NET ChainBuilder 
+                .WithStaticFolder("/", tempPath, false, m => m
+                    .WithDirectoryLister(DirectoryLister.Html)
+                    .WithCustomMimeType(".der", "application/x-x509-ca-cert")
+                    )
+#endif
+
+            TestContext.Out.WriteLine("Hosting content at: {0}", tempPath);
+
+            // Listen for state changes.
+            server.StateChanged += (s, e) => {
+                TestContext.Out.WriteLine($"WebServer New State - {e.NewState}");
+            };
+            server.Start(ct);
+
+            TestContext.Out.WriteLine("Server started.");
+
+            return server;
         }
     }
 }
