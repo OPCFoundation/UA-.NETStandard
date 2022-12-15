@@ -29,21 +29,15 @@
 
 using System.Collections.Generic;
 using System.IO;
-using EmbedIO;
-using EmbedIO.WebApi;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
+using EmbedIO;
+using EmbedIO.Actions;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
-using Swan.Logging;
-using Swan;
-using System.Threading;
-using EmbedIO.Files;
-using EmbedIO.Actions;
-using System.Text;
-using EmbedIO.Routing;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -55,9 +49,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [NonParallelizable]
     [TestFixtureSource(nameof(FixtureArgs))]
     [SetCulture("en-us")]
-
     class CertificateValidatorAlternate
     {
+        // the root and alternate root CA
         const string kCaSubject = "CN=Root";
         const string kCaAltSubject = "CN=rOOT";
 
@@ -71,7 +65,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_altSubject = altSubject;
         }
 
-        // the root and alternate root CA
         private string m_altSubject;
         private X509Certificate2 m_rootCert;
         private X509Certificate2 m_rootAltCert;

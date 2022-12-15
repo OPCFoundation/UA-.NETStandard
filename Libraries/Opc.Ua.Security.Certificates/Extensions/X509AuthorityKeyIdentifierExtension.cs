@@ -96,8 +96,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <remarks>
         /// A null value for one of the parameters indicates that the optional
-        /// identifier can be ignored.
-        /// However, at least one identifier must be specified.
+        /// identifier can be ignored. Only keyId should be used for PKI use.
         /// </remarks>
         /// <param name="subjectKeyIdentifier">The subject key identifier as a byte array.</param>
         /// <param name="authorityName">The distinguished name of the issuer.</param>
