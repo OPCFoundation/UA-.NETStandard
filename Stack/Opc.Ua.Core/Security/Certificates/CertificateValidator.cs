@@ -440,7 +440,8 @@ namespace Opc.Ua
                             accept = args.Accept;
                         }
                         else if (m_autoAcceptUntrustedCertificates &&
-                            serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
+                            (serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted||
+                            serviceResult.StatusCode == StatusCodes.BadCertificateChainIncomplete))
                         {
                             accept = true;
                             Utils.LogCertificate("Auto accepted certificate: ", certificate);

@@ -1161,6 +1161,29 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             certValidator.CertificateValidation -= approver.OnCertificateValidation;
         }
 
+        [Test]
+        public async Task TestAutoAcceptChain()
+        {
+            var cert = m_appCerts[0];
+            var validator = TemporaryCertValidator.Create();
+            var certValidator = validator.Update();
+            // Set autoaccept to true, check that CA-signed is accepted.
+            certValidator.AutoAcceptUntrustedCertificates = true;
+            certValidator.Validate(cert);
+
+            // Set autoaccept to false, validate that CertValidationApprover will handle that BadCertChainIncomplete status.
+            await validator.TrustedStore.Add(cert).ConfigureAwait(false);
+            certValidator = validator.Update();
+            certValidator.AutoAcceptUntrustedCertificates = false;
+            CertValidationApprover approver;
+            approver = new CertValidationApprover(new StatusCode[] {
+                StatusCodes.BadCertificateChainIncomplete
+            });
+            certValidator.CertificateValidation += approver.OnCertificateValidation;
+            certValidator.Validate(cert);
+            certValidator.CertificateValidation -= approver.OnCertificateValidation;
+        }
+
         /// <summary>
         /// Test auto accept.
         /// </summary>
