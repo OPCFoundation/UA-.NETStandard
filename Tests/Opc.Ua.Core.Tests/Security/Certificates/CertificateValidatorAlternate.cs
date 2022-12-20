@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if !SIGNASSEMBLY
+
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -77,7 +79,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         private string m_webServerPath;
         private string m_altCertFilename;
 
-        #region Test Setup
+#region Test Setup
         /// <summary>
         /// Set up a web server and root CAs.
         /// </summary>
@@ -163,7 +165,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void TearDown()
         {
         }
-        #endregion
+#endregion
 
         /// <summary>
         /// A signed app cert that has no keyid information.
@@ -404,3 +406,4 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
     }
 }
+#endif
