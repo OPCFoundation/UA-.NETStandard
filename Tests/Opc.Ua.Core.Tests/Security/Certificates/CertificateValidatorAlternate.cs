@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if !SIGNASSEMBLY
+
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -404,3 +406,4 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
     }
 }
+#endif
