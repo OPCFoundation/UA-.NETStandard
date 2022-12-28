@@ -40,7 +40,28 @@ namespace Opc.Ua.Bindings
         /// <returns>The transport channel</returns>
         public ITransportChannel Create()
         {
-            return new HttpsTransportChannel();
+            return new HttpsTransportChannel(UriScheme);
+        }
+    }
+
+    /// <summary>
+    /// Creates a new HttpsTransportChannel with ITransportChannel interface.
+    /// The uri scheme opc.https is used.
+    /// </summary>
+    public class OpcHttpsTransportChannelFactory : ITransportChannelFactory
+    {
+        /// <summary>
+        /// The protocol supported by the channel.
+        /// </summary>
+        public string UriScheme => Utils.UriSchemeOpcHttps;
+
+        /// <summary>
+        /// The method creates a new instance of a Https transport channel
+        /// </summary>
+        /// <returns>The transport channel</returns>
+        public ITransportChannel Create()
+        {
+            return new HttpsTransportChannel(UriScheme);
         }
     }
 
@@ -52,13 +73,21 @@ namespace Opc.Ua.Bindings
         // limit the number of concurrent service requests on the server
         private const int kMaxConnectionsPerServer = 64;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        public HttpsTransportChannel(string uriScheme)
+        {
+            m_uriScheme = uriScheme;
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
         }
 
         /// <inheritdoc/>
-        public string UriScheme => Utils.UriSchemeHttps;
+        public string UriScheme => m_uriScheme;
 
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures =>
@@ -116,21 +145,27 @@ namespace Opc.Ua.Bindings
 
                 // auto validate server cert, if supported
                 // if unsupported, the TLS server cert must be trusted by a root CA
-                var handler = new HttpClientHandler
-                {
+                var handler = new HttpClientHandler {
                     ClientCertificateOptions = ClientCertificateOption.Manual,
-                    MaxConnectionsPerServer = kMaxConnectionsPerServer,
                     AllowAutoRedirect = false,
                     MaxRequestContentBufferSize = m_quotas.MaxMessageSize,
                 };
 
+                // limit the number of concurrent connections, if supported
+                var connectionProperty = handler.GetType().GetProperty("MaxConnectionsPerServer");
+                if (connectionProperty != null &&
+                    (Int32)connectionProperty.GetValue(handler) > kMaxConnectionsPerServer)
+                {
+                    connectionProperty.SetValue(handler, kMaxConnectionsPerServer);
+                }
+
                 // send client certificate for servers that require TLS client authentication
                 if (m_settings.ClientCertificate != null)
                 {
-                    var propertyInfo = handler.GetType().GetProperty("ClientCertificates");
-                    if (propertyInfo != null)
+                    var certProperty = handler.GetType().GetProperty("ClientCertificates");
+                    if (certProperty != null)
                     {
-                        X509CertificateCollection clientCertificates = (X509CertificateCollection)propertyInfo.GetValue(handler);
+                        X509CertificateCollection clientCertificates = (X509CertificateCollection)certProperty.GetValue(handler);
                         clientCertificates?.Add(m_settings.ClientCertificate);
                     }
                 }
@@ -148,37 +183,48 @@ namespace Opc.Ua.Bindings
                         try
                         {
                             serverCertificateCustomValidationCallback =
-                                (httpRequestMessage, cert, chain, policyErrors) =>
-                                {
+                                (httpRequestMessage, cert, chain, policyErrors) => {
                                     try
                                     {
-                                        var validationChain = new X509Certificate2Collection();
-                                        if (chain != null && chain.ChainElements != null)
+                                        // default, if no validator is specified, let the OS manage trust
+                                        if (m_quotas.CertificateValidator == null)
                                         {
-                                            int i = 0;
-                                            Utils.LogInfo(Utils.TraceMasks.Security, "{0} Validate server chain:", nameof(HttpsTransportChannel));
-                                            foreach (var element in chain.ChainElements)
+                                            if (policyErrors == SslPolicyErrors.None)
                                             {
-                                                Utils.LogCertificate(Utils.TraceMasks.Security, "{0}: ", element.Certificate, i);
-                                                validationChain.Add(element.Certificate);
-                                                i++;
+                                                Utils.LogInfo(Utils.TraceMasks.Security, "Accepting the HTTPS server certificate because it is trusted by the OS.");
+                                                return true;
                                             }
                                         }
                                         else
                                         {
-                                            Utils.LogCertificate(Utils.TraceMasks.Security, "{0} Validate Server Certificate: ", cert, nameof(HttpsTransportChannel));
-                                            validationChain.Add(cert);
+                                            var validationChain = new X509Certificate2Collection();
+                                            if (chain != null && chain.ChainElements != null)
+                                            {
+                                                int i = 0;
+                                                Utils.LogInfo(Utils.TraceMasks.Security, "{0} Validate server chain:", nameof(HttpsTransportChannel));
+                                                foreach (var element in chain.ChainElements)
+                                                {
+                                                    Utils.LogCertificate(Utils.TraceMasks.Security, "{0}: ", element.Certificate, i);
+                                                    validationChain.Add(element.Certificate);
+                                                    i++;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                Utils.LogCertificate(Utils.TraceMasks.Security, "{0} Validate Server Certificate: ", cert, nameof(HttpsTransportChannel));
+                                                validationChain.Add(cert);
+                                            }
+
+                                            m_quotas.CertificateValidator?.Validate(validationChain);
+
+                                            return true;
                                         }
-
-                                        m_quotas.CertificateValidator?.Validate(validationChain);
-
-                                        return true;
                                     }
                                     catch (Exception ex)
                                     {
                                         Utils.LogError(ex, "{0} Failed to validate certificate.", nameof(HttpsTransportChannel));
                                     }
-                                    return false;
+                                    return true;
                                 };
                             propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
 
@@ -246,8 +292,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, null);
-                Task.Run(async () =>
-                {
+                Task.Run(async () => {
                     try
                     {
                         var ct = new CancellationTokenSource(m_operationTimeout).Token;
@@ -411,20 +456,21 @@ namespace Opc.Ua.Bindings
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
             m_url = new Uri(url.ToString());
-
+            if (m_url.Scheme == Utils.UriSchemeOpcHttps)
+            {
+                m_url = new Uri(url.ToString().Substring(4));
+            }
             m_settings = settings;
             m_operationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas
-            {
+            m_quotas = new ChannelQuotas {
                 MaxBufferSize = m_settings.Configuration.MaxBufferSize,
                 MaxMessageSize = m_settings.Configuration.MaxMessageSize,
                 ChannelLifetime = m_settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime,
 
-                MessageContext = new ServiceMessageContext
-                {
+                MessageContext = new ServiceMessageContext {
                     MaxArrayLength = m_settings.Configuration.MaxArrayLength,
                     MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
                     MaxMessageSize = m_settings.Configuration.MaxMessageSize,
@@ -438,6 +484,7 @@ namespace Opc.Ua.Bindings
             };
         }
 
+        private string m_uriScheme;
         private Uri m_url;
         private int m_operationTimeout;
         private TransportChannelSettings m_settings;

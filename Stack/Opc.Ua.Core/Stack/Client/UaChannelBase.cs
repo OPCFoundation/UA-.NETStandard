@@ -776,7 +776,7 @@ namespace Opc.Ua
 
                 case Profiles.HttpsBinaryTransport:
                 {
-                    uriScheme = Utils.UriSchemeHttps;
+                    uriScheme = Utils.UriSchemeOpcHttps;
                     break;
                 }
 

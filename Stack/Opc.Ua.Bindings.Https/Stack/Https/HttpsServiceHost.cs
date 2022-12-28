@@ -63,7 +63,7 @@ namespace Opc.Ua.Bindings
 
             for (int ii = 0; ii < baseAddresses.Count; ii++)
             {
-                if (!baseAddresses[ii].StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal))
+                if (!Utils.IsUriHttpsScheme(baseAddresses[ii]))
                 {
                     continue;
                 }
@@ -82,76 +82,73 @@ namespace Opc.Ua.Bindings
 
                 uris.Add(uri.Uri);
 
-                if (uri.Scheme == Utils.UriSchemeHttps)
+                // Only support one policy with HTTPS
+                // So pick the first policy with security mode sign and encrypt
+                ServerSecurityPolicy bestPolicy = null;
+                foreach (ServerSecurityPolicy policy in securityPolicies)
                 {
-                    // Can only support one policy with HTTPS
-                    // So pick the first policy with security mode sign and encrypt
-                    ServerSecurityPolicy bestPolicy = null;
-                    foreach (ServerSecurityPolicy policy in securityPolicies)
+                    if (policy.SecurityMode != MessageSecurityMode.SignAndEncrypt)
                     {
-                        if (policy.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+                        continue;
+                    }
+
+                    bestPolicy = policy;
+                    break;
+                }
+
+                // Pick the first policy from the list if no policies with sign and encrypt defined
+                if (bestPolicy == null)
+                {
+                    bestPolicy = securityPolicies[0];
+                }
+
+                EndpointDescription description = new EndpointDescription();
+
+                description.EndpointUrl = uri.ToString();
+                description.Server = serverDescription;
+
+                if (instanceCertificate != null)
+                {
+                    description.ServerCertificate = instanceCertificate.RawData;
+                    // check if complete chain should be sent.
+                    if (configuration.SecurityConfiguration.SendCertificateChain &&
+                        instanceCertificateChain != null &&
+                        instanceCertificateChain.Count > 0)
+                    {
+                        List<byte> serverCertificateChain = new List<byte>();
+
+                        for (int i = 0; i < instanceCertificateChain.Count; i++)
                         {
-                            continue;
+                            serverCertificateChain.AddRange(instanceCertificateChain[i].RawData);
                         }
 
-                        bestPolicy = policy;
-                        break;
-                    }
-
-                    // Pick the first policy from the list if no policies with sign and encrypt defined
-                    if (bestPolicy == null)
-                    {
-                        bestPolicy = securityPolicies[0];
-                    }
-
-                    EndpointDescription description = new EndpointDescription();
-
-                    description.EndpointUrl = uri.ToString();
-                    description.Server = serverDescription;
-
-                    if (instanceCertificate != null)
-                    {
-                        description.ServerCertificate = instanceCertificate.RawData;
-                        // check if complete chain should be sent.
-                        if (configuration.SecurityConfiguration.SendCertificateChain &&
-                            instanceCertificateChain != null &&
-                            instanceCertificateChain.Count > 0)
-                        {
-                            List<byte> serverCertificateChain = new List<byte>();
-
-                            for (int i = 0; i < instanceCertificateChain.Count; i++)
-                            {
-                                serverCertificateChain.AddRange(instanceCertificateChain[i].RawData);
-                            }
-
-                            description.ServerCertificate = serverCertificateChain.ToArray();
-                        }
-                    }
-
-                    description.SecurityMode = bestPolicy.SecurityMode;
-                    description.SecurityPolicyUri = bestPolicy.SecurityPolicyUri;
-                    description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(bestPolicy.SecurityMode, bestPolicy.SecurityPolicyUri);
-                    description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
-                    description.TransportProfileUri = Profiles.HttpsBinaryTransport;
-
-                    ITransportListener listener = Create();
-                    if (listener != null)
-                    {
-                        endpoints.Add(description);
-                        serverBase.CreateServiceHostEndpoint(uri.Uri, endpoints, endpointConfiguration, listener,
-                            configuration.CertificateValidator.GetChannelValidator());
-                    }
-                    else
-                    {
-                        Utils.LogError("Failed to create endpoint {0} because the transport profile is unsupported.", uri);
+                        description.ServerCertificate = serverCertificateChain.ToArray();
                     }
                 }
 
-                // create the host.
-                ServiceHost serviceHost = serverBase.CreateServiceHost(serverBase, uris.ToArray());
+                description.SecurityMode = bestPolicy.SecurityMode;
+                description.SecurityPolicyUri = bestPolicy.SecurityPolicyUri;
+                description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(bestPolicy.SecurityMode, bestPolicy.SecurityPolicyUri);
+                description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
+                description.TransportProfileUri = Profiles.HttpsBinaryTransport;
 
-                hosts[hostName] = serviceHost;
+                ITransportListener listener = Create();
+                if (listener != null)
+                {
+                    endpoints.Add(description);
+                    serverBase.CreateServiceHostEndpoint(uri.Uri, endpoints, endpointConfiguration, listener,
+                        configuration.CertificateValidator.GetChannelValidator());
+                }
+                else
+                {
+                    Utils.LogError("Failed to create endpoint {0} because the transport profile is unsupported.", uri);
+                }
             }
+
+            // create the host.
+            ServiceHost serviceHost = serverBase.CreateServiceHost(serverBase, uris.ToArray());
+
+            hosts[hostName] = serviceHost;
 
             return endpoints;
         }

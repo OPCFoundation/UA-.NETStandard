@@ -31,7 +31,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The protocol supported by the listener.
         /// </summary>
-        public override string UriScheme => Utils.UriSchemeHttps;
+        public override string UriScheme => Utils.UriSchemeOpcHttps;
 
         /// <summary>
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
@@ -126,7 +126,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The URI scheme handled by the listener.
         /// </summary>
-        public string UriScheme => Utils.UriSchemeHttps;
+        public string UriScheme => Utils.UriSchemeOpcHttps;
 
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -342,7 +342,7 @@ namespace Opc.Ua.Bindings
                 EndpointDescription endpoint = null;
                 foreach (var ep in m_descriptions)
                 {
-                    if (ep.EndpointUrl.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal))
+                    if (Utils.IsUriHttpsScheme(ep.EndpointUrl))
                     {
                         if (!string.IsNullOrEmpty(header))
                         {

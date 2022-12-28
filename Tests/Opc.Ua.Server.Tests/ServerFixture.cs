@@ -76,11 +76,11 @@ namespace Opc.Ua.Server.Tests
             {
                 serverConfig.AddUnsecurePolicyNone();
             }
-            if (endpointUrl.StartsWith(Utils.UriSchemeHttps, StringComparison.InvariantCultureIgnoreCase))
+            if (Utils.IsUriHttpsScheme(endpointUrl))
             {
                 serverConfig.AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
             }
-            else if (endpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.InvariantCultureIgnoreCase))
+            else if (endpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
                 // add deprecated policies for opc.tcp tests
                 serverConfig.AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic128Rsa15)

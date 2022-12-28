@@ -25,6 +25,8 @@ namespace Opc.Ua
     /// </summary>
     public partial class ConfiguredEndpointCollection
     {
+        private const string kDiscoverySuffix = "/discovery";
+
         #region Constructors
         /// <summary>
         /// Initializes the object with its default endpoint configuration.
@@ -129,9 +131,9 @@ namespace Opc.Ua
                 {
                     string discoveryUrl = endpoint.Description.EndpointUrl;
 
-                    if (!discoveryUrl.StartsWith(Utils.UriSchemeOpcTcp))
+                    if (discoveryUrl.StartsWith(Utils.UriSchemeHttp))
                     {
-                        discoveryUrl += "/discovery";
+                        discoveryUrl += kDiscoverySuffix;
                     }
 
                     endpoint.Description.Server.DiscoveryUrls.Add(discoveryUrl);
@@ -520,9 +522,11 @@ namespace Opc.Ua
                     }
                 }
 
-                if (endpointUrl != null && endpointUrl.EndsWith("/discovery", StringComparison.Ordinal))
+                if (endpointUrl != null &&
+                    endpointUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
+                    endpointUrl.EndsWith(kDiscoverySuffix, StringComparison.Ordinal))
                 {
-                    endpointUrl = endpointUrl.Substring(0, endpointUrl.Length - "/discovery".Length);
+                    endpointUrl = endpointUrl.Substring(0, endpointUrl.Length - kDiscoverySuffix.Length);
                 }
 
                 if (endpointUrl != null)
@@ -634,9 +638,14 @@ namespace Opc.Ua
                 description.TransportProfileUri = Profiles.UaTcpTransport;
                 description.Server.DiscoveryUrls.Add(description.EndpointUrl);
             }
-            else if (description.EndpointUrl.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal))
+            else if (Utils.IsUriHttpsScheme(description.EndpointUrl))
             {
                 description.TransportProfileUri = Profiles.HttpsBinaryTransport;
+                description.Server.DiscoveryUrls.Add(description.EndpointUrl);
+            }
+            else if (description.EndpointUrl.StartsWith(Utils.UriSchemeOpcWss, StringComparison.Ordinal))
+            {
+                description.TransportProfileUri = Profiles.UaTcpTransport;
                 description.Server.DiscoveryUrls.Add(description.EndpointUrl);
             }
 
@@ -773,6 +782,8 @@ namespace Opc.Ua
     /// </summary>
     public partial class ConfiguredEndpoint : IFormattable
     {
+        private const string kDiscoverySuffix = "/discovery";
+
         #region Constructors
         /// <summary>
         /// Creates a configured endpoint from the server description.
@@ -794,9 +805,10 @@ namespace Opc.Ua
 
                 if (baseUrl != null)
                 {
-                    if (baseUrl.EndsWith("/discovery", StringComparison.Ordinal))
+                    if (baseUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
+                        baseUrl.EndsWith(kDiscoverySuffix, StringComparison.Ordinal))
                     {
-                        baseUrl = baseUrl.Substring(0, baseUrl.Length - "/discovery".Length);
+                        baseUrl = baseUrl.Substring(0, baseUrl.Length - kDiscoverySuffix.Length);
                     }
                 }
 
@@ -809,14 +821,17 @@ namespace Opc.Ua
                     m_description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
                     m_description.UserIdentityTokens.Add(new UserTokenPolicy(UserTokenType.Anonymous));
 
-                    if (url.Scheme == Utils.UriSchemeHttps)
-                    {
-                        m_description.TransportProfileUri = Profiles.HttpsBinaryTransport;
-                    }
-
                     if (url.Scheme == Utils.UriSchemeOpcTcp)
                     {
                         m_description.TransportProfileUri = Profiles.UaTcpTransport;
+                    }
+                    else if (Utils.IsUriHttpsScheme(url.Scheme))
+                    {
+                        m_description.TransportProfileUri = Profiles.HttpsBinaryTransport;
+                    }
+                    else if (url.Scheme == Utils.UriSchemeOpcWss)
+                    {
+                        m_description.TransportProfileUri = Profiles.UaWssTransport;
                     }
 
                     break;
@@ -1171,9 +1186,9 @@ namespace Opc.Ua
             // attempt to construct a discovery url by appending 'discovery' to the endpoint.
             if (discoveryUrls == null || discoveryUrls.Count == 0)
             {
-                if (endpointUrl.Scheme != Utils.UriSchemeOpcTcp)
+                if (endpointUrl.Scheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
                 {
-                    return new Uri(String.Format(CultureInfo.InvariantCulture, "{0}/discovery", endpointUrl));
+                    return new Uri(String.Format(CultureInfo.InvariantCulture, "{0}"+ kDiscoverySuffix, endpointUrl));
                 }
                 else
                 {
