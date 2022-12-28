@@ -38,7 +38,7 @@ jobs:
         # queries: ./path/to/local/query, your-org/your-repo/queries@main
         
     - name: Set up .NET
-      uses: actions/setup-dotnet@v2
+      uses: actions/setup-dotnet@v3
       with:
         dotnet-version: '6.x'
         

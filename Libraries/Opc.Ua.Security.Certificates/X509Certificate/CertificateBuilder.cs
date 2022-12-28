@@ -30,10 +30,10 @@
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -105,7 +105,6 @@ namespace Opc.Ua.Security.Certificates
             var serialNumber = m_serialNumber.Reverse().ToArray();
             if (IssuerCAKeyCert != null)
             {
-                var issuerSubjectName = IssuerCAKeyCert.SubjectName;
                 using (RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey())
                 {
                     signedCert = request.Create(
@@ -295,14 +294,16 @@ namespace Opc.Ua.Security.Certificates
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
-#if NET472_OR_GREATER
-            throw new NotSupportedException("Import a RSAPublicKey is not supported on this platform.");
-#else
             int bytes = 0;
             try
             {
+#if NET472_OR_GREATER
+                m_rsaPublicKey = BouncyCastle.X509Utils.SetRSAPublicKey(publicKey);
+                bytes = publicKey.Length;
+#else
                 m_rsaPublicKey = RSA.Create();
                 m_rsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
+#endif
             }
             catch (Exception e)
             {
@@ -314,7 +315,6 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentException("Decoded the public key but extra bytes were found.");
             }
             return this;
-#endif
         }
         #endregion
 

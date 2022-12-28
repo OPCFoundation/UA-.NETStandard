@@ -104,11 +104,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Finds a set of nodes in the nodeset,
-        /// fetches missing nodes from server.
-        /// </summary>
-        /// <param name="nodeIds">The node identifier collection.</param>
+        /// <inheritdoc/>
         public IList<INode> Find(IList<ExpandedNodeId> nodeIds)
         {
             // check for null.
@@ -650,6 +646,11 @@ namespace Opc.Ua.Client
         public IList<Node> FetchNodes(IList<ExpandedNodeId> nodeIds)
         {
             int count = nodeIds.Count;
+            if (count == 0)
+            {
+                return new List<Node>();
+            }
+
             NodeIdCollection localIds = new NodeIdCollection(
                 nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris)));
 
@@ -770,6 +771,11 @@ namespace Opc.Ua.Client
             bool isInverse,
             bool includeSubtypes)
         {
+            IList<INode> targets = new List<INode>();
+            if (nodeIds.Count == 0 || referenceTypeIds.Count == 0)
+            {
+                return targets;
+            }
             ExpandedNodeIdCollection targetIds = new ExpandedNodeIdCollection();
             IList<INode> sources = Find(nodeIds);
             foreach (INode source in sources)
@@ -792,7 +798,6 @@ namespace Opc.Ua.Client
                 }
             }
 
-            IList<INode> targets = new List<INode>();
             IList<INode> result = Find(targetIds);
             foreach (INode target in result)
             {

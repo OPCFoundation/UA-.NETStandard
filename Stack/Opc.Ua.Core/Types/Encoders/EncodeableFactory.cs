@@ -160,7 +160,14 @@ namespace Opc.Ua
                     m_encodeableTypes[nodeId] = systemType;
                 }
 
-                nodeId = encodeable.XmlEncodingId;
+                try
+                {
+                    nodeId = encodeable.XmlEncodingId;
+                }
+                catch (NotSupportedException)
+                {
+                    nodeId = NodeId.Null;
+                }
 
                 if (!NodeId.IsNull(nodeId))
                 {
@@ -173,7 +180,29 @@ namespace Opc.Ua
                     m_encodeableTypes[nodeId] = systemType;
                 }
 
-                if (unboundTypeIds != null &&
+                if (encodeable is IJsonEncodeable jsonEncodeable)
+                {
+                    try
+                    {
+                        nodeId = jsonEncodeable.JsonEncodingId;
+                    }
+                    catch (NotSupportedException)
+                    {
+                        nodeId = NodeId.Null;
+                    }
+
+                    if (!NodeId.IsNull(nodeId))
+                    {
+                        // check for default namespace.
+                        if (nodeId.NamespaceUri == Namespaces.OpcUa)
+                        {
+                            nodeId = new ExpandedNodeId(nodeId.InnerNodeId);
+                        }
+
+                        m_encodeableTypes[nodeId] = systemType;
+                    }
+                }
+                else if (unboundTypeIds != null &&
                     unboundTypeIds.TryGetValue(systemType.Name, out var jsonEncodingId))
                 {
                     m_encodeableTypes[jsonEncodingId] = systemType;

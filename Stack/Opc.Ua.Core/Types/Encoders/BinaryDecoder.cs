@@ -1523,40 +1523,8 @@ namespace Opc.Ua
                 Int32Collection dimensions = ReadInt32Array(null);
                 if (dimensions != null && dimensions.Count > 0)
                 {
-                    int length = 1;
-
-                    for (int ii = 0; ii < dimensions.Count; ii++)
-                    {
-                        if (dimensions[ii] <= 0)
-                        {
-                            /* The number of values is 0 if one or more dimension is less than or equal to 0.*/
-                            Utils.LogTrace("ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.", ii, dimensions[ii]);
-                            dimensions[ii] = 0;
-                            length = 0;
-                            break;
-                        }
-                        else if (dimensions[ii] > m_context.MaxArrayLength)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingLimitsExceeded,
-                                "ArrayDimensions [{0}] = {1} is greater than MaxArrayLength {2}.",
-                                ii,
-                                dimensions[ii],
-                                m_context.MaxArrayLength);
-                        }
-
-                        length *= dimensions[ii];
-
-                        if (length > m_context.MaxArrayLength)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingLimitsExceeded,
-                                "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
-                                m_context.MaxArrayLength,
-                                length
-                                );
-                        }
-                    }
+                    //int length;
+                    (_, int length) = Matrix.ValidateDimensions(false, dimensions, Context.MaxArrayLength);
 
                     // read the elements
                     Array elements = null;
@@ -2131,6 +2099,41 @@ namespace Opc.Ua
             // get the length.
             int length = ReadInt32(null);
 
+            // save the current position.
+            int start = Position;
+
+            // process known type.
+            if (encodeable != null)
+            {
+                // check the nesting level for avoiding a stack overflow.
+                if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Maximum nesting level of {0} was exceeded",
+                        m_context.MaxEncodingNestingLevels);
+                }
+
+                uint nestingLevel = m_nestingLevel++;
+
+                try
+                {
+                    // decode body.
+                    encodeable.Decode(this);
+
+                    m_nestingLevel--;
+                }
+                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+                {
+                    // type was known but decoding failed, reset stream!
+                    m_reader.BaseStream.Position = start;
+                    m_nestingLevel = nestingLevel;
+                    encodeable = null;
+                    Utils.LogWarning(sre, "Failed to decode encodeable type '{0}', NodeId='{1}'. BinaryDecoder recovered.",
+                        systemType.Name, extension.TypeId);
+                }
+            }
+
             // process unknown type.
             if (encodeable == null)
             {
@@ -2154,27 +2157,9 @@ namespace Opc.Ua
 
                 // read the bytes of the body.
                 extension.Body = m_reader.ReadBytes(length);
+
                 return extension;
             }
-
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            m_nestingLevel++;
-
-            // save the current position.
-            int start = Position;
-
-            // decode body.
-            encodeable.Decode(this);
-
-            m_nestingLevel--;
 
             // skip any unread data.
             int unused = length - (Position - start);
@@ -2239,37 +2224,9 @@ namespace Opc.Ua
                         }
 
                         int[] dimensionsArray = dimensions.ToArray();
-                        int matrixLength = 1;
+                        (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensionsArray, length, Context.MaxArrayLength);
 
-                        for (int ii = 0; ii < dimensionsArray.Length; ii++)
-                        {
-                            if (dimensionsArray[ii] == 0 && length > 0)
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadDecodingError,
-                                    Utils.Format("ArrayDimensions [{0}] is zero in Variant object.", ii));
-                            }
-                            else if (dimensionsArray[ii] > length && length > 0)
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadDecodingError,
-                                    Utils.Format("ArrayDimensions [{0}] = {1} is greater than length {2}.", ii, dimensionsArray[ii], length));
-                            }
-
-                            matrixLength *= dimensionsArray[ii];
-
-                            if (matrixLength > m_context.MaxArrayLength)
-                            {
-                                throw ServiceResultException.Create(
-                                    StatusCodes.BadEncodingLimitsExceeded,
-                                    "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
-                                    m_context.MaxArrayLength,
-                                    matrixLength
-                                    );
-                            }
-                        }
-
-                        if (matrixLength != length)
+                        if (!valid || (matrixLength != length))
                         {
                             throw new ServiceResultException(StatusCodes.BadDecodingError, "ArrayDimensions does not match with the ArrayLength in Variant object.");
                         }

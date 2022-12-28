@@ -29,10 +29,13 @@
 #if !NETSTANDARD2_1 && !NET472_OR_GREATER && !NET5_0_OR_GREATER
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Linq;
-using System.Collections.Generic;
+using Opc.Ua.Security.Certificates.BouncyCastle;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
@@ -40,12 +43,9 @@ using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Math;
+using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
-using Opc.Ua.Security.Certificates.BouncyCastle;
-using System.Collections;
-using Org.BouncyCastle.Pkcs;
-using System.Diagnostics;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -125,15 +125,7 @@ namespace Opc.Ua.Security.Certificates
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
             try
             {
-                var asymmetricKeyParameter = PublicKeyFactory.CreateKey(publicKey);
-                var rsaKeyParameters = asymmetricKeyParameter as RsaKeyParameters;
-                var parameters = new RSAParameters {
-                    Exponent = rsaKeyParameters.Exponent.ToByteArrayUnsigned(),
-                    Modulus = rsaKeyParameters.Modulus.ToByteArrayUnsigned()
-                };
-                RSA rsaPublicKey = RSA.Create();
-                rsaPublicKey.ImportParameters(parameters);
-                m_rsaPublicKey = rsaPublicKey;
+                m_rsaPublicKey = X509Utils.SetRSAPublicKey(publicKey);
             }
             catch (Exception e)
             {
@@ -239,7 +231,7 @@ namespace Opc.Ua.Security.Certificates
 
                 var pkcs10CertificationRequest = new Pkcs10CertificationRequest(
                     signatureFactory,
-                    new CertificateFactoryX509Name(true, certificate.Subject),
+                    new CertificateFactoryX509Name(certificate.SubjectName),
                     publicKey,
                     attributes);
 
@@ -270,14 +262,14 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="cg">The cert generator</param>
         private void CreateMandatoryFields(X509V3CertificateGenerator cg)
         {
-            m_subjectDN = new CertificateFactoryX509Name(SubjectName.Name);
+            m_subjectDN = new CertificateFactoryX509Name(SubjectName);
             // subject and issuer DN, issuer of issuer for AKI
             m_issuerDN = null;
             m_issuerIssuerAKI = null;
             if (IssuerCAKeyCert != null)
             {
-                m_issuerDN = new CertificateFactoryX509Name(IssuerCAKeyCert.Subject);
-                m_issuerIssuerAKI = new CertificateFactoryX509Name(IssuerCAKeyCert.Issuer);
+                m_issuerDN = new CertificateFactoryX509Name(IssuerCAKeyCert.SubjectName);
+                m_issuerIssuerAKI = new CertificateFactoryX509Name(IssuerCAKeyCert.IssuerName);
             }
             else
             {

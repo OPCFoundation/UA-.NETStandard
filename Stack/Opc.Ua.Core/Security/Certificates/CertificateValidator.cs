@@ -552,19 +552,7 @@ namespace Opc.Ua
                                     Utils.LogCertificate("Saved issuer certificate: ", certificate);
                                 }
                                 leafCertificate = false;
-                                store.Delete(certificate.Thumbprint);
-                                // save only public key
-                                if (certificate.HasPrivateKey)
-                                {
-                                    using (var cert = new X509Certificate2(certificate.RawData))
-                                    {
-                                        store.Add(cert);
-                                    }
-                                }
-                                else
-                                {
-                                    store.Add(certificate);
-                                }
+                                store.Add(certificate).GetAwaiter().GetResult();
                             }
                         }
                         finally
@@ -805,8 +793,7 @@ namespace Opc.Ua
             string serialNumber = null;
 
             // find the authority key identifier.
-            X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
-
+            var authority = X509Extensions.FindExtension<Security.Certificates.X509AuthorityKeyIdentifierExtension>(certificate);
             if (authority != null)
             {
                 keyId = authority.KeyIdentifier;

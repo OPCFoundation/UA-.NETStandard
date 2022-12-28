@@ -303,15 +303,16 @@ namespace Opc.Ua.Client
             // return the selected endpoint.
             return selectedEndpoint;
         }
-        #endregion
 
-        #region Private Methods
-        private static Uri GetDiscoveryUrl(string discoveryUrl)
+        /// <summary>
+        /// Convert the discoveryUrl to a Uri and modify endpoint as per connection scheme if required.
+        /// </summary>
+        public static Uri GetDiscoveryUrl(string discoveryUrl)
         {
             // needs to add the '/discovery' back onto non-UA TCP URLs.
-            if (discoveryUrl.StartsWith(Utils.UriSchemeHttp))
+            if (discoveryUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
             {
-                if (!discoveryUrl.EndsWith("/discovery"))
+                if (!discoveryUrl.EndsWith("/discovery", StringComparison.OrdinalIgnoreCase))
                 {
                     discoveryUrl += "/discovery";
                 }

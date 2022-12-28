@@ -67,6 +67,12 @@ stages:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
+      framework: net48
+      agents: '@{ windows = "windows-2019" }'
+      jobnamesuffix: net48  
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
       framework: netcoreapp3.1
       jobnamesuffix: core3
 - stage: test6release
