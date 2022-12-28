@@ -186,8 +186,14 @@ namespace Opc.Ua.Bindings
                                 (httpRequestMessage, cert, chain, policyErrors) => {
                                     try
                                     {
+                                        // if no security specified, accept all
+                                        if (m_settings.Description.SecurityMode == MessageSecurityMode.None)
+                                        {
+                                            return true;
+                                        }
+
                                         // default, if no validator is specified, let the OS manage trust
-                                        if (m_quotas.CertificateValidator == null)
+                                        if (m_tlsCertificateValidator == null)
                                         {
                                             if (policyErrors == SslPolicyErrors.None)
                                             {
@@ -215,7 +221,7 @@ namespace Opc.Ua.Bindings
                                                 validationChain.Add(cert);
                                             }
 
-                                            m_quotas.CertificateValidator?.Validate(validationChain);
+                                            m_tlsCertificateValidator.Validate(validationChain);
 
                                             return true;
                                         }
@@ -224,7 +230,7 @@ namespace Opc.Ua.Bindings
                                     {
                                         Utils.LogError(ex, "{0} Failed to validate certificate.", nameof(HttpsTransportChannel));
                                     }
-                                    return true;
+                                    return false;
                                 };
                             propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
 
@@ -456,6 +462,7 @@ namespace Opc.Ua.Bindings
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
             m_url = new Uri(url.ToString());
+            // remove the opc. prefix, the https client can not handle it
             if (m_url.Scheme == Utils.UriSchemeOpcHttps)
             {
                 m_url = new Uri(url.ToString().Substring(4));
@@ -482,6 +489,8 @@ namespace Opc.Ua.Bindings
 
                 CertificateValidator = settings.CertificateValidator
             };
+            // TODO: how to set the https cert validator
+            m_tlsCertificateValidator = settings.CertificateValidator;
         }
 
         private string m_uriScheme;
@@ -490,6 +499,7 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private HttpClient m_client;
+        private ICertificateValidator m_tlsCertificateValidator;
         private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new MediaTypeHeaderValue("application/octet-stream");
     }
 }
