@@ -635,6 +635,90 @@ namespace TestData
                     {
                         return m_generator.GetRandomArray(BuiltInType.UInteger, false, 100, false);
                     }
+
+                    case TestData.Variables.Data_Structures_Scalar:
+                        return GetRandomScalarValueDataType();
+
+                    case TestData.Variables.Data_Structures_Scalar_BooleanValue:
+                        return m_generator.GetRandomBoolean();
+
+                    case TestData.Variables.Data_Structures_Scalar_SByteValue:
+                        return m_generator.GetRandomSByte();
+
+                    case TestData.Variables.Data_Structures_Scalar_ByteValue:
+                        return m_generator.GetRandomByte();
+
+                    case TestData.Variables.Data_Structures_Scalar_Int16Value:
+                        return m_generator.GetRandomInt16();
+
+                    case TestData.Variables.Data_Structures_Scalar_UInt16Value:
+                        return m_generator.GetRandomUInt16();
+
+                    case TestData.Variables.Data_Structures_Scalar_Int32Value:
+                        return m_generator.GetRandomInt32();
+
+                    case TestData.Variables.Data_Structures_Scalar_UInt32Value:
+                        return m_generator.GetRandomUInt32();
+
+                    case TestData.Variables.Data_Structures_Scalar_Int64Value:
+                        return m_generator.GetRandomInt64();
+
+                    case TestData.Variables.Data_Structures_Scalar_UInt64Value:
+                        return m_generator.GetRandomUInt64();
+
+                    case TestData.Variables.Data_Structures_Scalar_FloatValue:
+                        return m_generator.GetRandomFloat();
+
+                    case TestData.Variables.Data_Structures_Scalar_DoubleValue:
+                        return m_generator.GetRandomDouble();
+
+                    case TestData.Variables.Data_Structures_Scalar_StringValue:
+                        return m_generator.GetRandomString();
+
+                    case TestData.Variables.Data_Structures_Scalar_DateTimeValue:
+                        return m_generator.GetRandomDateTime();
+
+                    case TestData.Variables.Data_Structures_Scalar_GuidValue:
+                        return m_generator.GetRandomGuid();
+
+                    case TestData.Variables.Data_Structures_Scalar_ByteStringValue:
+                        return m_generator.GetRandomByteString();
+
+                    case TestData.Variables.Data_Structures_Scalar_XmlElementValue:
+                        return m_generator.GetRandomXmlElement();
+
+                    case TestData.Variables.Data_Structures_Scalar_NodeIdValue:
+                        return m_generator.GetRandomNodeId();
+
+                    case TestData.Variables.Data_Structures_Scalar_ExpandedNodeIdValue:
+                        return m_generator.GetRandomExpandedNodeId();
+
+                    case TestData.Variables.Data_Structures_Scalar_QualifiedNameValue:
+                        return m_generator.GetRandomQualifiedName();
+
+                    case TestData.Variables.Data_Structures_Scalar_LocalizedTextValue:
+                        return m_generator.GetRandomLocalizedText();
+
+                    case TestData.Variables.Data_Structures_Scalar_StatusCodeValue:
+                        return m_generator.GetRandomStatusCode();
+
+                    case TestData.Variables.Data_Structures_Scalar_VariantValue:
+                        return m_generator.GetRandomVariant();
+
+                    case TestData.Variables.Data_Structures_Scalar_EnumerationValue:
+                        return m_generator.GetRandomByte();
+
+                    case TestData.Variables.Data_Structures_Scalar_StructureValue:
+                        return GetRandomStructure();
+
+                    case TestData.Variables.Data_Structures_Scalar_NumberValue:
+                        return new Variant(m_generator.GetRandomNumber());
+
+                    case TestData.Variables.Data_Structures_Scalar_IntegerValue:
+                        return new Variant(m_generator.GetRandomInteger());
+
+                    case TestData.Variables.Data_Structures_Scalar_UIntegerValue:
+                        return new Variant(m_generator.GetRandomUInteger());
                 }
 
                 return null;
@@ -648,14 +732,12 @@ namespace TestData
         {
             if (m_generator.GetRandomBoolean())
             {
-
                 ScalarValueDataType value = GetRandomScalarValueDataType();
                 return new ExtensionObject(value.TypeId, value);
             }
             else
             {
                 ArrayValueDataType value = GetRandomArrayValueDataType();
-
                 return new ExtensionObject(value.TypeId, value);
             }
         }

@@ -88,9 +88,8 @@ namespace TestData
                 {
                     euRange.Value = new Range(100, -100);
                 }
+                variable.OnSimpleWriteValue = OnWriteAnalogValue;
             }
-
-            variable.OnSimpleWriteValue = OnWriteAnalogValue;
         }
 
         /// <summary>

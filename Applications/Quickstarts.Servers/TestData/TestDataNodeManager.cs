@@ -194,7 +194,7 @@ namespace TestData
                 // Initialize Root Variable for structures with properties
                 {
                     var variable = FindTypeState<ScalarValueVariableState>(Variables.Data_Structures_Scalar);
-                    var scalarValue = new ScalarValueVariableValue(variable, m_system.GetRandomScalarValueDataType(), Lock);
+                    m_dataStructureScalarValue = new ScalarValueVariableValue(variable, m_system.GetRandomScalarValueDataType(), null);
                 }
 
             }
@@ -784,6 +784,7 @@ namespace TestData
         private TestSystemConditionState m_systemStatusCondition;
         private DialogConditionState m_dialog;
 #endif
+        private ScalarValueVariableValue m_dataStructureScalarValue;
         #endregion
     }
 }

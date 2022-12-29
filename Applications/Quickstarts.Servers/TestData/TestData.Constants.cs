@@ -154,6 +154,33 @@ namespace TestData
         public const uint TestDataObjectType_CycleComplete_Acknowledge = 9436;
 
         /// <remarks />
+        public const uint TestDataVariableType_GenerateValues = 2;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Disable = 37;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Enable = 38;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_AddComment = 39;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Acknowledge = 59;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Disable = 99;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Enable = 100;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_AddComment = 101;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Acknowledge = 121;
+
+        /// <remarks />
         public const uint ScalarValueObjectType_CycleComplete_Disable = 9482;
 
         /// <remarks />
@@ -466,6 +493,21 @@ namespace TestData
         public const uint Data_Dynamic_AnalogArray_CycleComplete_Acknowledge = 11301;
 
         /// <remarks />
+        public const uint Data_Structures_Scalar_GenerateValues = 126;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Disable = 161;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Enable = 162;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_AddComment = 163;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Acknowledge = 183;
+
+        /// <remarks />
         public const uint Data_Conditions_SystemStatus_Disable = 11412;
 
         /// <remarks />
@@ -484,6 +526,9 @@ namespace TestData
     {
         /// <remarks />
         public const uint TestDataObjectType_CycleComplete = 9387;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete = 4;
 
         /// <remarks />
         public const uint Data = 10157;
@@ -531,9 +576,6 @@ namespace TestData
         public const uint Data_Static_MethodTest = 10755;
 
         /// <remarks />
-        public const uint Data_Structures = 1037;
-
-        /// <remarks />
         public const uint Data_Dynamic = 10786;
 
         /// <remarks />
@@ -571,6 +613,12 @@ namespace TestData
 
         /// <remarks />
         public const uint Data_Dynamic_AnalogArray_CycleComplete = 11252;
+
+        /// <remarks />
+        public const uint Data_Structures = 1037;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete = 128;
 
         /// <remarks />
         public const uint Data_Conditions = 11383;
@@ -782,6 +830,183 @@ namespace TestData
 
         /// <remarks />
         public const uint TestDataObjectType_CycleComplete_Confirm_InputArguments = 9439;
+
+        /// <remarks />
+        public const uint TestDataVariableType_SimulationActive = 1;
+
+        /// <remarks />
+        public const uint TestDataVariableType_GenerateValues_InputArguments = 3;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_EventId = 5;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_EventType = 6;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_SourceNode = 7;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_SourceName = 8;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Time = 9;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_ReceiveTime = 10;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Message = 12;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Severity = 13;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_ConditionClassId = 14;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_ConditionClassName = 15;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_ConditionName = 18;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_BranchId = 19;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Retain = 20;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_EnabledState = 21;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_EnabledState_Id = 22;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Quality = 30;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Quality_SourceTimestamp = 31;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_LastSeverity = 32;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_LastSeverity_SourceTimestamp = 33;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Comment = 34;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Comment_SourceTimestamp = 35;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_ClientUserId = 36;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_AddComment_InputArguments = 40;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_AckedState = 41;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_AckedState_Id = 42;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_ConfirmedState_Id = 51;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Acknowledge_InputArguments = 60;
+
+        /// <remarks />
+        public const uint TestDataVariableType_CycleComplete_Confirm_InputArguments = 62;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_GenerateValues_InputArguments = 65;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_EventId = 67;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_EventType = 68;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_SourceNode = 69;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_SourceName = 70;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Time = 71;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_ReceiveTime = 72;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Message = 74;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Severity = 75;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_ConditionClassId = 76;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_ConditionClassName = 77;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_ConditionName = 80;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_BranchId = 81;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Retain = 82;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_EnabledState = 83;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_EnabledState_Id = 84;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Quality = 92;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Quality_SourceTimestamp = 93;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_LastSeverity = 94;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_LastSeverity_SourceTimestamp = 95;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Comment = 96;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Comment_SourceTimestamp = 97;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_ClientUserId = 98;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_AddComment_InputArguments = 102;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_AckedState = 103;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_AckedState_Id = 104;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_ConfirmedState_Id = 113;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Acknowledge_InputArguments = 122;
+
+        /// <remarks />
+        public const uint ScalarValueVariableType_CycleComplete_Confirm_InputArguments = 124;
 
         /// <remarks />
         public const uint ScalarValueVariableType_BooleanValue = 1003;
@@ -2971,90 +3196,6 @@ namespace TestData
         public const uint Data_Static_MethodTest_UserArrayMethod2_OutputArguments = 10785;
 
         /// <remarks />
-        public const uint Data_Structures_Scalar = 1038;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_BooleanValue = 1041;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_SByteValue = 1042;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_ByteValue = 1046;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_Int16Value = 1047;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_UInt16Value = 1048;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_Int32Value = 1058;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_UInt32Value = 1059;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_Int64Value = 1060;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_UInt64Value = 1061;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_FloatValue = 1062;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_DoubleValue = 1063;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_StringValue = 1065;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_DateTimeValue = 1069;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_GuidValue = 1070;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_ByteStringValue = 1071;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_XmlElementValue = 1072;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_NodeIdValue = 1073;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_ExpandedNodeIdValue = 1074;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_QualifiedNameValue = 1075;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_LocalizedTextValue = 1076;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_StatusCodeValue = 1077;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_VariantValue = 1078;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_EnumerationValue = 1079;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_StructureValue = 1080;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_NumberValue = 1081;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_IntegerValue = 1082;
-
-        /// <remarks />
-        public const uint Data_Structures_Scalar_UIntegerValue = 1083;
-
-        /// <remarks />
         public const uint Data_Dynamic_Scalar_SimulationActive = 10788;
 
         /// <remarks />
@@ -4045,6 +4186,180 @@ namespace TestData
         public const uint Data_Dynamic_AnalogArray_UIntegerValue_EURange = 11380;
 
         /// <remarks />
+        public const uint Data_Structures_Scalar = 1038;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_SimulationActive = 125;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_GenerateValues_InputArguments = 127;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_EventId = 129;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_EventType = 130;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_SourceNode = 131;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_SourceName = 132;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Time = 133;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_ReceiveTime = 134;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Message = 136;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Severity = 137;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_ConditionClassId = 138;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_ConditionClassName = 139;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_ConditionName = 142;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_BranchId = 143;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Retain = 144;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_EnabledState = 145;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_EnabledState_Id = 146;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Quality = 154;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Quality_SourceTimestamp = 155;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_LastSeverity = 156;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_LastSeverity_SourceTimestamp = 157;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Comment = 158;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Comment_SourceTimestamp = 159;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_ClientUserId = 160;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_AddComment_InputArguments = 164;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_AckedState = 165;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_AckedState_Id = 166;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_ConfirmedState_Id = 175;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Acknowledge_InputArguments = 184;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_CycleComplete_Confirm_InputArguments = 186;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_BooleanValue = 1041;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_SByteValue = 1042;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_ByteValue = 1046;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_Int16Value = 1047;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_UInt16Value = 1048;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_Int32Value = 1058;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_UInt32Value = 1059;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_Int64Value = 1060;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_UInt64Value = 1061;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_FloatValue = 1062;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_DoubleValue = 1063;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_StringValue = 1065;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_DateTimeValue = 1069;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_GuidValue = 1070;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_ByteStringValue = 1071;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_XmlElementValue = 1072;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_NodeIdValue = 1073;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_ExpandedNodeIdValue = 1074;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_QualifiedNameValue = 1075;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_LocalizedTextValue = 1076;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_StatusCodeValue = 1077;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_VariantValue = 1078;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_EnumerationValue = 1079;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_StructureValue = 1080;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_NumberValue = 1081;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_IntegerValue = 1082;
+
+        /// <remarks />
+        public const uint Data_Structures_Scalar_UIntegerValue = 1083;
+
+        /// <remarks />
         public const uint Data_Conditions_SystemStatus_EventId = 11385;
 
         /// <remarks />
@@ -4307,6 +4622,33 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Acknowledge = new ExpandedNodeId(TestData.Methods.TestDataObjectType_CycleComplete_Acknowledge, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_GenerateValues = new ExpandedNodeId(TestData.Methods.TestDataVariableType_GenerateValues, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Disable = new ExpandedNodeId(TestData.Methods.TestDataVariableType_CycleComplete_Disable, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Enable = new ExpandedNodeId(TestData.Methods.TestDataVariableType_CycleComplete_Enable, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_AddComment = new ExpandedNodeId(TestData.Methods.TestDataVariableType_CycleComplete_AddComment, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Acknowledge = new ExpandedNodeId(TestData.Methods.TestDataVariableType_CycleComplete_Acknowledge, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Disable = new ExpandedNodeId(TestData.Methods.ScalarValueVariableType_CycleComplete_Disable, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Enable = new ExpandedNodeId(TestData.Methods.ScalarValueVariableType_CycleComplete_Enable, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_AddComment = new ExpandedNodeId(TestData.Methods.ScalarValueVariableType_CycleComplete_AddComment, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Acknowledge = new ExpandedNodeId(TestData.Methods.ScalarValueVariableType_CycleComplete_Acknowledge, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Disable = new ExpandedNodeId(TestData.Methods.ScalarValueObjectType_CycleComplete_Disable, TestData.Namespaces.TestData);
@@ -4621,6 +4963,21 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Dynamic_AnalogArray_CycleComplete_Acknowledge = new ExpandedNodeId(TestData.Methods.Data_Dynamic_AnalogArray_CycleComplete_Acknowledge, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_GenerateValues = new ExpandedNodeId(TestData.Methods.Data_Structures_Scalar_GenerateValues, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Disable = new ExpandedNodeId(TestData.Methods.Data_Structures_Scalar_CycleComplete_Disable, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Enable = new ExpandedNodeId(TestData.Methods.Data_Structures_Scalar_CycleComplete_Enable, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_AddComment = new ExpandedNodeId(TestData.Methods.Data_Structures_Scalar_CycleComplete_AddComment, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Acknowledge = new ExpandedNodeId(TestData.Methods.Data_Structures_Scalar_CycleComplete_Acknowledge, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId Data_Conditions_SystemStatus_Disable = new ExpandedNodeId(TestData.Methods.Data_Conditions_SystemStatus_Disable, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -4639,6 +4996,9 @@ namespace TestData
     {
         /// <remarks />
         public static readonly ExpandedNodeId TestDataObjectType_CycleComplete = new ExpandedNodeId(TestData.Objects.TestDataObjectType_CycleComplete, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete = new ExpandedNodeId(TestData.Objects.TestDataVariableType_CycleComplete, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId Data = new ExpandedNodeId(TestData.Objects.Data, TestData.Namespaces.TestData);
@@ -4686,9 +5046,6 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Static_MethodTest = new ExpandedNodeId(TestData.Objects.Data_Static_MethodTest, TestData.Namespaces.TestData);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures = new ExpandedNodeId(TestData.Objects.Data_Structures, TestData.Namespaces.TestData);
-
-        /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic = new ExpandedNodeId(TestData.Objects.Data_Dynamic, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -4726,6 +5083,12 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic_AnalogArray_CycleComplete = new ExpandedNodeId(TestData.Objects.Data_Dynamic_AnalogArray_CycleComplete, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures = new ExpandedNodeId(TestData.Objects.Data_Structures, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete = new ExpandedNodeId(TestData.Objects.Data_Structures_Scalar_CycleComplete, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Conditions = new ExpandedNodeId(TestData.Objects.Data_Conditions, TestData.Namespaces.TestData);
@@ -4937,6 +5300,183 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Confirm_InputArguments = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_Confirm_InputArguments, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_SimulationActive = new ExpandedNodeId(TestData.Variables.TestDataVariableType_SimulationActive, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.TestDataVariableType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_EventId = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_EventId, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_EventType = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_EventType, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_SourceNode = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_SourceNode, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_SourceName = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_SourceName, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Time = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_Time, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_Message, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Severity = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_Severity, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_ConditionClassId = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_ConditionClassId, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_ConditionClassName = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_ConditionClassName, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_ConditionName = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_ConditionName, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_BranchId = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_BranchId, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Retain = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_Retain, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_EnabledState = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_EnabledState, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_EnabledState_Id = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_EnabledState_Id, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Quality = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_Quality, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Quality_SourceTimestamp = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_Quality_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_LastSeverity = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_LastSeverity, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_LastSeverity_SourceTimestamp = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_LastSeverity_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Comment = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_Comment, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Comment_SourceTimestamp = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_Comment_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_ClientUserId = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_ClientUserId, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_AddComment_InputArguments = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_AddComment_InputArguments, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_AckedState = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_AckedState, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_AckedState_Id = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_AckedState_Id, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_ConfirmedState_Id = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_ConfirmedState_Id, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Acknowledge_InputArguments = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_Acknowledge_InputArguments, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestDataVariableType_CycleComplete_Confirm_InputArguments = new ExpandedNodeId(TestData.Variables.TestDataVariableType_CycleComplete_Confirm_InputArguments, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_EventId = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_EventId, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_EventType = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_EventType, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_SourceNode = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_SourceNode, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_SourceName = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_SourceName, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Time = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_Time, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_Message, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Severity = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_Severity, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_ConditionClassId = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_ConditionClassId, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_ConditionClassName = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_ConditionClassName, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_ConditionName = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_ConditionName, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_BranchId = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_BranchId, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Retain = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_Retain, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_EnabledState = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_EnabledState, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_EnabledState_Id = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_EnabledState_Id, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Quality = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_Quality, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Quality_SourceTimestamp = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_Quality_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_LastSeverity = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_LastSeverity, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_LastSeverity_SourceTimestamp = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_LastSeverity_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Comment = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_Comment, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Comment_SourceTimestamp = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_Comment_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_ClientUserId = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_ClientUserId, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_AddComment_InputArguments = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_AddComment_InputArguments, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_AckedState = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_AckedState, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_AckedState_Id = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_AckedState_Id, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_ConfirmedState_Id = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_ConfirmedState_Id, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Acknowledge_InputArguments = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_Acknowledge_InputArguments, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueVariableType_CycleComplete_Confirm_InputArguments = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_CycleComplete_Confirm_InputArguments, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId ScalarValueVariableType_BooleanValue = new ExpandedNodeId(TestData.Variables.ScalarValueVariableType_BooleanValue, TestData.Namespaces.TestData);
@@ -7126,90 +7666,6 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Static_MethodTest_UserArrayMethod2_OutputArguments = new ExpandedNodeId(TestData.Variables.Data_Static_MethodTest_UserArrayMethod2_OutputArguments, TestData.Namespaces.TestData);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_BooleanValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_BooleanValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_SByteValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_SByteValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_ByteValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_ByteValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_Int16Value = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_Int16Value, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_UInt16Value = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_UInt16Value, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_Int32Value = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_Int32Value, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_UInt32Value = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_UInt32Value, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_Int64Value = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_Int64Value, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_UInt64Value = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_UInt64Value, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_FloatValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_FloatValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_DoubleValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_DoubleValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_StringValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_StringValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_DateTimeValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_DateTimeValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_GuidValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_GuidValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_ByteStringValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_ByteStringValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_XmlElementValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_XmlElementValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_NodeIdValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_NodeIdValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_ExpandedNodeIdValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_ExpandedNodeIdValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_QualifiedNameValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_QualifiedNameValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_LocalizedTextValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_LocalizedTextValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_StatusCodeValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_StatusCodeValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_VariantValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_VariantValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_EnumerationValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_EnumerationValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_StructureValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_StructureValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_NumberValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_NumberValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_IntegerValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_IntegerValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId Data_Structures_Scalar_UIntegerValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_UIntegerValue, TestData.Namespaces.TestData);
-
-        /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic_Scalar_SimulationActive = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_SimulationActive, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -8198,6 +8654,180 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic_AnalogArray_UIntegerValue_EURange = new ExpandedNodeId(TestData.Variables.Data_Dynamic_AnalogArray_UIntegerValue_EURange, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_SimulationActive = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_SimulationActive, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_GenerateValues_InputArguments, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_EventId = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_EventId, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_EventType = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_EventType, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_SourceNode = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_SourceNode, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_SourceName = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_SourceName, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Time = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_Time, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_Message, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Severity = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_Severity, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_ConditionClassId = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_ConditionClassId, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_ConditionClassName = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_ConditionClassName, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_ConditionName = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_ConditionName, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_BranchId = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_BranchId, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Retain = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_Retain, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_EnabledState = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_EnabledState, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_EnabledState_Id = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_EnabledState_Id, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Quality = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_Quality, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Quality_SourceTimestamp = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_Quality_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_LastSeverity = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_LastSeverity, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_LastSeverity_SourceTimestamp = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_LastSeverity_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Comment = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_Comment, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Comment_SourceTimestamp = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_Comment_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_ClientUserId = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_ClientUserId, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_AddComment_InputArguments = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_AddComment_InputArguments, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_AckedState = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_AckedState, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_AckedState_Id = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_AckedState_Id, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_ConfirmedState_Id = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_ConfirmedState_Id, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Acknowledge_InputArguments = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_Acknowledge_InputArguments, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_CycleComplete_Confirm_InputArguments = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_CycleComplete_Confirm_InputArguments, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_BooleanValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_BooleanValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_SByteValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_SByteValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_ByteValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_ByteValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_Int16Value = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_Int16Value, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_UInt16Value = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_UInt16Value, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_Int32Value = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_Int32Value, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_UInt32Value = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_UInt32Value, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_Int64Value = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_Int64Value, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_UInt64Value = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_UInt64Value, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_FloatValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_FloatValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_DoubleValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_DoubleValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_StringValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_StringValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_DateTimeValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_DateTimeValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_GuidValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_GuidValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_ByteStringValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_ByteStringValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_XmlElementValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_XmlElementValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_NodeIdValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_NodeIdValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_ExpandedNodeIdValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_ExpandedNodeIdValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_QualifiedNameValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_QualifiedNameValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_LocalizedTextValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_LocalizedTextValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_StatusCodeValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_StatusCodeValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_VariantValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_VariantValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_EnumerationValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_EnumerationValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_StructureValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_StructureValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_NumberValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_NumberValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_IntegerValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_IntegerValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Structures_Scalar_UIntegerValue = new ExpandedNodeId(TestData.Variables.Data_Structures_Scalar_UIntegerValue, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Conditions_SystemStatus_EventId = new ExpandedNodeId(TestData.Variables.Data_Conditions_SystemStatus_EventId, TestData.Namespaces.TestData);

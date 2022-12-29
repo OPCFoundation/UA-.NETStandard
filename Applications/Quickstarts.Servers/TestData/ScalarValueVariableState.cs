@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using Opc.Ua;
 
 namespace TestData
@@ -41,7 +44,10 @@ namespace TestData
         {
             base.OnAfterCreate(context, node);
 
-            AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            if (!SimulationActive.Value)
+            {
+                AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            }
 
             InitializeVariable(context, BooleanValue);
             InitializeVariable(context, SByteValue);
@@ -70,6 +76,37 @@ namespace TestData
             InitializeVariable(context, NumberValue);
             InitializeVariable(context, IntegerValue);
             InitializeVariable(context, UIntegerValue);
+        }
+        #endregion
+
+        #region Protected Methods
+        /// <summary>
+        /// Handles the generate values method.
+        /// </summary>
+        protected override ServiceResult OnGenerateValues(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint count)
+        {
+            TestDataSystem system = context.SystemHandle as TestDataSystem;
+
+            if (system == null)
+            {
+                return StatusCodes.BadOutOfService;
+            }
+
+            // generate structure values here
+            this.WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
+
+            var children = new List<BaseInstanceState>();
+            GetChildren(context, children);
+            foreach (var child in children)
+            {
+                child.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+
+            return base.OnGenerateValues(context, method, objectId, count);
         }
         #endregion
     }

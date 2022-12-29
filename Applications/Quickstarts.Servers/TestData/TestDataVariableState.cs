@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Opc.Ua;
 
 namespace TestData
@@ -40,6 +41,8 @@ namespace TestData
         protected override void OnAfterCreate(ISystemContext context, NodeState node)
         {
             base.OnAfterCreate(context, node);
+
+            GenerateValues.OnCall = OnGenerateValues;
         }
         #endregion
 
@@ -49,11 +52,109 @@ namespace TestData
         /// </summary>
         protected void InitializeVariable(ISystemContext context, BaseVariableState variable)
         {
+            // provide an implementation that produces a random value on each read.
+            if (SimulationActive.Value)
+            {
+                variable.OnReadValue = DoDeviceRead;
+            }
+
             // set a valid initial value.
             TestDataSystem system = context.SystemHandle as TestDataSystem;
 
-            // allow writes 
-            variable.AccessLevel = variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            // allow writes if the simulation is not active.
+            if (!SimulationActive.Value)
+            {
+                variable.AccessLevel = variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            }
+        }
+
+        /// <summary>
+        /// Handles the generate values method.
+        /// </summary>
+        protected virtual ServiceResult OnGenerateValues(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint count)
+        {
+            ClearChangeMasks(context, true);
+
+            if (AreEventsMonitored)
+            {
+                GenerateValuesEventState e = new GenerateValuesEventState(null);
+
+                TranslationInfo message = new TranslationInfo(
+                    "GenerateValuesEventType",
+                    "en-US",
+                    "New values generated for test source '{0}'.",
+                    this.DisplayName);
+
+                e.Initialize(
+                    context,
+                    this,
+                    EventSeverity.MediumLow,
+                    new LocalizedText(message));
+
+                e.Iterations = new PropertyState<uint>(e);
+                e.Iterations.Value = count;
+
+                e.NewValueCount = new PropertyState<uint>(e);
+                e.NewValueCount.Value = 10;
+
+                ReportEvent(context, e);
+            }
+
+#if CONDITION_SAMPLES
+            this.CycleComplete.RequestAcknowledgement(context, (ushort)EventSeverity.Low);
+#endif
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Generates a new value each time the value is read.
+        /// </summary>
+        private ServiceResult DoDeviceRead(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            BaseVariableState variable = node as BaseVariableState;
+
+            if (variable == null)
+            {
+                return ServiceResult.Good;
+            }
+
+            if (!SimulationActive.Value)
+            {
+                return ServiceResult.Good;
+            }
+
+            TestDataSystem system = context.SystemHandle as TestDataSystem;
+
+            if (system == null)
+            {
+                return StatusCodes.BadOutOfService;
+            }
+
+            try
+            {
+                value = system.ReadValue(variable);
+
+                statusCode = StatusCodes.Good;
+                timestamp = DateTime.UtcNow;
+
+                return ServiceResult.Good;
+            }
+            catch (Exception e)
+            {
+                return new ServiceResult(e);
+            }
         }
         #endregion
     }

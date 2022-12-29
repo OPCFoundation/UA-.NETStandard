@@ -652,18 +652,227 @@ namespace TestData
         #region Initialization String
         private const string InitializationString =
            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////FWCBAgIAAAABABwAAABUZXN0RGF0YVZh" +
-           "cmlhYmxlVHlwZUluc3RhbmNlAQHpAwEB6QPpAwAAABgBAf////8AAAAA";
+           "cmlhYmxlVHlwZUluc3RhbmNlAQHpAwEB6QPpAwAAABgBAQEAAAAAJAABAQQAAwAAADVgiQoCAAAAAQAQ" +
+           "AAAAU2ltdWxhdGlvbkFjdGl2ZQEBAQADAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9k" +
+           "dWNlIG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAEQBAAAAAAH/////AQH/" +
+           "////AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBAQIAAC8BAQIAAgAAAAEB/////wEAAAAX" +
+           "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEDAAAuAEQDAAAAlgEAAAABACoBAUYAAAAKAAAASXRl" +
+           "cmF0aW9ucwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJh" +
+           "dGUuAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUBAQQA" +
+           "AC8BAEELBAAAAAEAAAAAJAEBAekDFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEBBQAALgBEBQAAAAAP" +
+           "/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBBgAALgBEBgAAAAAR/////wEB////" +
+           "/wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBAQcAAC4ARAcAAAAAEf////8BAf////8AAAAAFWCJ" +
+           "CgIAAAAAAAoAAABTb3VyY2VOYW1lAQEIAAAuAEQIAAAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAE" +
+           "AAAAVGltZQEBCQAALgBECQAAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRp" +
+           "bWUBAQoAAC4ARAoAAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBAQwAAC4A" +
+           "RAwAAAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBDQAALgBEDQAAAAAF////" +
+           "/wEB/////wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBAQ4AAC4ARA4AAAAAEf////8B" +
+           "Af////8AAAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBAQ8AAC4ARA8AAAAAFf////8B" +
+           "Af////8AAAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQESAAAuAEQSAAAAAAz/////AQH/////" +
+           "AAAAABVgiQoCAAAAAAAIAAAAQnJhbmNoSWQBARMAAC4ARBMAAAAAEf////8BAf////8AAAAAFWCJCgIA" +
+           "AAAAAAYAAABSZXRhaW4BARQAAC4ARBQAAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABFbmFi" +
+           "bGVkU3RhdGUBARUAAC8BACMjFQAAAAAV/////wEBAgAAAAEALCMAAQEpAAEALCMAAQEyAAEAAAAVYIkK" +
+           "AgAAAAAAAgAAAElkAQEWAAAuAEQWAAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVhbGl0" +
+           "eQEBHgAALwEAKiMeAAAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1w" +
+           "AQEfAAAuAEQfAAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkBASAA" +
+           "AC8BACojIAAAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEBIQAA" +
+           "LgBEIQAAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEBIgAALwEAKiMiAAAA" +
+           "ABX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQEjAAAuAEQjAAAAAQAm" +
+           "Af////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBASQAAC4ARCQAAAAADP////8B" +
+           "Af////8AAAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQElAAAvAQBEIyUAAAABAQEAAAABAPkLAAEA8woA" +
+           "AAAABGGCCgQAAAAAAAYAAABFbmFibGUBASYAAC8BAEMjJgAAAAEBAQAAAAEA+QsAAQDzCgAAAAAEYYIK" +
+           "BAAAAAAACgAAAEFkZENvbW1lbnQBAScAAC8BAEUjJwAAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkKAgAA" +
+           "AAAADgAAAElucHV0QXJndW1lbnRzAQEoAAAuAEQoAAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP" +
+           "/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAq" +
+           "AQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRo" +
+           "ZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2VkU3Rh" +
+           "dGUBASkAAC8BACMjKQAAAAAV/////wEBAQAAAAEALCMBAQEVAAEAAAAVYIkKAgAAAAAAAgAAAElkAQEq" +
+           "AAAuAEQqAAAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBATsAAC8BAJcj" +
+           "OwAAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQE8AAAuAEQ8" +
+           "AAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmll" +
+           "ciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAA" +
+           "AAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB" +
+           "/////wAAAAA=";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
+        /// <remarks />
+        public PropertyState<bool> SimulationActive
+        {
+            get
+            {
+                return m_simulationActive;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_simulationActive, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_simulationActive = value;
+            }
+        }
+
+        /// <remarks />
+        public GenerateValuesMethodState GenerateValues
+        {
+            get
+            {
+                return m_generateValuesMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_generateValuesMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_generateValuesMethod = value;
+            }
+        }
+
+        /// <remarks />
+        public AcknowledgeableConditionState CycleComplete
+        {
+            get
+            {
+                return m_cycleComplete;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_cycleComplete, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_cycleComplete = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
+        /// <remarks />
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_simulationActive != null)
+            {
+                children.Add(m_simulationActive);
+            }
+
+            if (m_generateValuesMethod != null)
+            {
+                children.Add(m_generateValuesMethod);
+            }
+
+            if (m_cycleComplete != null)
+            {
+                children.Add(m_cycleComplete);
+            }
+
+            base.GetChildren(context, children);
+        }
+            
+        /// <remarks />
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case TestData.BrowseNames.SimulationActive:
+                {
+                    if (createOrReplace)
+                    {
+                        if (SimulationActive == null)
+                        {
+                            if (replacement == null)
+                            {
+                                SimulationActive = new PropertyState<bool>(this);
+                            }
+                            else
+                            {
+                                SimulationActive = (PropertyState<bool>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = SimulationActive;
+                    break;
+                }
+
+                case TestData.BrowseNames.GenerateValues:
+                {
+                    if (createOrReplace)
+                    {
+                        if (GenerateValues == null)
+                        {
+                            if (replacement == null)
+                            {
+                                GenerateValues = new GenerateValuesMethodState(this);
+                            }
+                            else
+                            {
+                                GenerateValues = (GenerateValuesMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = GenerateValues;
+                    break;
+                }
+
+                case TestData.BrowseNames.CycleComplete:
+                {
+                    if (createOrReplace)
+                    {
+                        if (CycleComplete == null)
+                        {
+                            if (replacement == null)
+                            {
+                                CycleComplete = new AcknowledgeableConditionState(this);
+                            }
+                            else
+                            {
+                                CycleComplete = (AcknowledgeableConditionState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = CycleComplete;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
         #endregion
 
         #region Private Fields
+        private PropertyState<bool> m_simulationActive;
+        private GenerateValuesMethodState m_generateValuesMethod;
+        private AcknowledgeableConditionState m_cycleComplete;
         #endregion
     }
 
@@ -774,39 +983,78 @@ namespace TestData
         #region Initialization String
         private const string InitializationString =
            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////FWCBAgIAAAABAB8AAABTY2FsYXJWYWx1" +
-           "ZVZhcmlhYmxlVHlwZUluc3RhbmNlAQHqAwEB6gPqAwAAAQHgJAEB/////xsAAAAVYIkKAgAAAAEADAAA" +
-           "AEJvb2xlYW5WYWx1ZQEB6wMALgBE6wMAAAAB/////wEB/////wAAAAAVYIkKAgAAAAEACgAAAFNCeXRl" +
-           "VmFsdWUBAewDAC4AROwDAAAAAv////8BAf////8AAAAAFWCJCgIAAAABAAkAAABCeXRlVmFsdWUBAe0D" +
-           "AC4ARO0DAAAAA/////8BAf////8AAAAAFWCJCgIAAAABAAoAAABJbnQxNlZhbHVlAQHuAwAuAETuAwAA" +
-           "AAT/////AQH/////AAAAABVgiQoCAAAAAQALAAAAVUludDE2VmFsdWUBAe8DAC4ARO8DAAAABf////8B" +
-           "Af////8AAAAAFWCJCgIAAAABAAoAAABJbnQzMlZhbHVlAQHwAwAuAETwAwAAAAb/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAQALAAAAVUludDMyVmFsdWUBAfEDAC4ARPEDAAAAB/////8BAf////8AAAAAFWCJCgIA" +
-           "AAABAAoAAABJbnQ2NFZhbHVlAQHyAwAuAETyAwAAAAj/////AQH/////AAAAABVgiQoCAAAAAQALAAAA" +
-           "VUludDY0VmFsdWUBAfMDAC4ARPMDAAAACf////8BAf////8AAAAAFWCJCgIAAAABAAoAAABGbG9hdFZh" +
-           "bHVlAQH0AwAuAET0AwAAAAr/////AQH/////AAAAABVgiQoCAAAAAQALAAAARG91YmxlVmFsdWUBAfUD" +
-           "AC4ARPUDAAAAC/////8BAf////8AAAAAFWCJCgIAAAABAAsAAABTdHJpbmdWYWx1ZQEB9gMALgBE9gMA" +
-           "AAAM/////wEB/////wAAAAAVYIkKAgAAAAEADQAAAERhdGVUaW1lVmFsdWUBAfcDAC4ARPcDAAAADf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAABAAkAAABHdWlkVmFsdWUBAfgDAC4ARPgDAAAADv////8BAf////8A" +
-           "AAAAFWCJCgIAAAABAA8AAABCeXRlU3RyaW5nVmFsdWUBAfkDAC4ARPkDAAAAD/////8BAf////8AAAAA" +
-           "FWCJCgIAAAABAA8AAABYbWxFbGVtZW50VmFsdWUBAfoDAC4ARPoDAAAAEP////8BAf////8AAAAAFWCJ" +
-           "CgIAAAABAAsAAABOb2RlSWRWYWx1ZQEB+wMALgBE+wMAAAAR/////wEB/////wAAAAAVYIkKAgAAAAEA" +
-           "EwAAAEV4cGFuZGVkTm9kZUlkVmFsdWUBAfwDAC4ARPwDAAAAEv////8BAf////8AAAAAFWCJCgIAAAAB" +
-           "ABIAAABRdWFsaWZpZWROYW1lVmFsdWUBAf0DAC4ARP0DAAAAFP////8BAf////8AAAAAFWCJCgIAAAAB" +
-           "ABIAAABMb2NhbGl6ZWRUZXh0VmFsdWUBAf4DAC4ARP4DAAAAFf////8BAf////8AAAAAFWCJCgIAAAAB" +
-           "AA8AAABTdGF0dXNDb2RlVmFsdWUBAf8DAC4ARP8DAAAAE/////8BAf////8AAAAAFWCJCgIAAAABAAwA" +
-           "AABWYXJpYW50VmFsdWUBAQYEAC4ARAYEAAAAGP////8BAf////8AAAAAFWCJCgIAAAABABAAAABFbnVt" +
-           "ZXJhdGlvblZhbHVlAQEHBAAuAEQHBAAAAB3/////AQH/////AAAAABVgiQoCAAAAAQAOAAAAU3RydWN0" +
-           "dXJlVmFsdWUBAQgEAC4ARAgEAAAAFv////8BAf////8AAAAAFWCJCgIAAAABAAsAAABOdW1iZXJWYWx1" +
-           "ZQEBCQQALgBECQQAAAAa/////wEB/////wAAAAAVYIkKAgAAAAEADAAAAEludGVnZXJWYWx1ZQEBCgQA" +
-           "LgBECgQAAAAb/////wEB/////wAAAAAVYIkKAgAAAAEADQAAAFVJbnRlZ2VyVmFsdWUBAQsEAC4ARAsE" +
-           "AAAAHP////8BAf////8AAAAA";
+           "ZVZhcmlhYmxlVHlwZUluc3RhbmNlAQHqAwEB6gPqAwAAAQHgJAEBAQAAAAAkAAEBQgAeAAAANWCJCgIA" +
+           "AAABABAAAABTaW11bGF0aW9uQWN0aXZlAQE/AAMAAAAARwAAAElmIHRydWUgdGhlIHNlcnZlciB3aWxs" +
+           "IHByb2R1Y2UgbmV3IHZhbHVlcyBmb3IgZWFjaCBtb25pdG9yZWQgdmFyaWFibGUuAC4ARD8AAAAAAf//" +
+           "//8BAf////8AAAAABGGCCgQAAAABAA4AAABHZW5lcmF0ZVZhbHVlcwEBQAAALwEBAgBAAAAAAQH/////" +
+           "AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAUEAAC4AREEAAACWAQAAAAEAKgEBRgAAAAoA" +
+           "AABJdGVyYXRpb25zAAf/////AAAAAAMAAAAAJQAAAFRoZSBudW1iZXIgb2YgbmV3IHZhbHVlcyB0byBn" +
+           "ZW5lcmF0ZS4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARggAoBAAAAAQANAAAAQ3ljbGVDb21wbGV0" +
+           "ZQEBQgAALwEAQQtCAAAAAQAAAAAkAQEB6gMXAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQFDAAAuAERD" +
+           "AAAAAA//////AQH/////AAAAABVgiQoCAAAAAAAJAAAARXZlbnRUeXBlAQFEAAAuAEREAAAAABH/////" +
+           "AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTm9kZQEBRQAALgBERQAAAAAR/////wEB/////wAA" +
+           "AAAVYIkKAgAAAAAACgAAAFNvdXJjZU5hbWUBAUYAAC4AREYAAAAADP////8BAf////8AAAAAFWCJCgIA" +
+           "AAAAAAQAAABUaW1lAQFHAAAuAERHAAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNl" +
+           "aXZlVGltZQEBSAAALgBESAAAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQEB" +
+           "SgAALgBESgAAAAAV/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AQFLAAAuAERLAAAA" +
+           "AAX/////AQH/////AAAAABVgiQoCAAAAAAAQAAAAQ29uZGl0aW9uQ2xhc3NJZAEBTAAALgBETAAAAAAR" +
+           "/////wEB/////wAAAAAVYIkKAgAAAAAAEgAAAENvbmRpdGlvbkNsYXNzTmFtZQEBTQAALgBETQAAAAAV" +
+           "/////wEB/////wAAAAAVYIkKAgAAAAAADQAAAENvbmRpdGlvbk5hbWUBAVAAAC4ARFAAAAAADP////8B" +
+           "Af////8AAAAAFWCJCgIAAAAAAAgAAABCcmFuY2hJZAEBUQAALgBEUQAAAAAR/////wEB/////wAAAAAV" +
+           "YIkKAgAAAAAABgAAAFJldGFpbgEBUgAALgBEUgAAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAA" +
+           "AEVuYWJsZWRTdGF0ZQEBUwAALwEAIyNTAAAAABX/////AQECAAAAAQAsIwABAWcAAQAsIwABAXAAAQAA" +
+           "ABVgiQoCAAAAAAACAAAASWQBAVQAAC4ARFQAAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABR" +
+           "dWFsaXR5AQFcAAAvAQAqI1wAAAAAE/////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1l" +
+           "c3RhbXABAV0AAC4ARF0AAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAExhc3RTZXZlcml0" +
+           "eQEBXgAALwEAKiNeAAAAAAX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1w" +
+           "AQFfAAAuAERfAAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABDb21tZW50AQFgAAAvAQAq" +
+           "I2AAAAAAFf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAWEAAC4ARGEA" +
+           "AAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAEBYgAALgBEYgAAAAAM" +
+           "/////wEB/////wAAAAAEYYIKBAAAAAAABwAAAERpc2FibGUBAWMAAC8BAEQjYwAAAAEBAQAAAAEA+QsA" +
+           "AQDzCgAAAAAEYYIKBAAAAAAABgAAAEVuYWJsZQEBZAAALwEAQyNkAAAAAQEBAAAAAQD5CwABAPMKAAAA" +
+           "AARhggoEAAAAAAAKAAAAQWRkQ29tbWVudAEBZQAALwEARSNlAAAAAQEBAAAAAQD5CwABAA0LAQAAABdg" +
+           "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAWYAAC4ARGYAAACWAgAAAAEAKgEBRgAAAAcAAABFdmVu" +
+           "dElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVu" +
+           "dC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQg" +
+           "dG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNr" +
+           "ZWRTdGF0ZQEBZwAALwEAIyNnAAAAABX/////AQEBAAAAAQAsIwEBAVMAAQAAABVgiQoCAAAAAAACAAAA" +
+           "SWQBAWgAAC4ARGgAAAAAAf////8BAf////8AAAAABGGCCgQAAAAAAAsAAABBY2tub3dsZWRnZQEBeQAA" +
+           "LwEAlyN5AAAAAQEBAAAAAQD5CwABAPAiAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAXoA" +
+           "AC4ARHoAAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVu" +
+           "dGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAA" +
+           "AAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAA" +
+           "AAAAAQH/////AAAAABVgiQoCAAAAAQAMAAAAQm9vbGVhblZhbHVlAQHrAwAvAD/rAwAAAAH/////AQH/" +
+           "////AAAAABVgiQoCAAAAAQAKAAAAU0J5dGVWYWx1ZQEB7AMALwA/7AMAAAAC/////wEB/////wAAAAAV" +
+           "YIkKAgAAAAEACQAAAEJ5dGVWYWx1ZQEB7QMALwA/7QMAAAAD/////wEB/////wAAAAAVYIkKAgAAAAEA" +
+           "CgAAAEludDE2VmFsdWUBAe4DAC8AP+4DAAAABP////8BAf////8AAAAAFWCJCgIAAAABAAsAAABVSW50" +
+           "MTZWYWx1ZQEB7wMALwA/7wMAAAAF/////wEB/////wAAAAAVYIkKAgAAAAEACgAAAEludDMyVmFsdWUB" +
+           "AfADAC8AP/ADAAAABv////8BAf////8AAAAAFWCJCgIAAAABAAsAAABVSW50MzJWYWx1ZQEB8QMALwA/" +
+           "8QMAAAAH/////wEB/////wAAAAAVYIkKAgAAAAEACgAAAEludDY0VmFsdWUBAfIDAC8AP/IDAAAACP//" +
+           "//8BAf////8AAAAAFWCJCgIAAAABAAsAAABVSW50NjRWYWx1ZQEB8wMALwA/8wMAAAAJ/////wEB////" +
+           "/wAAAAAVYIkKAgAAAAEACgAAAEZsb2F0VmFsdWUBAfQDAC8AP/QDAAAACv////8BAf////8AAAAAFWCJ" +
+           "CgIAAAABAAsAAABEb3VibGVWYWx1ZQEB9QMALwA/9QMAAAAL/////wEB/////wAAAAAVYIkKAgAAAAEA" +
+           "CwAAAFN0cmluZ1ZhbHVlAQH2AwAvAD/2AwAAAAz/////AQH/////AAAAABVgiQoCAAAAAQANAAAARGF0" +
+           "ZVRpbWVWYWx1ZQEB9wMALwA/9wMAAAAN/////wEB/////wAAAAAVYIkKAgAAAAEACQAAAEd1aWRWYWx1" +
+           "ZQEB+AMALwA/+AMAAAAO/////wEB/////wAAAAAVYIkKAgAAAAEADwAAAEJ5dGVTdHJpbmdWYWx1ZQEB" +
+           "+QMALwA/+QMAAAAP/////wEB/////wAAAAAVYIkKAgAAAAEADwAAAFhtbEVsZW1lbnRWYWx1ZQEB+gMA" +
+           "LwA/+gMAAAAQ/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAE5vZGVJZFZhbHVlAQH7AwAvAD/7AwAA" +
+           "ABH/////AQH/////AAAAABVgiQoCAAAAAQATAAAARXhwYW5kZWROb2RlSWRWYWx1ZQEB/AMALwA//AMA" +
+           "AAAS/////wEB/////wAAAAAVYIkKAgAAAAEAEgAAAFF1YWxpZmllZE5hbWVWYWx1ZQEB/QMALwA//QMA" +
+           "AAAU/////wEB/////wAAAAAVYIkKAgAAAAEAEgAAAExvY2FsaXplZFRleHRWYWx1ZQEB/gMALwA//gMA" +
+           "AAAV/////wEB/////wAAAAAVYIkKAgAAAAEADwAAAFN0YXR1c0NvZGVWYWx1ZQEB/wMALwA//wMAAAAT" +
+           "/////wEB/////wAAAAAVYIkKAgAAAAEADAAAAFZhcmlhbnRWYWx1ZQEBBgQALwA/BgQAAAAY/////wEB" +
+           "/////wAAAAAVYIkKAgAAAAEAEAAAAEVudW1lcmF0aW9uVmFsdWUBAQcEAC8APwcEAAAAHf////8BAf//" +
+           "//8AAAAAFWCJCgIAAAABAA4AAABTdHJ1Y3R1cmVWYWx1ZQEBCAQALwA/CAQAAAAW/////wEB/////wAA" +
+           "AAAVYIkKAgAAAAEACwAAAE51bWJlclZhbHVlAQEJBAAvAD8JBAAAABr/////AQH/////AAAAABVgiQoC" +
+           "AAAAAQAMAAAASW50ZWdlclZhbHVlAQEKBAAvAD8KBAAAABv/////AQH/////AAAAABVgiQoCAAAAAQAN" +
+           "AAAAVUludGVnZXJWYWx1ZQEBCwQALwA/CwQAAAAc/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
         /// <remarks />
-        public PropertyState<bool> BooleanValue
+        public BaseDataVariableState<bool> BooleanValue
         {
             get
             {
@@ -825,7 +1073,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<sbyte> SByteValue
+        public BaseDataVariableState<sbyte> SByteValue
         {
             get
             {
@@ -844,7 +1092,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<byte> ByteValue
+        public BaseDataVariableState<byte> ByteValue
         {
             get
             {
@@ -863,7 +1111,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<short> Int16Value
+        public BaseDataVariableState<short> Int16Value
         {
             get
             {
@@ -882,7 +1130,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<ushort> UInt16Value
+        public BaseDataVariableState<ushort> UInt16Value
         {
             get
             {
@@ -901,7 +1149,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<int> Int32Value
+        public BaseDataVariableState<int> Int32Value
         {
             get
             {
@@ -920,7 +1168,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<uint> UInt32Value
+        public BaseDataVariableState<uint> UInt32Value
         {
             get
             {
@@ -939,7 +1187,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<long> Int64Value
+        public BaseDataVariableState<long> Int64Value
         {
             get
             {
@@ -958,7 +1206,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<ulong> UInt64Value
+        public BaseDataVariableState<ulong> UInt64Value
         {
             get
             {
@@ -977,7 +1225,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<float> FloatValue
+        public BaseDataVariableState<float> FloatValue
         {
             get
             {
@@ -996,7 +1244,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<double> DoubleValue
+        public BaseDataVariableState<double> DoubleValue
         {
             get
             {
@@ -1015,7 +1263,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<string> StringValue
+        public BaseDataVariableState<string> StringValue
         {
             get
             {
@@ -1034,7 +1282,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<DateTime> DateTimeValue
+        public BaseDataVariableState<DateTime> DateTimeValue
         {
             get
             {
@@ -1053,7 +1301,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<Guid> GuidValue
+        public BaseDataVariableState<Guid> GuidValue
         {
             get
             {
@@ -1072,7 +1320,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<byte[]> ByteStringValue
+        public BaseDataVariableState<byte[]> ByteStringValue
         {
             get
             {
@@ -1091,7 +1339,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<XmlElement> XmlElementValue
+        public BaseDataVariableState<XmlElement> XmlElementValue
         {
             get
             {
@@ -1110,7 +1358,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<NodeId> NodeIdValue
+        public BaseDataVariableState<NodeId> NodeIdValue
         {
             get
             {
@@ -1129,7 +1377,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<ExpandedNodeId> ExpandedNodeIdValue
+        public BaseDataVariableState<ExpandedNodeId> ExpandedNodeIdValue
         {
             get
             {
@@ -1148,7 +1396,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<QualifiedName> QualifiedNameValue
+        public BaseDataVariableState<QualifiedName> QualifiedNameValue
         {
             get
             {
@@ -1167,7 +1415,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<LocalizedText> LocalizedTextValue
+        public BaseDataVariableState<LocalizedText> LocalizedTextValue
         {
             get
             {
@@ -1186,7 +1434,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<StatusCode> StatusCodeValue
+        public BaseDataVariableState<StatusCode> StatusCodeValue
         {
             get
             {
@@ -1205,7 +1453,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState VariantValue
+        public BaseDataVariableState VariantValue
         {
             get
             {
@@ -1224,7 +1472,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState EnumerationValue
+        public BaseDataVariableState EnumerationValue
         {
             get
             {
@@ -1243,7 +1491,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState<ExtensionObject> StructureValue
+        public BaseDataVariableState<ExtensionObject> StructureValue
         {
             get
             {
@@ -1262,7 +1510,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState NumberValue
+        public BaseDataVariableState NumberValue
         {
             get
             {
@@ -1281,7 +1529,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState IntegerValue
+        public BaseDataVariableState IntegerValue
         {
             get
             {
@@ -1300,7 +1548,7 @@ namespace TestData
         }
 
         /// <remarks />
-        public PropertyState UIntegerValue
+        public BaseDataVariableState UIntegerValue
         {
             get
             {
@@ -1487,11 +1735,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                BooleanValue = new PropertyState<bool>(this);
+                                BooleanValue = new BaseDataVariableState<bool>(this);
                             }
                             else
                             {
-                                BooleanValue = (PropertyState<bool>)replacement;
+                                BooleanValue = (BaseDataVariableState<bool>)replacement;
                             }
                         }
                     }
@@ -1508,11 +1756,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                SByteValue = new PropertyState<sbyte>(this);
+                                SByteValue = new BaseDataVariableState<sbyte>(this);
                             }
                             else
                             {
-                                SByteValue = (PropertyState<sbyte>)replacement;
+                                SByteValue = (BaseDataVariableState<sbyte>)replacement;
                             }
                         }
                     }
@@ -1529,11 +1777,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                ByteValue = new PropertyState<byte>(this);
+                                ByteValue = new BaseDataVariableState<byte>(this);
                             }
                             else
                             {
-                                ByteValue = (PropertyState<byte>)replacement;
+                                ByteValue = (BaseDataVariableState<byte>)replacement;
                             }
                         }
                     }
@@ -1550,11 +1798,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                Int16Value = new PropertyState<short>(this);
+                                Int16Value = new BaseDataVariableState<short>(this);
                             }
                             else
                             {
-                                Int16Value = (PropertyState<short>)replacement;
+                                Int16Value = (BaseDataVariableState<short>)replacement;
                             }
                         }
                     }
@@ -1571,11 +1819,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                UInt16Value = new PropertyState<ushort>(this);
+                                UInt16Value = new BaseDataVariableState<ushort>(this);
                             }
                             else
                             {
-                                UInt16Value = (PropertyState<ushort>)replacement;
+                                UInt16Value = (BaseDataVariableState<ushort>)replacement;
                             }
                         }
                     }
@@ -1592,11 +1840,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                Int32Value = new PropertyState<int>(this);
+                                Int32Value = new BaseDataVariableState<int>(this);
                             }
                             else
                             {
-                                Int32Value = (PropertyState<int>)replacement;
+                                Int32Value = (BaseDataVariableState<int>)replacement;
                             }
                         }
                     }
@@ -1613,11 +1861,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                UInt32Value = new PropertyState<uint>(this);
+                                UInt32Value = new BaseDataVariableState<uint>(this);
                             }
                             else
                             {
-                                UInt32Value = (PropertyState<uint>)replacement;
+                                UInt32Value = (BaseDataVariableState<uint>)replacement;
                             }
                         }
                     }
@@ -1634,11 +1882,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                Int64Value = new PropertyState<long>(this);
+                                Int64Value = new BaseDataVariableState<long>(this);
                             }
                             else
                             {
-                                Int64Value = (PropertyState<long>)replacement;
+                                Int64Value = (BaseDataVariableState<long>)replacement;
                             }
                         }
                     }
@@ -1655,11 +1903,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                UInt64Value = new PropertyState<ulong>(this);
+                                UInt64Value = new BaseDataVariableState<ulong>(this);
                             }
                             else
                             {
-                                UInt64Value = (PropertyState<ulong>)replacement;
+                                UInt64Value = (BaseDataVariableState<ulong>)replacement;
                             }
                         }
                     }
@@ -1676,11 +1924,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                FloatValue = new PropertyState<float>(this);
+                                FloatValue = new BaseDataVariableState<float>(this);
                             }
                             else
                             {
-                                FloatValue = (PropertyState<float>)replacement;
+                                FloatValue = (BaseDataVariableState<float>)replacement;
                             }
                         }
                     }
@@ -1697,11 +1945,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                DoubleValue = new PropertyState<double>(this);
+                                DoubleValue = new BaseDataVariableState<double>(this);
                             }
                             else
                             {
-                                DoubleValue = (PropertyState<double>)replacement;
+                                DoubleValue = (BaseDataVariableState<double>)replacement;
                             }
                         }
                     }
@@ -1718,11 +1966,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                StringValue = new PropertyState<string>(this);
+                                StringValue = new BaseDataVariableState<string>(this);
                             }
                             else
                             {
-                                StringValue = (PropertyState<string>)replacement;
+                                StringValue = (BaseDataVariableState<string>)replacement;
                             }
                         }
                     }
@@ -1739,11 +1987,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                DateTimeValue = new PropertyState<DateTime>(this);
+                                DateTimeValue = new BaseDataVariableState<DateTime>(this);
                             }
                             else
                             {
-                                DateTimeValue = (PropertyState<DateTime>)replacement;
+                                DateTimeValue = (BaseDataVariableState<DateTime>)replacement;
                             }
                         }
                     }
@@ -1760,11 +2008,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                GuidValue = new PropertyState<Guid>(this);
+                                GuidValue = new BaseDataVariableState<Guid>(this);
                             }
                             else
                             {
-                                GuidValue = (PropertyState<Guid>)replacement;
+                                GuidValue = (BaseDataVariableState<Guid>)replacement;
                             }
                         }
                     }
@@ -1781,11 +2029,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                ByteStringValue = new PropertyState<byte[]>(this);
+                                ByteStringValue = new BaseDataVariableState<byte[]>(this);
                             }
                             else
                             {
-                                ByteStringValue = (PropertyState<byte[]>)replacement;
+                                ByteStringValue = (BaseDataVariableState<byte[]>)replacement;
                             }
                         }
                     }
@@ -1802,11 +2050,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                XmlElementValue = new PropertyState<XmlElement>(this);
+                                XmlElementValue = new BaseDataVariableState<XmlElement>(this);
                             }
                             else
                             {
-                                XmlElementValue = (PropertyState<XmlElement>)replacement;
+                                XmlElementValue = (BaseDataVariableState<XmlElement>)replacement;
                             }
                         }
                     }
@@ -1823,11 +2071,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                NodeIdValue = new PropertyState<NodeId>(this);
+                                NodeIdValue = new BaseDataVariableState<NodeId>(this);
                             }
                             else
                             {
-                                NodeIdValue = (PropertyState<NodeId>)replacement;
+                                NodeIdValue = (BaseDataVariableState<NodeId>)replacement;
                             }
                         }
                     }
@@ -1844,11 +2092,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                ExpandedNodeIdValue = new PropertyState<ExpandedNodeId>(this);
+                                ExpandedNodeIdValue = new BaseDataVariableState<ExpandedNodeId>(this);
                             }
                             else
                             {
-                                ExpandedNodeIdValue = (PropertyState<ExpandedNodeId>)replacement;
+                                ExpandedNodeIdValue = (BaseDataVariableState<ExpandedNodeId>)replacement;
                             }
                         }
                     }
@@ -1865,11 +2113,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                QualifiedNameValue = new PropertyState<QualifiedName>(this);
+                                QualifiedNameValue = new BaseDataVariableState<QualifiedName>(this);
                             }
                             else
                             {
-                                QualifiedNameValue = (PropertyState<QualifiedName>)replacement;
+                                QualifiedNameValue = (BaseDataVariableState<QualifiedName>)replacement;
                             }
                         }
                     }
@@ -1886,11 +2134,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                LocalizedTextValue = new PropertyState<LocalizedText>(this);
+                                LocalizedTextValue = new BaseDataVariableState<LocalizedText>(this);
                             }
                             else
                             {
-                                LocalizedTextValue = (PropertyState<LocalizedText>)replacement;
+                                LocalizedTextValue = (BaseDataVariableState<LocalizedText>)replacement;
                             }
                         }
                     }
@@ -1907,11 +2155,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                StatusCodeValue = new PropertyState<StatusCode>(this);
+                                StatusCodeValue = new BaseDataVariableState<StatusCode>(this);
                             }
                             else
                             {
-                                StatusCodeValue = (PropertyState<StatusCode>)replacement;
+                                StatusCodeValue = (BaseDataVariableState<StatusCode>)replacement;
                             }
                         }
                     }
@@ -1928,11 +2176,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                VariantValue = new PropertyState(this);
+                                VariantValue = new BaseDataVariableState(this);
                             }
                             else
                             {
-                                VariantValue = (PropertyState)replacement;
+                                VariantValue = (BaseDataVariableState)replacement;
                             }
                         }
                     }
@@ -1949,11 +2197,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                EnumerationValue = new PropertyState(this);
+                                EnumerationValue = new BaseDataVariableState(this);
                             }
                             else
                             {
-                                EnumerationValue = (PropertyState)replacement;
+                                EnumerationValue = (BaseDataVariableState)replacement;
                             }
                         }
                     }
@@ -1970,11 +2218,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                StructureValue = new PropertyState<ExtensionObject>(this);
+                                StructureValue = new BaseDataVariableState<ExtensionObject>(this);
                             }
                             else
                             {
-                                StructureValue = (PropertyState<ExtensionObject>)replacement;
+                                StructureValue = (BaseDataVariableState<ExtensionObject>)replacement;
                             }
                         }
                     }
@@ -1991,11 +2239,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                NumberValue = new PropertyState(this);
+                                NumberValue = new BaseDataVariableState(this);
                             }
                             else
                             {
-                                NumberValue = (PropertyState)replacement;
+                                NumberValue = (BaseDataVariableState)replacement;
                             }
                         }
                     }
@@ -2012,11 +2260,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                IntegerValue = new PropertyState(this);
+                                IntegerValue = new BaseDataVariableState(this);
                             }
                             else
                             {
-                                IntegerValue = (PropertyState)replacement;
+                                IntegerValue = (BaseDataVariableState)replacement;
                             }
                         }
                     }
@@ -2033,11 +2281,11 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                UIntegerValue = new PropertyState(this);
+                                UIntegerValue = new BaseDataVariableState(this);
                             }
                             else
                             {
-                                UIntegerValue = (PropertyState)replacement;
+                                UIntegerValue = (BaseDataVariableState)replacement;
                             }
                         }
                     }
@@ -2057,33 +2305,33 @@ namespace TestData
         #endregion
 
         #region Private Fields
-        private PropertyState<bool> m_booleanValue;
-        private PropertyState<sbyte> m_sByteValue;
-        private PropertyState<byte> m_byteValue;
-        private PropertyState<short> m_int16Value;
-        private PropertyState<ushort> m_uInt16Value;
-        private PropertyState<int> m_int32Value;
-        private PropertyState<uint> m_uInt32Value;
-        private PropertyState<long> m_int64Value;
-        private PropertyState<ulong> m_uInt64Value;
-        private PropertyState<float> m_floatValue;
-        private PropertyState<double> m_doubleValue;
-        private PropertyState<string> m_stringValue;
-        private PropertyState<DateTime> m_dateTimeValue;
-        private PropertyState<Guid> m_guidValue;
-        private PropertyState<byte[]> m_byteStringValue;
-        private PropertyState<XmlElement> m_xmlElementValue;
-        private PropertyState<NodeId> m_nodeIdValue;
-        private PropertyState<ExpandedNodeId> m_expandedNodeIdValue;
-        private PropertyState<QualifiedName> m_qualifiedNameValue;
-        private PropertyState<LocalizedText> m_localizedTextValue;
-        private PropertyState<StatusCode> m_statusCodeValue;
-        private PropertyState m_variantValue;
-        private PropertyState m_enumerationValue;
-        private PropertyState<ExtensionObject> m_structureValue;
-        private PropertyState m_numberValue;
-        private PropertyState m_integerValue;
-        private PropertyState m_uIntegerValue;
+        private BaseDataVariableState<bool> m_booleanValue;
+        private BaseDataVariableState<sbyte> m_sByteValue;
+        private BaseDataVariableState<byte> m_byteValue;
+        private BaseDataVariableState<short> m_int16Value;
+        private BaseDataVariableState<ushort> m_uInt16Value;
+        private BaseDataVariableState<int> m_int32Value;
+        private BaseDataVariableState<uint> m_uInt32Value;
+        private BaseDataVariableState<long> m_int64Value;
+        private BaseDataVariableState<ulong> m_uInt64Value;
+        private BaseDataVariableState<float> m_floatValue;
+        private BaseDataVariableState<double> m_doubleValue;
+        private BaseDataVariableState<string> m_stringValue;
+        private BaseDataVariableState<DateTime> m_dateTimeValue;
+        private BaseDataVariableState<Guid> m_guidValue;
+        private BaseDataVariableState<byte[]> m_byteStringValue;
+        private BaseDataVariableState<XmlElement> m_xmlElementValue;
+        private BaseDataVariableState<NodeId> m_nodeIdValue;
+        private BaseDataVariableState<ExpandedNodeId> m_expandedNodeIdValue;
+        private BaseDataVariableState<QualifiedName> m_qualifiedNameValue;
+        private BaseDataVariableState<LocalizedText> m_localizedTextValue;
+        private BaseDataVariableState<StatusCode> m_statusCodeValue;
+        private BaseDataVariableState m_variantValue;
+        private BaseDataVariableState m_enumerationValue;
+        private BaseDataVariableState<ExtensionObject> m_structureValue;
+        private BaseDataVariableState m_numberValue;
+        private BaseDataVariableState m_integerValue;
+        private BaseDataVariableState m_uIntegerValue;
         #endregion
     }
 
