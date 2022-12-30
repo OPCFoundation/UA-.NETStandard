@@ -1,7 +1,7 @@
-﻿FROM mcr.microsoft.com/dotnet/runtime:6.0 AS base
+﻿FROM mcr.microsoft.com/dotnet/runtime:6.0-bullseye-slim AS base
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim AS build
 WORKDIR /src
 
 # copy csproj and restore as distinct layers
@@ -19,7 +19,7 @@ WORKDIR "/src/Applications/ConsoleReferenceServer"
 ARG Version
 ARG SimpleVersion
 ARG AssemblyFileVersion
-ENV OPTIONS="-c Release -f net6.0 -p:NoHttps=true -p:Version=$(Version) -p:AssemblyVersion=$(SimpleVersion) -p:FileVersion=$(AssemblyFileVersion) "
+ENV OPTIONS="-c Release -f net6.0 -p:NoHttps=true -p:Version=${Version} -p:AssemblyVersion=${SimpleVersion} -p:FileVersion=${AssemblyFileVersion} "
 RUN dotnet build "ConsoleReferenceServer.csproj" --no-restore ${OPTIONS} -o /app/build
 
 FROM build AS publish
