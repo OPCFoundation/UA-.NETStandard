@@ -14,11 +14,16 @@ COPY ["Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj", "Libraries/Opc.Ua.Server/"
 COPY ["Applications/Quickstarts.Servers/Quickstarts.Servers.csproj", "Applications/Quickstarts.Servers/"]
 RUN dotnet restore "Applications/ConsoleReferenceServer/ConsoleReferenceServer.csproj" -p:NoHttps=true 
 COPY . .
+
 WORKDIR "/src/Applications/ConsoleReferenceServer"
-RUN dotnet build "ConsoleReferenceServer.csproj" --no-restore -c Release -f net6.0 -p:NoHttps=true -o /app/build
+ARG Version
+ARG SimpleVersion
+ARG AssemblyFileVersion
+ENV OPTIONS="-c Release -f net6.0 -p:NoHttps=true -p:Version=$(Version) -p:AssemblyVersion=$(SimpleVersion) -p:FileVersion=$(AssemblyFileVersion) "
+RUN dotnet build "ConsoleReferenceServer.csproj" --no-restore ${OPTIONS} -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "ConsoleReferenceServer.csproj" -c Release -f net6.0 -p:NoHttps=true -o /app/publish
+RUN dotnet publish "ConsoleReferenceServer.csproj" ${OPTIONS} -o /app/publish
 
 FROM base AS final
 WORKDIR /app

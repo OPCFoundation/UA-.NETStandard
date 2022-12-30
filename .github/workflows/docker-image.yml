@@ -40,7 +40,7 @@ jobs:
     - name: Set Version
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
-        
+
     # Install the cosign tool except on PR
     # https://github.com/sigstore/cosign-installer
     - name: Install cosign
@@ -91,6 +91,9 @@ jobs:
       with:
         images: ${{ env.IMAGE_REPOSITORY }}
 
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+
     # Build and push Docker image with Buildx (don't push on PR)
     # https://github.com/docker/build-push-action
     - name: Build and push Docker image
@@ -98,6 +101,10 @@ jobs:
       uses: docker/build-push-action@v3
       with:
         context: .
+        build-args: |
+          Version=${{ env.NBGV_Version }}
+          SimpleVersion=${{ env.NBGV_SimpleVersion }}
+          AssemblyFileVersion=${{ env.NBGV_AssemblyFileVersion }}
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.TAG_BRANCH }},${{ env.TAG_LATEST }}${{ env.TAG_RELEASE }}
         platforms: linux/amd64,linux/arm64
