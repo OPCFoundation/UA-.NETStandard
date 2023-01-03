@@ -11,9 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
   IMAGE_NAME: refserver
+  DOCKERSIGN: false
     
 jobs:
   build-and-push-image:
@@ -44,7 +44,7 @@ jobs:
     # Install the cosign tool except on PR
     # https://github.com/sigstore/cosign-installer
     - name: Install cosign
-      if: github.event_name != 'pull_request'
+      if: github.event_name != 'pull_request' && env.DOCKERSIGN == 'true'
       uses: sigstore/cosign-installer@main
       with:
         cosign-release: 'v1.13.1'
@@ -104,7 +104,7 @@ jobs:
         build-args: |
           Version=${{ env.NBGV_Version }}
           SimpleVersion=${{ env.NBGV_SimpleVersion }}
-          AssemblyFileVersion=${{ env.NBGV_AssemblyFileVersion }}
+          InformationalVersion=${{ env.NBGV_AssemblyInformationalVersion }}
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.TAG_BRANCH }},${{ env.TAG_LATEST }}${{ env.TAG_RELEASE }}
         platforms: linux/amd64,linux/arm64
@@ -116,7 +116,7 @@ jobs:
     # Sign the resulting Docker image digest except on PRs.
     # https://github.com/sigstore/cosign
     - name: Sign the published Docker image
-      if: ${{ github.event_name != 'pull_request' }}
+      if: github.event_name != 'pull_request' && env.DOCKERSIGN == 'true'
       env:
         COSIGN_EXPERIMENTAL: "true"
       # This step uses the identity token to provision an ephemeral certificate

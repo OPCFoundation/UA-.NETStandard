@@ -18,8 +18,8 @@ COPY . .
 WORKDIR "/src/Applications/ConsoleReferenceServer"
 ARG Version
 ARG SimpleVersion
-ARG AssemblyFileVersion
-ENV OPTIONS="-c Release -f net6.0 -p:NoHttps=true -p:Version=${Version} -p:AssemblyVersion=${SimpleVersion} -p:FileVersion=${AssemblyFileVersion} "
+ARG InformationalVersion
+ENV OPTIONS="-c Release -f net6.0 -p:NoHttps=true -p:Dockerbuild=true -p:Version=${Version} -p:AssemblyVersion=${SimpleVersion} -p:FileVersion=${Version} -p:InformationalVersion=${InformationalVersion}"
 RUN dotnet build "ConsoleReferenceServer.csproj" --no-restore ${OPTIONS} -o /app/build
 
 FROM build AS publish
