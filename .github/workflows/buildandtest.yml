@@ -8,6 +8,10 @@ on:
     - '**.cs'
     - '**.csproj'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
 
