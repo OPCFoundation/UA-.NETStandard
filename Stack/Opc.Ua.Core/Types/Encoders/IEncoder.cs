@@ -47,7 +47,7 @@ namespace Opc.Ua
         /// Pushes a namespace onto the namespace stack.
         /// </summary>
         void PushNamespace(string namespaceUri);
-        
+
         /// <summary>
         /// Pops a namespace from the namespace stack.
         /// </summary>
@@ -57,67 +57,67 @@ namespace Opc.Ua
         /// Writes a boolean to the stream.
         /// </summary>
         void WriteBoolean(string fieldName, bool value);
-        
+
         /// <summary>
         /// Writes a sbyte to the stream.
         /// </summary>
         void WriteSByte(string fieldName, sbyte value);
-        
+
         /// <summary>
         /// Writes a byte to the stream.
         /// </summary>
         void WriteByte(string fieldName, byte value);
-        
+
         /// <summary>
         /// Writes a short to the stream.
         /// </summary>
         void WriteInt16(string fieldName, short value);
-        
+
         /// <summary>
         /// Writes a ushort to the stream.
         /// </summary>
         void WriteUInt16(string fieldName, ushort value);
-        
+
         /// <summary>
         /// Writes an int to the stream.
         /// </summary>
         void WriteInt32(string fieldName, int value);
-        
+
         /// <summary>
         /// Writes a uint to the stream.
         /// </summary>
         void WriteUInt32(string fieldName, uint value);
-        
+
         /// <summary>
         /// Writes a long to the stream.
         /// </summary>
         void WriteInt64(string fieldName, long value);
-        
+
         /// <summary>
         /// Writes a ulong to the stream.
         /// </summary>
         void WriteUInt64(string fieldName, ulong value);
-        
+
         /// <summary>
         /// Writes a float to the stream.
         /// </summary>
         void WriteFloat(string fieldName, float value);
-        
+
         /// <summary>
         /// Writes a double to the stream.
         /// </summary>
         void WriteDouble(string fieldName, double value);
-        
+
         /// <summary>
         /// Writes a string to the stream.
         /// </summary>
         void WriteString(string fieldName, string value);
-        
+
         /// <summary>
         /// Writes a UTC date/time to the stream.
         /// </summary>
         void WriteDateTime(string fieldName, DateTime value);
-        
+
         /// <summary>
         /// Writes a GUID to the stream.
         /// </summary>
@@ -127,7 +127,7 @@ namespace Opc.Ua
         /// Writes a GUID to the stream.
         /// </summary>
         void WriteGuid(string fieldName, Guid value);
-        
+
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
@@ -137,17 +137,17 @@ namespace Opc.Ua
         /// Writes an XmlElement to the stream.
         /// </summary>
         void WriteXmlElement(string fieldName, XmlElement value);
-        
+
         /// <summary>
         /// Writes an NodeId to the stream.
         /// </summary>
         void WriteNodeId(string fieldName, NodeId value);
-        
+
         /// <summary>
         /// Writes an ExpandedNodeId to the stream.
         /// </summary>
         void WriteExpandedNodeId(string fieldName, ExpandedNodeId value);
-        
+
         /// <summary>
         /// Writes an StatusCode to the stream.
         /// </summary>
@@ -192,12 +192,12 @@ namespace Opc.Ua
         /// Writes an enumerated value array to the stream.
         /// </summary>
         void WriteEnumerated(string fieldName, Enum value);
-                
+
         /// <summary>
         /// Writes a boolean array to the stream.
         /// </summary>
         void WriteBooleanArray(string fieldName, IList<bool> values);
-        
+
         /// <summary>
         /// Writes a sbyte array to the stream.
         /// </summary>
@@ -207,57 +207,57 @@ namespace Opc.Ua
         /// Writes a sbyte array to the stream.
         /// </summary>
         void WriteByteArray(string fieldName, IList<byte> values);
-                
+
         /// <summary>
         /// Writes a short array to the stream.
         /// </summary>
         void WriteInt16Array(string fieldName, IList<short> values);
-        
+
         /// <summary>
         /// Writes a ushort array to the stream.
         /// </summary>
         void WriteUInt16Array(string fieldName, IList<ushort> values);
-        
+
         /// <summary>
         /// Writes a int array to the stream.
         /// </summary>
         void WriteInt32Array(string fieldName, IList<int> values);
-        
+
         /// <summary>
         /// Writes a uint array to the stream.
         /// </summary>
         void WriteUInt32Array(string fieldName, IList<uint> values);
-        
+
         /// <summary>
         /// Writes a long array to the stream.
         /// </summary>
         void WriteInt64Array(string fieldName, IList<long> values);
-        
+
         /// <summary>
         /// Writes a ulong array to the stream.
         /// </summary>
         void WriteUInt64Array(string fieldName, IList<ulong> values);
-        
+
         /// <summary>
         /// Writes a float array to the stream.
         /// </summary>
         void WriteFloatArray(string fieldName, IList<float> values);
-        
+
         /// <summary>
         /// Writes a double array to the stream.
         /// </summary>
         void WriteDoubleArray(string fieldName, IList<double> values);
-        
+
         /// <summary>
         /// Writes a string array to the stream.
         /// </summary>
         void WriteStringArray(string fieldName, IList<string> values);
-        
+
         /// <summary>
         /// Writes a UTC date/time array to the stream.
         /// </summary>
         void WriteDateTimeArray(string fieldName, IList<DateTime> values);
-        
+
         /// <summary>
         /// Writes a GUID array to the stream.
         /// </summary>
@@ -267,7 +267,7 @@ namespace Opc.Ua
         /// Writes a GUID array to the stream.
         /// </summary>
         void WriteGuidArray(string fieldName, IList<Guid> values);
-        
+
         /// <summary>
         /// Writes a byte string array to the stream.
         /// </summary>
@@ -277,12 +277,12 @@ namespace Opc.Ua
         /// Writes a XmlElement array to the stream.
         /// </summary>
         void WriteXmlElementArray(string fieldName, IList<XmlElement> values);
-                
+
         /// <summary>
         /// Writes an NodeId array to the stream.
         /// </summary>
         void WriteNodeIdArray(string fieldName, IList<NodeId> values);
-        
+
         /// <summary>
         /// Writes an ExpandedNodeId array to the stream.
         /// </summary>
@@ -297,12 +297,12 @@ namespace Opc.Ua
         /// Writes an DiagnosticInfo array to the stream.
         /// </summary>
         void WriteDiagnosticInfoArray(string fieldName, IList<DiagnosticInfo> values);
-        
+
         /// <summary>
         /// Writes an QualifiedName array to the stream.
         /// </summary>
         void WriteQualifiedNameArray(string fieldName, IList<QualifiedName> values);
-        
+
         /// <summary>
         /// Writes an LocalizedText array to the stream.
         /// </summary>
@@ -338,7 +338,7 @@ namespace Opc.Ua
         /// </summary>
         void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType);
     }
-    
+
     /// <summary>
     /// The type of encoding used by an encoder/decoder.
     /// </summary>

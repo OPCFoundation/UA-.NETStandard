@@ -24,7 +24,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reads objects from a JSON stream.
     /// </summary>
-    public class JsonDecoder : IDecoder, IDisposable
+    public class JsonDecoder : IJsonDecoder, IDisposable
     {
         #region Public Fields
         /// <summary>

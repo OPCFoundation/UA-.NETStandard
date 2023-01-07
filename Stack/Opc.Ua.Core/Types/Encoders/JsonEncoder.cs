@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// Writes objects to a JSON stream.
     /// </summary>
-    public class JsonEncoder : IEncoder, IDisposable
+    public class JsonEncoder : IJsonEncoder, IDisposable
     {
         #region Private Fields
         private const int kStreamWriterBufferSize = 1024;
@@ -311,6 +311,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -324,6 +325,107 @@ namespace Opc.Ua
                 {
                     Close();
                 }
+            }
+        }
+        #endregion
+
+        #region IJsonEncodeable Members
+        /// <inheritdoc/>
+        public void PushStructure(string fieldName)
+        {
+            m_nestingLevel++;
+
+            if (m_commaRequired)
+            {
+                m_writer.Write(",");
+            }
+
+            if (!String.IsNullOrEmpty(fieldName))
+            {
+                m_writer.Write("\"");
+                EscapeString(fieldName);
+                m_writer.Write("\":");
+            }
+            else if (!m_commaRequired)
+            {
+                if (m_nestingLevel == 1 && !m_topLevelIsArray)
+                {
+                    m_levelOneSkipped = true;
+                    return;
+                }
+            }
+
+            m_commaRequired = false;
+            m_writer.Write("{");
+        }
+
+        /// <inheritdoc/>
+        public void PushArray(string fieldName)
+        {
+            m_nestingLevel++;
+
+            if (m_commaRequired)
+            {
+                m_writer.Write(",");
+            }
+
+            if (!String.IsNullOrEmpty(fieldName))
+            {
+                m_writer.Write("\"");
+                EscapeString(fieldName);
+                m_writer.Write("\":");
+            }
+            else if (!m_commaRequired)
+            {
+                if (m_nestingLevel == 1 && !m_topLevelIsArray)
+                {
+                    m_levelOneSkipped = true;
+                    return;
+                }
+            }
+
+            m_commaRequired = false;
+            m_writer.Write("[");
+        }
+
+        /// <inheritdoc/>
+        public void PopStructure()
+        {
+            if (m_nestingLevel > 1 || m_topLevelIsArray ||
+               (m_nestingLevel == 1 && !m_levelOneSkipped))
+            {
+                m_writer.Write("}");
+                m_commaRequired = true;
+            }
+
+            m_nestingLevel--;
+        }
+
+        /// <inheritdoc/>
+        public void PopArray()
+        {
+            if (m_nestingLevel > 1 || m_topLevelIsArray ||
+               (m_nestingLevel == 1 && !m_levelOneSkipped))
+            {
+                m_writer.Write("]");
+                m_commaRequired = true;
+            }
+
+            m_nestingLevel--;
+        }
+
+        /// <inheritdoc/>
+        public void UsingReversibleEncoding<T>(Action<string, T> action, string fieldName, T value, bool useReversibleEncoding)
+        {
+            bool currentValue = UseReversibleEncoding;
+            try
+            {
+                UseReversibleEncoding = useReversibleEncoding;
+                action(fieldName, value);
+            }
+            finally
+            {
+                UseReversibleEncoding = currentValue;
             }
         }
         #endregion
@@ -374,100 +476,6 @@ namespace Opc.Ua
         public void PopNamespace()
         {
             m_namespaces.Pop();
-        }
-
-        /// <summary>
-        /// Push the begin of a structure on the decoder stack.
-        /// </summary>
-        /// <param name="fieldName">The name of the structure field.</param>
-        public void PushStructure(string fieldName)
-        {
-            m_nestingLevel++;
-
-            if (m_commaRequired)
-            {
-                m_writer.Write(",");
-            }
-
-            if (!String.IsNullOrEmpty(fieldName))
-            {
-                m_writer.Write("\"");
-                EscapeString(fieldName);
-                m_writer.Write("\":");
-            }
-            else if (!m_commaRequired)
-            {
-                if (m_nestingLevel == 1 && !m_topLevelIsArray)
-                {
-                    m_levelOneSkipped = true;
-                    return;
-                }
-            }
-
-            m_commaRequired = false;
-            m_writer.Write("{");
-        }
-
-        /// <summary>
-        /// Push the begin of an array on the decoder stack.
-        /// </summary>
-        /// <param name="fieldName">The name of the array field.</param>
-        public void PushArray(string fieldName)
-        {
-            m_nestingLevel++;
-
-            if (m_commaRequired)
-            {
-                m_writer.Write(",");
-            }
-
-            if (!String.IsNullOrEmpty(fieldName))
-            {
-                m_writer.Write("\"");
-                EscapeString(fieldName);
-                m_writer.Write("\":");
-            }
-            else if (!m_commaRequired)
-            {
-                if (m_nestingLevel == 1 && !m_topLevelIsArray)
-                {
-                    m_levelOneSkipped = true;
-                    return;
-                }
-            }
-
-            m_commaRequired = false;
-            m_writer.Write("[");
-        }
-
-        /// <summary>
-        /// Pop the structure from the decoder stack.
-        /// </summary>
-        public void PopStructure()
-        {
-            if (m_nestingLevel > 1 || m_topLevelIsArray ||
-               (m_nestingLevel == 1 && !m_levelOneSkipped))
-            {
-                m_writer.Write("}");
-                m_commaRequired = true;
-            }
-
-            m_nestingLevel--;
-        }
-
-        /// <summary>
-        /// Pop the array from the decoder stack.
-        /// </summary>
-        public void PopArray()
-        {
-            if (m_nestingLevel > 1 || m_topLevelIsArray ||
-               (m_nestingLevel == 1 && !m_levelOneSkipped))
-            {
-                m_writer.Write("]");
-                m_commaRequired = true;
-            }
-
-            m_nestingLevel--;
         }
 
         private static readonly char[] m_specialChars = new char[] { '"', '\\', '\n', '\r', '\t', '\b', '\f', };
@@ -1138,24 +1146,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes an Variant to the stream with the especified reversible encoding parameter
-        /// </summary>
-        public void WriteVariant(string fieldName, Variant value, bool useReversibleEncoding)
-        {
-            bool currentValue = UseReversibleEncoding;
-
-            try
-            {
-                UseReversibleEncoding = useReversibleEncoding;
-                WriteVariant(fieldName, value);
-            }
-            finally
-            {
-                UseReversibleEncoding = currentValue;
-            }
-        }
-
-        /// <summary>
         /// Writes an Variant to the stream.
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
@@ -1220,24 +1210,6 @@ namespace Opc.Ua
             }
 
             m_nestingLevel--;
-        }
-
-        /// <summary>
-        /// Writes an DataValue array to the stream.
-        /// </summary>
-        public void WriteDataValue(string fieldName, DataValue value, bool useReversibleEncoding)
-        {
-            bool currentValue = UseReversibleEncoding;
-
-            try
-            {
-                UseReversibleEncoding = useReversibleEncoding;
-                WriteDataValue(fieldName, value);
-            }
-            finally
-            {
-                UseReversibleEncoding = currentValue;
-            }
         }
 
         /// <summary>

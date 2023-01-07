@@ -194,7 +194,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             bool topLevelIsArray = !HasNetworkMessageHeader && !HasSingleDataSetMessage && !IsMetaDataMessage;
 
-            using (JsonEncoder encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream))
+            using (var encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream))
             {
                 if (IsMetaDataMessage)
                 {
@@ -285,7 +285,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes the object in a binary stream.
         /// </summary>
-        private void Encode(JsonEncoder jsonEncoder)
+        private void Encode(IJsonEncoder jsonEncoder)
         {
             if (jsonEncoder == null)
             {
@@ -303,7 +303,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         ///  Encode Network Message Header
         /// </summary>
-        private void EncodeNetworkMessageHeader(IEncoder jsonEncoder)
+        private void EncodeNetworkMessageHeader(IJsonEncoder jsonEncoder)
         {
             jsonEncoder.WriteString(nameof(MessageId), MessageId);
             jsonEncoder.WriteString(nameof(MessageType), MessageType);
@@ -346,7 +346,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode DataSetMessages
         /// </summary>
-        private void EncodeMessages(JsonEncoder encoder)
+        private void EncodeMessages(IJsonEncoder encoder)
         {
             if (DataSetMessages != null && DataSetMessages.Count > 0)
             {
@@ -394,7 +394,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Encode Network Message Header
         /// </summary>
         /// <param name="jsonDecoder"></param>
-        private void DecodeNetworkMessageHeader(JsonDecoder jsonDecoder)
+        private void DecodeNetworkMessageHeader(IJsonDecoder jsonDecoder)
         {
             object token = null;
             if (jsonDecoder.ReadField(nameof(MessageId), out token))
@@ -459,7 +459,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode the jsonDecoder content as a MetaData message
         /// </summary>
         /// <param name="jsonDecoder"></param>
-        private void DecodeMetaDataMessage(JsonDecoder jsonDecoder)
+        private void DecodeMetaDataMessage(IJsonDecoder jsonDecoder)
         {
             try
             {
@@ -478,7 +478,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="jsonDecoder"></param>
         /// <param name="dataSetReaders"></param>
         /// <returns></returns>
-        private void DecodeSubscribedDataSets(JsonDecoder jsonDecoder, IList<DataSetReaderDataType> dataSetReaders)
+        private void DecodeSubscribedDataSets(IJsonDecoder jsonDecoder, IList<DataSetReaderDataType> dataSetReaders)
         {
             if (dataSetReaders == null || dataSetReaders.Count == 0)
             {
