@@ -1733,7 +1733,7 @@ namespace Opc.Ua
     /// <summary>
     /// A dictionary designed to provide efficient lookups for objects identified by a NodeId
     /// </summary>
-    public class NodeIdDictionary<T> : IDictionary<NodeId, T>, ICloneable
+    public class NodeIdDictionary<T> : IDictionary<NodeId, T>
     {
         #region Constructors
         /// <summary>

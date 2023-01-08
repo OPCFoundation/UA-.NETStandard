@@ -969,4 +969,5 @@ namespace Opc.Ua
         }
         #endregion
     }//class
+    #endregion
 }//namespace
