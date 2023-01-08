@@ -318,7 +318,7 @@ namespace Opc.Ua.Gds.Client
             if (Session != null)
             {
                 KeepAlive?.Invoke(Session, null);
-                Session.Close();
+                Session?.Close();
                 Session = null;
             }
         }
@@ -334,8 +334,7 @@ namespace Opc.Ua.Gds.Client
 
         private void Session_SessionClosing(object sender, EventArgs e)
         {
-            Session.Dispose();
-            Session = null;
+            Utils.LogInfo("The GDS Client session is closing.");
         }
 
         /// <summary>

@@ -8,6 +8,10 @@ on:
     - '**.cs'
     - '**.csproj'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
 
@@ -40,11 +44,11 @@ jobs:
         dotnet-version: ${{ matrix.dotnet-version }}
         
     - name: Build
-      run: dotnet build --force --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} "UA Core Library.sln"
+      run: dotnet build "UA Core Library.sln" --force --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} 
       
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministc builds
-      run: dotnet test --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory "TestResults-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}" "UA Core Library.sln"
+      run: dotnet test "UA Core Library.sln" --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory "TestResults-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}" 
 
     - name: Upload test results
       uses: actions/upload-artifact@v3

@@ -249,7 +249,8 @@ namespace Opc.Ua.Configuration
         {
             if (addPolicy)
             {
-                AddSecurityPolicies(false, false, true);
+                var policies = ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                InternalAddPolicy(policies, MessageSecurityMode.None, SecurityPolicies.None);
             }
             return this;
         }
