@@ -1751,18 +1751,18 @@ namespace Opc.Ua
                 }
             }
 
-            // use ICloneable if supported
-            ICloneable cloneable = value as ICloneable;
-            if (cloneable != null)
-            {
-                return cloneable.Clone();
-            }
-
             // copy XmlNode.
             XmlNode node = value as XmlNode;
             if (node != null)
             {
                 return node.CloneNode(true);
+            }
+
+            // use ICloneable if supported
+            ICloneable cloneable = value as ICloneable;
+            if (cloneable != null)
+            {
+                return cloneable.Clone();
             }
 
             //try to find the MemberwiseClone method by reflection.
@@ -1772,6 +1772,7 @@ namespace Opc.Ua
                 object clone = memberwiseCloneMethod.Invoke(value, null);
                 if (clone != null)
                 {
+                    Utils.LogTrace("MemberwiseClone without ICloneable in class '{0}'", type.FullName);
                     return clone;
                 }
             }
@@ -1783,6 +1784,7 @@ namespace Opc.Ua
                 object clone = cloneMethod.Invoke(value, null);
                 if (clone != null)
                 {
+                    Utils.LogTrace("Clone without ICloneable in class '{0}'", type.FullName);
                     return clone;
                 }
             }
