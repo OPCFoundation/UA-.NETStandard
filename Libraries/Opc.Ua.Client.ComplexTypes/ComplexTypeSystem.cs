@@ -262,15 +262,28 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
+        /// Returns data types node ids for everything that was defined.
+        /// </summary>
+        /// <returns></returns>
+        public IEnumerable<ExpandedNodeId> GetDefinedDataTypeIds()
+        {
+            return m_dataTypeDefinitionCache.Keys.Select(nodeId => NodeId.ToExpandedNodeId(nodeId, m_complexTypeResolver.NamespaceUris));
+        }
+
+        /// <summary>
         /// Get the data type definition and dependent definitions for a data type node id.
         /// Recursive through the cache to find all dependent types for strutures fields
         /// contained in the cache.
         /// </summary>
-        public NodeIdDictionary<DataTypeDefinition> GetDataTypeDefinitionsForDataType(NodeId dataTypeNodeId)
+        public NodeIdDictionary<DataTypeDefinition> GetDataTypeDefinitionsForDataType(ExpandedNodeId dataTypeId)
         {
             var dataTypeDefinitions = new NodeIdDictionary<DataTypeDefinition>();
 
-            CollectAllDataTypeDefinitions(dataTypeNodeId, dataTypeDefinitions);
+            var dataTypeNodeId = ExpandedNodeId.ToNodeId(dataTypeId, m_complexTypeResolver.NamespaceUris);
+            if (!NodeId.IsNull(dataTypeNodeId))
+            {
+                CollectAllDataTypeDefinitions(dataTypeNodeId, dataTypeDefinitions);
+            }
 
             return dataTypeDefinitions;
 
@@ -1159,7 +1172,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #region Private Fields
         private IComplexTypeResolver m_complexTypeResolver;
         private IComplexTypeFactory m_complexTypeBuilderFactory;
-        private NodeIdDictionary<DataTypeDefinition> m_dataTypeDefinitionCache;
+        private NodeIdDictionary<DataTypeDefinition> m_dataTypeDefinitionCache = new NodeIdDictionary<DataTypeDefinition>();
         private static readonly string[] m_supportedEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultXml, BrowseNames.DefaultJson };
         #endregion Private Fields
     }
