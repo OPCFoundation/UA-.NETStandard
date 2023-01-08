@@ -270,7 +270,7 @@ namespace Opc.Ua
     /// </code>
     /// </example>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class ExtensionObject : ICloneable, IFormattable
+    public class ExtensionObject : IFormattable, ICloneable
     {
         #region Constructors
         /// <summary>
