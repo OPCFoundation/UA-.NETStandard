@@ -6,6 +6,15 @@
 version: 2
 updates:
   - package-ecosystem: "nuget"
-    directory: "/" # Location of package manifests
+    labels:
+      - "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: github-actions
+    labels:
+      - "actions"
+    directory: "./"
     schedule:
       interval: "weekly"
