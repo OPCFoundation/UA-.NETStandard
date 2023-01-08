@@ -42,7 +42,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// The base class for all complex types.
     /// </summary>
     public class BaseComplexType :
-        IEncodeable, IFormattable,
+        IEncodeable, IFormattable, ICloneable,
         IComplexTypeProperties,
         IStructureTypeInfo
     {
@@ -85,18 +85,12 @@ namespace Opc.Ua.Client.ComplexTypes
         }
         #endregion Constructors
 
-        #region Public Properties
+        #region ICloneable
         /// <inheritdoc/>
-        public ExpandedNodeId TypeId { get; set; }
-
-        /// <inheritdoc/>
-        public ExpandedNodeId BinaryEncodingId { get; set; }
-
-        /// <inheritdoc/>
-        public ExpandedNodeId XmlEncodingId { get; set; }
-
-        /// <inheritdoc/>
-        public virtual StructureType StructureType => StructureType.Structure;
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
 
         /// <summary>
         /// Makes a deep copy of the object.
@@ -104,7 +98,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
-        public new virtual object MemberwiseClone()
+        public new object MemberwiseClone()
         {
             Type thisType = this.GetType();
             BaseComplexType clone = Activator.CreateInstance(thisType) as BaseComplexType;
@@ -121,6 +115,20 @@ namespace Opc.Ua.Client.ComplexTypes
 
             return clone;
         }
+        #endregion
+
+        #region Public Properties
+        /// <inheritdoc/>
+        public ExpandedNodeId TypeId { get; set; }
+
+        /// <inheritdoc/>
+        public ExpandedNodeId BinaryEncodingId { get; set; }
+
+        /// <inheritdoc/>
+        public ExpandedNodeId XmlEncodingId { get; set; }
+
+        /// <inheritdoc/>
+        public virtual StructureType StructureType => StructureType.Structure;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
