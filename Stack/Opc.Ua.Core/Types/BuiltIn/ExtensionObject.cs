@@ -270,7 +270,7 @@ namespace Opc.Ua
     /// </code>
     /// </example>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class ExtensionObject : IFormattable
+    public class ExtensionObject : ICloneable, IFormattable
     {
         #region Constructors
         /// <summary>
@@ -575,6 +575,12 @@ namespace Opc.Ua
         #endregion
 
         #region ICloneable Members
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
@@ -847,7 +853,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of ExtensionObjects.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfExtensionObject", Namespace = Namespaces.OpcUaXsd, ItemName = "ExtensionObject")]
-    public class ExtensionObjectCollection : List<ExtensionObject>
+    public class ExtensionObjectCollection : List<ExtensionObject>, ICloneable
     {
         #region Constructors
         /// <summary>
@@ -936,6 +942,13 @@ namespace Opc.Ua
             return extensibles;
         }
         #endregion
+
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
 
         /// <summary>
         /// Creates a deep copy of the collection.

@@ -199,6 +199,13 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Returns a deep copy of an encodeable object.
         /// </summary>
@@ -206,5 +213,6 @@ namespace Opc.Ua
         {
             return base.MemberwiseClone();
         }
+        #endregion
     }
 }

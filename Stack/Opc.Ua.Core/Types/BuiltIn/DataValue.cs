@@ -56,7 +56,7 @@ namespace Opc.Ua
     /// <seealso cref="Variant"/>
     /// <seealso cref="StatusCode"/>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class DataValue : IFormattable, IEquatable<DataValue>
+    public class DataValue : ICloneable, IFormattable, IEquatable<DataValue>
     {
         #region Constructors
         /// <summary>
@@ -346,6 +346,12 @@ namespace Opc.Ua
         #endregion
 
         #region ICloneable Members
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
@@ -640,7 +646,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of DataValues.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfDataValue", Namespace = Namespaces.OpcUaXsd, ItemName = "DataValue")]
-    public partial class DataValueCollection : List<DataValue>
+    public partial class DataValueCollection : List<DataValue>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -697,6 +703,13 @@ namespace Opc.Ua
             return ToDataValueCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -714,6 +727,7 @@ namespace Opc.Ua
 
             return clone;
         }
+        #endregion
     }
     #endregion
 

@@ -53,7 +53,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class NodeId : IComparable, IFormattable
+    public class NodeId : IComparable, IFormattable, ICloneable
     {
         #region Constructors
         #region public NodeId()
@@ -1187,6 +1187,13 @@ namespace Opc.Ua
 
         #endregion
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
@@ -1198,6 +1205,7 @@ namespace Opc.Ua
             // this object cannot be altered after it is created so no new allocation is necessary.
             return this;
         }
+        #endregion
 
         #region Comparison Functions
         #region public override bool Equals(object obj)
@@ -1625,7 +1633,7 @@ namespace Opc.Ua
     /// Provides a strongly-typed collection of <see cref="NodeId"/>.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfNodeId", Namespace = Namespaces.OpcUaXsd, ItemName = "NodeId")]
-    public partial class NodeIdCollection : List<NodeId>
+    public partial class NodeIdCollection : List<NodeId>, ICloneable
     {
         #region CTORs
 
@@ -1678,6 +1686,7 @@ namespace Opc.Ua
         }
 
         #endregion
+
         #region public static implicit operator NodeIdCollection(NodeId[] values)
         /// <summary>
         /// Converts an array to a collection.
@@ -1692,6 +1701,13 @@ namespace Opc.Ua
         }
 
         #endregion
+
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
 
         /// <summary>
         /// Creates a deep copy of the collection.
@@ -1710,13 +1726,14 @@ namespace Opc.Ua
 
             return clone;
         }
+        #endregion
     }//class
     #endregion
 
     /// <summary>
     /// A dictionary designed to provide efficient lookups for objects identified by a NodeId
     /// </summary>
-    public class NodeIdDictionary<T> : IDictionary<NodeId, T>
+    public class NodeIdDictionary<T> : IDictionary<NodeId, T>, ICloneable
     {
         #region Constructors
         /// <summary>

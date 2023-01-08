@@ -801,6 +801,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
             }
 
+            public virtual object Clone()
+            {
+                return this.MemberwiseClone();
+            }
+
+            public new object MemberwiseClone()
+            {
+                return new FooBarEncodeable(FieldName, Foo) {
+                    Count = this.Count
+                };
+            }
+
             private bool m_resetCounter;
         }
         #endregion

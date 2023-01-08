@@ -27,12 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.PubSub.PublishedData
 {
     /// <summary>
     /// Entity that holds DataSet structure that is published/received bu the PubSub
     /// </summary>
-    public class DataSet
+    public class DataSet : ICloneable
     {
         #region Constructor
         /// <summary>
@@ -77,7 +79,13 @@ namespace Opc.Ua.PubSub.PublishedData
         public Field[] Fields { get; set; }
         #endregion
 
-        #region MemberwiseClone method
+        #region ICloneable method
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Create a deep copy of current DataSet
         /// </summary>
@@ -88,7 +96,7 @@ namespace Opc.Ua.PubSub.PublishedData
             {
                 if (copy != null)
                 {
-                    copy.DataSetMetaData = DataSetMetaData.MemberwiseClone() as DataSetMetaDataType;
+                    copy.DataSetMetaData = DataSetMetaData.Clone() as DataSetMetaDataType;
                 }
             }
 
@@ -99,7 +107,7 @@ namespace Opc.Ua.PubSub.PublishedData
                     copy.Fields = new Field[Fields.Length];
                     for (int i = 0; i < Fields.Length; i++)
                     {
-                        copy.Fields[i] = Fields[i].MemberwiseClone() as Field;
+                        copy.Fields[i] = Fields[i].Clone() as Field;
                     }
                 }
             }

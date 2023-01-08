@@ -10,6 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 
@@ -18,7 +19,7 @@ namespace Opc.Ua
     /// <summary>
     /// Defines methods used to encode and decode objects.
     /// </summary>
-    public interface IEncodeable
+    public interface IEncodeable : ICloneable
     {
         /// <summary>
         /// Returns the NodeId for the encodable type.

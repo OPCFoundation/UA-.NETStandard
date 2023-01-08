@@ -103,7 +103,7 @@ namespace Opc.Ua.Client
                 m_maxMessageCount = template.m_maxMessageCount;
                 m_sequentialPublishing = template.m_sequentialPublishing;
                 m_republishAfterTransfer = template.m_republishAfterTransfer;
-                m_defaultItem = (MonitoredItem)template.m_defaultItem.MemberwiseClone();
+                m_defaultItem = (MonitoredItem)template.m_defaultItem.Clone();
                 m_handle = template.m_handle;
                 m_disableMonitoredItemCache = template.m_disableMonitoredItemCache;
                 m_transferId = template.m_transferId;

@@ -23,7 +23,7 @@ namespace Opc.Ua
     /// <summary>
     /// Stores a list of cached enpoints.
     /// </summary>
-    public partial class ConfiguredEndpointCollection
+    public partial class ConfiguredEndpointCollection : ICloneable
     {
         #region Constructors
         /// <summary>
@@ -33,7 +33,7 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_defaultConfiguration = (EndpointConfiguration)configuration.MemberwiseClone();
+            m_defaultConfiguration = (EndpointConfiguration)configuration.Clone();
         }
 
         /// <summary>
@@ -158,7 +158,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                endpoint.Description.Server = (ApplicationDescription)server.MemberwiseClone();
+                endpoint.Description.Server = (ApplicationDescription)server.Clone();
 
             }
 
@@ -229,6 +229,14 @@ namespace Opc.Ua
         {
             DataContractSerializer serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
             serializer.WriteObject(ostrm, this);
+        }
+        #endregion
+
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
         }
 
         /// <summary>
@@ -771,7 +779,7 @@ namespace Opc.Ua
     /// <summary>
     /// Stores the configuration information for an endpoint.
     /// </summary>
-    public partial class ConfiguredEndpoint : IFormattable
+    public partial class ConfiguredEndpoint : IFormattable, ICloneable
     {
         #region Constructors
         /// <summary>
@@ -874,6 +882,13 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Returns a deep copy of the endpoint.
         /// </summary>
@@ -884,6 +899,7 @@ namespace Opc.Ua
             clone.Update(this);
             return clone;
         }
+        #endregion
 
         #region Overridden Methods
         /// <summary>

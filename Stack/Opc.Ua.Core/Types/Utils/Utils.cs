@@ -1695,6 +1695,13 @@ namespace Opc.Ua
                 return null;
             }
 
+            // use ICloneable if supported
+            ICloneable cloneable = value as ICloneable;
+            if (cloneable != null)
+            {
+                return cloneable.Clone();
+            }
+
             Type type = value.GetType();
 
             // nothing to do for value types.
@@ -1758,12 +1765,7 @@ namespace Opc.Ua
                 return node.CloneNode(true);
             }
 
-            // use ICloneable if supported
-            ICloneable cloneable = value as ICloneable;
-            if (cloneable != null)
-            {
-                return cloneable.Clone();
-            }
+            // TODO: remove unused code
 
             // copy ExtensionObject.
             {

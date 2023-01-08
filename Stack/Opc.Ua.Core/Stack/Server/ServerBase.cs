@@ -855,7 +855,7 @@ namespace Opc.Ua
 
             foreach (UserTokenPolicy policy in configuration.ServerConfiguration.UserTokenPolicies)
             {
-                UserTokenPolicy clone = (UserTokenPolicy)policy.MemberwiseClone();
+                UserTokenPolicy clone = (UserTokenPolicy)policy.Clone();
 
                 if (String.IsNullOrEmpty(policy.SecurityPolicyUri))
                 {

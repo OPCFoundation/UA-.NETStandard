@@ -30,7 +30,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class DiagnosticInfo : IFormattable
+    public class DiagnosticInfo : ICloneable, IFormattable
     {
         #region Constructors
         /// <summary>
@@ -493,6 +493,12 @@ namespace Opc.Ua
         #endregion
 
         #region ICloneable Members
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
@@ -524,7 +530,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of DiagnosticInfo objects.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfDiagnosticInfo", Namespace = Namespaces.OpcUaXsd, ItemName = "DiagnosticInfo")]
-    public partial class DiagnosticInfoCollection : List<DiagnosticInfo>
+    public partial class DiagnosticInfoCollection : List<DiagnosticInfo>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -581,6 +587,13 @@ namespace Opc.Ua
             return ToDiagnosticInfoCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -598,6 +611,7 @@ namespace Opc.Ua
 
             return clone;
         }
+        #endregion
     }//class
     #endregion
 
