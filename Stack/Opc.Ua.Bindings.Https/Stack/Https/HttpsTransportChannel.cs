@@ -116,13 +116,18 @@ namespace Opc.Ua.Bindings
 
                 // auto validate server cert, if supported
                 // if unsupported, the TLS server cert must be trusted by a root CA
-                var handler = new HttpClientHandler
-                {
+                var handler = new HttpClientHandler {
                     ClientCertificateOptions = ClientCertificateOption.Manual,
-                    MaxConnectionsPerServer = kMaxConnectionsPerServer,
                     AllowAutoRedirect = false,
                     MaxRequestContentBufferSize = m_quotas.MaxMessageSize,
                 };
+
+                // set property only if supported
+                var maxConnectionsPerServerProperty = handler.GetType().GetProperty("MaxConnectionsPerServer");
+                if (maxConnectionsPerServerProperty != null)
+                {
+                    maxConnectionsPerServerProperty.SetValue(handler, kMaxConnectionsPerServer);
+                }
 
                 // send client certificate for servers that require TLS client authentication
                 if (m_settings.ClientCertificate != null)
@@ -148,8 +153,7 @@ namespace Opc.Ua.Bindings
                         try
                         {
                             serverCertificateCustomValidationCallback =
-                                (httpRequestMessage, cert, chain, policyErrors) =>
-                                {
+                                (httpRequestMessage, cert, chain, policyErrors) => {
                                     try
                                     {
                                         var validationChain = new X509Certificate2Collection();
@@ -246,8 +250,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, null);
-                Task.Run(async () =>
-                {
+                Task.Run(async () => {
                     try
                     {
                         var ct = new CancellationTokenSource(m_operationTimeout).Token;
@@ -416,15 +419,13 @@ namespace Opc.Ua.Bindings
             m_operationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas
-            {
+            m_quotas = new ChannelQuotas {
                 MaxBufferSize = m_settings.Configuration.MaxBufferSize,
                 MaxMessageSize = m_settings.Configuration.MaxMessageSize,
                 ChannelLifetime = m_settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime,
 
-                MessageContext = new ServiceMessageContext
-                {
+                MessageContext = new ServiceMessageContext {
                     MaxArrayLength = m_settings.Configuration.MaxArrayLength,
                     MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
                     MaxMessageSize = m_settings.Configuration.MaxMessageSize,
