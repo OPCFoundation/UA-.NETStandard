@@ -211,6 +211,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 browser.BrowseDirection = BrowseDirection.Forward;
                 browser.NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable;
                 browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
+                browser.IncludeSubtypes = true;
 
                 NodeId nodeToBrowse = ObjectIds.Server;
 
@@ -405,7 +406,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                 searchDepth++;
                 Utils.LogInfo("{0}: Find {1} references after {2}ms", searchDepth, nodesToBrowse.Count, stopwatch.ElapsedMilliseconds);
-                var response = uaClient.Session.NodeCache.FindReferences(
+                IList<INode> response = uaClient.Session.NodeCache.FindReferences(
                     nodesToBrowse,
                     references,
                     false,
@@ -413,13 +414,33 @@ namespace Quickstarts.ConsoleReferenceClient
 
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 int duplicates = 0;
-                foreach (var node in response)
+                int leafNodes = 0;
+                foreach (INode node in response)
                 {
                     if (!nodeDictionary.ContainsKey(node.NodeId))
                     {
                         if (fetchTree)
                         {
-                            nextNodesToBrowse.Add(node.NodeId);
+                            bool leafNode = false;
+
+                            // no need to browse property types
+                            if (node is VariableNode variableNode)
+                            {
+                                var hasTypeDefinition = variableNode.ReferenceTable.FirstOrDefault(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasTypeDefinition));
+                                if (hasTypeDefinition != null)
+                                {
+                                    leafNode = (hasTypeDefinition.TargetId == VariableTypeIds.PropertyType);
+                                }
+                            }
+
+                            if (!leafNode)
+                            {
+                                nextNodesToBrowse.Add(node.NodeId);
+                            }
+                            else
+                            {
+                                leafNodes++;
+                            }
                         }
 
                         if (filterUATypes)
@@ -443,6 +464,10 @@ namespace Quickstarts.ConsoleReferenceClient
                 if (duplicates > 0)
                 {
                     Utils.LogInfo("Find References {0} duplicate nodes were ignored", duplicates);
+                }
+                if (leafNodes > 0)
+                {
+                    Utils.LogInfo("Find References {0} leaf nodes were ignored", leafNodes);
                 }
                 nodesToBrowse = nextNodesToBrowse;
             }
@@ -499,7 +524,7 @@ namespace Quickstarts.ConsoleReferenceClient
             var referenceDescriptions = new Dictionary<ExpandedNodeId, ReferenceDescription>();
 
             int searchDepth = 0;
-            uint maxNodesPerBrowse = 0;
+            uint maxNodesPerBrowse = uaClient.Session.OperationLimits.MaxNodesPerBrowse;
             while (browseDescriptionCollection.Any() && searchDepth < kMaxSearchDepth)
             {
                 searchDepth++;
@@ -587,7 +612,10 @@ namespace Quickstarts.ConsoleReferenceClient
                         if (!referenceDescriptions.ContainsKey(reference.NodeId))
                         {
                             referenceDescriptions[reference.NodeId] = reference;
-                            browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, uaClient.Session.NamespaceUris));
+                            if (reference.ReferenceTypeId != ReferenceTypeIds.HasProperty)
+                            {
+                                browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, uaClient.Session.NamespaceUris));
+                            }
                         }
                         else
                         {
