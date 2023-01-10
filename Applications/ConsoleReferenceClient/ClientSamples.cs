@@ -534,6 +534,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 BrowseResultCollection allBrowseResults = new BrowseResultCollection();
                 bool repeatBrowse;
                 BrowseResultCollection browseResultCollection = new BrowseResultCollection();
+                BrowseDescriptionCollection unprocessedOperations = new BrowseDescriptionCollection();
                 DiagnosticInfoCollection diagnosticsInfoCollection;
                 do
                 {
@@ -555,7 +556,28 @@ namespace Quickstarts.ConsoleReferenceClient
                         ClientBase.ValidateResponse(browseResultCollection, browseCollection);
                         ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, browseCollection);
 
-                        allBrowseResults.AddRange(browseResultCollection);
+                        // seperate unprocessed nodes for later
+                        int ii = 0;
+                        foreach (BrowseResult browseResult in browseResultCollection)
+                        {
+                            // check for error.
+                            StatusCode statusCode = browseResult.StatusCode;
+                            if (StatusCode.IsBad(statusCode))
+                            {
+                                // this error indicates that the server does not have enough simultaneously active 
+                                // continuation points. This request will need to be resent after the other operations
+                                // have been completed and their continuation points released.
+                                if (statusCode == StatusCodes.BadNoContinuationPoints)
+                                {
+                                    unprocessedOperations.Add(browseCollection[ii++]);
+                                    continue;
+                                }
+                            }
+
+                            // save results.
+                            allBrowseResults.Add(browseResult);
+                            ii++;
+                        }
                     }
                     catch (ServiceResultException sre)
                     {
@@ -607,7 +629,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 int duplicates = 0;
                 foreach (var browseResult in allBrowseResults)
                 {
-                    foreach (var reference in browseResult.References)
+                    foreach (ReferenceDescription reference in browseResult.References)
                     {
                         if (!referenceDescriptions.ContainsKey(reference.NodeId))
                         {
@@ -628,6 +650,9 @@ namespace Quickstarts.ConsoleReferenceClient
                     Utils.LogInfo("Browse Result {0} duplicate nodes were ignored.", duplicates);
                 }
                 browseDescriptionCollection.AddRange(CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate));
+
+                // add unprocessed nodes if any
+                browseDescriptionCollection.AddRange(unprocessedOperations);
             }
 
             stopWatch.Stop();
