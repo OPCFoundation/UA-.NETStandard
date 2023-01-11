@@ -102,6 +102,16 @@ namespace Opc.Ua.Client
         /// Raised to indicate the session is closing.
         /// </summary>
         event EventHandler SessionClosing;
+
+        /// <summary>
+        /// Raised to indicate the session has been closed unexpectedly.
+        /// </summary>
+        event EventHandler BadSessionClosed;
+
+        /// <summary>
+        /// Raised to indicate the secure channel has been closed unexpectedly.
+        /// </summary>
+        event EventHandler BadSecureChannelClosed;
         #endregion
 
         #region Public Properties
