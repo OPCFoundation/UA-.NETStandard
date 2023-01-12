@@ -391,6 +391,16 @@ namespace Opc.Ua.Client
 
         #region Events
         /// <summary>
+        /// Raised before a reconnect operation completes.
+        /// </summary>
+        public event RenewUserIdentityEventHandler RenewUserIdentity
+        {
+            add { m_RenewUserIdentity += value; }
+            remove { m_RenewUserIdentity -= value; }
+        }
+
+        private event RenewUserIdentityEventHandler m_RenewUserIdentity;
+        /// <summary>
         /// Raised when a keep alive arrives from the server or an error is detected.
         /// </summary>
         /// <remarks>
@@ -1194,20 +1204,7 @@ namespace Opc.Ua.Client
 
             return session;
         }
-        #endregion
-
-        #region Events
-        /// <summary>
-        /// Raised before a reconnect operation completes.
-        /// </summary>
-        public event RenewUserIdentityEventHandler RenewUserIdentity
-        {
-            add { m_RenewUserIdentity += value; }
-            remove { m_RenewUserIdentity -= value; }
-        }
-
-        private event RenewUserIdentityEventHandler m_RenewUserIdentity;
-        #endregion
+        #endregion      
 
         #region Public Methods
         /// <summary>
@@ -5256,10 +5253,16 @@ namespace Opc.Ua.Client
                         }
                         return;
                     case StatusCodes.BadSessionClosed:
-                        m_BadSessionClosed(this, null);
+                        if (m_BadSessionClosed != null)
+                        {
+                            m_BadSessionClosed(this, null);
+                        }
                         return;
                     case StatusCodes.BadSecureChannelClosed:
-                        m_BadSecureChannelClosed(this, null);
+                        if (m_BadSecureChannelClosed != null)
+                        {
+                            m_BadSecureChannelClosed(this, null);
+                        }
                         return;
                     case StatusCodes.BadNoSubscription:
                     case StatusCodes.BadSessionIdInvalid:
