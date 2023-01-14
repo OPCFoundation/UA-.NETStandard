@@ -3,8 +3,8 @@ setlocal
 
 REM if docker is not available, ensure the Opc.Ua.ModelCompiler.exe is in the PATH
 set MODELCOMPILER=Opc.Ua.ModelCompiler.exe
-REM The latest official ModelCompiler from the OPCF as docker container
-set MODELCOMPILERIMAGE=ghcr.io/opcfoundation/ua-modelcompiler:latest
+REM The version of the ModelCompiler from the OPCF to use as docker container
+set MODELCOMPILERIMAGE=ghcr.io/opcfoundation/ua-modelcompiler:2.3.0
 set MODELROOT=.
 
 echo pull latest modelcompiler from github container registry
