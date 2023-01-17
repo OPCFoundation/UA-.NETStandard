@@ -267,7 +267,6 @@ namespace Opc.Ua.Security.Certificates
                     // nextUpdate is OPTIONAL
                     m_nextUpdate = ReadTime(seqReader, optional: true);
 
-
                     var seqTag = new Asn1Tag(UniversalTagNumber.Sequence, true);
                     peekTag = seqReader.PeekTag();
                     if (peekTag == seqTag)
@@ -280,7 +279,7 @@ namespace Opc.Ua.Security.Certificates
                             var crlEntry = revReader.ReadSequence();
                             var serial = crlEntry.ReadInteger();
                             var revokedCertificate = new RevokedCertificate(serial.ToByteArray());
-                            revokedCertificate.RevocationDate = crlEntry.ReadUtcTime().UtcDateTime;
+                            revokedCertificate.RevocationDate = ReadTime(crlEntry, optional: false);
                             if (version == 1 &&
                                 crlEntry.HasData)
                             {
@@ -343,7 +342,7 @@ namespace Opc.Ua.Security.Certificates
             }
             else if (timeTag.TagValue == Asn1Tag.GeneralizedTime.TagValue)
             {
-                return asnReader.ReadGeneralizedTime().LocalDateTime;
+                return asnReader.ReadGeneralizedTime().UtcDateTime;
             }
             else if (optional)
             {
