@@ -88,7 +88,10 @@ namespace Opc.Ua
                     m_writer.Dispose();
                 }
 
-                m_ostrm?.Dispose();
+                if (!m_leaveOpen)
+                {
+                    m_ostrm?.Dispose();
+                }
             }
         }
         #endregion
@@ -1640,17 +1643,17 @@ namespace Opc.Ua
                         WriteXmlElementArray(null, (XmlElement[])array);
                         break;
                     case BuiltInType.Variant:
-                    {
-                        // try to write IEncodeable Array
-                        IEncodeable[] encodeableArray = array as IEncodeable[];
-                        if (encodeableArray != null)
                         {
-                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
-                            return;
+                            // try to write IEncodeable Array
+                            IEncodeable[] encodeableArray = array as IEncodeable[];
+                            if (encodeableArray != null)
+                            {
+                                WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                                return;
+                            }
+                            WriteVariantArray(null, (Variant[])array);
+                            break;
                         }
-                        WriteVariantArray(null, (Variant[])array);
-                        break;
-                    }
                     case BuiltInType.Enumeration:
                         int[] ints = array as int[];
                         if (ints == null)
@@ -1686,25 +1689,25 @@ namespace Opc.Ua
                         WriteDataValueArray(null, (DataValue[])array);
                         break;
                     default:
-                    {
-                        // try to write IEncodeable Array
-                        IEncodeable[] encodeableArray = array as IEncodeable[];
-                        if (encodeableArray != null)
                         {
-                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
-                            break;
+                            // try to write IEncodeable Array
+                            IEncodeable[] encodeableArray = array as IEncodeable[];
+                            if (encodeableArray != null)
+                            {
+                                WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                                break;
+                            }
+                            if (array == null)
+                            {
+                                // write zero dimension
+                                WriteInt32(null, -1);
+                                return;
+                            }
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingError,
+                                "Unexpected type encountered while encoding an Array with BuiltInType: {0}",
+                                builtInType);
                         }
-                        if (array == null)
-                        {
-                            // write zero dimension
-                            WriteInt32(null, -1);
-                            return;
-                        }
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding an Array with BuiltInType: {0}",
-                            builtInType);
-                    }
                 }
             }
             else if (valueRank > ValueRanks.OneDimension)
@@ -1733,287 +1736,287 @@ namespace Opc.Ua
                 switch (matrix.TypeInfo.BuiltInType)
                 {
                     case BuiltInType.Boolean:
-                    {
-                        bool[] values = (bool[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteBoolean(null, values[ii]);
-                        }
-                        break;
-                    }
-                    case BuiltInType.SByte:
-                    {
-                        sbyte[] values = (sbyte[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
-                        {
-                            WriteSByte(null, values[ii]);
-                        }
-                        break;
-                    }
-                    case BuiltInType.Byte:
-                    {
-                        byte[] values = (byte[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
-                        {
-                            WriteByte(null, values[ii]);
-                        }
-                        break;
-                    }
-                    case BuiltInType.Int16:
-                    {
-                        Int16[] values = (Int16[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
-                        {
-                            WriteInt16(null, values[ii]);
-                        }
-                        break;
-                    }
-                    case BuiltInType.UInt16:
-                    {
-                        UInt16[] values = (UInt16[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
-                        {
-                            WriteUInt16(null, values[ii]);
-                        }
-                        break;
-                    }
-                    case BuiltInType.Enumeration:
-                    {
-                        Enum[] values = matrix.Elements as Enum[];
-                        if (values != null)
-                        {
+                            bool[] values = (bool[])matrix.Elements;
                             for (int ii = 0; ii < values.Length; ii++)
                             {
-                                WriteEnumerated(null, values[ii]);
+                                WriteBoolean(null, values[ii]);
                             }
                             break;
                         }
-                        goto case BuiltInType.Int32;
-                    }
+                    case BuiltInType.SByte:
+                        {
+                            sbyte[] values = (sbyte[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteSByte(null, values[ii]);
+                            }
+                            break;
+                        }
+                    case BuiltInType.Byte:
+                        {
+                            byte[] values = (byte[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteByte(null, values[ii]);
+                            }
+                            break;
+                        }
+                    case BuiltInType.Int16:
+                        {
+                            Int16[] values = (Int16[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteInt16(null, values[ii]);
+                            }
+                            break;
+                        }
+                    case BuiltInType.UInt16:
+                        {
+                            UInt16[] values = (UInt16[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteUInt16(null, values[ii]);
+                            }
+                            break;
+                        }
+                    case BuiltInType.Enumeration:
+                        {
+                            Enum[] values = matrix.Elements as Enum[];
+                            if (values != null)
+                            {
+                                for (int ii = 0; ii < values.Length; ii++)
+                                {
+                                    WriteEnumerated(null, values[ii]);
+                                }
+                                break;
+                            }
+                            goto case BuiltInType.Int32;
+                        }
                     case BuiltInType.Int32:
-                    {
-                        Int32[] values = (Int32[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteInt32(null, values[ii]);
+                            Int32[] values = (Int32[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteInt32(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.UInt32:
-                    {
-                        UInt32[] values = (UInt32[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteUInt32(null, values[ii]);
+                            UInt32[] values = (UInt32[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteUInt32(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.Int64:
-                    {
-                        Int64[] values = (Int64[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteInt64(null, values[ii]);
+                            Int64[] values = (Int64[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteInt64(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.UInt64:
-                    {
-                        UInt64[] values = (UInt64[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteUInt64(null, values[ii]);
+                            UInt64[] values = (UInt64[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteUInt64(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.Float:
-                    {
-                        float[] values = (float[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteFloat(null, values[ii]);
+                            float[] values = (float[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteFloat(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.Double:
-                    {
-                        double[] values = (double[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteDouble(null, values[ii]);
+                            double[] values = (double[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteDouble(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.String:
-                    {
-                        string[] values = (string[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteString(null, values[ii]);
+                            string[] values = (string[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteString(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.DateTime:
-                    {
-                        DateTime[] values = (DateTime[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteDateTime(null, values[ii]);
+                            DateTime[] values = (DateTime[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteDateTime(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.Guid:
-                    {
-                        Uuid[] values = (Uuid[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteGuid(null, values[ii]);
+                            Uuid[] values = (Uuid[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteGuid(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.ByteString:
-                    {
-                        byte[][] values = (byte[][])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteByteString(null, values[ii]);
+                            byte[][] values = (byte[][])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteByteString(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.XmlElement:
-                    {
-                        XmlElement[] values = (XmlElement[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteXmlElement(null, values[ii]);
+                            XmlElement[] values = (XmlElement[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteXmlElement(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.NodeId:
-                    {
-                        NodeId[] values = (NodeId[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteNodeId(null, values[ii]);
+                            NodeId[] values = (NodeId[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteNodeId(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.ExpandedNodeId:
-                    {
-                        ExpandedNodeId[] values = (ExpandedNodeId[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteExpandedNodeId(null, values[ii]);
+                            ExpandedNodeId[] values = (ExpandedNodeId[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteExpandedNodeId(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.StatusCode:
-                    {
-                        StatusCode[] values = (StatusCode[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteStatusCode(null, values[ii]);
+                            StatusCode[] values = (StatusCode[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteStatusCode(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.QualifiedName:
-                    {
-                        QualifiedName[] values = (QualifiedName[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteQualifiedName(null, values[ii]);
+                            QualifiedName[] values = (QualifiedName[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteQualifiedName(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.LocalizedText:
-                    {
-                        LocalizedText[] values = (LocalizedText[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteLocalizedText(null, values[ii]);
+                            LocalizedText[] values = (LocalizedText[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteLocalizedText(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.ExtensionObject:
-                    {
-                        ExtensionObject[] values = (ExtensionObject[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteExtensionObject(null, values[ii]);
+                            ExtensionObject[] values = (ExtensionObject[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteExtensionObject(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.DataValue:
-                    {
-                        DataValue[] values = (DataValue[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteDataValue(null, values[ii]);
+                            DataValue[] values = (DataValue[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
+                            {
+                                WriteDataValue(null, values[ii]);
+                            }
+                            break;
                         }
-                        break;
-                    }
                     case BuiltInType.Variant:
-                    {
-                        Variant[] variants = matrix.Elements as Variant[];
-                        if (variants != null)
                         {
-                            for (int ii = 0; ii < variants.Length; ii++)
+                            Variant[] variants = matrix.Elements as Variant[];
+                            if (variants != null)
                             {
-                                WriteVariant(null, variants[ii]);
+                                for (int ii = 0; ii < variants.Length; ii++)
+                                {
+                                    WriteVariant(null, variants[ii]);
+                                }
+                                break;
                             }
-                            break;
-                        }
 
-                        // try to write IEncodeable Array
-                        IEncodeable[] encodeableArray = matrix.Elements as IEncodeable[];
-                        if (encodeableArray != null)
-                        {
-                            for (int ii = 0; ii < encodeableArray.Length; ii++)
+                            // try to write IEncodeable Array
+                            IEncodeable[] encodeableArray = matrix.Elements as IEncodeable[];
+                            if (encodeableArray != null)
                             {
-                                WriteEncodeable(null, encodeableArray[ii], null);
+                                for (int ii = 0; ii < encodeableArray.Length; ii++)
+                                {
+                                    WriteEncodeable(null, encodeableArray[ii], null);
+                                }
+                                break;
                             }
-                            break;
-                        }
 
-                        object[] objects = matrix.Elements as object[];
-                        if (objects != null)
-                        {
-                            for (int ii = 0; ii < objects.Length; ii++)
+                            object[] objects = matrix.Elements as object[];
+                            if (objects != null)
                             {
-                                WriteVariant(null, new Variant(objects[ii]));
+                                for (int ii = 0; ii < objects.Length; ii++)
+                                {
+                                    WriteVariant(null, new Variant(objects[ii]));
+                                }
+                                break;
                             }
-                            break;
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingError,
+                                "Unexpected type encountered while encoding a Matrix.");
                         }
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding a Matrix.");
-                    }
                     case BuiltInType.DiagnosticInfo:
-                    {
-                        DiagnosticInfo[] values = (DiagnosticInfo[])matrix.Elements;
-                        for (int ii = 0; ii < values.Length; ii++)
                         {
-                            WriteDiagnosticInfo(null, values[ii]);
-                        }
-                        break;
-                    }
-                    default:
-                    {
-                        // try to write IEncodeable Array
-                        IEncodeable[] encodeableArray = matrix.Elements as IEncodeable[];
-                        if (encodeableArray != null)
-                        {
-                            for (int ii = 0; ii < encodeableArray.Length; ii++)
+                            DiagnosticInfo[] values = (DiagnosticInfo[])matrix.Elements;
+                            for (int ii = 0; ii < values.Length; ii++)
                             {
-                                WriteEncodeable(null, encodeableArray[ii], null);
+                                WriteDiagnosticInfo(null, values[ii]);
                             }
                             break;
                         }
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding a Matrix with BuiltInType: {0}",
-                            matrix.TypeInfo.BuiltInType);
-                    }
+                    default:
+                        {
+                            // try to write IEncodeable Array
+                            IEncodeable[] encodeableArray = matrix.Elements as IEncodeable[];
+                            if (encodeableArray != null)
+                            {
+                                for (int ii = 0; ii < encodeableArray.Length; ii++)
+                                {
+                                    WriteEncodeable(null, encodeableArray[ii], null);
+                                }
+                                break;
+                            }
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingError,
+                                "Unexpected type encountered while encoding a Matrix with BuiltInType: {0}",
+                                matrix.TypeInfo.BuiltInType);
+                        }
                 }
             }
         }
@@ -2100,49 +2103,49 @@ namespace Opc.Ua
             switch (idType)
             {
                 case IdType.Numeric:
-                {
-                    uint id = Convert.ToUInt32(identifier, CultureInfo.InvariantCulture);
-
-                    if (id <= Byte.MaxValue && namespaceIndex == 0)
                     {
-                        encoding = NodeIdEncodingBits.TwoByte;
+                        uint id = Convert.ToUInt32(identifier, CultureInfo.InvariantCulture);
+
+                        if (id <= Byte.MaxValue && namespaceIndex == 0)
+                        {
+                            encoding = NodeIdEncodingBits.TwoByte;
+                            break;
+                        }
+
+                        if (id <= UInt16.MaxValue && namespaceIndex <= Byte.MaxValue)
+                        {
+                            encoding = NodeIdEncodingBits.FourByte;
+                            break;
+                        }
+
+                        encoding = NodeIdEncodingBits.Numeric;
                         break;
                     }
-
-                    if (id <= UInt16.MaxValue && namespaceIndex <= Byte.MaxValue)
-                    {
-                        encoding = NodeIdEncodingBits.FourByte;
-                        break;
-                    }
-
-                    encoding = NodeIdEncodingBits.Numeric;
-                    break;
-                }
 
                 case IdType.String:
-                {
-                    encoding = NodeIdEncodingBits.String;
-                    break;
-                }
+                    {
+                        encoding = NodeIdEncodingBits.String;
+                        break;
+                    }
 
                 case IdType.Guid:
-                {
-                    encoding = NodeIdEncodingBits.Guid;
-                    break;
-                }
+                    {
+                        encoding = NodeIdEncodingBits.Guid;
+                        break;
+                    }
 
                 case IdType.Opaque:
-                {
-                    encoding = NodeIdEncodingBits.ByteString;
-                    break;
-                }
+                    {
+                        encoding = NodeIdEncodingBits.ByteString;
+                        break;
+                    }
 
                 default:
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadEncodingError,
-                        Utils.Format("NodeId identifier type '{0}' not supported.", idType));
-                }
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadEncodingError,
+                            Utils.Format("NodeId identifier type '{0}' not supported.", idType));
+                    }
             }
 
             return Convert.ToByte(encoding, CultureInfo.InvariantCulture);
@@ -2157,45 +2160,45 @@ namespace Opc.Ua
             switch ((NodeIdEncodingBits)(0x3F & encoding))
             {
                 case NodeIdEncodingBits.TwoByte:
-                {
-                    WriteByte(null, Convert.ToByte(identifier, CultureInfo.InvariantCulture));
-                    break;
-                }
+                    {
+                        WriteByte(null, Convert.ToByte(identifier, CultureInfo.InvariantCulture));
+                        break;
+                    }
 
                 case NodeIdEncodingBits.FourByte:
-                {
-                    WriteByte(null, Convert.ToByte(namespaceIndex));
-                    WriteUInt16(null, Convert.ToUInt16(identifier, CultureInfo.InvariantCulture));
-                    break;
-                }
+                    {
+                        WriteByte(null, Convert.ToByte(namespaceIndex));
+                        WriteUInt16(null, Convert.ToUInt16(identifier, CultureInfo.InvariantCulture));
+                        break;
+                    }
 
                 case NodeIdEncodingBits.Numeric:
-                {
-                    WriteUInt16(null, namespaceIndex);
-                    WriteUInt32(null, Convert.ToUInt32(identifier, CultureInfo.InvariantCulture));
-                    break;
-                }
+                    {
+                        WriteUInt16(null, namespaceIndex);
+                        WriteUInt32(null, Convert.ToUInt32(identifier, CultureInfo.InvariantCulture));
+                        break;
+                    }
 
                 case NodeIdEncodingBits.String:
-                {
-                    WriteUInt16(null, namespaceIndex);
-                    WriteString(null, (string)identifier);
-                    break;
-                }
+                    {
+                        WriteUInt16(null, namespaceIndex);
+                        WriteString(null, (string)identifier);
+                        break;
+                    }
 
                 case NodeIdEncodingBits.Guid:
-                {
-                    WriteUInt16(null, namespaceIndex);
-                    WriteGuid(null, new Uuid((Guid)identifier));
-                    break;
-                }
+                    {
+                        WriteUInt16(null, namespaceIndex);
+                        WriteGuid(null, new Uuid((Guid)identifier));
+                        break;
+                    }
 
                 case NodeIdEncodingBits.ByteString:
-                {
-                    WriteUInt16(null, namespaceIndex);
-                    WriteByteString(null, (byte[])identifier);
-                    break;
-                }
+                    {
+                        WriteUInt16(null, namespaceIndex);
+                        WriteByteString(null, (byte[])identifier);
+                        break;
+                    }
             }
         }
 
@@ -2302,61 +2305,61 @@ namespace Opc.Ua
                     case BuiltInType.DataValue: { WriteDataValueArray(null, (DataValue[])valueToEncode); break; }
 
                     case BuiltInType.Enumeration:
-                    {
-                        // Check whether the value to encode is int array.
-                        int[] ints = valueToEncode as int[];
-                        if (ints == null)
                         {
-                            Enum[] enums = valueToEncode as Enum[];
-                            if (enums == null)
+                            // Check whether the value to encode is int array.
+                            int[] ints = valueToEncode as int[];
+                            if (ints == null)
                             {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadEncodingError,
-                                    Utils.Format("Type '{0}' is not allowed in an Enumeration.", value.GetType().FullName));
+                                Enum[] enums = valueToEncode as Enum[];
+                                if (enums == null)
+                                {
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadEncodingError,
+                                        Utils.Format("Type '{0}' is not allowed in an Enumeration.", value.GetType().FullName));
+                                }
+                                ints = new int[enums.Length];
+                                for (int ii = 0; ii < enums.Length; ii++)
+                                {
+                                    ints[ii] = (int)(object)enums[ii];
+                                }
                             }
-                            ints = new int[enums.Length];
-                            for (int ii = 0; ii < enums.Length; ii++)
-                            {
-                                ints[ii] = (int)(object)enums[ii];
-                            }
-                        }
 
-                        WriteInt32Array(null, ints);
-                        break;
-                    }
+                            WriteInt32Array(null, ints);
+                            break;
+                        }
 
                     case BuiltInType.Variant:
-                    {
-                        Variant[] variants = valueToEncode as Variant[];
-
-                        if (variants != null)
                         {
-                            WriteVariantArray(null, variants);
-                            break;
+                            Variant[] variants = valueToEncode as Variant[];
+
+                            if (variants != null)
+                            {
+                                WriteVariantArray(null, variants);
+                                break;
+                            }
+
+                            object[] objects = valueToEncode as object[];
+
+                            if (objects != null)
+                            {
+                                WriteObjectArray(null, objects);
+                                break;
+                            }
+
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingError,
+                                "Unexpected type encountered while encoding a Matrix: {0}",
+                                valueToEncode.GetType());
                         }
-
-                        object[] objects = valueToEncode as object[];
-
-                        if (objects != null)
-                        {
-                            WriteObjectArray(null, objects);
-                            break;
-                        }
-
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding a Matrix: {0}",
-                            valueToEncode.GetType());
-                    }
 
                     case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfoArray(null, (DiagnosticInfo[])valueToEncode); break; }
                     default:
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding a Variant: {0}",
-                            value.TypeInfo.BuiltInType);
-                    }
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingError,
+                                "Unexpected type encountered while encoding a Variant: {0}",
+                                value.TypeInfo.BuiltInType);
+                        }
                 }
 
                 // write the dimensions.
