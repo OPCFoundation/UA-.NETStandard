@@ -3,8 +3,14 @@ name: Docker Reference Server CI
 on:
   push:
     branches: [ master, release/*, docker* ]
+    paths-ignore:
+    - 'Docs/**'
+    - 'Tests/**'
   pull_request:
     branches: [ master ]
+    paths-ignore:
+    - 'Docs/**'
+    - 'Tests/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
