@@ -162,253 +162,269 @@ namespace Quickstarts.ConsoleReferenceClient
                 // wait for timeout or Ctrl-C
                 var quitEvent = ConsoleUtils.CtrlCHandler();
 
+                //ThreadPool.SetMinThreads(1000, 1000);
+                //ThreadPool.SetMaxThreads(10000, 10000);
+
                 // connect to a server until application stops
                 bool quit = false;
                 DateTime start = DateTime.UtcNow;
                 int waitTime = int.MaxValue;
-                do
+                var tasks = new List<Task>();
+                for (int i = 0; i < 10; i++)
                 {
-                    if (timeout > 0)
-                    {
-                        waitTime = timeout - (int)DateTime.UtcNow.Subtract(start).TotalMilliseconds;
-                        if (waitTime <= 0)
+                    Task t = Task.Run(async () => {
+                        int v = i;
+                        Console.WriteLine("Started {0}", v);
+                        do
                         {
-                            break;
-                        }
-                    }
-
-                    // create the UA Client object and connect to configured server.
-                    using (UAClient uaClient = new UAClient(
-                        application.ApplicationConfiguration, output, ClientBase.ValidateResponse) {
-                        AutoAccept = autoAccept
-                    })
-                    {
-                        // set user identity
-                        if (!String.IsNullOrEmpty(username))
-                        {
-                            uaClient.UserIdentity = new UserIdentity(username, userpassword ?? string.Empty);
-                        }
-
-                        bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), false);
-                        if (connected)
-                        {
-                            output.WriteLine("Connected! Ctrl-C to quit.");
-
-                            // enable subscription transfer
-                            uaClient.Session.TransferSubscriptionsOnReconnect = true;
-
-                            var samples = new ClientSamples(output, ClientBase.ValidateResponse, quitEvent, verbose);
-                            if (loadTypes)
+                            if (timeout > 0)
                             {
-                                await samples.LoadTypeSystem(uaClient.Session).ConfigureAwait(false);
+                                waitTime = timeout - (int)DateTime.UtcNow.Subtract(start).TotalMilliseconds;
+                                if (waitTime <= 0)
+                                {
+                                    break;
+                                }
                             }
 
-                            if (browseall || fetchall || jsonvalues || assets)
+                            // create the UA Client object and connect to configured server.
+                            using (UAClient uaClient = new UAClient(
+                                application.ApplicationConfiguration, output, ClientBase.ValidateResponse) {
+                                AutoAccept = autoAccept
+                            })
                             {
-                                NodeIdCollection variableIds = null;
-                                ReferenceDescriptionCollection referenceDescriptions = null;
-                                if (browseall)
+                                // set user identity
+                                if (!String.IsNullOrEmpty(username))
                                 {
-                                    referenceDescriptions =
-                                        samples.BrowseFullAddressSpace(uaClient, Objects.RootFolder);
-                                    variableIds = new NodeIdCollection(referenceDescriptions
-                                        .Where(r => r.NodeClass == NodeClass.Variable && r.TypeDefinition.NamespaceIndex != 0)
-                                        .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
+                                    uaClient.UserIdentity = new UserIdentity(username, userpassword ?? string.Empty);
                                 }
 
-                                IList<INode> allNodes = null;
-                                if (fetchall)
+                                bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), false);
+                                if (connected)
                                 {
-                                    allNodes = samples.FetchAllNodesNodeCache(
-                                        uaClient, Objects.RootFolder, true, true, false);
-                                    variableIds = new NodeIdCollection(allNodes
-                                        .Where(r => r.NodeClass == NodeClass.Variable && ((VariableNode)r).DataType.NamespaceIndex != 0)
-                                        .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
-                                }
+                                    output.WriteLine("Connected! Ctrl-C to quit.");
 
-                                if (assets)
-                                {
-                                    // cache all ObjectTypes
-                                    var objectNodes = samples.FetchAllNodesNodeCache(
-                                            uaClient, ObjectIds.ObjectTypesFolder, true, true, false, !fetchall);
+                                    // enable subscription transfer
+                                    uaClient.Session.TransferSubscriptionsOnReconnect = true;
 
-                                    // get all subtypes of IVendorNamePlate, ITagNameplateType, IDeviceHealthType
-                                    var nodeCache = uaClient.Session.NodeCache;
-                                    ushort opcUaDI = (ushort)uaClient.Session.NamespaceUris.GetIndex(Opc.Ua.DI.Namespaces.OpcUaDI);
-                                    var componentTypeSubTypes = FetchSubTypes(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.ComponentType).Select(o => (ObjectTypeNode)o).ToList();
-                                    var vendorNameplateTypeSubTypes = FetchSubTypes(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.IVendorNameplateType).Select(o => (ObjectTypeNode)o).ToList();
-                                    var tagNameplateTypeSubTypes = FetchSubTypes(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.ITagNameplateType).Select(o => (ObjectTypeNode)o).ToList();
-                                    var deviceHealthSubTypes = FetchSubTypes(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.IDeviceHealthType).Select(o => (ObjectTypeNode)o).ToList();
-                                    List<List<ObjectTypeNode>> interfaceTypes = new List<List<ObjectTypeNode>>()
+                                    var samples = new ClientSamples(output, ClientBase.ValidateResponse, quitEvent, verbose);
+                                    if (loadTypes)
                                     {
-                                        vendorNameplateTypeSubTypes, tagNameplateTypeSubTypes, deviceHealthSubTypes
-                                    };
-                                    var identification = new QualifiedName(Opc.Ua.DI.BrowseNames.Identification, opcUaDI);
+                                        await samples.LoadTypeSystem(uaClient.Session).ConfigureAwait(false);
+                                    }
 
-                                    // find all object types that implement a DI interface
-                                    foreach (var node in objectNodes)
+                                    if (browseall || fetchall || jsonvalues || assets)
                                     {
-                                        if (node is ObjectTypeNode objectTypeNode)
+                                        NodeIdCollection variableIds = null;
+                                        ReferenceDescriptionCollection referenceDescriptions = null;
+                                        if (browseall)
                                         {
-                                            bool foundSubTypes = false;
-                                            var hasInterfaces = objectTypeNode.ReferenceTable.Where(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasInterface)).ToList();
-                                            foreach (var nt in hasInterfaces)
-                                            {
-                                                foreach (var interfaceSubTypes in interfaceTypes)
-                                                {
-                                                    var newTypeDefinitions = interfaceSubTypes.FirstOrDefault(n => n.NodeId.Equals(nt.TargetId));
-                                                    if (newTypeDefinitions != null)
-                                                    {
-                                                        var newSubTypes = FetchSubTypes(uaClient.Session, objectTypeNode.NodeId).Select(o => (ObjectTypeNode)o).ToList();
-                                                        componentTypeSubTypes.AddRange(newSubTypes);
-                                                        foundSubTypes = true;
-                                                        continue;
-                                                    }
-                                                }
-                                                if (foundSubTypes)
-                                                {
-                                                    continue;
-                                                }
-                                            }
+                                            referenceDescriptions =
+                                                samples.BrowseFullAddressSpace(uaClient, Objects.RootFolder);
+                                            variableIds = new NodeIdCollection(referenceDescriptions
+                                                .Where(r => r.NodeClass == NodeClass.Variable && r.TypeDefinition.NamespaceIndex != 0)
+                                                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
                                         }
-                                    }
 
-                                    // distinct on Componentypes
-                                    NodeComparer nodeComparer = new NodeComparer();
-                                    componentTypeSubTypes = componentTypeSubTypes.Distinct(nodeComparer).Select(o => (ObjectTypeNode)o).ToList();
-
-                                    int count = 0;
-                                    Console.WriteLine("Found {0} component object types implementing an interface.", componentTypeSubTypes.Count);
-                                    foreach (var componentTypeSubType in componentTypeSubTypes)
-                                    {
-                                        Console.WriteLine("{0}: {1}: {2}", count++, componentTypeSubType.DisplayName, componentTypeSubType.IsAbstract ? "IsAbstract" : "");
-                                    }
-
-                                    if (browseall || fetchall)
-                                    {
-                                        IList<Node> allObjectNodes = null;
-
+                                        IList<INode> allNodes = null;
                                         if (fetchall)
                                         {
-                                            List<INode> allObjects = allNodes.Where(r => r.NodeClass == NodeClass.Object && r.NodeId.NamespaceIndex != 0).ToList();
-                                            allObjectNodes = allObjects.Select(o => (Node)o).ToList();
-                                        }
-                                        else
-                                        {
-                                            List<ReferenceDescription> allObjects = referenceDescriptions.Where(r => r.NodeClass == NodeClass.Object && r.NodeId.NamespaceIndex != 0).ToList();
-                                            allObjectNodes = nodeCache.FetchNodes(allObjects.Select(o => o.NodeId).ToList());
+                                            allNodes = samples.FetchAllNodesNodeCache(
+                                                uaClient, Objects.RootFolder, true, true, false);
+                                            variableIds = new NodeIdCollection(allNodes
+                                                .Where(r => r.NodeClass == NodeClass.Variable && ((VariableNode)r).DataType.NamespaceIndex != 0)
+                                                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
                                         }
 
-                                        foreach (var objectNode in allObjectNodes)
+                                        if (assets)
                                         {
-                                            bool parent = false;
-                                            if (objectNode.BrowseName == identification)
-                                            {
-                                                Console.WriteLine("Ident: {0} {1} Type: {2} ", objectNode.NodeId, objectNode.DisplayName, identification);
-                                                parent = true;
-                                            }
+                                            // cache all ObjectTypes
+                                            var objectNodes = samples.FetchAllNodesNodeCache(
+                                                    uaClient, ObjectIds.ObjectTypesFolder, true, true, false, !fetchall);
 
-                                            var hasTypeDefinition = objectNode.ReferenceTable.FirstOrDefault(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasTypeDefinition));
-                                            if (hasTypeDefinition != null)
+                                            // get all subtypes of IVendorNamePlate, ITagNameplateType, IDeviceHealthType
+                                            var nodeCache = uaClient.Session.NodeCache;
+                                            var namespaceIndex = uaClient.Session.NamespaceUris.GetIndex(Opc.Ua.DI.Namespaces.OpcUaDI);
+                                            if (namespaceIndex > 0)
                                             {
-                                                var targetId = ExpandedNodeId.ToNodeId(hasTypeDefinition.TargetId, uaClient.Session.NamespaceUris);
-                                                var componentType = componentTypeSubTypes.FirstOrDefault(c => c.NodeId.Equals(targetId));
-                                                if (componentType != null)
+                                                ushort opcUaDI = (ushort)namespaceIndex;
+                                                var componentTypeSubTypes = FetchSubTypes(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.ComponentType).Select(o => (ObjectTypeNode)o).ToList();
+                                                var vendorNameplateTypeSubTypes = FetchSubTypes(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.IVendorNameplateType).Select(o => (ObjectTypeNode)o).ToList();
+                                                var tagNameplateTypeSubTypes = FetchSubTypes(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.ITagNameplateType).Select(o => (ObjectTypeNode)o).ToList();
+                                                var deviceHealthSubTypes = FetchSubTypes(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.IDeviceHealthType).Select(o => (ObjectTypeNode)o).ToList();
+                                                List<List<ObjectTypeNode>> interfaceTypes = new List<List<ObjectTypeNode>>()
                                                 {
-                                                    var node = nodeCache.Find(targetId);
-                                                    Console.WriteLine("Ident: {0} {1} Type: {2} ", objectNode.NodeId, objectNode.DisplayName, node.DisplayName);
-                                                    parent = true;
-                                                }
-                                            }
+                                                    vendorNameplateTypeSubTypes, tagNameplateTypeSubTypes, deviceHealthSubTypes
+                                                };
+                                                var identification = new QualifiedName(Opc.Ua.DI.BrowseNames.Identification, opcUaDI);
 
-                                            if (parent)
-                                            {
-                                                var parentObject = nodeCache.FindReferences(objectNode.NodeId, ReferenceTypeIds.HierarchicalReferences, true, true).FirstOrDefault();
-                                                var parentNode = nodeCache.Find(parentObject.NodeId);
-                                                Console.WriteLine("Parent Asset: {0}", parentNode.DisplayName);
-                                                var properties = objectNode.ReferenceTable.Where(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasProperty));
-                                                var propertyNodes = nodeCache.Find(properties.Select(r=>r.TargetId).ToList()).Select(n=>(Node)n);
-                                                uaClient.Session.ReadValues(propertyNodes.Select(n => n.NodeId).ToList(), out var propertyValues, out var serviceResults);
-                                                int ii = 0;
-                                                foreach (var propertyNode in propertyNodes)
+                                                // find all object types that implement a DI interface
+                                                foreach (var node in objectNodes)
                                                 {
-                                                    if (ServiceResult.IsGood(serviceResults[ii]))
+                                                    if (node is ObjectTypeNode objectTypeNode)
                                                     {
-                                                        Variant propertyValue = propertyValues[ii].WrappedValue;
-                                                        Console.WriteLine("  {0}:{1}", propertyNode.DisplayName, propertyValue);
+                                                        bool foundSubTypes = false;
+                                                        var hasInterfaces = objectTypeNode.ReferenceTable.Where(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasInterface)).ToList();
+                                                        foreach (var nt in hasInterfaces)
+                                                        {
+                                                            foreach (var interfaceSubTypes in interfaceTypes)
+                                                            {
+                                                                var newTypeDefinitions = interfaceSubTypes.FirstOrDefault(n => n.NodeId.Equals(nt.TargetId));
+                                                                if (newTypeDefinitions != null)
+                                                                {
+                                                                    var newSubTypes = FetchSubTypes(uaClient.Session, objectTypeNode.NodeId).Select(o => (ObjectTypeNode)o).ToList();
+                                                                    componentTypeSubTypes.AddRange(newSubTypes);
+                                                                    foundSubTypes = true;
+                                                                    continue;
+                                                                }
+                                                            }
+                                                            if (foundSubTypes)
+                                                            {
+                                                                continue;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // distinct on Componentypes
+                                                NodeComparer nodeComparer = new NodeComparer();
+                                                componentTypeSubTypes = componentTypeSubTypes.Distinct(nodeComparer).Select(o => (ObjectTypeNode)o).ToList();
+
+                                                int count = 0;
+                                                Console.WriteLine("Found {0} component object types implementing an interface.", componentTypeSubTypes.Count);
+                                                foreach (var componentTypeSubType in componentTypeSubTypes)
+                                                {
+                                                    Console.WriteLine("{0}: {1}: {2}", count++, componentTypeSubType.DisplayName, componentTypeSubType.IsAbstract ? "IsAbstract" : "");
+                                                }
+
+                                                if (browseall || fetchall)
+                                                {
+                                                    IList<Node> allObjectNodes = null;
+
+                                                    if (fetchall)
+                                                    {
+                                                        List<INode> allObjects = allNodes.Where(r => r.NodeClass == NodeClass.Object && r.NodeId.NamespaceIndex != 0).ToList();
+                                                        allObjectNodes = allObjects.Select(o => (Node)o).ToList();
                                                     }
                                                     else
                                                     {
-                                                        Console.WriteLine("  {0}:{1}", propertyNode.DisplayName, serviceResults[ii].StatusCode);
+                                                        List<ReferenceDescription> allObjects = referenceDescriptions.Where(r => r.NodeClass == NodeClass.Object && r.NodeId.NamespaceIndex != 0).ToList();
+                                                        allObjectNodes = nodeCache.FetchNodes(allObjects.Select(o => o.NodeId).ToList());
                                                     }
-                                                    ii++;
-                                                }
-                                            }
 
-                                            var hasInterface = objectNode.ReferenceTable.FirstOrDefault(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasInterface));
-                                            if (hasInterface != null)
-                                            {
-                                                var targetId = ExpandedNodeId.ToNodeId(hasInterface.TargetId, uaClient.Session.NamespaceUris);
-                                                var vendorNamePlateTypes = vendorNameplateTypeSubTypes.FindAll(c => c.NodeId.Equals(targetId));
-                                                var tagNameplateTypeTypes = tagNameplateTypeSubTypes.FindAll(c => c.NodeId.Equals(targetId));
-                                                var deviceHealthTypes = deviceHealthSubTypes.FindAll(c => c.NodeId.Equals(targetId));
+                                                    foreach (var objectNode in allObjectNodes)
+                                                    {
+                                                        bool parent = false;
+                                                        if (objectNode.BrowseName == identification)
+                                                        {
+                                                            Console.WriteLine("Ident: {0} {1} Type: {2} ", objectNode.NodeId, objectNode.DisplayName, identification);
+                                                            parent = true;
+                                                        }
 
-                                                if (vendorNamePlateTypes.Count > 0)
-                                                {
-                                                    var node = nodeCache.Find(targetId);
-                                                    Console.WriteLine("Vendor: {0} Type: {1} ", vendorNamePlateTypes[0].DisplayName, node.DisplayName);
-                                                }
-                                                if (tagNameplateTypeTypes.Count > 0)
-                                                {
-                                                    var node = nodeCache.Find(targetId);
-                                                    Console.WriteLine("Tag: {0} Type: {1} ", tagNameplateTypeTypes[0].DisplayName, node.DisplayName);
-                                                }
-                                                if (deviceHealthTypes.Count > 0)
-                                                {
-                                                    var node = nodeCache.Find(targetId);
-                                                    Console.WriteLine("DeviceHealth: {0} Type: {1} ", deviceHealthTypes[0].DisplayName, node.DisplayName);
+                                                        var hasTypeDefinition = objectNode.ReferenceTable.FirstOrDefault(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasTypeDefinition));
+                                                        if (hasTypeDefinition != null)
+                                                        {
+                                                            var targetId = ExpandedNodeId.ToNodeId(hasTypeDefinition.TargetId, uaClient.Session.NamespaceUris);
+                                                            var componentType = componentTypeSubTypes.FirstOrDefault(c => c.NodeId.Equals(targetId));
+                                                            if (componentType != null)
+                                                            {
+                                                                var node = nodeCache.Find(targetId);
+                                                                Console.WriteLine("Ident: {0} {1} Type: {2} ", objectNode.NodeId, objectNode.DisplayName, node.DisplayName);
+                                                                parent = true;
+                                                            }
+                                                        }
+
+                                                        if (parent)
+                                                        {
+                                                            var parentObject = nodeCache.FindReferences(objectNode.NodeId, ReferenceTypeIds.HierarchicalReferences, true, true).FirstOrDefault();
+                                                            var parentNode = nodeCache.Find(parentObject.NodeId);
+                                                            Console.WriteLine("Parent Asset: {0}", parentNode.DisplayName);
+                                                            var properties = objectNode.ReferenceTable.Where(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasProperty));
+                                                            var propertyNodes = nodeCache.Find(properties.Select(r => r.TargetId).ToList()).Select(n => (Node)n);
+                                                            uaClient.Session.ReadValues(propertyNodes.Select(n => n.NodeId).ToList(), out var propertyValues, out var serviceResults);
+                                                            int ii = 0;
+                                                            foreach (var propertyNode in propertyNodes)
+                                                            {
+                                                                if (ServiceResult.IsGood(serviceResults[ii]))
+                                                                {
+                                                                    Variant propertyValue = propertyValues[ii].WrappedValue;
+                                                                    Console.WriteLine("  {0}:{1}", propertyNode.DisplayName, propertyValue);
+                                                                }
+                                                                else
+                                                                {
+                                                                    Console.WriteLine("  {0}:{1}", propertyNode.DisplayName, serviceResults[ii].StatusCode);
+                                                                }
+                                                                ii++;
+                                                            }
+                                                        }
+
+                                                        var hasInterface = objectNode.ReferenceTable.FirstOrDefault(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasInterface));
+                                                        if (hasInterface != null)
+                                                        {
+                                                            var targetId = ExpandedNodeId.ToNodeId(hasInterface.TargetId, uaClient.Session.NamespaceUris);
+                                                            var vendorNamePlateTypes = vendorNameplateTypeSubTypes.FindAll(c => c.NodeId.Equals(targetId));
+                                                            var tagNameplateTypeTypes = tagNameplateTypeSubTypes.FindAll(c => c.NodeId.Equals(targetId));
+                                                            var deviceHealthTypes = deviceHealthSubTypes.FindAll(c => c.NodeId.Equals(targetId));
+
+                                                            if (vendorNamePlateTypes.Count > 0)
+                                                            {
+                                                                var node = nodeCache.Find(targetId);
+                                                                Console.WriteLine("Vendor: {0} Type: {1} ", vendorNamePlateTypes[0].DisplayName, node.DisplayName);
+                                                            }
+                                                            if (tagNameplateTypeTypes.Count > 0)
+                                                            {
+                                                                var node = nodeCache.Find(targetId);
+                                                                Console.WriteLine("Tag: {0} Type: {1} ", tagNameplateTypeTypes[0].DisplayName, node.DisplayName);
+                                                            }
+                                                            if (deviceHealthTypes.Count > 0)
+                                                            {
+                                                                var node = nodeCache.Find(targetId);
+                                                                Console.WriteLine("DeviceHealth: {0} Type: {1} ", deviceHealthTypes[0].DisplayName, node.DisplayName);
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
+
+                                        if (jsonvalues && variableIds != null)
+                                        {
+                                            await samples.ReadAllValuesAsync(uaClient, variableIds);
+                                        }
+
+                                        quit = true;
                                     }
-                                }
+                                    else
+                                    {
+                                        // Run tests for available methods on reference server.
+                                        samples.ReadNodes(uaClient.Session);
+                                        samples.WriteNodes(uaClient.Session);
+                                        samples.Browse(uaClient.Session);
+                                        samples.CallMethod(uaClient.Session);
+                                        samples.SubscribeToDataChanges(uaClient.Session, 120_000);
 
-                                if (jsonvalues && variableIds != null)
+                                        output.WriteLine("Waiting...");
+
+                                        // Wait for some DataChange notifications from MonitoredItems
+                                        quit = quitEvent.WaitOne(timeout > 0 ? waitTime : 30_000);
+                                    }
+
+                                    output.WriteLine("Client disconnected.");
+
+                                    uaClient.Disconnect();
+                                }
+                                else
                                 {
-                                    await samples.ReadAllValuesAsync(uaClient, variableIds);
+                                    output.WriteLine("Could not connect to server! Retry in 10 seconds or Ctrl-C to quit.");
+                                    quit = quitEvent.WaitOne(Math.Min(10_000, waitTime));
                                 }
-
-                                quit = true;
                             }
-                            else
-                            {
-                                // Run tests for available methods on reference server.
-                                samples.ReadNodes(uaClient.Session);
-                                samples.WriteNodes(uaClient.Session);
-                                samples.Browse(uaClient.Session);
-                                samples.CallMethod(uaClient.Session);
-                                samples.SubscribeToDataChanges(uaClient.Session, 120_000);
+                        } while (!quit);
 
-                                output.WriteLine("Waiting...");
-
-                                // Wait for some DataChange notifications from MonitoredItems
-                                quit = quitEvent.WaitOne(timeout > 0 ? waitTime : 30_000);
-                            }
-
-                            output.WriteLine("Client disconnected.");
-
-                            uaClient.Disconnect();
-                        }
-                        else
-                        {
-                            output.WriteLine("Could not connect to server! Retry in 10 seconds or Ctrl-C to quit.");
-                            quit = quitEvent.WaitOne(Math.Min(10_000, waitTime));
-                        }
-                    }
-
-                } while (!quit);
-
-                output.WriteLine("Client stopped.");
+                        output.WriteLine("Client stopped.");
+                    });
+                    tasks.Add(t);
+                }
+                Task.WaitAll(tasks.ToArray());
             }
             catch (Exception ex)
             {
