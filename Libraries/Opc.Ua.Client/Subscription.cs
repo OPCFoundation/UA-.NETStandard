@@ -1817,7 +1817,7 @@ namespace Opc.Ua.Client
             {
                 if (m_minLifetimeInterval > 0 && m_minLifetimeInterval < m_session.SessionTimeout)
                 {
-                    Utils.LogWarning("A smaller lifeTime {0}ms than session timeout {1}ms configured for subscription {2}.",
+                    Utils.LogWarning("A smaller minLifetimeInterval {0}ms than session timeout {1}ms configured for subscription {2}.",
                         m_minLifetimeInterval, m_session.SessionTimeout, Id);
                 }
 

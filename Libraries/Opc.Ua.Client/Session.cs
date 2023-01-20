@@ -5526,7 +5526,15 @@ namespace Opc.Ua.Client
                 }
                 catch (ServiceResultException sre)
                 {
-                    Utils.LogError(sre, "Transfer subscriptions failed.");
+                    if (sre.StatusCode == StatusCodes.BadServiceUnsupported)
+                    {
+                        TransferSubscriptionsOnReconnect = false;
+                        Utils.LogWarning("Transfer subscription unsupported, TransferSubscriptionsOnReconnect set to false.");
+                    }
+                    else
+                    {
+                        Utils.LogError(sre, "Transfer subscriptions failed.");
+                    }
                 }
                 catch (Exception ex)
                 {

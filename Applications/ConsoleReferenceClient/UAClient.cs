@@ -153,6 +153,9 @@ namespace Quickstarts
 
                         // set up keep alive callback.
                         m_session.KeepAlive += Session_KeepAlive;
+
+                        // prepare a reconnect handler
+                        m_reconnectHandler = new SessionReconnectHandler(true);
                     }
 
                     // Session created successfully.
@@ -184,6 +187,7 @@ namespace Quickstarts
                     {
                         m_session.KeepAlive -= Session_KeepAlive;
                         m_reconnectHandler?.Dispose();
+                        m_reconnectHandler = null;
                     }
 
                     m_session.Close();
@@ -226,19 +230,14 @@ namespace Quickstarts
                         return;
                     }
 
-                    lock (m_lock)
+                    var state = m_reconnectHandler.BeginReconnect(m_session, ReconnectPeriod, Client_ReconnectComplete);
+                    if (state == SessionReconnectHandler.ReconnectState.Triggered)
                     {
-                        if (m_reconnectHandler == null)
-                        {
-                            Utils.LogInfo("KeepAlive status {0}, reconnecting in {1}ms.", e.Status, ReconnectPeriod);
-                            m_output.WriteLine("--- RECONNECTING {0} ---", e.Status);
-                            m_reconnectHandler = new SessionReconnectHandler(true);
-                            m_reconnectHandler.BeginReconnect(m_session, ReconnectPeriod, Client_ReconnectComplete);
-                        }
-                        else
-                        {
-                            Utils.LogInfo("KeepAlive status {0}, reconnect in progress.", e.Status);
-                        }
+                        Utils.LogInfo("KeepAlive status {0}, reconnect status {1}, reconnect period {2}ms.", e.Status, state, ReconnectPeriod);
+                    }
+                    else
+                    {
+                        Utils.LogInfo("KeepAlive status {0}, reconnect status {1}.", e.Status, state);
                     }
 
                     return;
@@ -268,9 +267,6 @@ namespace Quickstarts
                 {
                     m_session = m_reconnectHandler.Session as Session;
                 }
-
-                m_reconnectHandler.Dispose();
-                m_reconnectHandler = null;
             }
 
             m_output.WriteLine("--- RECONNECTED ---");
@@ -313,7 +309,7 @@ namespace Quickstarts
 
         #region Private Fields
         private object m_lock = new object();
-        private ApplicationConfiguration m_configuration;        
+        private ApplicationConfiguration m_configuration;
         private SessionReconnectHandler m_reconnectHandler;
         private Session m_session;
         private readonly TextWriter m_output;

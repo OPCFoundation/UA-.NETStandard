@@ -821,6 +821,81 @@ namespace Quickstarts.ConsoleReferenceClient
         }
         #endregion
 
+        #region Subscribe Values
+        /// <summary>
+        /// Output all values as JSON.
+        /// </summary>
+        /// <param name="uaClient">The UAClient with a session to use.</param>
+        /// <param name="variableIds">The variables to subscribe.</param>
+        public async Task SubscribeAllValuesAsync(
+            UAClient uaClient,
+            NodeCollection variableIds,
+            int publishingInterval,
+            uint lifetimeCount,
+            uint keepAliveCount)
+        {
+            if (uaClient.Session == null || !uaClient.Session.Connected)
+            {
+                m_output.WriteLine("Session not connected!");
+                return;
+            }
+
+            try
+            {
+                // Create a subscription for receiving data change notifications
+                var session = uaClient.Session;
+
+                // Define Subscription parameters
+                Subscription subscription = new Subscription(session.DefaultSubscription) {
+                    DisplayName = "Console ReferenceClient Subscription",
+                    PublishingEnabled = true,
+                    PublishingInterval = publishingInterval,
+                    LifetimeCount = lifetimeCount,
+                    KeepAliveCount = keepAliveCount,
+                    SequentialPublishing = true,
+                    RepublishAfterTransfer = true,
+                    MaxNotificationsPerPublish = 1000,
+                    MinLifetimeInterval = (uint)session.SessionTimeout,
+                };
+                session.AddSubscription(subscription);
+
+                // Create the subscription on Server side
+                await subscription.CreateAsync().ConfigureAwait(false);
+                m_output.WriteLine("New Subscription created with SubscriptionId = {0}.", subscription.Id);
+
+                uint queueSize = 10;
+
+                // Create MonitoredItems for data changes
+                foreach (var item in variableIds)
+                {
+                    Type type = Opc.Ua.TypeInfo.GetSystemType(item.TypeId, session.Factory);
+                    string displayName = type?.FullName ?? "(unknown type)";
+                    MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem) {
+                        StartNodeId = item.NodeId,
+                        AttributeId = Attributes.Value,
+                        DisplayName = displayName,
+                        SamplingInterval = 1000,
+                        QueueSize = queueSize,
+                        DiscardOldest = true,
+                        MonitoringMode = MonitoringMode.Sampling,
+                    };
+                    monitoredItem.Notification += OnMonitoredItemNotification;
+                    subscription.AddItem(monitoredItem);
+                    if (queueSize > 0) { queueSize--; }
+                    if (subscription.CurrentKeepAliveCount > 1000) break;
+                }
+
+                // Create the monitored items on Server side
+                subscription.ApplyChanges();
+                m_output.WriteLine("MonitoredItems created for SubscriptionId = {0}.", subscription.Id);
+            }
+            catch (Exception ex)
+            {
+                m_output.WriteLine("Subscribe error: {0}", ex.Message);
+            }
+        }
+        #endregion
+
         #region Helper Methods
         /// <summary>
         /// Create a prettified JSON string of a DataValue.
@@ -829,10 +904,10 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <param name="value">The DataValue.</param>
         /// <param name="jsonReversible">Use reversible encoding.</param>
         public static string FormatValueAsJson(
-            IServiceMessageContext messageContext,
-            string name,
-            DataValue value,
-            bool jsonReversible)
+        IServiceMessageContext messageContext,
+        string name,
+        DataValue value,
+        bool jsonReversible)
         {
             var jsonEncoder = new JsonEncoder(messageContext, jsonReversible);
             jsonEncoder.WriteDataValue(name, value);
