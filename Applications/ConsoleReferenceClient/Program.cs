@@ -77,6 +77,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool fetchall = false;
             bool jsonvalues = false;
             bool verbose = false;
+            bool subscribe = false;
             string password = null;
             int timeout = Timeout.Infinite;
             string logFile = null;
@@ -98,6 +99,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "f|fetchall", "Fetch all nodes", f => { if (f != null) fetchall = true; } },
                 { "j|json", "Output all Values as JSON", j => { if (j != null) jsonvalues = true; } },
                 { "v|verbose", "Verbose output", v => { if (v != null) verbose = true; } },
+                { "s|subscribe", "Subscribe", s => { if (s != null) subscribe = true; } },
             };
 
             try
@@ -193,6 +195,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             output.WriteLine("Connected! Ctrl-C to quit.");
 
                             // enable subscription transfer
+                            uaClient.ReconnectPeriod = 1000;
                             uaClient.Session.TransferSubscriptionsOnReconnect = true;
 
                             var samples = new ClientSamples(output, ClientBase.ValidateResponse, quitEvent, verbose);
@@ -227,6 +230,20 @@ namespace Quickstarts.ConsoleReferenceClient
                                 if (jsonvalues && variableIds != null)
                                 {
                                     await samples.ReadAllValuesAsync(uaClient, variableIds);
+                                }
+
+                                if (subscribe && fetchall)
+                                {
+                                    var variables = new NodeCollection(allNodes
+                                        .Where(r => r.NodeClass == NodeClass.Variable && ((VariableNode)r).DataType.NamespaceIndex != 0)
+                                        .Select(r => ((VariableNode)r)));
+
+                                    await samples.SubscribeAllValuesAsync(uaClient, variables, 1000, 60, 2);
+
+                                    for (int i = 0; i < 1000; i++)
+                                    {
+                                        await Task.Delay(10000);
+                                    }
                                 }
 
                                 quit = true;

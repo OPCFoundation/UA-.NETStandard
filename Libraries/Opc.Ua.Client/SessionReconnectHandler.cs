@@ -56,19 +56,19 @@ namespace Opc.Ua.Client
             /// <summary>
             /// The reconnect handler is ready to start the reconnect timer.
             /// </summary>
-            Ready,
+            Ready = 0,
             /// <summary>
             /// The reconnect timer is triggered and waiting to reconnect.
             /// </summary>
-            Triggered,
+            Triggered = 1,
             /// <summary>
             /// The reconnection is in progress.
             /// </summary>
-            Reconnecting,
+            Reconnecting = 2,
             /// <summary>
             /// The reconnect handler is disposed and can not be used for further reconnect attempts.
             /// </summary>
-            Disposed
+            Disposed = 4
         };
 
         /// <summary>
@@ -80,6 +80,7 @@ namespace Opc.Ua.Client
             m_reconnectAbort = reconnectAbort;
             m_reconnectTimer = new Timer(OnReconnect, this, Timeout.Infinite, Timeout.Infinite);
             m_state = ReconnectState.Ready;
+            m_cancelReconnect = false;
         }
 
         #region IDisposable Members
@@ -163,15 +164,15 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Begins the reconnect process.
         /// </summary>
-        public void BeginReconnect(ISession session, int reconnectPeriod, EventHandler callback)
+        public ReconnectState BeginReconnect(ISession session, int reconnectPeriod, EventHandler callback)
         {
-            BeginReconnect(session, null, reconnectPeriod, callback);
+            return BeginReconnect(session, null, reconnectPeriod, callback);
         }
 
         /// <summary>
         /// Begins the reconnect process using a reverse connection.
         /// </summary>
-        public void BeginReconnect(ISession session, ReverseConnectManager reverseConnectManager, int reconnectPeriod, EventHandler callback)
+        public ReconnectState BeginReconnect(ISession session, ReverseConnectManager reverseConnectManager, int reconnectPeriod, EventHandler callback)
         {
             lock (m_lock)
             {
@@ -187,11 +188,11 @@ namespace Opc.Ua.Client
                     {
                         m_session = null;
                         EnterReadyState();
-                        return;
+                        return m_state;
                     }
                     // reconnect already in progress, schedule cancel
                     m_cancelReconnect = true;
-                    return;
+                    return m_state;
                 }
 
                 // ignore subsequent trigger requests
@@ -209,11 +210,13 @@ namespace Opc.Ua.Client
                     }
                     m_reconnectTimer.Change(reconnectPeriod, Timeout.Infinite);
                     m_state = ReconnectState.Triggered;
-                    return;
+                    return m_state;
                 }
 
                 // override reconnect period
                 m_reconnectPeriod = reconnectPeriod;
+
+                return m_state;
             }
         }
         #endregion
