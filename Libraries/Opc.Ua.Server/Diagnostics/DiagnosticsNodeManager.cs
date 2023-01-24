@@ -609,7 +609,10 @@ namespace Opc.Ua.Server
         /// </summary>
         public void ForceDiagnosticsScan()
         {
-            m_lastDiagnosticsScanTime = DateTime.MinValue;
+            lock (Lock)
+            {
+                m_lastDiagnosticsScanTime = DateTime.MinValue;
+            }
         }
 
         /// <summary>
