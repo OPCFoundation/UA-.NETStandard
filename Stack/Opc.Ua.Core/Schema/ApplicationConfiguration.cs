@@ -2949,16 +2949,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the identifier with a trust list store location.
-        /// </summary>
-        public CertificateIdentifier(CertificateTrustList trustList)
-        {
-            Initialize();
-            m_storePath = trustList.StorePath;
-            m_storeType = trustList.StoreType;
-        }
-
-        /// <summary>
         /// Sets private members to default values.
         /// </summary>
         private void Initialize()

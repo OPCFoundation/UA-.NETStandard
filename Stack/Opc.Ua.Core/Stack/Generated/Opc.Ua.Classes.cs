@@ -11586,11 +11586,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-#endif
+    #endif
     #endregion
 
     #region ServerStatusState Class
-#if (!OPCUA_EXCLUDE_ServerStatusState)
+    #if (!OPCUA_EXCLUDE_ServerStatusState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -11620,7 +11620,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-#if (!OPCUA_EXCLUDE_InitializationStrings)
+    #if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -11658,7 +11658,7 @@ namespace Opc.Ua
            "AAAVYIkKAgAAAAAAEwAAAFNlY29uZHNUaWxsU2h1dGRvd24BAMAKAC8AP8AKAAAAB/////8BAf////8A" +
            "AAAAFWCJCgIAAAAAAA4AAABTaHV0ZG93blJlYXNvbgEAwQoALwA/wQoAAAAV/////wEB/////wAAAAA=";
         #endregion
-#endif
+    #endif
         #endregion
 
         #region Public Properties
