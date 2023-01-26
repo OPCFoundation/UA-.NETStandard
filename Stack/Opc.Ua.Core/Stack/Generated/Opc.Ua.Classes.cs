@@ -11586,11 +11586,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region ServerStatusState Class
-    #if (!OPCUA_EXCLUDE_ServerStatusState)
+#if (!OPCUA_EXCLUDE_ServerStatusState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -11620,7 +11620,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -11658,7 +11658,7 @@ namespace Opc.Ua
            "AAAVYIkKAgAAAAAAEwAAAFNlY29uZHNUaWxsU2h1dGRvd24BAMAKAC8AP8AKAAAAB/////8BAf////8A" +
            "AAAAFWCJCgIAAAAAAA4AAABTaHV0ZG93blJlYXNvbgEAwQoALwA/wQoAAAAV/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -11815,7 +11815,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -12009,7 +12009,7 @@ namespace Opc.Ua
         /// <remarks />
         public ServerStatusDataType Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -12045,6 +12045,30 @@ namespace Opc.Ua
                 instance = m_variable.BuildInfo;
                 instance.OnReadValue = OnRead_BuildInfo;
                 instance.OnSimpleWriteValue = OnWrite_BuildInfo;
+                updateList.Add(instance);
+                instance = m_variable.BuildInfo.ProductUri;
+                instance.OnReadValue = OnRead_BuildInfo_ProductUri;
+                instance.OnSimpleWriteValue = OnWrite_BuildInfo_ProductUri;
+                updateList.Add(instance);
+                instance = m_variable.BuildInfo.ManufacturerName;
+                instance.OnReadValue = OnRead_BuildInfo_ManufacturerName;
+                instance.OnSimpleWriteValue = OnWrite_BuildInfo_ManufacturerName;
+                updateList.Add(instance);
+                instance = m_variable.BuildInfo.ProductName;
+                instance.OnReadValue = OnRead_BuildInfo_ProductName;
+                instance.OnSimpleWriteValue = OnWrite_BuildInfo_ProductName;
+                updateList.Add(instance);
+                instance = m_variable.BuildInfo.SoftwareVersion;
+                instance.OnReadValue = OnRead_BuildInfo_SoftwareVersion;
+                instance.OnSimpleWriteValue = OnWrite_BuildInfo_SoftwareVersion;
+                updateList.Add(instance);
+                instance = m_variable.BuildInfo.BuildNumber;
+                instance.OnReadValue = OnRead_BuildInfo_BuildNumber;
+                instance.OnSimpleWriteValue = OnWrite_BuildInfo_BuildNumber;
+                updateList.Add(instance);
+                instance = m_variable.BuildInfo.BuildDate;
+                instance.OnReadValue = OnRead_BuildInfo_BuildDate;
+                instance.OnSimpleWriteValue = OnWrite_BuildInfo_BuildDate;
                 updateList.Add(instance);
                 instance = m_variable.SecondsTillShutdown;
                 instance.OnReadValue = OnRead_SecondsTillShutdown;
@@ -12236,6 +12260,222 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region BuildInfo_ProductUri Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_BuildInfo_ProductUri(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.BuildInfo.ProductUri;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_BuildInfo_ProductUri(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.BuildInfo.ProductUri = (string)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region BuildInfo_ManufacturerName Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_BuildInfo_ManufacturerName(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.BuildInfo.ManufacturerName;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_BuildInfo_ManufacturerName(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.BuildInfo.ManufacturerName = (string)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region BuildInfo_ProductName Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_BuildInfo_ProductName(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.BuildInfo.ProductName;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_BuildInfo_ProductName(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.BuildInfo.ProductName = (string)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region BuildInfo_SoftwareVersion Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_BuildInfo_SoftwareVersion(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.BuildInfo.SoftwareVersion;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_BuildInfo_SoftwareVersion(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.BuildInfo.SoftwareVersion = (string)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region BuildInfo_BuildNumber Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_BuildInfo_BuildNumber(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.BuildInfo.BuildNumber;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_BuildInfo_BuildNumber(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.BuildInfo.BuildNumber = (string)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
+        #region BuildInfo_BuildDate Access Methods
+        /// <remarks />
+        private ServiceResult OnRead_BuildInfo_BuildDate(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            lock (Lock)
+            {
+                DoBeforeReadProcessing(context, node);
+
+                if (m_value != null)
+                {
+                    value = m_value.BuildInfo.BuildDate;
+                }
+
+                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+            }
+        }
+
+        /// <remarks />
+        private ServiceResult OnWrite_BuildInfo_BuildDate(ISystemContext context, NodeState node, ref object value)
+        {
+            lock (Lock)
+            {
+                m_value.BuildInfo.BuildDate = (DateTime)Write(value);
+            }
+
+            return ServiceResult.Good;
+        }
+        #endregion
+
         #region SecondsTillShutdown Access Methods
         /// <remarks />
         private ServiceResult OnRead_SecondsTillShutdown(
@@ -12319,7 +12559,7 @@ namespace Opc.Ua
     #endregion
 
     #region BuildInfoVariableState Class
-    #if (!OPCUA_EXCLUDE_BuildInfoVariableState)
+#if (!OPCUA_EXCLUDE_BuildInfoVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
