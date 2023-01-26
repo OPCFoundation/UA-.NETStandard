@@ -772,7 +772,7 @@ namespace Opc.Ua
             m_rejectUnknownRevocationStatus = false;
             m_minCertificateKeySize = CertificateFactory.DefaultKeySize;
             m_addAppCertToTrustedStore = true;
-            m_sendCertificateChain = false;
+            m_sendCertificateChain = true;
             m_suppressNonceValidationErrors = false;
         }
 
@@ -2946,6 +2946,16 @@ namespace Opc.Ua
         {
             Initialize();
             m_certificate = CertificateFactory.Create(rawData, true);
+        }
+
+        /// <summary>
+        /// Initializes the identifier with a trust list store location.
+        /// </summary>
+        public CertificateIdentifier(CertificateTrustList trustList)
+        {
+            Initialize();
+            m_storePath = trustList.StorePath;
+            m_storeType = trustList.StoreType;
         }
 
         /// <summary>
