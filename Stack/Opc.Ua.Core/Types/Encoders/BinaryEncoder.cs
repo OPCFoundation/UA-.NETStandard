@@ -88,7 +88,10 @@ namespace Opc.Ua
                     m_writer.Dispose();
                 }
 
-                m_ostrm?.Dispose();
+                if (!m_leaveOpen)
+                {
+                    m_ostrm?.Dispose();
+                }
             }
         }
         #endregion

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -70,37 +70,14 @@ namespace Opc.Ua.Client.ComplexTypes
         public int TargetNamespaceIndex => m_targetNamespaceIndex;
 
         /// <summary>
-        /// Create an enum type from a binary schema definition.
-        /// Available before OPC UA V1.04.
-        /// </summary>
-        public Type AddEnumType(Schema.Binary.EnumeratedType enumeratedType)
-        {
-            if (enumeratedType == null)
-            {
-                throw new ArgumentNullException(nameof(enumeratedType));
-            }
-            var enumBuilder = m_moduleBuilder.DefineEnum(
-                GetFullQualifiedTypeName(enumeratedType.Name),
-                TypeAttributes.Public,
-                typeof(int));
-            enumBuilder.DataContractAttribute(m_targetNamespace);
-            foreach (var enumValue in enumeratedType.EnumeratedValue)
-            {
-                var newEnum = enumBuilder.DefineLiteral(enumValue.Name, enumValue.Value);
-                newEnum.EnumMemberAttribute(enumValue.Name, enumValue.Value);
-            }
-            return enumBuilder.CreateTypeInfo();
-        }
-
-        /// <summary>
         /// Create an enum type from an EnumDefinition in an ExtensionObject.
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
-        public Type AddEnumType(QualifiedName typeName, ExtensionObject typeDefinition)
+        public Type AddEnumType(QualifiedName typeName, EnumDefinition enumDefinition)
         {
-            if (!(typeDefinition.Body is EnumDefinition enumDefinition))
+            if (enumDefinition == null)
             {
-                throw new ArgumentNullException(nameof(typeDefinition));
+                throw new ArgumentNullException(nameof(enumDefinition));
             }
 
             var enumBuilder = m_moduleBuilder.DefineEnum(
@@ -112,59 +89,6 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 var newEnum = enumBuilder.DefineLiteral(enumValue.Name, (int)enumValue.Value);
                 newEnum.EnumMemberAttribute(enumValue.Name, (int)enumValue.Value);
-            }
-            return enumBuilder.CreateTypeInfo();
-        }
-
-        /// <summary>
-        /// Create an enum type from an EnumValue property of a DataType node.
-        /// Available before OPC UA V1.04.
-        /// </summary>
-        public Type AddEnumType(QualifiedName typeName, ExtensionObject[] enumDefinition)
-        {
-            if (enumDefinition == null)
-            {
-                throw new ArgumentNullException(nameof(enumDefinition));
-            }
-
-            var enumBuilder = m_moduleBuilder.DefineEnum(
-                GetFullQualifiedTypeName(typeName),
-                TypeAttributes.Public,
-                typeof(int));
-            enumBuilder.DataContractAttribute(m_targetNamespace);
-            foreach (var extensionObject in enumDefinition)
-            {
-                var enumValue = extensionObject.Body as EnumValueType;
-                var name = enumValue.DisplayName.Text;
-                var newEnum = enumBuilder.DefineLiteral(name, (int)enumValue.Value);
-                newEnum.EnumMemberAttribute(name, (int)enumValue.Value);
-            }
-            return enumBuilder.CreateTypeInfo();
-        }
-
-        /// <summary>
-        /// Create an enum type from the EnumString array of a DataType node.
-        /// Available before OPC UA V1.04.
-        /// </summary>
-        public Type AddEnumType(QualifiedName typeName, LocalizedText[] enumDefinition)
-        {
-            if (enumDefinition == null)
-            {
-                throw new ArgumentNullException(nameof(enumDefinition));
-            }
-
-            var enumBuilder = m_moduleBuilder.DefineEnum(
-                GetFullQualifiedTypeName(typeName),
-                TypeAttributes.Public,
-                typeof(int));
-            enumBuilder.DataContractAttribute(m_targetNamespace);
-            int value = 0;
-            foreach (var enumValue in enumDefinition)
-            {
-                var name = enumValue.Text;
-                var newEnum = enumBuilder.DefineLiteral(name, value);
-                newEnum.EnumMemberAttribute(name, value);
-                value++;
             }
             return enumBuilder.CreateTypeInfo();
         }

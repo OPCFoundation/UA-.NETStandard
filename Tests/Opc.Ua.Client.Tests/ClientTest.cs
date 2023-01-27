@@ -55,6 +55,10 @@ namespace Opc.Ua.Client.Tests
     [DisassemblyDiagnoser]
     public class ClientTest : ClientTestFramework
     {
+        public ClientTest() : base(Utils.UriSchemeOpcTcp)
+        {
+        }
+
         public ClientTest(string uriScheme = Utils.UriSchemeOpcTcp) :
             base(uriScheme)
         {

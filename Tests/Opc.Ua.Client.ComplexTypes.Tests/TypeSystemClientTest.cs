@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -85,7 +85,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// <param name="writer">The test output writer.</param>
         public async Task OneTimeSetUpAsync(TextWriter writer = null)
         {
-            // pki directory root for test runs. 
+            // pki directory root for test runs.
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start Ref server
@@ -162,6 +162,26 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             foreach (var type in types)
             {
                 TestContext.Out.WriteLine("Type: {0} ", type.FullName);
+            }
+
+            foreach (var dataTypeId in typeSystem.GetDefinedDataTypeIds())
+            {
+                var definitions = typeSystem.GetDataTypeDefinitionsForDataType(dataTypeId);
+                Assert.IsNotEmpty(definitions);
+                var type = m_session.Factory.GetSystemType(dataTypeId);
+                Assert.IsNotNull(type);
+
+                var localTypeId = ExpandedNodeId.ToNodeId(dataTypeId, m_session.NamespaceUris);
+                if (type.IsEnum)
+                {
+                    Assert.AreEqual(1, definitions.Count);
+                    Assert.IsTrue(definitions.First().Value is EnumDefinition);
+                    Assert.AreEqual(localTypeId, definitions.First().Key);
+                }
+                else
+                {
+                    Assert.IsTrue(definitions[localTypeId] is StructureDefinition);
+                }
             }
         }
         #endregion
