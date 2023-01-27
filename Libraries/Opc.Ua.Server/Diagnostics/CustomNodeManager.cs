@@ -3315,6 +3315,13 @@ namespace Opc.Ua.Server
                 MonitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(this, source);
             }
 
+            if (monitoredNode.EventMonitoredItems != null)
+            {
+                // remove existing monitored items with the same Id prior to insertion inorder to avoid duplicates
+                // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
+                monitoredNode.EventMonitoredItems.RemoveAll(e => e.Id == monitoredItem.Id);
+            }
+
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
             monitoredNode.Add(monitoredItem);
