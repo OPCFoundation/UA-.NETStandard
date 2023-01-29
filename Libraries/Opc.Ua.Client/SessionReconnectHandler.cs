@@ -281,19 +281,22 @@ namespace Opc.Ua.Client
             // schedule the next reconnect.
             lock (m_lock)
             {
-                if (m_cancelReconnect)
+                if (m_state != ReconnectState.Disposed)
                 {
-                    EnterReadyState();
-                }
-                else
-                {
-                    int adjustedReconnectPeriod = m_reconnectPeriod - (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
-                    if (adjustedReconnectPeriod <= MinReconnectPeriod)
+                    if (m_cancelReconnect)
                     {
-                        adjustedReconnectPeriod = MinReconnectPeriod;
+                        EnterReadyState();
                     }
-                    m_reconnectTimer.Change(adjustedReconnectPeriod, Timeout.Infinite);
-                    m_state = ReconnectState.Triggered;
+                    else
+                    {
+                        int adjustedReconnectPeriod = m_reconnectPeriod - (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
+                        if (adjustedReconnectPeriod <= MinReconnectPeriod)
+                        {
+                            adjustedReconnectPeriod = MinReconnectPeriod;
+                        }
+                        m_reconnectTimer.Change(adjustedReconnectPeriod, Timeout.Infinite);
+                        m_state = ReconnectState.Triggered;
+                    }
                 }
             }
         }
