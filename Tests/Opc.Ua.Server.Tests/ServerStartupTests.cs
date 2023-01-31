@@ -44,7 +44,7 @@ namespace Opc.Ua.Server.Tests
         const uint kTimeoutHint = 10000;
 
         [DatapointSource]
-        public string[] UriSchemes = { Utils.UriSchemeOpcTcp, Utils.UriSchemeHttps };
+        public string[] UriSchemes = { Utils.UriSchemeOpcTcp, Utils.UriSchemeHttps, Utils.UriSchemeOpcWss };
 
         #region Test Methods
         /// <summary>

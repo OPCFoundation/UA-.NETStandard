@@ -780,7 +780,13 @@ namespace Opc.Ua
                     break;
                 }
 
-                case Profiles.UaWssTransport:
+                case Profiles.WssBinaryTransport:
+                {
+                    uriScheme = Utils.UriSchemeOpcWss;
+                    break;
+                }
+
+                case Profiles.WssJsonTransport:
                 {
                     uriScheme = Utils.UriSchemeOpcWss;
                     break;

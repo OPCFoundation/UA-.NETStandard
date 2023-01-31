@@ -84,6 +84,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libraries", "Libraries", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Stack", "Stack", "{12710D16-90C2-44B1-8B62-8046C1023055}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Bindings.WebSockets", "Stack\Opc.Ua.Bindings.WebSockets\Opc.Ua.Bindings.WebSockets.csproj", "{6CB123C6-4CB7-4F34-9C07-84D826027FCC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -166,6 +168,10 @@ Global
 		{9FC5C47D-5070-4222-B4F4-94EB495AEE4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9FC5C47D-5070-4222-B4F4-94EB495AEE4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9FC5C47D-5070-4222-B4F4-94EB495AEE4C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6CB123C6-4CB7-4F34-9C07-84D826027FCC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6CB123C6-4CB7-4F34-9C07-84D826027FCC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6CB123C6-4CB7-4F34-9C07-84D826027FCC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6CB123C6-4CB7-4F34-9C07-84D826027FCC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -192,6 +198,7 @@ Global
 		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA} = {DDDC86D8-79F7-488B-B445-AD176FAE1603}
 		{FC588507-282A-426E-8BC9-940860C76610} = {DDDC86D8-79F7-488B-B445-AD176FAE1603}
 		{9FC5C47D-5070-4222-B4F4-94EB495AEE4C} = {EE37EB25-F581-4794-9CAC-F15BF13D520C}
+		{6CB123C6-4CB7-4F34-9C07-84D826027FCC} = {12710D16-90C2-44B1-8B62-8046C1023055}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EA3AA3AE-CE8A-4DF1-BED8-CA0BAFC87303}

@@ -47,7 +47,9 @@ namespace Opc.Ua.Client.Tests
     {
         public static readonly object[] FixtureArgs = {
             new object [] { Utils.UriSchemeOpcTcp},
-            new object [] { Utils.UriSchemeHttps}
+            new object [] { Utils.UriSchemeHttps},
+            new object [] { Utils.UriSchemeOpcWss}
+
         };
 
         public const int MaxReferences = 100;
