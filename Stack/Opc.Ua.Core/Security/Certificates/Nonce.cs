@@ -63,6 +63,19 @@ namespace Opc.Ua
 #endif
         }
 
+        private HMAC returnHMACInstance(byte[] secret, HashAlgorithmName algorithm)
+        {
+            switch (algorithm.Name)
+            {
+                case "SHA256":
+                    return new HMACSHA256(secret);
+                case "SHA384":
+                    return new HMACSHA384(secret);
+                default:
+                    return new HMACSHA256(secret);
+            }
+        }
+
 #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -140,8 +153,8 @@ namespace Opc.Ua
 
                 byte[] output = new byte[length];
 
-                HMACSHA256 hmac = new HMACSHA256(secret);
-
+                HMAC hmac = returnHMACInstance(secret, algorithm);
+      
                 byte counter = 1;
 
                 byte[] info = new byte[hmac.HashSize / 8 + salt.Length + 1];
