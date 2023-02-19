@@ -2980,7 +2980,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
-                        "Could not parse DER encoded form of an X509 certificate.",
+                        "Could not parse DER encoded form of a X509 certificate.",
                         e);
                 }
 
