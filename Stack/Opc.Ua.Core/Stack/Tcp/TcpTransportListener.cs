@@ -442,7 +442,7 @@ namespace Opc.Ua.Bindings
             {
                 // check if complete chain should be sent.
                 if (m_serverCertificateChain != null &&
-                    m_serverCertificateChain.Count > 0)
+                    m_serverCertificateChain.Count > 1)
                 {
                     var byteServerCertificateChain = new List<byte>();
 

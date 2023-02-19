@@ -7,7 +7,7 @@
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net462'">
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
     <DefineConstants>$(DefineConstants);USE_FILE_CONFIG</DefineConstants>
   </PropertyGroup>
 

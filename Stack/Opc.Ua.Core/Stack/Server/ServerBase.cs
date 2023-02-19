@@ -783,7 +783,12 @@ namespace Opc.Ua
             {
                 InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
                 var issuers = new List<CertificateIdentifier>();
-                Configuration.CertificateValidator.GetIssuers(InstanceCertificateChain, issuers).GetAwaiter().GetResult();
+                var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
+                Configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).GetAwaiter().GetResult();
+                foreach (var error in validationErrors)
+                {
+                    Utils.LogCertificate("OnCertificateUpdate: GetIssuers Validation Error: {0}", error.Key, error.Value.Result);
+                }
                 for (int i = 0; i < issuers.Count; i++)
                 {
                     InstanceCertificateChain.Add(issuers[i].Certificate);

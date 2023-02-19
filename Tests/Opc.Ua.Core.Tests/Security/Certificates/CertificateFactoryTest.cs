@@ -277,6 +277,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     TestContext.Out.WriteLine(certChain[i]);
                     Assert.AreEqual(certChain[i].RawData, certArray[i].RawData);
                 }
+
+                var singleBlob = AsnUtils.ParseX509Blob(certBlob);
+                Assert.NotNull(singleBlob);
+                var certX = new X509Certificate2(singleBlob);
+                Assert.NotNull(certX);
+                Assert.AreEqual(certArray[0].RawData, singleBlob);
+                Assert.AreEqual(singleBlob, certX.RawData);
+                Assert.AreEqual(certArray[0].RawData, certX.RawData);
+
             }
             else
             {
