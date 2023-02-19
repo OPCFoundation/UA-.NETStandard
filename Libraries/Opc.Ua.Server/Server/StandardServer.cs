@@ -464,7 +464,7 @@ namespace Opc.Ua.Server
                         // check if complete chain should be sent.
                         if (Configuration.SecurityConfiguration.SendCertificateChain &&
                             InstanceCertificateChain != null &&
-                            InstanceCertificateChain.Count > 1)
+                            InstanceCertificateChain.Count > 0)
                         {
                             List<byte> serverCertificateChain = new List<byte>();
 
