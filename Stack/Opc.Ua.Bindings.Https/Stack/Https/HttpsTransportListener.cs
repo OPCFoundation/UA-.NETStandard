@@ -7,6 +7,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Security.Authentication;
@@ -171,7 +172,8 @@ namespace Opc.Ua.Bindings
             // save the callback to the server.
             m_callback = callback;
 
-            m_serverCert = settings.ServerCertificate;
+            m_serverCertificate = settings.ServerCertificate;
+            m_serverCertificateChain = settings.ServerCertificateChain;
 
             // start the listener
             Start();
@@ -225,10 +227,12 @@ namespace Opc.Ua.Bindings
         {
             Startup.Listener = this;
             m_hostBuilder = new WebHostBuilder();
-            HttpsConnectionAdapterOptions httpsOptions = new HttpsConnectionAdapterOptions();
-            httpsOptions.CheckCertificateRevocation = false;
-            httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
-            httpsOptions.ServerCertificate = m_serverCert;
+            var httpsOptions = new HttpsConnectionAdapterOptions() {
+                CheckCertificateRevocation = false,
+                ClientCertificateMode = ClientCertificateMode.NoCertificate,
+                // note: this is the TLS certificate!
+                ServerCertificate = m_serverCertificate
+            };
 
 #if NET462
             // note: although security tools recommend 'None' here,
@@ -408,10 +412,23 @@ namespace Opc.Ua.Bindings
             Stop();
 
             m_quotas.CertificateValidator = validator;
-            m_serverCert = serverCertificate;
+            m_serverCertificate = serverCertificate;
             foreach (var description in m_descriptions)
             {
-                if (description.ServerCertificate != null)
+                // check if complete chain should be sent.
+                if (m_serverCertificateChain != null &&
+                    m_serverCertificateChain.Count > 0)
+                {
+                    var byteServerCertificateChain = new List<byte>();
+
+                    for (int i = 0; i < m_serverCertificateChain.Count; i++)
+                    {
+                        byteServerCertificateChain.AddRange(m_serverCertificateChain[i].RawData);
+                    }
+
+                    description.ServerCertificate = byteServerCertificateChain.ToArray();
+                }
+                else if (description.ServerCertificate != null)
                 {
                     description.ServerCertificate = serverCertificate.RawData;
                 }
@@ -447,7 +464,8 @@ namespace Opc.Ua.Bindings
         private ITransportListenerCallback m_callback;
         private IWebHostBuilder m_hostBuilder;
         private IWebHost m_host;
-        private X509Certificate2 m_serverCert;
+        private X509Certificate2 m_serverCertificate;
+        private X509Certificate2Collection m_serverCertificateChain;
         #endregion
     }
 }

@@ -777,10 +777,22 @@ namespace Opc.Ua
         protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
         {
             // disconnect all sessions
+            InstanceCertificateChain = null;
             InstanceCertificate = e.SecurityConfiguration.ApplicationCertificate.Certificate;
+            if (Configuration.SecurityConfiguration.SendCertificateChain)
+            {
+                InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
+                var issuers = new List<CertificateIdentifier>();
+                Configuration.CertificateValidator.GetIssuers(InstanceCertificateChain, issuers).GetAwaiter().GetResult();
+                for (int i = 0; i < issuers.Count; i++)
+                {
+                    InstanceCertificateChain.Add(issuers[i].Certificate);
+                }
+            }
+
             foreach (var listener in TransportListeners)
             {
-                listener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, null);
+                listener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, InstanceCertificateChain);
             }
         }
 
