@@ -413,6 +413,7 @@ namespace Opc.Ua.Bindings
 
             m_quotas.CertificateValidator = validator;
             m_serverCertificate = serverCertificate;
+            m_serverCertificateChain = serverCertificateChain;
             foreach (var description in m_descriptions)
             {
                 // check if complete chain should be sent.

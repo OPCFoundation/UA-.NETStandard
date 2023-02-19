@@ -787,7 +787,10 @@ namespace Opc.Ua
                 Configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).GetAwaiter().GetResult();
                 foreach (var error in validationErrors)
                 {
-                    Utils.LogCertificate("OnCertificateUpdate: GetIssuers Validation Error: {0}", error.Key, error.Value.Result);
+                    if (error.Value != null)
+                    {
+                        Utils.LogCertificate("OnCertificateUpdate: GetIssuers Validation Error: {0}", error.Key, error.Value.Result);
+                    }
                 }
                 for (int i = 0; i < issuers.Count; i++)
                 {
