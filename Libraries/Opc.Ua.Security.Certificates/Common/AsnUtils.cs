@@ -195,12 +195,12 @@ namespace Opc.Ua.Security.Certificates
                     seqReader.ThrowIfNotEmpty();
                     return peekBlob;
                 }
-                return null;
             }
             catch (AsnContentException ace)
             {
                 throw new CryptographicException("Failed to decode the X509 sequence.", ace);
             }
+            throw new CryptographicException("Invalid ASN encoding for the X509 sequence.");
         }
     }
 }
