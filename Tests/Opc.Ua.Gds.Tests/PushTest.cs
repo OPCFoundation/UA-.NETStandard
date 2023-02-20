@@ -700,7 +700,7 @@ namespace Opc.Ua.Gds.Tests
             m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).GetAwaiter().GetResult();
             m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             // compare leaf certificates, ServerCertificate might be a chain if sendCertChain is sets
-            var serverCertificate = new X509Certificate2(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
+            var serverCertificate = Utils.ParseCertificateBlob(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             Assert.AreEqual(
                 certificateBlob,
                 serverCertificate.RawData
