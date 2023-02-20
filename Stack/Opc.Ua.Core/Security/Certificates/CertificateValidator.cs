@@ -547,12 +547,20 @@ namespace Opc.Ua
                             bool leafCertificate = true;
                             foreach (var certificate in certificateChain)
                             {
-                                if (!leafCertificate)
+                                try
                                 {
-                                    Utils.LogCertificate("Saved issuer certificate: ", certificate);
+                                    store.Add(certificate).GetAwaiter().GetResult();
+                                    if (!leafCertificate)
+                                    {
+                                        Utils.LogCertificate("Saved issuer certificate: ", certificate);
+                                    }
+                                    leafCertificate = false;
                                 }
-                                leafCertificate = false;
-                                store.Add(certificate).GetAwaiter().GetResult();
+                                catch (ArgumentException aex)
+                                {
+                                    // just notify why the certificate cannot be added
+                                    Utils.LogCertificate(aex.Message, certificate);
+                                }
                             }
                         }
                         finally

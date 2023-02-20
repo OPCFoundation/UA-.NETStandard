@@ -18,26 +18,26 @@
         <HttpsTargetFrameworks>net48;net462;netstandard2.0;netcoreapp3.1;net6.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
-    <!-- Visual Studio 2019, supports .NET Framework 4.6.2 and .NET Core 3.1 -->
+    <!-- Visual Studio 2019, supports .NET Framework 4.6.2, 4.8 and .NET Core 3.1 -->
     <When  Condition="'$(VisualStudioVersion)' == '16.0'">
       <PropertyGroup>
-        <AppTargetFrameworks>netcoreapp3.1;net462</AppTargetFrameworks>
+        <AppTargetFrameworks>netcoreapp3.1;net48;net462</AppTargetFrameworks>
         <AppTargetFramework>netcoreapp3.1</AppTargetFramework>
-        <TestsTargetFrameworks>net462;netcoreapp3.1</TestsTargetFrameworks>
-        <LibTargetFrameworks>net462;netstandard2.0;netstandard2.1</LibTargetFrameworks>
-        <LibxTargetFrameworks>net462;netstandard2.1</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>net462;netstandard2.0;netcoreapp3.1</HttpsTargetFrameworks>
+        <TestsTargetFrameworks>net48;net462;netcoreapp3.1</TestsTargetFrameworks>
+        <LibTargetFrameworks>net48;net462;netstandard2.0;netstandard2.1</LibTargetFrameworks>
+        <LibxTargetFrameworks>net48;net462;netstandard2.1</LibxTargetFrameworks>
+        <HttpsTargetFrameworks>net48;net462;netstandard2.0;netcoreapp3.1</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
-    <!-- Visual Studio 2017 and earlier, support only .NET Framework 4.6.2 because .NET Core 2.x is end of life. -->
+    <!-- Visual Studio 2017 and earlier, support only .NET Framework 4.8 because .NET Core 2.x is end of life. -->
     <Otherwise>
       <PropertyGroup>
-        <AppTargetFrameworks>net462</AppTargetFrameworks>
-        <AppTargetFramework>net462</AppTargetFramework>
-        <TestsTargetFrameworks>net462</TestsTargetFrameworks>
-        <LibTargetFrameworks>net462</LibTargetFrameworks>
-        <LibxTargetFrameworks>net462</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>net462</HttpsTargetFrameworks>
+        <AppTargetFrameworks>net48</AppTargetFrameworks>
+        <AppTargetFramework>net48</AppTargetFramework>
+        <TestsTargetFrameworks>net48</TestsTargetFrameworks>
+        <LibTargetFrameworks>net48</LibTargetFrameworks>
+        <LibxTargetFrameworks>net48</LibxTargetFrameworks>
+        <HttpsTargetFrameworks>net48</HttpsTargetFrameworks>
       </PropertyGroup>
     </Otherwise>
   </Choose>
