@@ -26,6 +26,8 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Net;
 using System.Collections.ObjectModel;
+using Opc.Ua.Security.Certificates;
+using System.Runtime.InteropServices;
 
 namespace Opc.Ua
 {
@@ -2610,9 +2612,20 @@ namespace Opc.Ua
         /// </summary>
         public static X509Certificate2 ParseCertificateBlob(byte[] certificateData)
         {
+            // macOS X509Certificate2 constructor throws exception if a certchain is encoded
+            // use AsnParser on macOS to parse for byteblobs,
+            bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
             try
             {
-                return CertificateFactory.Create(certificateData, true);
+                if (useAsnParser)
+                {
+                    var certBlob = AsnUtils.ParseX509Blob(certificateData);
+                    return CertificateFactory.Create(certBlob, true);
+                }
+                else
+                {
+                    return CertificateFactory.Create(certificateData, true);
+                }
             }
             catch (Exception e)
             {
@@ -2632,20 +2645,30 @@ namespace Opc.Ua
         {
             X509Certificate2Collection certificateChain = new X509Certificate2Collection();
             List<byte> certificatesBytes = new List<byte>(certificateData);
-            X509Certificate2 certificate = null;
-
+            // macOS X509Certificate2 constructor throws exception if a certchain is encoded
+            // use AsnParser on macOS to parse for byteblobs,
+            bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
             while (certificatesBytes.Count > 0)
             {
+                X509Certificate2 certificate;
                 try
                 {
-                    certificate = CertificateFactory.Create(certificatesBytes.ToArray(), true);
+                    if (useAsnParser)
+                    {
+                        var certBlob = AsnUtils.ParseX509Blob(certificatesBytes.ToArray());
+                        certificate = CertificateFactory.Create(certBlob, true);
+                    }
+                    else
+                    {
+                        certificate = CertificateFactory.Create(certificatesBytes.ToArray(), true);
+                    }
                 }
                 catch (Exception e)
                 {
                     throw new ServiceResultException(
-                    StatusCodes.BadCertificateInvalid,
-                    "Could not parse DER encoded form of an X509 certificate.",
-                    e);
+                        StatusCodes.BadCertificateInvalid,
+                        "Could not parse DER encoded form of a X509 certificate.",
+                        e);
                 }
 
                 certificateChain.Add(certificate);

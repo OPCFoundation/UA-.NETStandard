@@ -345,7 +345,7 @@ namespace Opc.Ua.Security.Certificates
 
                     BigInteger srlNumberValue = new BigInteger(revokedCert.UserCertificate);
                     crlWriter.WriteInteger(srlNumberValue);
-                    crlWriter.WriteUtcTime(revokedCert.RevocationDate);
+                    WriteTime(crlWriter, revokedCert.RevocationDate);
 
                     if (revokedCert.CrlEntryExtensions.Count > 0)
                     {
@@ -392,13 +392,14 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="dateTime">The date time to write.</param>
         private static void WriteTime(AsnWriter writer, DateTime dateTime)
         {
-            if (dateTime.Year < 2050)
+            DateTime utcTime = dateTime.ToUniversalTime();
+            if (utcTime.Year < 2050)
             {
-                writer.WriteUtcTime(dateTime);
+                writer.WriteUtcTime(utcTime);
             }
             else
             {
-                writer.WriteGeneralizedTime(dateTime);
+                writer.WriteGeneralizedTime(utcTime, true);
             }
         }
         #endregion
