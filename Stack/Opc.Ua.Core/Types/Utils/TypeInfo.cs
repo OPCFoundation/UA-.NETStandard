@@ -3100,7 +3100,7 @@ namespace Opc.Ua
         /// </summary>
         public override int GetHashCode()
         {
-            return base.GetHashCode();
+            return HashCode.Combine(m_builtInType, m_valueRank);
         }
         #endregion
     }

@@ -1249,7 +1249,7 @@ namespace Opc.Ua
                 return hash;
             }
 
-            return m_identifier.GetHashCode();
+            return HashCode.Combine(m_identifier, m_namespaceIndex);
         }
         #endregion
 
@@ -1317,7 +1317,7 @@ namespace Opc.Ua
             }
         }
 
-        #endregion                
+        #endregion
         #region public ushort NamespaceIndex
         /// <summary>
         /// The index of the namespace URI in the server's namespace array.
@@ -1369,7 +1369,7 @@ namespace Opc.Ua
             }
         }
 
-        #endregion             
+        #endregion
         #region public bool IsNull
         /// <summary>
         /// Whether the object represents a Null NodeId.
@@ -1655,7 +1655,7 @@ namespace Opc.Ua
         /// <param name="capacity">The max. capacity of the collection</param>
         public NodeIdCollection(int capacity) : base(capacity) { }
 
-        #endregion        
+        #endregion
 
         #region public static NodeIdCollection ToNodeIdCollection(NodeId[] values)
         /// <summary>
@@ -2531,7 +2531,7 @@ namespace Opc.Ua
             }
             #endregion
         }
-        #endregion        
+        #endregion
 
         #region Enumerator Class
         /// <summary>

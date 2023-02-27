@@ -890,12 +890,32 @@ namespace Opc.Ua
         /// </remarks>
         public override int GetHashCode()
         {
-            if (m_nodeId == null)
+            if (m_nodeId == null || m_nodeId.IsNullNodeId)
             {
                 return 0;
             }
 
-            return m_nodeId.GetHashCode();
+            // just compare node ids.
+            if (!this.IsAbsolute)
+            {
+                return m_nodeId.GetHashCode();
+            }
+
+            var hash = new HashCode();
+
+            if (this.ServerIndex != 0)
+            {
+                hash.Add(this.ServerIndex);
+            }
+
+            if (this.NamespaceUri != null)
+            {
+                hash.Add(NamespaceUri);
+            }
+
+            hash.Add(this.m_nodeId);
+
+            return hash.ToHashCode();
         }
 
         /// <summary>
