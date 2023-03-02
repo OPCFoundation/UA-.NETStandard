@@ -2336,7 +2336,11 @@ namespace TestData
     }
 
     #region ScalarValueVariableValue Class
-    /// <remarks />
+    /// <remarks>
+    /// The generated code for this class was manually updated to support the
+    /// read/write/subscribe for the shared variable.
+    /// The updated code may be used for an update to the Modelcompiler v2.3.
+    /// </remarks>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public class ScalarValueVariableValue : BaseVariableValue
@@ -2527,13 +2531,149 @@ namespace TestData
         {
             lock (Lock)
             {
-                m_value = (ScalarValueDataType)Write(value);
+                ScalarValueDataType newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (ScalarValueDataType)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (ScalarValueDataType)value;
+                }
+
+                if (m_value != newValue)
+                {
+                    Timestamp = DateTime.UtcNow;
+                    UpdateChildrenChangeMasks(context, newValue);
+                    m_value = (ScalarValueDataType)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                    m_variable.ClearChangeMasks(context, true);
+                }
             }
 
             return ServiceResult.Good;
         }
 
-        #region BooleanValue Access Methods
+        private void UpdateChildrenChangeMasks(ISystemContext context, ScalarValueDataType newValue)
+        {
+            if (m_value.BooleanValue != newValue.BooleanValue)
+            {
+                m_variable.BooleanValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.SByteValue != newValue.SByteValue)
+            {
+                m_variable.SByteValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.ByteValue != newValue.ByteValue)
+            {
+                m_variable.ByteValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.Int16Value != newValue.Int16Value)
+            {
+                m_variable.Int16Value.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.UInt16Value != newValue.UInt16Value)
+            {
+                m_variable.UInt16Value.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.Int32Value != newValue.Int32Value)
+            {
+                m_variable.Int32Value.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.UInt32Value != newValue.UInt32Value)
+            {
+                m_variable.UInt32Value.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.Int64Value != newValue.Int64Value)
+            {
+                m_variable.Int64Value.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.UInt64Value != newValue.UInt64Value)
+            {
+                m_variable.UInt64Value.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.FloatValue != newValue.FloatValue)
+            {
+                m_variable.FloatValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.DoubleValue != newValue.DoubleValue)
+            {
+                m_variable.DoubleValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.StringValue != newValue.StringValue)
+            {
+                m_variable.StringValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.DateTimeValue != newValue.DateTimeValue)
+            {
+                m_variable.DateTimeValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.GuidValue != newValue.GuidValue)
+            {
+                m_variable.GuidValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.ByteStringValue != newValue.ByteStringValue)
+            {
+                m_variable.ByteStringValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.XmlElementValue != newValue.XmlElementValue)
+            {
+                m_variable.XmlElementValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.NodeIdValue != newValue.NodeIdValue)
+            {
+                m_variable.NodeIdValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.ExpandedNodeIdValue != newValue.ExpandedNodeIdValue)
+            {
+                m_variable.ExpandedNodeIdValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.QualifiedNameValue != newValue.QualifiedNameValue)
+            {
+                m_variable.QualifiedNameValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.LocalizedTextValue != newValue.LocalizedTextValue)
+            {
+                m_variable.LocalizedTextValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.StatusCodeValue != newValue.StatusCodeValue)
+            {
+                m_variable.StatusCodeValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.VariantValue != newValue.VariantValue)
+            {
+                m_variable.VariantValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.EnumerationValue != newValue.EnumerationValue)
+            {
+                m_variable.EnumerationValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.StructureValue != newValue.StructureValue)
+            {
+                m_variable.StructureValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.NumberValue != newValue.NumberValue)
+            {
+                m_variable.NumberValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.IntegerValue != newValue.IntegerValue)
+            {
+                m_variable.IntegerValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            if (m_value.UIntegerValue != newValue.UIntegerValue)
+            {
+                m_variable.UIntegerValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+        }
+
+        private void UpdateParent(ISystemContext context)
+        {
+            Timestamp = DateTime.UtcNow;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+            #region BooleanValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_BooleanValue(
             ISystemContext context,
@@ -2563,13 +2703,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.BooleanValue = (bool)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region SByteValue Access Methods
+            #region SByteValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_SByteValue(
             ISystemContext context,
@@ -2599,13 +2740,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.SByteValue = (sbyte)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region ByteValue Access Methods
+            #region ByteValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_ByteValue(
             ISystemContext context,
@@ -2635,13 +2777,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.ByteValue = (byte)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region Int16Value Access Methods
+            #region Int16Value Access Methods
         /// <remarks />
         private ServiceResult OnRead_Int16Value(
             ISystemContext context,
@@ -2671,13 +2814,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.Int16Value = (short)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region UInt16Value Access Methods
+            #region UInt16Value Access Methods
         /// <remarks />
         private ServiceResult OnRead_UInt16Value(
             ISystemContext context,
@@ -2707,13 +2851,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.UInt16Value = (ushort)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region Int32Value Access Methods
+            #region Int32Value Access Methods
         /// <remarks />
         private ServiceResult OnRead_Int32Value(
             ISystemContext context,
@@ -2743,13 +2888,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.Int32Value = (int)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region UInt32Value Access Methods
+            #region UInt32Value Access Methods
         /// <remarks />
         private ServiceResult OnRead_UInt32Value(
             ISystemContext context,
@@ -2779,13 +2925,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.UInt32Value = (uint)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region Int64Value Access Methods
+            #region Int64Value Access Methods
         /// <remarks />
         private ServiceResult OnRead_Int64Value(
             ISystemContext context,
@@ -2815,13 +2962,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.Int64Value = (long)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region UInt64Value Access Methods
+            #region UInt64Value Access Methods
         /// <remarks />
         private ServiceResult OnRead_UInt64Value(
             ISystemContext context,
@@ -2851,13 +2999,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.UInt64Value = (ulong)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region FloatValue Access Methods
+            #region FloatValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_FloatValue(
             ISystemContext context,
@@ -2887,13 +3036,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.FloatValue = (float)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region DoubleValue Access Methods
+            #region DoubleValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_DoubleValue(
             ISystemContext context,
@@ -2923,13 +3073,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.DoubleValue = (double)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region StringValue Access Methods
+            #region StringValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_StringValue(
             ISystemContext context,
@@ -2959,13 +3110,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.StringValue = (string)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region DateTimeValue Access Methods
+            #region DateTimeValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_DateTimeValue(
             ISystemContext context,
@@ -2995,13 +3147,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.DateTimeValue = (DateTime)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region GuidValue Access Methods
+            #region GuidValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_GuidValue(
             ISystemContext context,
@@ -3031,13 +3184,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.GuidValue = (Uuid)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region ByteStringValue Access Methods
+            #region ByteStringValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_ByteStringValue(
             ISystemContext context,
@@ -3067,13 +3221,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.ByteStringValue = (byte[])Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region XmlElementValue Access Methods
+            #region XmlElementValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_XmlElementValue(
             ISystemContext context,
@@ -3103,13 +3258,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.XmlElementValue = (XmlElement)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region NodeIdValue Access Methods
+            #region NodeIdValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_NodeIdValue(
             ISystemContext context,
@@ -3139,13 +3295,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.NodeIdValue = (NodeId)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region ExpandedNodeIdValue Access Methods
+            #region ExpandedNodeIdValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_ExpandedNodeIdValue(
             ISystemContext context,
@@ -3175,13 +3332,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.ExpandedNodeIdValue = (ExpandedNodeId)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region QualifiedNameValue Access Methods
+            #region QualifiedNameValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_QualifiedNameValue(
             ISystemContext context,
@@ -3211,13 +3369,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.QualifiedNameValue = (QualifiedName)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region LocalizedTextValue Access Methods
+            #region LocalizedTextValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_LocalizedTextValue(
             ISystemContext context,
@@ -3247,13 +3406,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.LocalizedTextValue = (LocalizedText)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region StatusCodeValue Access Methods
+            #region StatusCodeValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_StatusCodeValue(
             ISystemContext context,
@@ -3283,13 +3443,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.StatusCodeValue = (StatusCode)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region VariantValue Access Methods
+            #region VariantValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_VariantValue(
             ISystemContext context,
@@ -3319,13 +3480,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.VariantValue = (Variant)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region EnumerationValue Access Methods
+            #region EnumerationValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_EnumerationValue(
             ISystemContext context,
@@ -3355,13 +3517,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.EnumerationValue = (int)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region StructureValue Access Methods
+            #region StructureValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_StructureValue(
             ISystemContext context,
@@ -3391,13 +3554,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.StructureValue = (ExtensionObject)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region NumberValue Access Methods
+            #region NumberValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_NumberValue(
             ISystemContext context,
@@ -3427,13 +3591,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.NumberValue = (Variant)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region IntegerValue Access Methods
+            #region IntegerValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_IntegerValue(
             ISystemContext context,
@@ -3463,13 +3628,14 @@ namespace TestData
             lock (Lock)
             {
                 m_value.IntegerValue = (Variant)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
+            #endregion
 
-        #region UIntegerValue Access Methods
+            #region UIntegerValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_UIntegerValue(
             ISystemContext context,
@@ -3499,27 +3665,28 @@ namespace TestData
             lock (Lock)
             {
                 m_value.UIntegerValue = (Variant)Write(value);
+                UpdateParent(context);
             }
 
             return ServiceResult.Good;
         }
-        #endregion
-        #endregion
+            #endregion
+#endregion
 
-        #region Private Fields
+            #region Private Fields
         private ScalarValueDataType m_value;
         private ScalarValueVariableState m_variable;
-        #endregion
+            #endregion
     }
-    #endregion
-    #endif
-    #endregion
+#endregion
+#endif
+            #endregion
 
-    #region ScalarValue1MethodState Class
-    #if (!OPCUA_EXCLUDE_ScalarValue1MethodState)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+            #region ScalarValue1MethodState Class
+#if (!OPCUA_EXCLUDE_ScalarValue1MethodState)
+            /// <remarks />
+            /// <exclude />
+            [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class ScalarValue1MethodState : MethodState
     {
         #region Constructors

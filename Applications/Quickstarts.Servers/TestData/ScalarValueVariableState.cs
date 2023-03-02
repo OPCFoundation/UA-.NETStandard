@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using Opc.Ua;
 
 namespace TestData
@@ -98,13 +96,6 @@ namespace TestData
 
             // generate structure values here
             this.WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
-
-            var children = new List<BaseInstanceState>();
-            GetChildren(context, children);
-            foreach (var child in children)
-            {
-                child.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
 
             return base.OnGenerateValues(context, method, objectId, count);
         }
