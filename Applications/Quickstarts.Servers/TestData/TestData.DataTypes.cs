@@ -438,13 +438,11 @@ namespace TestData
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ScalarValueDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -519,11 +517,7 @@ namespace TestData
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfScalarValueDataType", Namespace = TestData.Namespaces.TestData, ItemName = "ScalarValueDataType")]
-    #if !NET_STANDARD
     public partial class ScalarValueDataTypeCollection : List<ScalarValueDataType>, ICloneable
-    #else
-    public partial class ScalarValueDataTypeCollection : List<ScalarValueDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -560,7 +554,6 @@ namespace TestData
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -568,7 +561,6 @@ namespace TestData
             return (ScalarValueDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1313,13 +1305,11 @@ namespace TestData
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ArrayValueDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1394,11 +1384,7 @@ namespace TestData
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfArrayValueDataType", Namespace = TestData.Namespaces.TestData, ItemName = "ArrayValueDataType")]
-    #if !NET_STANDARD
     public partial class ArrayValueDataTypeCollection : List<ArrayValueDataType>, ICloneable
-    #else
-    public partial class ArrayValueDataTypeCollection : List<ArrayValueDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -1435,7 +1421,6 @@ namespace TestData
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -1443,7 +1428,6 @@ namespace TestData
             return (ArrayValueDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1804,13 +1788,11 @@ namespace TestData
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (UserScalarValueDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1875,11 +1857,7 @@ namespace TestData
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUserScalarValueDataType", Namespace = TestData.Namespaces.TestData, ItemName = "UserScalarValueDataType")]
-    #if !NET_STANDARD
     public partial class UserScalarValueDataTypeCollection : List<UserScalarValueDataType>, ICloneable
-    #else
-    public partial class UserScalarValueDataTypeCollection : List<UserScalarValueDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -1916,7 +1894,6 @@ namespace TestData
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -1924,7 +1901,6 @@ namespace TestData
             return (UserScalarValueDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2549,13 +2525,11 @@ namespace TestData
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (UserArrayValueDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2620,11 +2594,7 @@ namespace TestData
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUserArrayValueDataType", Namespace = TestData.Namespaces.TestData, ItemName = "UserArrayValueDataType")]
-    #if !NET_STANDARD
     public partial class UserArrayValueDataTypeCollection : List<UserArrayValueDataType>, ICloneable
-    #else
-    public partial class UserArrayValueDataTypeCollection : List<UserArrayValueDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -2661,7 +2631,6 @@ namespace TestData
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -2669,7 +2638,6 @@ namespace TestData
             return (UserArrayValueDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2802,13 +2770,11 @@ namespace TestData
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (Vector)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2835,11 +2801,7 @@ namespace TestData
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfVector", Namespace = TestData.Namespaces.TestData, ItemName = "Vector")]
-    #if !NET_STANDARD
     public partial class VectorCollection : List<Vector>, ICloneable
-    #else
-    public partial class VectorCollection : List<Vector>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -2876,7 +2838,6 @@ namespace TestData
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -2884,7 +2845,6 @@ namespace TestData
             return (VectorCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -3017,13 +2977,11 @@ namespace TestData
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (WorkOrderStatusType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -3050,11 +3008,7 @@ namespace TestData
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWorkOrderStatusType", Namespace = TestData.Namespaces.TestData, ItemName = "WorkOrderStatusType")]
-    #if !NET_STANDARD
     public partial class WorkOrderStatusTypeCollection : List<WorkOrderStatusType>, ICloneable
-    #else
-    public partial class WorkOrderStatusTypeCollection : List<WorkOrderStatusType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -3091,7 +3045,6 @@ namespace TestData
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -3099,7 +3052,6 @@ namespace TestData
             return (WorkOrderStatusTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -3256,13 +3208,11 @@ namespace TestData
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (WorkOrderType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -3291,11 +3241,7 @@ namespace TestData
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWorkOrderType", Namespace = TestData.Namespaces.TestData, ItemName = "WorkOrderType")]
-    #if !NET_STANDARD
     public partial class WorkOrderTypeCollection : List<WorkOrderType>, ICloneable
-    #else
-    public partial class WorkOrderTypeCollection : List<WorkOrderType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -3332,7 +3278,6 @@ namespace TestData
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -3340,7 +3285,6 @@ namespace TestData
             return (WorkOrderTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
