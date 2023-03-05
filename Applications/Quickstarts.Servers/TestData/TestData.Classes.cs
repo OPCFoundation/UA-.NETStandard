@@ -2336,11 +2336,7 @@ namespace TestData
     }
 
     #region ScalarValueVariableValue Class
-    /// <remarks>
-    /// The generated code for this class was manually updated to support the
-    /// read/write/subscribe for the shared variable.
-    /// The updated code may be used for an update to the Modelcompiler v2.3.
-    /// </remarks>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public class ScalarValueVariableValue : BaseVariableValue
@@ -2370,7 +2366,7 @@ namespace TestData
         /// <remarks />
         public ScalarValueDataType Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -2392,113 +2388,194 @@ namespace TestData
                 updateList.Add(variable);
 
                 instance = m_variable.BooleanValue;
-                instance.OnReadValue = OnRead_BooleanValue;
-                instance.OnSimpleWriteValue = OnWrite_BooleanValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_BooleanValue;
+                    instance.OnSimpleWriteValue = OnWrite_BooleanValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SByteValue;
-                instance.OnReadValue = OnRead_SByteValue;
-                instance.OnSimpleWriteValue = OnWrite_SByteValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SByteValue;
+                    instance.OnSimpleWriteValue = OnWrite_SByteValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ByteValue;
-                instance.OnReadValue = OnRead_ByteValue;
-                instance.OnSimpleWriteValue = OnWrite_ByteValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ByteValue;
+                    instance.OnSimpleWriteValue = OnWrite_ByteValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.Int16Value;
-                instance.OnReadValue = OnRead_Int16Value;
-                instance.OnSimpleWriteValue = OnWrite_Int16Value;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_Int16Value;
+                    instance.OnSimpleWriteValue = OnWrite_Int16Value;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.UInt16Value;
-                instance.OnReadValue = OnRead_UInt16Value;
-                instance.OnSimpleWriteValue = OnWrite_UInt16Value;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_UInt16Value;
+                    instance.OnSimpleWriteValue = OnWrite_UInt16Value;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.Int32Value;
-                instance.OnReadValue = OnRead_Int32Value;
-                instance.OnSimpleWriteValue = OnWrite_Int32Value;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_Int32Value;
+                    instance.OnSimpleWriteValue = OnWrite_Int32Value;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.UInt32Value;
-                instance.OnReadValue = OnRead_UInt32Value;
-                instance.OnSimpleWriteValue = OnWrite_UInt32Value;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_UInt32Value;
+                    instance.OnSimpleWriteValue = OnWrite_UInt32Value;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.Int64Value;
-                instance.OnReadValue = OnRead_Int64Value;
-                instance.OnSimpleWriteValue = OnWrite_Int64Value;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_Int64Value;
+                    instance.OnSimpleWriteValue = OnWrite_Int64Value;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.UInt64Value;
-                instance.OnReadValue = OnRead_UInt64Value;
-                instance.OnSimpleWriteValue = OnWrite_UInt64Value;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_UInt64Value;
+                    instance.OnSimpleWriteValue = OnWrite_UInt64Value;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.FloatValue;
-                instance.OnReadValue = OnRead_FloatValue;
-                instance.OnSimpleWriteValue = OnWrite_FloatValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_FloatValue;
+                    instance.OnSimpleWriteValue = OnWrite_FloatValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.DoubleValue;
-                instance.OnReadValue = OnRead_DoubleValue;
-                instance.OnSimpleWriteValue = OnWrite_DoubleValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_DoubleValue;
+                    instance.OnSimpleWriteValue = OnWrite_DoubleValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.StringValue;
-                instance.OnReadValue = OnRead_StringValue;
-                instance.OnSimpleWriteValue = OnWrite_StringValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_StringValue;
+                    instance.OnSimpleWriteValue = OnWrite_StringValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.DateTimeValue;
-                instance.OnReadValue = OnRead_DateTimeValue;
-                instance.OnSimpleWriteValue = OnWrite_DateTimeValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_DateTimeValue;
+                    instance.OnSimpleWriteValue = OnWrite_DateTimeValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.GuidValue;
-                instance.OnReadValue = OnRead_GuidValue;
-                instance.OnSimpleWriteValue = OnWrite_GuidValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_GuidValue;
+                    instance.OnSimpleWriteValue = OnWrite_GuidValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ByteStringValue;
-                instance.OnReadValue = OnRead_ByteStringValue;
-                instance.OnSimpleWriteValue = OnWrite_ByteStringValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ByteStringValue;
+                    instance.OnSimpleWriteValue = OnWrite_ByteStringValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.XmlElementValue;
-                instance.OnReadValue = OnRead_XmlElementValue;
-                instance.OnSimpleWriteValue = OnWrite_XmlElementValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_XmlElementValue;
+                    instance.OnSimpleWriteValue = OnWrite_XmlElementValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.NodeIdValue;
-                instance.OnReadValue = OnRead_NodeIdValue;
-                instance.OnSimpleWriteValue = OnWrite_NodeIdValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_NodeIdValue;
+                    instance.OnSimpleWriteValue = OnWrite_NodeIdValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ExpandedNodeIdValue;
-                instance.OnReadValue = OnRead_ExpandedNodeIdValue;
-                instance.OnSimpleWriteValue = OnWrite_ExpandedNodeIdValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ExpandedNodeIdValue;
+                    instance.OnSimpleWriteValue = OnWrite_ExpandedNodeIdValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.QualifiedNameValue;
-                instance.OnReadValue = OnRead_QualifiedNameValue;
-                instance.OnSimpleWriteValue = OnWrite_QualifiedNameValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_QualifiedNameValue;
+                    instance.OnSimpleWriteValue = OnWrite_QualifiedNameValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LocalizedTextValue;
-                instance.OnReadValue = OnRead_LocalizedTextValue;
-                instance.OnSimpleWriteValue = OnWrite_LocalizedTextValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LocalizedTextValue;
+                    instance.OnSimpleWriteValue = OnWrite_LocalizedTextValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.StatusCodeValue;
-                instance.OnReadValue = OnRead_StatusCodeValue;
-                instance.OnSimpleWriteValue = OnWrite_StatusCodeValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_StatusCodeValue;
+                    instance.OnSimpleWriteValue = OnWrite_StatusCodeValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.VariantValue;
-                instance.OnReadValue = OnRead_VariantValue;
-                instance.OnSimpleWriteValue = OnWrite_VariantValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_VariantValue;
+                    instance.OnSimpleWriteValue = OnWrite_VariantValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.EnumerationValue;
-                instance.OnReadValue = OnRead_EnumerationValue;
-                instance.OnSimpleWriteValue = OnWrite_EnumerationValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_EnumerationValue;
+                    instance.OnSimpleWriteValue = OnWrite_EnumerationValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.StructureValue;
-                instance.OnReadValue = OnRead_StructureValue;
-                instance.OnSimpleWriteValue = OnWrite_StructureValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_StructureValue;
+                    instance.OnSimpleWriteValue = OnWrite_StructureValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.NumberValue;
-                instance.OnReadValue = OnRead_NumberValue;
-                instance.OnSimpleWriteValue = OnWrite_NumberValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_NumberValue;
+                    instance.OnSimpleWriteValue = OnWrite_NumberValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.IntegerValue;
-                instance.OnReadValue = OnRead_IntegerValue;
-                instance.OnSimpleWriteValue = OnWrite_IntegerValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_IntegerValue;
+                    instance.OnSimpleWriteValue = OnWrite_IntegerValue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.UIntegerValue;
-                instance.OnReadValue = OnRead_UIntegerValue;
-                instance.OnSimpleWriteValue = OnWrite_UIntegerValue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_UIntegerValue;
+                    instance.OnSimpleWriteValue = OnWrite_UIntegerValue;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -2673,7 +2750,7 @@ namespace TestData
             m_variable.ClearChangeMasks(context, false);
         }
 
-            #region BooleanValue Access Methods
+        #region BooleanValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_BooleanValue(
             ISystemContext context,
@@ -2708,9 +2785,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region SByteValue Access Methods
+        #region SByteValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_SByteValue(
             ISystemContext context,
@@ -2745,9 +2822,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region ByteValue Access Methods
+        #region ByteValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_ByteValue(
             ISystemContext context,
@@ -2782,9 +2859,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region Int16Value Access Methods
+        #region Int16Value Access Methods
         /// <remarks />
         private ServiceResult OnRead_Int16Value(
             ISystemContext context,
@@ -2819,9 +2896,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region UInt16Value Access Methods
+        #region UInt16Value Access Methods
         /// <remarks />
         private ServiceResult OnRead_UInt16Value(
             ISystemContext context,
@@ -2856,9 +2933,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region Int32Value Access Methods
+        #region Int32Value Access Methods
         /// <remarks />
         private ServiceResult OnRead_Int32Value(
             ISystemContext context,
@@ -2893,9 +2970,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region UInt32Value Access Methods
+        #region UInt32Value Access Methods
         /// <remarks />
         private ServiceResult OnRead_UInt32Value(
             ISystemContext context,
@@ -2930,9 +3007,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region Int64Value Access Methods
+        #region Int64Value Access Methods
         /// <remarks />
         private ServiceResult OnRead_Int64Value(
             ISystemContext context,
@@ -2967,9 +3044,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region UInt64Value Access Methods
+        #region UInt64Value Access Methods
         /// <remarks />
         private ServiceResult OnRead_UInt64Value(
             ISystemContext context,
@@ -3004,9 +3081,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region FloatValue Access Methods
+        #region FloatValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_FloatValue(
             ISystemContext context,
@@ -3041,9 +3118,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region DoubleValue Access Methods
+        #region DoubleValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_DoubleValue(
             ISystemContext context,
@@ -3078,9 +3155,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region StringValue Access Methods
+        #region StringValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_StringValue(
             ISystemContext context,
@@ -3115,9 +3192,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region DateTimeValue Access Methods
+        #region DateTimeValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_DateTimeValue(
             ISystemContext context,
@@ -3152,9 +3229,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region GuidValue Access Methods
+        #region GuidValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_GuidValue(
             ISystemContext context,
@@ -3189,9 +3266,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region ByteStringValue Access Methods
+        #region ByteStringValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_ByteStringValue(
             ISystemContext context,
@@ -3226,9 +3303,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region XmlElementValue Access Methods
+        #region XmlElementValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_XmlElementValue(
             ISystemContext context,
@@ -3263,9 +3340,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region NodeIdValue Access Methods
+        #region NodeIdValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_NodeIdValue(
             ISystemContext context,
@@ -3300,9 +3377,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region ExpandedNodeIdValue Access Methods
+        #region ExpandedNodeIdValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_ExpandedNodeIdValue(
             ISystemContext context,
@@ -3337,9 +3414,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region QualifiedNameValue Access Methods
+        #region QualifiedNameValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_QualifiedNameValue(
             ISystemContext context,
@@ -3374,9 +3451,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region LocalizedTextValue Access Methods
+        #region LocalizedTextValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_LocalizedTextValue(
             ISystemContext context,
@@ -3411,9 +3488,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region StatusCodeValue Access Methods
+        #region StatusCodeValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_StatusCodeValue(
             ISystemContext context,
@@ -3448,9 +3525,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region VariantValue Access Methods
+        #region VariantValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_VariantValue(
             ISystemContext context,
@@ -3485,9 +3562,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region EnumerationValue Access Methods
+        #region EnumerationValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_EnumerationValue(
             ISystemContext context,
@@ -3522,9 +3599,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region StructureValue Access Methods
+        #region StructureValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_StructureValue(
             ISystemContext context,
@@ -3559,9 +3636,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region NumberValue Access Methods
+        #region NumberValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_NumberValue(
             ISystemContext context,
@@ -3596,9 +3673,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region IntegerValue Access Methods
+        #region IntegerValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_IntegerValue(
             ISystemContext context,
@@ -3633,9 +3710,9 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
+        #endregion
 
-            #region UIntegerValue Access Methods
+        #region UIntegerValue Access Methods
         /// <remarks />
         private ServiceResult OnRead_UIntegerValue(
             ISystemContext context,
@@ -3670,23 +3747,23 @@ namespace TestData
 
             return ServiceResult.Good;
         }
-            #endregion
-#endregion
+        #endregion
+        #endregion
 
-            #region Private Fields
+        #region Private Fields
         private ScalarValueDataType m_value;
         private ScalarValueVariableState m_variable;
-            #endregion
+        #endregion
     }
-#endregion
-#endif
-            #endregion
+    #endregion
+    #endif
+    #endregion
 
-            #region ScalarValue1MethodState Class
-#if (!OPCUA_EXCLUDE_ScalarValue1MethodState)
-            /// <remarks />
-            /// <exclude />
-            [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    #region ScalarValue1MethodState Class
+    #if (!OPCUA_EXCLUDE_ScalarValue1MethodState)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class ScalarValue1MethodState : MethodState
     {
         #region Constructors
