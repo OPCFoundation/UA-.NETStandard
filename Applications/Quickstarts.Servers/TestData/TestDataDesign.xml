@@ -790,6 +790,7 @@
       <opc:Object SymbolicName="Static" TypeDefinition="ua:FolderType" SupportsEvents="true">
         <opc:Children>
           <opc:Object SymbolicName="Scalar" TypeDefinition="ScalarValueObjectType" ModellingRule="Mandatory"/>
+          <opc:Variable SymbolicName="StructureScalar" DataType="ScalarValueDataType" TypeDefinition="ScalarValueVariableType" ModellingRule="Mandatory"/>
           <opc:Object SymbolicName="Array" TypeDefinition="ArrayValueObjectType" ModellingRule="Mandatory"/>
           <opc:Object SymbolicName="UserScalar" TypeDefinition="UserScalarValueObjectType" ModellingRule="Mandatory"/>
           <opc:Object SymbolicName="UserArray" TypeDefinition="UserArrayValueObjectType" ModellingRule="Mandatory"/>
@@ -819,6 +820,15 @@
               </opc:Property>
             </opc:Children>
           </opc:Object>
+          <opc:Variable SymbolicName="StructureScalar" DataType="ScalarValueDataType" TypeDefinition="ScalarValueVariableType" ModellingRule="Mandatory">
+            <opc:Children>
+              <opc:Property SymbolicName="SimulationActive">
+                <opc:DefaultValue>
+                  <uax:Boolean>true</uax:Boolean>
+                </opc:DefaultValue>
+              </opc:Property>
+            </opc:Children>
+          </opc:Variable>
           <opc:Object SymbolicName="Array" TypeDefinition="ArrayValueObjectType" ModellingRule="Mandatory">
             <opc:Children>
               <opc:Property SymbolicName="SimulationActive">
@@ -876,13 +886,13 @@
           </opc:Reference>
         </opc:References>
       </opc:Object>
+      <!--  
       <opc:Object SymbolicName="Structures" TypeDefinition="ua:FolderType">
         <opc:Children>
           <opc:Variable SymbolicName="Scalar" DataType="ScalarValueDataType" TypeDefinition="ScalarValueVariableType" ModellingRule="Mandatory"/>
-          <!--          
           <opc:Variable SymbolicName="Array" DataType="ArrayValueDataType"  TypeDefinition="ArrayValueVariableType" ModellingRule="Mandatory"/>
           <opc:Variable SymbolicName="UserScalar" TypeDefinition="UserScalarValueVariableType" ModellingRule="Mandatory"/>
-          <opc:Variable SymbolicName="UserArray" TypeDefinition="UserArrayValueVariableType" ModellingRule="Mandatory"/>-->
+          <opc:Variable SymbolicName="UserArray" TypeDefinition="UserArrayValueVariableType" ModellingRule="Mandatory"/>
         </opc:Children>
         <opc:References>
           <opc:Reference>
@@ -891,6 +901,7 @@
           </opc:Reference>
         </opc:References>
       </opc:Object>
+      -->  
       <opc:Object SymbolicName="Conditions" TypeDefinition="ua:FolderType" SupportsEvents="true">
         <opc:Children>
           <opc:Object SymbolicName="SystemStatus" TypeDefinition="TestSystemConditionType" ModellingRule="Mandatory" />
@@ -920,11 +931,13 @@
         <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
         <opc:TargetId>Data_Dynamic</opc:TargetId>
       </opc:Reference>
+
+      <!--
       <opc:Reference>
         <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
         <opc:TargetId>Data_Structures</opc:TargetId>
       </opc:Reference>
-      <!--
+        
       <opc:Reference>
         <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
         <opc:TargetId>Data_Conditions</opc:TargetId>

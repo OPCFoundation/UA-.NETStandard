@@ -32,7 +32,7 @@ using Opc.Ua;
 
 namespace TestData
 {
-    public partial class TestDataVariableState
+    public partial class TestDataVariableState : ITestDataSystemValuesGenerator
     {
         #region Initialization
         /// <summary>
@@ -52,12 +52,6 @@ namespace TestData
         /// </summary>
         protected void InitializeVariable(ISystemContext context, BaseVariableState variable)
         {
-            // provide an implementation that produces a random value on each read.
-            if (SimulationActive.Value)
-            {
-                variable.OnReadValue = DoDeviceRead;
-            }
-
             // set a valid initial value.
             TestDataSystem system = context.SystemHandle as TestDataSystem;
 
@@ -110,6 +104,18 @@ namespace TestData
 
             return ServiceResult.Good;
         }
+
+        #region Public Methods
+        /// <summary>
+        /// Generates values for test system data generator.
+        /// </summary>
+        public virtual StatusCode OnGenerateValues(ISystemContext context)
+        {
+            ClearChangeMasks(context, true);
+
+            return StatusCodes.Good;
+        }
+        #endregion
 
         /// <summary>
         /// Generates a new value each time the value is read.

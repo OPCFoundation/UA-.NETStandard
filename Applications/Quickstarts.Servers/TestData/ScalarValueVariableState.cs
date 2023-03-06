@@ -42,6 +42,7 @@ namespace TestData
         {
             base.OnAfterCreate(context, node);
 
+            AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             if (!SimulationActive.Value)
             {
                 AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -74,6 +75,10 @@ namespace TestData
             InitializeVariable(context, NumberValue);
             InitializeVariable(context, IntegerValue);
             InitializeVariable(context, UIntegerValue);
+
+            TestDataSystem system = context.SystemHandle as TestDataSystem;
+            this.WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
+
         }
         #endregion
 
@@ -98,6 +103,28 @@ namespace TestData
             this.WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
 
             return base.OnGenerateValues(context, method, objectId, count);
+        }
+        #endregion
+
+        #region Public Methods
+        public override StatusCode OnGenerateValues(ISystemContext context)
+        {
+            if (!SimulationActive.Value)
+            {
+                return StatusCodes.BadInvalidState;
+            }
+
+            TestDataSystem system = context.SystemHandle as TestDataSystem;
+
+            if (system == null)
+            {
+                return StatusCodes.BadOutOfService;
+            }
+
+            // generate structure values here
+            this.WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
+
+            return base.OnGenerateValues(context);
         }
         #endregion
     }

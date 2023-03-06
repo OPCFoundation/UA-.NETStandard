@@ -2625,10 +2625,10 @@ namespace TestData
                     newValue = (ScalarValueDataType)value;
                 }
 
-                if (m_value != newValue)
+                if (!Utils.IsEqual(m_value, newValue))
                 {
-                    Timestamp = timestamp;
                     UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
                     m_value = (ScalarValueDataType)Write(newValue);
                     m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 }
@@ -2639,168 +2639,33 @@ namespace TestData
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref ScalarValueDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (m_value.BooleanValue != newValue.BooleanValue)
-            {
-                m_variable.BooleanValue.StatusCode = statusCode;
-                m_variable.BooleanValue.Timestamp = timestamp;
-                m_variable.BooleanValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.SByteValue != newValue.SByteValue)
-            {
-                m_variable.SByteValue.StatusCode = statusCode;
-                m_variable.SByteValue.Timestamp = timestamp;
-                m_variable.SByteValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.ByteValue != newValue.ByteValue)
-            {
-                m_variable.ByteValue.StatusCode = statusCode;
-                m_variable.ByteValue.Timestamp = timestamp;
-                m_variable.ByteValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.Int16Value != newValue.Int16Value)
-            {
-                m_variable.Int16Value.StatusCode = statusCode;
-                m_variable.Int16Value.Timestamp = timestamp;
-                m_variable.Int16Value.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.UInt16Value != newValue.UInt16Value)
-            {
-                m_variable.UInt16Value.StatusCode = statusCode;
-                m_variable.UInt16Value.Timestamp = timestamp;
-                m_variable.UInt16Value.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.Int32Value != newValue.Int32Value)
-            {
-                m_variable.Int32Value.StatusCode = statusCode;
-                m_variable.Int32Value.Timestamp = timestamp;
-                m_variable.Int32Value.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.UInt32Value != newValue.UInt32Value)
-            {
-                m_variable.UInt32Value.StatusCode = statusCode;
-                m_variable.UInt32Value.Timestamp = timestamp;
-                m_variable.UInt32Value.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.Int64Value != newValue.Int64Value)
-            {
-                m_variable.Int64Value.StatusCode = statusCode;
-                m_variable.Int64Value.Timestamp = timestamp;
-                m_variable.Int64Value.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.UInt64Value != newValue.UInt64Value)
-            {
-                m_variable.UInt64Value.StatusCode = statusCode;
-                m_variable.UInt64Value.Timestamp = timestamp;
-                m_variable.UInt64Value.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.FloatValue != newValue.FloatValue)
-            {
-                m_variable.FloatValue.StatusCode = statusCode;
-                m_variable.FloatValue.Timestamp = timestamp;
-                m_variable.FloatValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.DoubleValue != newValue.DoubleValue)
-            {
-                m_variable.DoubleValue.StatusCode = statusCode;
-                m_variable.DoubleValue.Timestamp = timestamp;
-                m_variable.DoubleValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.StringValue != newValue.StringValue)
-            {
-                m_variable.StringValue.StatusCode = statusCode;
-                m_variable.StringValue.Timestamp = timestamp;
-                m_variable.StringValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.DateTimeValue != newValue.DateTimeValue)
-            {
-                m_variable.DateTimeValue.StatusCode = statusCode;
-                m_variable.DateTimeValue.Timestamp = timestamp;
-                m_variable.DateTimeValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.GuidValue != newValue.GuidValue)
-            {
-                m_variable.GuidValue.StatusCode = statusCode;
-                m_variable.GuidValue.Timestamp = timestamp;
-                m_variable.GuidValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.ByteStringValue != newValue.ByteStringValue)
-            {
-                m_variable.ByteStringValue.StatusCode = statusCode;
-                m_variable.ByteStringValue.Timestamp = timestamp;
-                m_variable.ByteStringValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.XmlElementValue != newValue.XmlElementValue)
-            {
-                m_variable.XmlElementValue.StatusCode = statusCode;
-                m_variable.XmlElementValue.Timestamp = timestamp;
-                m_variable.XmlElementValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.NodeIdValue != newValue.NodeIdValue)
-            {
-                m_variable.NodeIdValue.StatusCode = statusCode;
-                m_variable.NodeIdValue.Timestamp = timestamp;
-                m_variable.NodeIdValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.ExpandedNodeIdValue != newValue.ExpandedNodeIdValue)
-            {
-                m_variable.ExpandedNodeIdValue.StatusCode = statusCode;
-                m_variable.ExpandedNodeIdValue.Timestamp = timestamp;
-                m_variable.ExpandedNodeIdValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.QualifiedNameValue != newValue.QualifiedNameValue)
-            {
-                m_variable.QualifiedNameValue.StatusCode = statusCode;
-                m_variable.QualifiedNameValue.Timestamp = timestamp;
-                m_variable.QualifiedNameValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.LocalizedTextValue != newValue.LocalizedTextValue)
-            {
-                m_variable.LocalizedTextValue.StatusCode = statusCode;
-                m_variable.LocalizedTextValue.Timestamp = timestamp;
-                m_variable.LocalizedTextValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.StatusCodeValue != newValue.StatusCodeValue)
-            {
-                m_variable.StatusCodeValue.StatusCode = statusCode;
-                m_variable.StatusCodeValue.Timestamp = timestamp;
-                m_variable.StatusCodeValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.VariantValue != newValue.VariantValue)
-            {
-                m_variable.VariantValue.StatusCode = statusCode;
-                m_variable.VariantValue.Timestamp = timestamp;
-                m_variable.VariantValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.EnumerationValue != newValue.EnumerationValue)
-            {
-                m_variable.EnumerationValue.StatusCode = statusCode;
-                m_variable.EnumerationValue.Timestamp = timestamp;
-                m_variable.EnumerationValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.StructureValue != newValue.StructureValue)
-            {
-                m_variable.StructureValue.StatusCode = statusCode;
-                m_variable.StructureValue.Timestamp = timestamp;
-                m_variable.StructureValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.NumberValue != newValue.NumberValue)
-            {
-                m_variable.NumberValue.StatusCode = statusCode;
-                m_variable.NumberValue.Timestamp = timestamp;
-                m_variable.NumberValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.IntegerValue != newValue.IntegerValue)
-            {
-                m_variable.IntegerValue.StatusCode = statusCode;
-                m_variable.IntegerValue.Timestamp = timestamp;
-                m_variable.IntegerValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
-            if (m_value.UIntegerValue != newValue.UIntegerValue)
-            {
-                m_variable.UIntegerValue.StatusCode = statusCode;
-                m_variable.UIntegerValue.Timestamp = timestamp;
-                m_variable.UIntegerValue.UpdateChangeMasks(NodeStateChangeMasks.Value);
-            }
+            if (!Utils.IsEqual(m_value.BooleanValue, newValue.BooleanValue)) UpdateChildVariableStatus(m_variable.BooleanValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SByteValue, newValue.SByteValue)) UpdateChildVariableStatus(m_variable.SByteValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ByteValue, newValue.ByteValue)) UpdateChildVariableStatus(m_variable.ByteValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Int16Value, newValue.Int16Value)) UpdateChildVariableStatus(m_variable.Int16Value, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UInt16Value, newValue.UInt16Value)) UpdateChildVariableStatus(m_variable.UInt16Value, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Int32Value, newValue.Int32Value)) UpdateChildVariableStatus(m_variable.Int32Value, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UInt32Value, newValue.UInt32Value)) UpdateChildVariableStatus(m_variable.UInt32Value, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Int64Value, newValue.Int64Value)) UpdateChildVariableStatus(m_variable.Int64Value, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UInt64Value, newValue.UInt64Value)) UpdateChildVariableStatus(m_variable.UInt64Value, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.FloatValue, newValue.FloatValue)) UpdateChildVariableStatus(m_variable.FloatValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DoubleValue, newValue.DoubleValue)) UpdateChildVariableStatus(m_variable.DoubleValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.StringValue, newValue.StringValue)) UpdateChildVariableStatus(m_variable.StringValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DateTimeValue, newValue.DateTimeValue)) UpdateChildVariableStatus(m_variable.DateTimeValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.GuidValue, newValue.GuidValue)) UpdateChildVariableStatus(m_variable.GuidValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ByteStringValue, newValue.ByteStringValue)) UpdateChildVariableStatus(m_variable.ByteStringValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.XmlElementValue, newValue.XmlElementValue)) UpdateChildVariableStatus(m_variable.XmlElementValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.NodeIdValue, newValue.NodeIdValue)) UpdateChildVariableStatus(m_variable.NodeIdValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ExpandedNodeIdValue, newValue.ExpandedNodeIdValue)) UpdateChildVariableStatus(m_variable.ExpandedNodeIdValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.QualifiedNameValue, newValue.QualifiedNameValue)) UpdateChildVariableStatus(m_variable.QualifiedNameValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LocalizedTextValue, newValue.LocalizedTextValue)) UpdateChildVariableStatus(m_variable.LocalizedTextValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.StatusCodeValue, newValue.StatusCodeValue)) UpdateChildVariableStatus(m_variable.StatusCodeValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.VariantValue, newValue.VariantValue)) UpdateChildVariableStatus(m_variable.VariantValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.EnumerationValue, newValue.EnumerationValue)) UpdateChildVariableStatus(m_variable.EnumerationValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.StructureValue, newValue.StructureValue)) UpdateChildVariableStatus(m_variable.StructureValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.NumberValue, newValue.NumberValue)) UpdateChildVariableStatus(m_variable.NumberValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.IntegerValue, newValue.IntegerValue)) UpdateChildVariableStatus(m_variable.IntegerValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UIntegerValue, newValue.UIntegerValue)) UpdateChildVariableStatus(m_variable.UIntegerValue, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -2808,6 +2673,17 @@ namespace TestData
             Timestamp = timestamp;
             m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
             m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseDataVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region BooleanValue Access Methods
@@ -2826,8 +2702,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.BooleanValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -2844,8 +2719,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -2864,6 +2742,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.BooleanValue, ref statusCode, ref timestamp);
                 m_value.BooleanValue = (bool)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -2888,8 +2767,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.SByteValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -2906,8 +2784,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -2926,6 +2807,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SByteValue, ref statusCode, ref timestamp);
                 m_value.SByteValue = (sbyte)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -2950,8 +2832,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.ByteValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -2968,8 +2849,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -2988,6 +2872,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ByteValue, ref statusCode, ref timestamp);
                 m_value.ByteValue = (byte)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3012,8 +2897,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.Int16Value;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3030,8 +2914,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3050,6 +2937,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.Int16Value, ref statusCode, ref timestamp);
                 m_value.Int16Value = (short)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3074,8 +2962,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.UInt16Value;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3092,8 +2979,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3112,6 +3002,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.UInt16Value, ref statusCode, ref timestamp);
                 m_value.UInt16Value = (ushort)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3136,8 +3027,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.Int32Value;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3154,8 +3044,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3174,6 +3067,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.Int32Value, ref statusCode, ref timestamp);
                 m_value.Int32Value = (int)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3198,8 +3092,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.UInt32Value;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3216,8 +3109,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3236,6 +3132,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.UInt32Value, ref statusCode, ref timestamp);
                 m_value.UInt32Value = (uint)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3260,8 +3157,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.Int64Value;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3278,8 +3174,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3298,6 +3197,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.Int64Value, ref statusCode, ref timestamp);
                 m_value.Int64Value = (long)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3322,8 +3222,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.UInt64Value;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3340,8 +3239,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3360,6 +3262,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.UInt64Value, ref statusCode, ref timestamp);
                 m_value.UInt64Value = (ulong)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3384,8 +3287,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.FloatValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3402,8 +3304,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3422,6 +3327,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.FloatValue, ref statusCode, ref timestamp);
                 m_value.FloatValue = (float)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3446,8 +3352,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.DoubleValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3464,8 +3369,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3484,6 +3392,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.DoubleValue, ref statusCode, ref timestamp);
                 m_value.DoubleValue = (double)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3508,8 +3417,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.StringValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3526,8 +3434,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3546,6 +3457,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.StringValue, ref statusCode, ref timestamp);
                 m_value.StringValue = (string)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3570,8 +3482,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.DateTimeValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3588,8 +3499,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3608,6 +3522,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.DateTimeValue, ref statusCode, ref timestamp);
                 m_value.DateTimeValue = (DateTime)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3632,8 +3547,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.GuidValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3650,8 +3564,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3670,6 +3587,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.GuidValue, ref statusCode, ref timestamp);
                 m_value.GuidValue = (Uuid)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3694,8 +3612,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.ByteStringValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3712,8 +3629,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3732,6 +3652,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ByteStringValue, ref statusCode, ref timestamp);
                 m_value.ByteStringValue = (byte[])Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3756,8 +3677,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.XmlElementValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3774,8 +3694,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3794,6 +3717,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.XmlElementValue, ref statusCode, ref timestamp);
                 m_value.XmlElementValue = (XmlElement)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3818,8 +3742,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.NodeIdValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3836,8 +3759,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3856,6 +3782,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.NodeIdValue, ref statusCode, ref timestamp);
                 m_value.NodeIdValue = (NodeId)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3880,8 +3807,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.ExpandedNodeIdValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3898,8 +3824,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3918,6 +3847,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ExpandedNodeIdValue, ref statusCode, ref timestamp);
                 m_value.ExpandedNodeIdValue = (ExpandedNodeId)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -3942,8 +3872,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.QualifiedNameValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -3960,8 +3889,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -3980,6 +3912,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.QualifiedNameValue, ref statusCode, ref timestamp);
                 m_value.QualifiedNameValue = (QualifiedName)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -4004,8 +3937,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.LocalizedTextValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -4022,8 +3954,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -4042,6 +3977,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LocalizedTextValue, ref statusCode, ref timestamp);
                 m_value.LocalizedTextValue = (LocalizedText)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -4066,8 +4002,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.StatusCodeValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -4084,8 +4019,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -4104,6 +4042,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.StatusCodeValue, ref statusCode, ref timestamp);
                 m_value.StatusCodeValue = (StatusCode)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -4128,8 +4067,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.VariantValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -4146,8 +4084,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -4166,6 +4107,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.VariantValue, ref statusCode, ref timestamp);
                 m_value.VariantValue = (Variant)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -4190,8 +4132,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.EnumerationValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -4208,8 +4149,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -4228,6 +4172,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.EnumerationValue, ref statusCode, ref timestamp);
                 m_value.EnumerationValue = (int)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -4252,8 +4197,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.StructureValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -4270,8 +4214,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -4290,6 +4237,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.StructureValue, ref statusCode, ref timestamp);
                 m_value.StructureValue = (ExtensionObject)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -4314,8 +4262,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.NumberValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -4332,8 +4279,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -4352,6 +4302,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.NumberValue, ref statusCode, ref timestamp);
                 m_value.NumberValue = (Variant)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -4376,8 +4327,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.IntegerValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -4394,8 +4344,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -4414,6 +4367,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.IntegerValue, ref statusCode, ref timestamp);
                 m_value.IntegerValue = (Variant)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }
@@ -4438,8 +4392,7 @@ namespace TestData
                 DoBeforeReadProcessing(context, node);
 
                 var childVariable = m_variable?.UIntegerValue;
-                if (childVariable != null &&
-                    StatusCode.IsBad(childVariable.StatusCode))
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
                 {
                     value = null;
                     statusCode = childVariable.StatusCode;
@@ -4456,8 +4409,11 @@ namespace TestData
                 if (childVariable != null && ServiceResult.IsNotBad(result))
                 {
                     timestamp = childVariable.Timestamp;
-                    statusCode = childVariable.StatusCode;
-                    return new ServiceResult(statusCode);
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
                 }
 
                 return result;
@@ -4476,6 +4432,7 @@ namespace TestData
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.UIntegerValue, ref statusCode, ref timestamp);
                 m_value.UIntegerValue = (Variant)Write(value);
                 UpdateParent(context, ref statusCode, ref timestamp);
             }

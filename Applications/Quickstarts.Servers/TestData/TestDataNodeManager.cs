@@ -119,6 +119,20 @@ namespace TestData
                 variable.ClearChangeMasks(SystemContext, false);
             }
         }
+
+        /// <summary>
+        /// Generates values for variables with properties.
+        /// </summary>
+        public void OnGenerateValues(BaseVariableState variable)
+        {
+            lock (Lock)
+            {
+                if (variable is ITestDataSystemValuesGenerator generator)
+                {
+                    generator.OnGenerateValues(SystemContext);
+                }
+            }
+        }
         #endregion
 
         #region INodeIdFactory Members
@@ -191,10 +205,14 @@ namespace TestData
 
                 m_system.EnableHistoryArchiving(scalarValues.Int32Value);
 
-                // Initialize Root Variable for structures with properties
+                // Initialize Root Variable for structures with variables
                 {
-                    var variable = FindTypeState<ScalarValueVariableState>(Variables.Data_Structures_Scalar);
-                    m_dataStructureScalarValue = new ScalarValueVariableValue(variable, m_system.GetRandomScalarValueDataType(), null);
+                    var variable = FindTypeState<ScalarValueVariableState>(Variables.Data_Static_StructureScalar);
+                    m_dataStaticStructureScalarValue = new ScalarValueVariableValue(variable, m_system.GetRandomScalarValueDataType(), null);
+                }
+                {
+                    var variable = FindTypeState<ScalarValueVariableState>(Variables.Data_Dynamic_StructureScalar);
+                    m_dataDynamicStructureScalarValue = new ScalarValueVariableValue(variable, m_system.GetRandomScalarValueDataType(), null);
                 }
 
             }
@@ -571,6 +589,21 @@ namespace TestData
                 {
                     return true;
                 }
+
+                TestDataVariableState testRoot = source as TestDataVariableState;
+
+                if (testRoot != null && testRoot.SimulationActive.Value)
+                {
+                    return true;
+                }
+
+                TestDataVariableState testChildren = source.Parent as TestDataVariableState;
+
+                if (testChildren != null && testChildren.SimulationActive.Value)
+                {
+                    return true;
+                }
+
             }
 
             return false;
@@ -784,7 +817,8 @@ namespace TestData
         private TestSystemConditionState m_systemStatusCondition;
         private DialogConditionState m_dialog;
 #endif
-        private ScalarValueVariableValue m_dataStructureScalarValue;
+        private ScalarValueVariableValue m_dataStaticStructureScalarValue;
+        private ScalarValueVariableValue m_dataDynamicStructureScalarValue;
         #endregion
     }
 }
