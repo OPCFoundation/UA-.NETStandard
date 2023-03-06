@@ -116,52 +116,6 @@ namespace TestData
             return StatusCodes.Good;
         }
         #endregion
-
-        /// <summary>
-        /// Generates a new value each time the value is read.
-        /// </summary>
-        private ServiceResult DoDeviceRead(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            BaseVariableState variable = node as BaseVariableState;
-
-            if (variable == null)
-            {
-                return ServiceResult.Good;
-            }
-
-            if (!SimulationActive.Value)
-            {
-                return ServiceResult.Good;
-            }
-
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
-
-            if (system == null)
-            {
-                return StatusCodes.BadOutOfService;
-            }
-
-            try
-            {
-                value = system.ReadValue(variable);
-
-                statusCode = StatusCodes.Good;
-                timestamp = DateTime.UtcNow;
-
-                return ServiceResult.Good;
-            }
-            catch (Exception e)
-            {
-                return new ServiceResult(e);
-            }
-        }
         #endregion
     }
 }

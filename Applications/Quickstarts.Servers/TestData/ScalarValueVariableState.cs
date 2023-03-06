@@ -75,10 +75,6 @@ namespace TestData
             InitializeVariable(context, NumberValue);
             InitializeVariable(context, IntegerValue);
             InitializeVariable(context, UIntegerValue);
-
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
-            this.WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
-
         }
         #endregion
 
