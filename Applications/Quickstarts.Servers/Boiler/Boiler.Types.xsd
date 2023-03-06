@@ -7,7 +7,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <tns:Model ModelUri="http://opcfoundation.org/UA/Boiler/" Version="1.0.0" PublicationDate="2021-11-02T21:05:19.9801965Z" />
+      <ua:Model ModelUri="http://opcfoundation.org/UA/Boiler/" Version="1.0.0" PublicationDate="2021-11-02T21:05:19.9801965Z" />
     </xs:appinfo>
   </xs:annotation>
   

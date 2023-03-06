@@ -932,7 +932,7 @@ namespace TestData
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class ScalarValueVariableState : TestDataVariableState<ScalarValueDataType>
+    public partial class ScalarValueVariableState : TestDataVariableState<TestData.ScalarValueDataType>
     {
         #region Constructors
         /// <remarks />
