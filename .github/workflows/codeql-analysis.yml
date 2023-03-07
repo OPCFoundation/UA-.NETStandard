@@ -20,7 +20,7 @@ concurrency:
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-latest
+    runs-on: windows-2022
 
     strategy:
       fail-fast: false
@@ -48,7 +48,11 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: '6.x'
-        
+
+    # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
+    - name: Setup MSBuild.exe
+      uses: microsoft/setup-msbuild@v1.1.3
+
     # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
     # If this step fails, then you should remove it and run the build manually (see below)
     # - name: Autobuild
