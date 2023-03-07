@@ -3,12 +3,15 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ master, release/* ]
+    branches: [ master, main, release/* ]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ master ]
+    branches: [ master, main ]
+    paths:
+    - '**.cs'    
   schedule:
     - cron: '30 6 * * 6'
+  workflow_dispatch:  
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
