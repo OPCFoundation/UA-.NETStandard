@@ -958,6 +958,13 @@ namespace Opc.Ua.Bindings
                     true,
                     out limitsExceeded);
 
+                if (!BufferManager.InAllowedBuffersQuota())
+                {
+                    Close(1000);
+                    Utils.Trace("BufferManager allocated buffer quota exceeded for request {0}.", operation.RequestId);
+                    return;
+                }
+
                 BeginWriteMessage(buffers, operation);
                 buffers = null;
                 success = true;
@@ -1341,6 +1348,13 @@ namespace Opc.Ua.Bindings
                 request,
                 true,
                 out limitsExceeded);
+
+            if (!BufferManager.InAllowedBuffersQuota())
+            {
+                Close(1000);
+                Utils.Trace("BufferManager allocated buffer quota exceeded on CloseSecureChannel request {0}.", operation.RequestId);
+                return;
+            }
 
             // send the message.
             try

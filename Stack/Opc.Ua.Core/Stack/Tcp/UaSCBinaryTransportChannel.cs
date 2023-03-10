@@ -400,6 +400,7 @@ namespace Opc.Ua.Bindings
             m_quotas = new ChannelQuotas();
 
             m_quotas.MaxBufferSize = m_settings.Configuration.MaxBufferSize;
+            m_quotas.MaxBufferCount = TcpMessageLimits.DefaultMaxBufferCount;//m_settings.Configuration.MaxBufferSize;
             m_quotas.MaxMessageSize = m_settings.Configuration.MaxMessageSize;
             m_quotas.ChannelLifetime = m_settings.Configuration.ChannelLifetime;
             m_quotas.SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime;
@@ -416,7 +417,7 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
             // create the buffer manager.
-            m_bufferManager = new BufferManager("Client", (int)Int32.MaxValue, settings.Configuration.MaxBufferSize);
+            m_bufferManager = new BufferManager("Client", m_quotas.MaxBufferCount, settings.Configuration.MaxBufferSize);
         }
 
         /// <summary>

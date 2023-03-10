@@ -117,14 +117,15 @@ namespace Opc.Ua.Bindings
         /// Constructs the buffer manager.
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="maxPoolSize">Max size of the pool.</param>
+        /// <param name="maxUsedQuota">Max allowed number of buffers to be used</param>
         /// <param name="maxBufferSize">Max size of the buffer.</param>
-        public BufferManager(string name, int maxPoolSize, int maxBufferSize)
+        public BufferManager(string name, int maxUsedQuota, int maxBufferSize)
         {
             int maxArrayLength = maxBufferSize + m_cookieLength;
             m_name = name;
             m_arrayPool = ArrayPool<byte>.Create(maxArrayLength, 4);
             m_maxBufferSize = maxBufferSize;
+            m_maxUsedQuota = maxUsedQuota;
         }
         #endregion
 
@@ -164,6 +165,9 @@ namespace Opc.Ua.Bindings
                 Utils.EventLog.Trace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
 #endif
                 buffer[buffer.Length - 1] = m_cookieUnlocked;
+
+                m_buffersInUse++;
+
                 return buffer;
             }
         }
@@ -332,6 +336,16 @@ namespace Opc.Ua.Bindings
                 }
 #endif
                 m_arrayPool.Return(buffer);
+                m_buffersInUse--;
+
+            }
+        }
+
+        internal bool InAllowedBuffersQuota()
+        {
+            lock (m_lock)
+            {
+                return m_buffersInUse <= m_maxUsedQuota;
             }
         }
         #endregion
@@ -340,6 +354,9 @@ namespace Opc.Ua.Bindings
         private object m_lock = new object();
         private string m_name;
         private int m_maxBufferSize;
+        private int m_buffersInUse = 0;
+        private int m_maxUsedQuota = (int)Int32.MaxValue;
+
 #if TRACE_MEMORY
         private int m_buffersTaken = 0;
 #endif

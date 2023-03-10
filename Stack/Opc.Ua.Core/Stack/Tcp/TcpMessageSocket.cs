@@ -321,7 +321,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="System.ObjectDisposedException">The System.Net.Sockets.Socket has been closed.</exception>
         /// <returns>The System.Net.EndPoint that the System.Net.Sockets.Socket is using for communications.</returns>
         public EndPoint LocalEndpoint => m_socket.LocalEndPoint;
-        
+
         /// <summary>
         /// Gets the transport channel features implemented by this message socket.
         /// </summary>
@@ -532,7 +532,30 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
+                    bool quotaInLimits = m_bufferManager.InAllowedBuffersQuota();
+                    if (!quotaInLimits)
+                    {
+                        m_readState = ReadState.Error;
+                        error = ServiceResult.Create(StatusCodes.BadTcpInternalError, "BufferCount too high");
+
+                        if (m_receiveBuffer != null)
+                        {
+                            lock (m_socketLock)
+                            {
+                                BufferManager.UnlockBuffer(m_receiveBuffer);
+                            }
+                            m_bufferManager.ReturnBuffer(m_receiveBuffer, "OnReadComplete");
+                            m_receiveBuffer = null;
+                        }
+
+                        m_sink?.OnReceiveError(this, error);
+                        Close();
+                        Utils.Trace("BufferManager allocated buffer quota exceeded while reading data from channel");
+                        return;
+                    }
+                    
                     bool innerCall = m_readState == ReadState.ReadComplete;
+
                     error = DoReadComplete(e);
                     // to avoid recursion, inner calls of OnReadComplete return
                     // after processing the ReadComplete and let the outer call handle it

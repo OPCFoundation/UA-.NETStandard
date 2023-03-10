@@ -120,6 +120,7 @@ namespace Opc.Ua.Bindings
             if (configuration != null)
             {
                 m_quotas.MaxBufferSize = configuration.MaxBufferSize;
+                m_quotas.MaxBufferCount = TcpMessageLimits.DefaultMaxBufferCount;//configuration.MaxBufferSize;
                 m_quotas.MaxMessageSize = configuration.MaxMessageSize;
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
@@ -136,7 +137,7 @@ namespace Opc.Ua.Bindings
             m_serverCertificate = settings.ServerCertificate;
             m_serverCertificateChain = settings.ServerCertificateChain;
 
-            m_bufferManager = new BufferManager("Server", (int)Int32.MaxValue, m_quotas.MaxBufferSize);
+            m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferCount, m_quotas.MaxBufferSize);
             m_channels = new Dictionary<uint, TcpListenerChannel>();
             m_reverseConnectListener = settings.ReverseConnectListener;
 
@@ -494,7 +495,7 @@ namespace Opc.Ua.Bindings
                                 channel = new TcpReverseConnectChannel(
                                     m_listenerId,
                                     this,
-                                    m_bufferManager,
+                                    new BufferManager("ServerReverseConnect", m_quotas.MaxBufferCount, m_quotas.MaxBufferSize),
                                     m_quotas,
                                     m_descriptions);
                             }
@@ -504,7 +505,7 @@ namespace Opc.Ua.Bindings
                                 channel = new TcpServerChannel(
                                     m_listenerId,
                                     this,
-                                    m_bufferManager,
+                                    new BufferManager("ServerAcceptedConnection", m_quotas.MaxBufferCount, m_quotas.MaxBufferSize),
                                     m_quotas,
                                     m_serverCertificate,
                                     m_serverCertificateChain,

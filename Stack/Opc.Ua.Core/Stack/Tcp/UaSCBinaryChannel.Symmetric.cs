@@ -262,6 +262,14 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                // Check if BufferManager has enough buffers to process the message.
+                // If not, return limitsExceeded = true.
+                if (!BufferManager.InAllowedBuffersQuota())
+                {
+                    limitsExceeded = true;
+                    return null;
+                }
+
                 // calculate chunk sizes.
                 int maxCipherTextSize = SendBufferSize - TcpMessageLimits.SymmetricHeaderSize;
                 int maxCipherBlocks = maxCipherTextSize / EncryptionBlockSize;
@@ -296,8 +304,15 @@ namespace Opc.Ua.Bindings
                 if (rawBytes != null)
                 {
                     BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext);
-                    encoder.WriteRawBytes(rawBytes.Value.Array, rawBytes.Value.Offset, rawBytes.Value.Count);
-                    encoder.Close();
+                    try
+                    {
+                        encoder.WriteRawBytes(rawBytes.Value.Array, rawBytes.Value.Offset, rawBytes.Value.Count);
+                    }
+                    finally
+                    {
+                        encoder.Close();
+                        encoder.Dispose();
+                    }
                 }
 
                 chunksToProcess = ostrm.GetBuffers("WriteSymmetricMessage");
@@ -327,106 +342,115 @@ namespace Opc.Ua.Bindings
                     MemoryStream strm = new MemoryStream(chunkToProcess.Array, 0, SendBufferSize);
                     BinaryEncoder encoder = new BinaryEncoder(strm, Quotas.MessageContext);
 
-                    // check if the message needs to be aborted.
-                    if (MessageLimitsExceeded(isRequest, messageSize + chunkToProcess.Count - headerSize, ii + 1))
+                    try
                     {
-                        encoder.WriteUInt32(null, messageType | TcpMessageType.Abort);
 
-                        // replace the body in the chunk with an error message.
-                        BinaryEncoder errorEncoder = new BinaryEncoder(
-                            chunkToProcess.Array,
-                            chunkToProcess.Offset,
-                            chunkToProcess.Count,
-                            Quotas.MessageContext);
-
-                        WriteErrorMessageBody(errorEncoder, (isRequest) ? StatusCodes.BadRequestTooLarge : StatusCodes.BadResponseTooLarge);
-
-                        int size = errorEncoder.Close();
-                        chunkToProcess = new ArraySegment<byte>(chunkToProcess.Array, chunkToProcess.Offset, size);
-
-                        limitsExceeded = true;
-                    }
-
-                    // check if the message is complete.
-                    else if (ii == chunksToProcess.Count - 1)
-                    {
-                        encoder.WriteUInt32(null, messageType | TcpMessageType.Final);
-                    }
-
-                    // more chunks to follow.
-                    else
-                    {
-                        encoder.WriteUInt32(null, messageType | TcpMessageType.Intermediate);
-                    }
-
-                    int count = 0;
-
-                    count += TcpMessageLimits.SequenceHeaderSize;
-                    count += chunkToProcess.Count;
-                    count += SymmetricSignatureSize;
-
-                    // calculate the padding.
-                    int padding = 0;
-
-                    if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        // reserve one byte for the padding size.
-                        count++;
-
-                        if (count % EncryptionBlockSize != 0)
+                        // check if the message needs to be aborted.
+                        if (MessageLimitsExceeded(isRequest, messageSize + chunkToProcess.Count - headerSize, ii + 1))
                         {
-                            padding = EncryptionBlockSize - (count % EncryptionBlockSize);
+                            encoder.WriteUInt32(null, messageType | TcpMessageType.Abort);
+
+                            // replace the body in the chunk with an error message.
+                            BinaryEncoder errorEncoder = new BinaryEncoder(
+                                chunkToProcess.Array,
+                                chunkToProcess.Offset,
+                                chunkToProcess.Count,
+                                Quotas.MessageContext);
+
+                            WriteErrorMessageBody(errorEncoder, (isRequest) ? StatusCodes.BadRequestTooLarge : StatusCodes.BadResponseTooLarge);
+
+                            int size = errorEncoder.Close();
+                            errorEncoder.Dispose();
+                            chunkToProcess = new ArraySegment<byte>(chunkToProcess.Array, chunkToProcess.Offset, size);
+
+                            limitsExceeded = true;
                         }
 
-                        count += padding;
-                    }
-
-                    count += TcpMessageLimits.SymmetricHeaderSize;
-
-                    encoder.WriteUInt32(null, (uint)count);
-                    encoder.WriteUInt32(null, ChannelId);
-                    encoder.WriteUInt32(null, token.TokenId);
-
-                    uint sequenceNumber = GetNewSequenceNumber();
-                    encoder.WriteUInt32(null, sequenceNumber);
-
-                    encoder.WriteUInt32(null, requestId);
-
-                    // skip body.
-                    strm.Seek(chunkToProcess.Count, SeekOrigin.Current);
-
-                    // update message size count.
-                    messageSize += chunkToProcess.Count;
-
-                    // write padding.
-                    if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        for (int jj = 0; jj <= padding; jj++)
+                        // check if the message is complete.
+                        else if (ii == chunksToProcess.Count - 1)
                         {
-                            encoder.WriteByte(null, (byte)padding);
+                            encoder.WriteUInt32(null, messageType | TcpMessageType.Final);
                         }
-                    }
 
-                    if (SecurityMode != MessageSecurityMode.None)
-                    {
-                        // calculate and write signature.
-                        byte[] signature = Sign(token, new ArraySegment<byte>(chunkToProcess.Array, 0, encoder.Position), isRequest);
-
-                        if (signature != null)
+                        // more chunks to follow.
+                        else
                         {
-                            encoder.WriteRawBytes(signature, 0, signature.Length);
+                            encoder.WriteUInt32(null, messageType | TcpMessageType.Intermediate);
                         }
-                    }
 
-                    if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
+                        int count = 0;
+
+                        count += TcpMessageLimits.SequenceHeaderSize;
+                        count += chunkToProcess.Count;
+                        count += SymmetricSignatureSize;
+
+                        // calculate the padding.
+                        int padding = 0;
+
+                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
+                        {
+                            // reserve one byte for the padding size.
+                            count++;
+
+                            if (count % EncryptionBlockSize != 0)
+                            {
+                                padding = EncryptionBlockSize - (count % EncryptionBlockSize);
+                            }
+
+                            count += padding;
+                        }
+
+                        count += TcpMessageLimits.SymmetricHeaderSize;
+
+                        encoder.WriteUInt32(null, (uint)count);
+                        encoder.WriteUInt32(null, ChannelId);
+                        encoder.WriteUInt32(null, token.TokenId);
+
+                        uint sequenceNumber = GetNewSequenceNumber();
+                        encoder.WriteUInt32(null, sequenceNumber);
+
+                        encoder.WriteUInt32(null, requestId);
+
+                        // skip body.
+                        strm.Seek(chunkToProcess.Count, SeekOrigin.Current);
+
+                        // update message size count.
+                        messageSize += chunkToProcess.Count;
+
+                        // write padding.
+                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
+                        {
+                            for (int jj = 0; jj <= padding; jj++)
+                            {
+                                encoder.WriteByte(null, (byte)padding);
+                            }
+                        }
+
+                        if (SecurityMode != MessageSecurityMode.None)
+                        {
+                            // calculate and write signature.
+                            byte[] signature = Sign(token, new ArraySegment<byte>(chunkToProcess.Array, 0, encoder.Position), isRequest);
+
+                            if (signature != null)
+                            {
+                                encoder.WriteRawBytes(signature, 0, signature.Length);
+                            }
+                        }
+
+                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
+                        {
+                            // encrypt the data.
+                            ArraySegment<byte> dataToEncrypt = new ArraySegment<byte>(chunkToProcess.Array, TcpMessageLimits.SymmetricHeaderSize, encoder.Position - TcpMessageLimits.SymmetricHeaderSize);
+                            Encrypt(token, dataToEncrypt, isRequest);
+                        }
+
+                        // add the header into chunk.
+                        chunksToSend.Add(new ArraySegment<byte>(chunkToProcess.Array, 0, encoder.Position));
+                    }
+                    finally
                     {
-                        // encrypt the data.
-                        ArraySegment<byte> dataToEncrypt = new ArraySegment<byte>(chunkToProcess.Array, TcpMessageLimits.SymmetricHeaderSize, encoder.Position - TcpMessageLimits.SymmetricHeaderSize);
-                        Encrypt(token, dataToEncrypt, isRequest);
+                        encoder.Dispose();
                     }
-
-                    // add the header into chunk.
-                    chunksToSend.Add(new ArraySegment<byte>(chunkToProcess.Array, 0, encoder.Position));
                 }
 
                 // ensure the buffers don't get cleaned up on exit.
