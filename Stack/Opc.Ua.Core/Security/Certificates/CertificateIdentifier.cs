@@ -977,6 +977,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the application should send the complete certificate chain.
+        /// </summary>
+        /// <remarks>
+        /// If set to true the complete certificate chain will be sent for CA signed certificates.
+        /// </remarks>
+        public bool SendCertificateChain => m_securityConfiguration.SendCertificateChain;
+
+        /// <summary>
         /// Return the instance certificate for a security policy.
         /// </summary>
         /// <param name="securityPolicyUri">The security policy Uri</param>
