@@ -129,7 +129,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public override int GetHashCode()
         {
-            return base.GetHashCode();
+            return HashCode.Combine(Thumbprint, m_storeLocation, m_storeName, SubjectName);
         }
         #endregion
 

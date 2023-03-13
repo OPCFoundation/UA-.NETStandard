@@ -779,7 +779,7 @@ namespace Opc.Ua
             m_rejectUnknownRevocationStatus = false;
             m_minCertificateKeySize = CertificateFactory.DefaultKeySize;
             m_addAppCertToTrustedStore = true;
-            m_sendCertificateChain = false;
+            m_sendCertificateChain = true;
             m_suppressNonceValidationErrors = false;
             m_supportedSecurityPolicies = new StringCollection();
         }

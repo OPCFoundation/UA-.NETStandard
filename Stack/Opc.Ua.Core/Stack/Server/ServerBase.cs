@@ -762,6 +762,25 @@ namespace Opc.Ua
         {
             // disconnect all sessions
             InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
+            if (Configuration.SecurityConfiguration.SendCertificateChain)
+            {
+                InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
+                var issuers = new List<CertificateIdentifier>();
+                var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
+                Configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).GetAwaiter().GetResult();
+                foreach (var error in validationErrors)
+                {
+                    if (error.Value != null)
+                    {
+                        Utils.LogCertificate("OnCertificateUpdate: GetIssuers Validation Error: {0}", error.Key, error.Value.Result);
+                    }
+                }
+                for (int i = 0; i < issuers.Count; i++)
+                {
+                    InstanceCertificateChain.Add(issuers[i].Certificate);
+                }
+            }
+
             foreach (var listener in TransportListeners)
             {
                 listener.CertificateUpdate(e.CertificateValidator, InstanceCertificateTypesProvider);

@@ -33,6 +33,12 @@ jobs:
   - name: signinglist
     value: '.azurepipelines/signlist${{parameters.config}}.txt'
   steps:
+  - task: UseDotNet@2
+    displayName: 'Install .NET 6.0'
+    inputs:
+      packageType: 'sdk'
+      version: '6.0.x'
+      includePreviewVersions: false  
   - task: DownloadSecureFile@1
     name: strongnamefile
     displayName: 'Download Strong Name Key'

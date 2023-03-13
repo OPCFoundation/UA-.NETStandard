@@ -149,7 +149,7 @@ namespace Opc.Ua.Configuration
                 RejectSHA1SignedCertificates = true,
                 RejectUnknownRevocationStatus = true,
                 SuppressNonceValidationErrors = false,
-                SendCertificateChain = false,
+                SendCertificateChain = true,
                 MinimumCertificateKeySize = CertificateFactory.DefaultKeySize
             };
 

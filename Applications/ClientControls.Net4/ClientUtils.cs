@@ -205,79 +205,79 @@ namespace Opc.Ua.Client.Controls
             {
                 case Attributes.AccessLevel:
                 case Attributes.UserAccessLevel:
+                {
+                    byte? field = value.Value as byte?;
+
+                    if (field != null)
                     {
-                        byte? field = value.Value as byte?;
-
-                        if (field != null)
-                        {
-                            return GetAccessLevelDisplayText(field.Value);
-                        }
-
-                        break;
+                        return GetAccessLevelDisplayText(field.Value);
                     }
+
+                    break;
+                }
 
                 case Attributes.EventNotifier:
+                {
+                    byte? field = value.Value as byte?;
+
+                    if (field != null)
                     {
-                        byte? field = value.Value as byte?;
-
-                        if (field != null)
-                        {
-                            return GetEventNotifierDisplayText(field.Value);
-                        }
-
-                        break;
+                        return GetEventNotifierDisplayText(field.Value);
                     }
+
+                    break;
+                }
 
                 case Attributes.DataType:
-                    {
-                        return session.NodeCache.GetDisplayText(value.Value as NodeId);
-                    }
+                {
+                    return session.NodeCache.GetDisplayText(value.Value as NodeId);
+                }
 
                 case Attributes.ValueRank:
+                {
+                    int? field = value.Value as int?;
+
+                    if (field != null)
                     {
-                        int? field = value.Value as int?;
-
-                        if (field != null)
-                        {
-                            return GetValueRankDisplayText(field.Value);
-                        }
-
-                        break;
+                        return GetValueRankDisplayText(field.Value);
                     }
+
+                    break;
+                }
 
                 case Attributes.NodeClass:
+                {
+                    int? field = value.Value as int?;
+
+                    if (field != null)
                     {
-                        int? field = value.Value as int?;
-
-                        if (field != null)
-                        {
-                            return ((NodeClass)field.Value).ToString();
-                        }
-
-                        break;
+                        return ((NodeClass)field.Value).ToString();
                     }
+
+                    break;
+                }
 
                 case Attributes.NodeId:
+                {
+                    NodeId field = value.Value as NodeId;
+
+                    if (!NodeId.IsNull(field))
                     {
-                        NodeId field = value.Value as NodeId;
-
-                        if (!NodeId.IsNull(field))
-                        {
-                            return field.ToString();
-                        }
-
-                        return "Null";
+                        return field.ToString();
                     }
+
+                    return "Null";
+                }
 
                 case Attributes.DataTypeDefinition:
+                {
+                    ExtensionObject field = value.Value as ExtensionObject;
+                    if (field != null)
                     {
-                        ExtensionObject field = value.Value as ExtensionObject;
-                        if (field != null)
-                        {
-                            return field.ToString();
-                        }
-                        break;
+                        return field.ToString();
                     }
+                    break;
+                }
             }
 
             // check for byte strings.
@@ -314,7 +314,6 @@ namespace Opc.Ua.Client.Controls
             try
             {
                 ReferenceDescriptionCollection references = new ReferenceDescriptionCollection();
-                BrowseDescriptionCollection unprocessedOperations = new BrowseDescriptionCollection();
 
                 while (nodesToBrowse.Count > 0)
                 {
@@ -334,6 +333,7 @@ namespace Opc.Ua.Client.Controls
                     ClientBase.ValidateDiagnosticInfos(diagnosticInfos, nodesToBrowse);
 
                     ByteStringCollection continuationPoints = new ByteStringCollection();
+                    BrowseDescriptionCollection unprocessedOperations = new BrowseDescriptionCollection();
 
                     for (int ii = 0; ii < nodesToBrowse.Count; ii++)
                     {
@@ -368,8 +368,6 @@ namespace Opc.Ua.Client.Controls
                     }
 
                     // process continuation points.
-                    ByteStringCollection revisedContiuationPoints = new ByteStringCollection();
-
                     while (continuationPoints.Count > 0)
                     {
                         // continue browse operation.
@@ -383,6 +381,7 @@ namespace Opc.Ua.Client.Controls
                         ClientBase.ValidateResponse(results, continuationPoints);
                         ClientBase.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
 
+                        ByteStringCollection revisedContiuationPoints = new ByteStringCollection();
                         for (int ii = 0; ii < continuationPoints.Count; ii++)
                         {
                             // check for error.
@@ -408,7 +407,7 @@ namespace Opc.Ua.Client.Controls
                         }
 
                         // check if browsing must continue;
-                        revisedContiuationPoints = continuationPoints;
+                        continuationPoints = revisedContiuationPoints;
                     }
 
                     // check if unprocessed results exist.
@@ -448,77 +447,12 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public static ReferenceDescriptionCollection Browse(Session session, ViewDescription view, BrowseDescription nodeToBrowse, bool throwOnError)
         {
-            try
-            {
-                ReferenceDescriptionCollection references = new ReferenceDescriptionCollection();
+            // construct browse request.
+            BrowseDescriptionCollection nodesToBrowse = new BrowseDescriptionCollection {
+                    nodeToBrowse
+                };
 
-                // construct browse request.
-                BrowseDescriptionCollection nodesToBrowse = new BrowseDescriptionCollection();
-                nodesToBrowse.Add(nodeToBrowse);
-
-                // start the browse operation.
-                BrowseResultCollection results = null;
-                DiagnosticInfoCollection diagnosticInfos = null;
-
-                session.Browse(
-                    null,
-                    view,
-                    0,
-                    nodesToBrowse,
-                    out results,
-                    out diagnosticInfos);
-
-                ClientBase.ValidateResponse(results, nodesToBrowse);
-                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, nodesToBrowse);
-
-                do
-                {
-                    // check for error.
-                    if (StatusCode.IsBad(results[0].StatusCode))
-                    {
-                        throw new ServiceResultException(results[0].StatusCode);
-                    }
-
-                    // process results.
-                    for (int ii = 0; ii < results[0].References.Count; ii++)
-                    {
-                        references.Add(results[0].References[ii]);
-                    }
-
-                    // check if all references have been fetched.
-                    if (results[0].References.Count == 0 || results[0].ContinuationPoint == null)
-                    {
-                        break;
-                    }
-
-                    // continue browse operation.
-                    ByteStringCollection continuationPoints = new ByteStringCollection();
-                    continuationPoints.Add(results[0].ContinuationPoint);
-
-                    session.BrowseNext(
-                        null,
-                        false,
-                        continuationPoints,
-                        out results,
-                        out diagnosticInfos);
-
-                    ClientBase.ValidateResponse(results, continuationPoints);
-                    ClientBase.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
-                }
-                while (true);
-
-                //return complete list.
-                return references;
-            }
-            catch (Exception exception)
-            {
-                if (throwOnError)
-                {
-                    throw new ServiceResultException(exception, StatusCodes.BadUnexpectedError);
-                }
-
-                return null;
-            }
+            return Browse(session, view, nodesToBrowse, throwOnError);
         }
 
         /// <summary>

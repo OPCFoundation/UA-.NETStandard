@@ -7,6 +7,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Security.Authentication;
@@ -411,7 +412,20 @@ namespace Opc.Ua.Bindings
             m_serverCertProvider = certificateTypeProvider;
             foreach (var description in m_descriptions)
             {
-                if (description.ServerCertificate != null)
+                // check if complete chain should be sent.
+                if (m_serverCertificateChain != null &&
+                    m_serverCertificateChain.Count > 1)
+                {
+                    var byteServerCertificateChain = new List<byte>();
+
+                    for (int i = 0; i < m_serverCertificateChain.Count; i++)
+                    {
+                        byteServerCertificateChain.AddRange(m_serverCertificateChain[i].RawData);
+                    }
+
+                    description.ServerCertificate = byteServerCertificateChain.ToArray();
+                }
+                else if (description.ServerCertificate != null)
                 {
                     description.ServerCertificate =
                         m_serverCertProvider.GetInstanceCertificate(description.SecurityPolicyUri).RawData;

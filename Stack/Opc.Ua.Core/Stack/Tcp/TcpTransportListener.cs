@@ -299,7 +299,7 @@ namespace Opc.Ua.Bindings
                 {
                     ipAddress = IPAddress.Parse(m_uri.Host);
                 }
-             
+
                 // create IPv4 or IPv6 socket.
                 try
                 {
@@ -438,7 +438,20 @@ namespace Opc.Ua.Bindings
             m_serverCertificateTypesProvider = certificateTypesProvider;
             foreach (var description in m_descriptions)
             {
-                if (description.ServerCertificate != null)
+                // check if complete chain should be sent.
+                if (m_serverCertificateChain != null &&
+                    m_serverCertificateChain.Count > 1)
+                {
+                    var byteServerCertificateChain = new List<byte>();
+
+                    for (int i = 0; i < m_serverCertificateChain.Count; i++)
+                    {
+                        byteServerCertificateChain.AddRange(m_serverCertificateChain[i].RawData);
+                    }
+
+                    description.ServerCertificate = byteServerCertificateChain.ToArray();
+                }
+                else if (description.ServerCertificate != null)
                 {
                     var serverCertificate = certificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
                     description.ServerCertificate = serverCertificate.RawData;
