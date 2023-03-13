@@ -50,7 +50,7 @@ namespace Opc.Ua
         /// </summary>
         private const string ServiceCallStartMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCallStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
-        private const string ServiceCallBadStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}";
+        private const string ServiceCallBadStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}, StatusCode={3}";
         private const string SendResponseMessage = "ChannelId {0}: SendResponse {1}";
         private const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
 
@@ -261,11 +261,11 @@ namespace Opc.Ua
         {
             if (IsEnabled())
             {
-                WriteEvent(ServiceCallBadStopId, serviceName, requestHandle, statusCode, pendingRequestCount);
+                WriteEvent(ServiceCallBadStopId, serviceName, requestHandle, pendingRequestCount, statusCode);
             }
             else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.Log(LogLevel.Trace, ServiceCallBadStopEventId, ServiceCallBadStopMessage, serviceName, requestHandle, statusCode, pendingRequestCount);
+                Utils.Log(LogLevel.Trace, ServiceCallBadStopEventId, ServiceCallBadStopMessage, serviceName, requestHandle, pendingRequestCount, statusCode);
             }
         }
 

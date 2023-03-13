@@ -30,10 +30,10 @@
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -105,7 +105,6 @@ namespace Opc.Ua.Security.Certificates
             var serialNumber = m_serialNumber.Reverse().ToArray();
             if (IssuerCAKeyCert != null)
             {
-                var issuerSubjectName = IssuerCAKeyCert.SubjectName;
                 using (RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey())
                 {
                     signedCert = request.Create(

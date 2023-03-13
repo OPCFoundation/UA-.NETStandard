@@ -273,6 +273,12 @@ namespace Opc.Ua
                 foreach (EndpointDescription discoveryEndPoint in endpoints)
                 {
                     Uri discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
+                    if (discoveryEndPointUri == null)
+                    {
+                        Utils.LogWarning("Discovery endpoint contains invalid Url: {0}", discoveryEndPoint.EndpointUrl);
+                        continue;
+                    }
+
                     if ((endpointUrl.Scheme == discoveryEndPointUri.Scheme) &&
                         (endpointUrl.Port == discoveryEndPointUri.Port))
                     {
