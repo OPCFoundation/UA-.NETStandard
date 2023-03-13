@@ -214,7 +214,14 @@ namespace TestData
                     var variable = FindTypeState<ScalarValueVariableState>(Variables.Data_Dynamic_StructureScalar);
                     m_dataDynamicStructureScalarValue = new ScalarValueVariableValue(variable, m_system.GetRandomScalarValueDataType(), null);
                 }
-
+                {
+                    var variable = FindTypeState<VectorVariableState>(Variables.Data_Static_Scalar_VectorValue);
+                    m_dataStaticVectorScalarValue = new VectorVariableValue(variable, m_system.GetRandomVector(), null);
+                }
+                {
+                    var variable = FindTypeState<VectorVariableState>(Variables.Data_Dynamic_Scalar_VectorValue);
+                    m_dataDynamicVectorScalarValue = new VectorVariableValue(variable, m_system.GetRandomVector(), null);
+                }
             }
         }
 
@@ -418,6 +425,25 @@ namespace TestData
 
                         return activeNode;
                     }
+
+                    case VariableTypes.VectorVariableType:
+                    {
+                        if (variableNode is VectorVariableState)
+                        {
+                            break;
+                        }
+
+                        VectorVariableState activeNode = new VectorVariableState(variableNode.Parent);
+                        activeNode.Create(context, variableNode);
+
+                        if (variableNode.Parent != null)
+                        {
+                            variableNode.Parent.ReplaceChild(context, activeNode);
+                        }
+
+                        return activeNode;
+                    }
+
                 }
             }
 
@@ -819,6 +845,8 @@ namespace TestData
 #endif
         private ScalarValueVariableValue m_dataStaticStructureScalarValue;
         private ScalarValueVariableValue m_dataDynamicStructureScalarValue;
+        private VectorVariableValue m_dataStaticVectorScalarValue;
+        private VectorVariableValue m_dataDynamicVectorScalarValue;
         #endregion
     }
 }

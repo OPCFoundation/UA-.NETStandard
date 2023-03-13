@@ -358,6 +358,16 @@ namespace TestData
                         return m_generator.GetRandom(BuiltInType.UInteger);
                     }
 
+                    case TestData.Variables.ScalarValueObjectType_VectorValue:
+                    {
+                        return GetRandomVector();
+                    }
+
+                    case TestData.Variables.ArrayValueObjectType_VectorValue:
+                    {
+                        return GetRandomVectorArray();
+                    }
+
                     case TestData.Variables.ArrayValueObjectType_BooleanValue:
                     case TestData.Variables.UserArrayValueObjectType_BooleanValue:
                     {
@@ -763,6 +773,29 @@ namespace TestData
         }
 
         /// <summary>
+        /// Return random vector;
+        /// </summary>
+        public Vector GetRandomVector()
+        {
+            return new Vector() {
+                X = (double)m_generator.GetRandom(BuiltInType.Double),
+                Y = (double)m_generator.GetRandom(BuiltInType.Double),
+                Z = (double)m_generator.GetRandom(BuiltInType.Double),
+            };
+        }
+
+        private Vector[] GetRandomVectorArray()
+        {
+            int size = m_generator.GetRandomByte() % 8 + 1;
+            Vector[] result = new Vector[size];
+            for (int ii = 0; ii < size; ii++)
+            {
+                result[ii] = GetRandomVector();
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Returns a random structure.
         /// </summary>
         private ExtensionObject GetRandomStructure()
@@ -806,7 +839,7 @@ namespace TestData
                 VariantValue = m_generator.GetRandomVariant(false),
                 IntegerValue = new Variant(m_generator.GetRandomInteger()),
                 UIntegerValue = new Variant(m_generator.GetRandomUInteger()),
-                NumberValue = new Variant(m_generator.GetRandomNumber()),
+                NumberValue = new Variant(m_generator.GetRandomNumber())
             };
 
             return value;
@@ -835,7 +868,7 @@ namespace TestData
                 ExpandedNodeIdValue = m_generator.GetRandomArray<ExpandedNodeId>(false, 10, false),
                 QualifiedNameValue = m_generator.GetRandomArray<QualifiedName>(false, 10, false),
                 LocalizedTextValue = m_generator.GetRandomArray<LocalizedText>(false, 10, false),
-                StatusCodeValue = m_generator.GetRandomArray<StatusCode>(false, 10, false)
+                StatusCodeValue = m_generator.GetRandomArray<StatusCode>(false, 10, false),
             };
 
             object[] values = m_generator.GetRandomArray<object>(false, 10, false);

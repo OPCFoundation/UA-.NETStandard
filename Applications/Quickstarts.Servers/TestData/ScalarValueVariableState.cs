@@ -42,7 +42,6 @@ namespace TestData
         {
             base.OnAfterCreate(context, node);
 
-            AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             if (!SimulationActive.Value)
             {
                 AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -117,8 +116,15 @@ namespace TestData
                 return StatusCodes.BadOutOfService;
             }
 
+            var accessLevel = AccessLevel;
+            var userAccessLevel = UserAccessLevel;
+            AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
             // generate structure values here
             this.WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
+
+            AccessLevel = accessLevel;
+            UserAccessLevel = userAccessLevel;
 
             return base.OnGenerateValues(context);
         }

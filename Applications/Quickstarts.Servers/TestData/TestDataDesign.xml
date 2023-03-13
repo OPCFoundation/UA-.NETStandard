@@ -274,6 +274,7 @@
       <opc:Variable SymbolicName="NumberValue" DataType="ua:Number" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="IntegerValue" DataType="ua:Integer" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="UIntegerValue" DataType="ua:UInteger" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="VectorValue" DataType="Vector" TypeDefinition="VectorVariableType" ModellingRule="Mandatory" />
     </opc:Children>
   </opc:ObjectType>
 
@@ -321,9 +322,9 @@
       <opc:Field Name="VariantValue" DataType="ua:BaseDataType" ValueRank="Array" />
       <opc:Field Name="EnumerationValue" DataType="ua:Enumeration" ValueRank="Array" />
       <opc:Field Name="StructureValue" DataType="ua:Structure" ValueRank="Array" />
-      <opc:Field Name="Number" DataType="ua:Number" ValueRank="Array" />
-      <opc:Field Name="Integer" DataType="ua:Integer" ValueRank="Array" />
-      <opc:Field Name="UInteger" DataType="ua:UInteger" ValueRank="Array" />
+      <opc:Field Name="NumberValue" DataType="ua:Number" ValueRank="Array" />
+      <opc:Field Name="IntegerValue" DataType="ua:Integer" ValueRank="Array" />
+      <opc:Field Name="UIntegerValue" DataType="ua:UInteger" ValueRank="Array" />
     </opc:Fields>
   </opc:DataType>
 
@@ -425,6 +426,7 @@
       <opc:Variable SymbolicName="NumberValue" DataType="ua:Number" ValueRank="Array" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="IntegerValue" DataType="ua:Integer" ValueRank="Array" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="UIntegerValue" DataType="ua:UInteger" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="VectorValue" DataType="Vector" ValueRank="Array" ModellingRule="Mandatory" />
     </opc:Children>
   </opc:ObjectType>
 
@@ -468,7 +470,7 @@
   <opc:DataType SymbolicName="LocalizedTextDataType" BaseType="ua:LocalizedText" />
   <opc:DataType SymbolicName="StatusCodeDataType" BaseType="ua:StatusCode" />
   <opc:DataType SymbolicName="VariantDataType" BaseType="ua:BaseDataType" />
-
+  
   <opc:DataType SymbolicName="UserScalarValueDataType" BaseType="ua:Structure">
     <opc:Fields>
       <opc:Field Name="BooleanDataType" DataType="BooleanDataType" />
@@ -642,6 +644,14 @@
       <opc:Field Name="Z" DataType="ua:Double" />
     </opc:Fields>
   </opc:DataType>
+
+  <opc:VariableType SymbolicName="VectorVariableType" DataType="Vector" BaseType="ua:BaseDataVariableType">
+    <opc:Children>
+      <opc:Property SymbolicName="X" DataType="ua:Double" ModellingRule="Mandatory"/>
+      <opc:Property SymbolicName="Y" DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="Z" DataType="ua:Double" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:VariableType>
 
   <!-- TODO Structure With Optional Fields and Union
   <opc:DataType SymbolicName="VectorUnion" BaseType="ua:Union" IsUnion="true">
@@ -901,7 +911,7 @@
           </opc:Reference>
         </opc:References>
       </opc:Object>
-      -->  
+      -->
       <opc:Object SymbolicName="Conditions" TypeDefinition="ua:FolderType" SupportsEvents="true">
         <opc:Children>
           <opc:Object SymbolicName="SystemStatus" TypeDefinition="TestSystemConditionType" ModellingRule="Mandatory" />

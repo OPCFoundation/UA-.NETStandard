@@ -44,91 +44,91 @@ namespace TestData
     public static partial class DataTypes
     {
         /// <remarks />
-        public const uint ScalarValueDataType = 9440;
+        public const uint ScalarValueDataType = 1078;
 
         /// <remarks />
-        public const uint ArrayValueDataType = 9669;
+        public const uint ArrayValueDataType = 1473;
 
         /// <remarks />
-        public const uint BooleanDataType = 9898;
+        public const uint BooleanDataType = 1715;
 
         /// <remarks />
-        public const uint SByteDataType = 9899;
+        public const uint SByteDataType = 1716;
 
         /// <remarks />
-        public const uint ByteDataType = 9900;
+        public const uint ByteDataType = 1717;
 
         /// <remarks />
-        public const uint Int16DataType = 9901;
+        public const uint Int16DataType = 1718;
 
         /// <remarks />
-        public const uint UInt16DataType = 9902;
+        public const uint UInt16DataType = 1719;
 
         /// <remarks />
-        public const uint Int32DataType = 9903;
+        public const uint Int32DataType = 1720;
 
         /// <remarks />
-        public const uint UInt32DataType = 9904;
+        public const uint UInt32DataType = 1721;
 
         /// <remarks />
-        public const uint Int64DataType = 9905;
+        public const uint Int64DataType = 1722;
 
         /// <remarks />
-        public const uint UInt64DataType = 9906;
+        public const uint UInt64DataType = 1723;
 
         /// <remarks />
-        public const uint FloatDataType = 9907;
+        public const uint FloatDataType = 1724;
 
         /// <remarks />
-        public const uint DoubleDataType = 9908;
+        public const uint DoubleDataType = 1725;
 
         /// <remarks />
-        public const uint StringDataType = 9909;
+        public const uint StringDataType = 1726;
 
         /// <remarks />
-        public const uint DateTimeDataType = 9910;
+        public const uint DateTimeDataType = 1727;
 
         /// <remarks />
-        public const uint GuidDataType = 9911;
+        public const uint GuidDataType = 1728;
 
         /// <remarks />
-        public const uint ByteStringDataType = 9912;
+        public const uint ByteStringDataType = 1729;
 
         /// <remarks />
-        public const uint XmlElementDataType = 9913;
+        public const uint XmlElementDataType = 1730;
 
         /// <remarks />
-        public const uint NodeIdDataType = 9914;
+        public const uint NodeIdDataType = 1731;
 
         /// <remarks />
-        public const uint ExpandedNodeIdDataType = 9915;
+        public const uint ExpandedNodeIdDataType = 1732;
 
         /// <remarks />
-        public const uint QualifiedNameDataType = 9916;
+        public const uint QualifiedNameDataType = 1733;
 
         /// <remarks />
-        public const uint LocalizedTextDataType = 9917;
+        public const uint LocalizedTextDataType = 1734;
 
         /// <remarks />
-        public const uint StatusCodeDataType = 9918;
+        public const uint StatusCodeDataType = 1735;
 
         /// <remarks />
-        public const uint VariantDataType = 9919;
+        public const uint VariantDataType = 1736;
 
         /// <remarks />
-        public const uint UserScalarValueDataType = 9920;
+        public const uint UserScalarValueDataType = 1737;
 
         /// <remarks />
-        public const uint UserArrayValueDataType = 10006;
+        public const uint UserArrayValueDataType = 1829;
 
         /// <remarks />
-        public const uint Vector = 21000;
+        public const uint Vector = 1915;
 
         /// <remarks />
-        public const uint WorkOrderStatusType = 21004;
+        public const uint WorkOrderStatusType = 1920;
 
         /// <remarks />
-        public const uint WorkOrderType = 21005;
+        public const uint WorkOrderType = 1921;
     }
     #endregion
 
@@ -139,397 +139,397 @@ namespace TestData
     public static partial class Methods
     {
         /// <remarks />
-        public const uint TestDataObjectType_GenerateValues = 9385;
+        public const uint TestDataObjectType_GenerateValues = 1017;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Disable = 9415;
+        public const uint TestDataObjectType_CycleComplete_Disable = 1052;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Enable = 9414;
+        public const uint TestDataObjectType_CycleComplete_Enable = 1053;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_AddComment = 9416;
+        public const uint TestDataObjectType_CycleComplete_AddComment = 1054;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Acknowledge = 9436;
+        public const uint TestDataObjectType_CycleComplete_Acknowledge = 1074;
 
         /// <remarks />
-        public const uint TestDataVariableType_GenerateValues = 2;
+        public const uint TestDataVariableType_GenerateValues = 1081;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Disable = 37;
+        public const uint TestDataVariableType_CycleComplete_Disable = 1116;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Enable = 38;
+        public const uint TestDataVariableType_CycleComplete_Enable = 1117;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_AddComment = 39;
+        public const uint TestDataVariableType_CycleComplete_AddComment = 1118;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Acknowledge = 59;
+        public const uint TestDataVariableType_CycleComplete_Acknowledge = 1138;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Disable = 99;
+        public const uint ScalarValueVariableType_CycleComplete_Disable = 1179;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Enable = 100;
+        public const uint ScalarValueVariableType_CycleComplete_Enable = 1180;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_AddComment = 101;
+        public const uint ScalarValueVariableType_CycleComplete_AddComment = 1181;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Acknowledge = 121;
+        public const uint ScalarValueVariableType_CycleComplete_Acknowledge = 1201;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Disable = 9482;
+        public const uint ScalarValueObjectType_CycleComplete_Disable = 1278;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Enable = 9481;
+        public const uint ScalarValueObjectType_CycleComplete_Enable = 1279;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_AddComment = 9483;
+        public const uint ScalarValueObjectType_CycleComplete_AddComment = 1280;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Acknowledge = 9503;
+        public const uint ScalarValueObjectType_CycleComplete_Acknowledge = 1300;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Disable = 9566;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Disable = 1369;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Enable = 9565;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Enable = 1370;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_AddComment = 9567;
+        public const uint AnalogScalarValueObjectType_CycleComplete_AddComment = 1371;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Acknowledge = 9587;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Acknowledge = 1391;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Disable = 9711;
+        public const uint ArrayValueObjectType_CycleComplete_Disable = 1520;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Enable = 9710;
+        public const uint ArrayValueObjectType_CycleComplete_Enable = 1521;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_AddComment = 9712;
+        public const uint ArrayValueObjectType_CycleComplete_AddComment = 1522;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Acknowledge = 9732;
+        public const uint ArrayValueObjectType_CycleComplete_Acknowledge = 1542;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Disable = 9795;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Disable = 1611;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Enable = 9794;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Enable = 1612;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_AddComment = 9796;
+        public const uint AnalogArrayValueObjectType_CycleComplete_AddComment = 1613;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Acknowledge = 9816;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Acknowledge = 1633;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Disable = 9953;
+        public const uint UserScalarValueObjectType_CycleComplete_Disable = 1775;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Enable = 9952;
+        public const uint UserScalarValueObjectType_CycleComplete_Enable = 1776;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_AddComment = 9954;
+        public const uint UserScalarValueObjectType_CycleComplete_AddComment = 1777;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Acknowledge = 9974;
+        public const uint UserScalarValueObjectType_CycleComplete_Acknowledge = 1797;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Disable = 10039;
+        public const uint UserArrayValueObjectType_CycleComplete_Disable = 1867;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Enable = 10038;
+        public const uint UserArrayValueObjectType_CycleComplete_Enable = 1868;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_AddComment = 10040;
+        public const uint UserArrayValueObjectType_CycleComplete_AddComment = 1869;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Acknowledge = 10060;
+        public const uint UserArrayValueObjectType_CycleComplete_Acknowledge = 1889;
 
         /// <remarks />
-        public const uint MethodTestType_ScalarMethod1 = 10093;
+        public const uint MethodTestType_ScalarMethod1 = 1929;
 
         /// <remarks />
-        public const uint MethodTestType_ScalarMethod2 = 10096;
+        public const uint MethodTestType_ScalarMethod2 = 1932;
 
         /// <remarks />
-        public const uint MethodTestType_ScalarMethod3 = 10099;
+        public const uint MethodTestType_ScalarMethod3 = 1935;
 
         /// <remarks />
-        public const uint MethodTestType_ArrayMethod1 = 10102;
+        public const uint MethodTestType_ArrayMethod1 = 1938;
 
         /// <remarks />
-        public const uint MethodTestType_ArrayMethod2 = 10105;
+        public const uint MethodTestType_ArrayMethod2 = 1941;
 
         /// <remarks />
-        public const uint MethodTestType_ArrayMethod3 = 10108;
+        public const uint MethodTestType_ArrayMethod3 = 1944;
 
         /// <remarks />
-        public const uint MethodTestType_UserScalarMethod1 = 10111;
+        public const uint MethodTestType_UserScalarMethod1 = 1947;
 
         /// <remarks />
-        public const uint MethodTestType_UserScalarMethod2 = 10114;
+        public const uint MethodTestType_UserScalarMethod2 = 1950;
 
         /// <remarks />
-        public const uint MethodTestType_UserArrayMethod1 = 10117;
+        public const uint MethodTestType_UserArrayMethod1 = 1953;
 
         /// <remarks />
-        public const uint MethodTestType_UserArrayMethod2 = 10120;
+        public const uint MethodTestType_UserArrayMethod2 = 1956;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_GenerateValues = 10161;
+        public const uint Data_Static_Scalar_GenerateValues = 2005;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Disable = 10191;
+        public const uint Data_Static_Scalar_CycleComplete_Disable = 2040;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Enable = 10190;
+        public const uint Data_Static_Scalar_CycleComplete_Enable = 2041;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_AddComment = 10192;
+        public const uint Data_Static_Scalar_CycleComplete_AddComment = 2042;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Acknowledge = 10212;
+        public const uint Data_Static_Scalar_CycleComplete_Acknowledge = 2062;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_GenerateValues = 189;
+        public const uint Data_Static_StructureScalar_GenerateValues = 2096;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Disable = 224;
+        public const uint Data_Static_StructureScalar_CycleComplete_Disable = 2131;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Enable = 225;
+        public const uint Data_Static_StructureScalar_CycleComplete_Enable = 2132;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_AddComment = 226;
+        public const uint Data_Static_StructureScalar_CycleComplete_AddComment = 2133;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Acknowledge = 246;
+        public const uint Data_Static_StructureScalar_CycleComplete_Acknowledge = 2153;
 
         /// <remarks />
-        public const uint Data_Static_Array_GenerateValues = 10245;
+        public const uint Data_Static_Array_GenerateValues = 2186;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Disable = 10275;
+        public const uint Data_Static_Array_CycleComplete_Disable = 2221;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Enable = 10274;
+        public const uint Data_Static_Array_CycleComplete_Enable = 2222;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_AddComment = 10276;
+        public const uint Data_Static_Array_CycleComplete_AddComment = 2223;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Acknowledge = 10296;
+        public const uint Data_Static_Array_CycleComplete_Acknowledge = 2243;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_GenerateValues = 10329;
+        public const uint Data_Static_UserScalar_GenerateValues = 2277;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Disable = 10359;
+        public const uint Data_Static_UserScalar_CycleComplete_Disable = 2312;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Enable = 10358;
+        public const uint Data_Static_UserScalar_CycleComplete_Enable = 2313;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_AddComment = 10360;
+        public const uint Data_Static_UserScalar_CycleComplete_AddComment = 2314;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Acknowledge = 10380;
+        public const uint Data_Static_UserScalar_CycleComplete_Acknowledge = 2334;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_GenerateValues = 10408;
+        public const uint Data_Static_UserArray_GenerateValues = 2362;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Disable = 10438;
+        public const uint Data_Static_UserArray_CycleComplete_Disable = 2397;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Enable = 10437;
+        public const uint Data_Static_UserArray_CycleComplete_Enable = 2398;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_AddComment = 10439;
+        public const uint Data_Static_UserArray_CycleComplete_AddComment = 2399;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Acknowledge = 10459;
+        public const uint Data_Static_UserArray_CycleComplete_Acknowledge = 2419;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_GenerateValues = 10487;
+        public const uint Data_Static_AnalogScalar_GenerateValues = 2447;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Disable = 10517;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Disable = 2482;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Enable = 10516;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Enable = 2483;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_AddComment = 10518;
+        public const uint Data_Static_AnalogScalar_CycleComplete_AddComment = 2484;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Acknowledge = 10538;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Acknowledge = 2504;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_GenerateValues = 10622;
+        public const uint Data_Static_AnalogArray_GenerateValues = 2588;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Disable = 10652;
+        public const uint Data_Static_AnalogArray_CycleComplete_Disable = 2623;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Enable = 10651;
+        public const uint Data_Static_AnalogArray_CycleComplete_Enable = 2624;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_AddComment = 10653;
+        public const uint Data_Static_AnalogArray_CycleComplete_AddComment = 2625;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Acknowledge = 10673;
+        public const uint Data_Static_AnalogArray_CycleComplete_Acknowledge = 2645;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ScalarMethod1 = 10756;
+        public const uint Data_Static_MethodTest_ScalarMethod1 = 2728;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ScalarMethod2 = 10759;
+        public const uint Data_Static_MethodTest_ScalarMethod2 = 2731;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ScalarMethod3 = 10762;
+        public const uint Data_Static_MethodTest_ScalarMethod3 = 2734;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ArrayMethod1 = 10765;
+        public const uint Data_Static_MethodTest_ArrayMethod1 = 2737;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ArrayMethod2 = 10768;
+        public const uint Data_Static_MethodTest_ArrayMethod2 = 2740;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ArrayMethod3 = 10771;
+        public const uint Data_Static_MethodTest_ArrayMethod3 = 2743;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_UserScalarMethod1 = 10774;
+        public const uint Data_Static_MethodTest_UserScalarMethod1 = 2746;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_UserScalarMethod2 = 10777;
+        public const uint Data_Static_MethodTest_UserScalarMethod2 = 2749;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_UserArrayMethod1 = 10780;
+        public const uint Data_Static_MethodTest_UserArrayMethod1 = 2752;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_UserArrayMethod2 = 10783;
+        public const uint Data_Static_MethodTest_UserArrayMethod2 = 2755;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_GenerateValues = 10789;
+        public const uint Data_Dynamic_Scalar_GenerateValues = 2761;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Disable = 10819;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Disable = 2796;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Enable = 10818;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Enable = 2797;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_AddComment = 10820;
+        public const uint Data_Dynamic_Scalar_CycleComplete_AddComment = 2798;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Acknowledge = 10840;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Acknowledge = 2818;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_GenerateValues = 279;
+        public const uint Data_Dynamic_StructureScalar_GenerateValues = 2852;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Disable = 314;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Disable = 2887;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Enable = 315;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Enable = 2888;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_AddComment = 316;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_AddComment = 2889;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Acknowledge = 336;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Acknowledge = 2909;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_GenerateValues = 10873;
+        public const uint Data_Dynamic_Array_GenerateValues = 2942;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Disable = 10903;
+        public const uint Data_Dynamic_Array_CycleComplete_Disable = 2977;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Enable = 10902;
+        public const uint Data_Dynamic_Array_CycleComplete_Enable = 2978;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_AddComment = 10904;
+        public const uint Data_Dynamic_Array_CycleComplete_AddComment = 2979;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Acknowledge = 10924;
+        public const uint Data_Dynamic_Array_CycleComplete_Acknowledge = 2999;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_GenerateValues = 10957;
+        public const uint Data_Dynamic_UserScalar_GenerateValues = 3033;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Disable = 10987;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Disable = 3068;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Enable = 10986;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Enable = 3069;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_AddComment = 10988;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_AddComment = 3070;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Acknowledge = 11008;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Acknowledge = 3090;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_GenerateValues = 11036;
+        public const uint Data_Dynamic_UserArray_GenerateValues = 3118;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Disable = 11066;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Disable = 3153;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Enable = 11065;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Enable = 3154;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_AddComment = 11067;
+        public const uint Data_Dynamic_UserArray_CycleComplete_AddComment = 3155;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Acknowledge = 11087;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Acknowledge = 3175;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_GenerateValues = 11115;
+        public const uint Data_Dynamic_AnalogScalar_GenerateValues = 3203;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Disable = 11145;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Disable = 3238;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Enable = 11144;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Enable = 3239;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_AddComment = 11146;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_AddComment = 3240;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Acknowledge = 11166;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Acknowledge = 3260;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_GenerateValues = 11250;
+        public const uint Data_Dynamic_AnalogArray_GenerateValues = 3344;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Disable = 11280;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Disable = 3379;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Enable = 11279;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Enable = 3380;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_AddComment = 11281;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_AddComment = 3381;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Acknowledge = 11301;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Acknowledge = 3401;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_Disable = 11412;
+        public const uint Data_Conditions_SystemStatus_Disable = 3517;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_Enable = 11411;
+        public const uint Data_Conditions_SystemStatus_Enable = 3518;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_AddComment = 11413;
+        public const uint Data_Conditions_SystemStatus_AddComment = 3519;
     }
     #endregion
 
@@ -540,169 +540,169 @@ namespace TestData
     public static partial class Objects
     {
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete = 9387;
+        public const uint TestDataObjectType_CycleComplete = 1019;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete = 4;
+        public const uint TestDataVariableType_CycleComplete = 1083;
 
         /// <remarks />
-        public const uint Data = 10157;
+        public const uint Data = 2001;
 
         /// <remarks />
-        public const uint Data_Static = 10158;
+        public const uint Data_Static = 2002;
 
         /// <remarks />
-        public const uint Data_Static_Scalar = 10159;
+        public const uint Data_Static_Scalar = 2003;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete = 10163;
+        public const uint Data_Static_Scalar_CycleComplete = 2007;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete = 191;
+        public const uint Data_Static_StructureScalar_CycleComplete = 2098;
 
         /// <remarks />
-        public const uint Data_Static_Array = 10243;
+        public const uint Data_Static_Array = 2184;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete = 10247;
+        public const uint Data_Static_Array_CycleComplete = 2188;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar = 10327;
+        public const uint Data_Static_UserScalar = 2275;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete = 10331;
+        public const uint Data_Static_UserScalar_CycleComplete = 2279;
 
         /// <remarks />
-        public const uint Data_Static_UserArray = 10406;
+        public const uint Data_Static_UserArray = 2360;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete = 10410;
+        public const uint Data_Static_UserArray_CycleComplete = 2364;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar = 10485;
+        public const uint Data_Static_AnalogScalar = 2445;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete = 10489;
+        public const uint Data_Static_AnalogScalar_CycleComplete = 2449;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray = 10620;
+        public const uint Data_Static_AnalogArray = 2586;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete = 10624;
+        public const uint Data_Static_AnalogArray_CycleComplete = 2590;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest = 10755;
+        public const uint Data_Static_MethodTest = 2727;
 
         /// <remarks />
-        public const uint Data_Dynamic = 10786;
+        public const uint Data_Dynamic = 2758;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar = 10787;
+        public const uint Data_Dynamic_Scalar = 2759;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete = 10791;
+        public const uint Data_Dynamic_Scalar_CycleComplete = 2763;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete = 281;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete = 2854;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array = 10871;
+        public const uint Data_Dynamic_Array = 2940;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete = 10875;
+        public const uint Data_Dynamic_Array_CycleComplete = 2944;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar = 10955;
+        public const uint Data_Dynamic_UserScalar = 3031;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete = 10959;
+        public const uint Data_Dynamic_UserScalar_CycleComplete = 3035;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray = 11034;
+        public const uint Data_Dynamic_UserArray = 3116;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete = 11038;
+        public const uint Data_Dynamic_UserArray_CycleComplete = 3120;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar = 11113;
+        public const uint Data_Dynamic_AnalogScalar = 3201;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete = 11117;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete = 3205;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray = 11248;
+        public const uint Data_Dynamic_AnalogArray = 3342;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete = 11252;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete = 3346;
 
         /// <remarks />
-        public const uint Data_Conditions = 11383;
+        public const uint Data_Conditions = 3483;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus = 11384;
+        public const uint Data_Conditions_SystemStatus = 3484;
 
         /// <remarks />
-        public const uint ScalarValueDataType_Encoding_DefaultBinary = 11437;
+        public const uint ScalarValueDataType_Encoding_DefaultBinary = 3522;
 
         /// <remarks />
-        public const uint ArrayValueDataType_Encoding_DefaultBinary = 11438;
+        public const uint ArrayValueDataType_Encoding_DefaultBinary = 3523;
 
         /// <remarks />
-        public const uint UserScalarValueDataType_Encoding_DefaultBinary = 11439;
+        public const uint UserScalarValueDataType_Encoding_DefaultBinary = 3524;
 
         /// <remarks />
-        public const uint UserArrayValueDataType_Encoding_DefaultBinary = 11440;
+        public const uint UserArrayValueDataType_Encoding_DefaultBinary = 3525;
 
         /// <remarks />
-        public const uint Vector_Encoding_DefaultBinary = 21008;
+        public const uint Vector_Encoding_DefaultBinary = 3526;
 
         /// <remarks />
-        public const uint WorkOrderStatusType_Encoding_DefaultBinary = 21011;
+        public const uint WorkOrderStatusType_Encoding_DefaultBinary = 3527;
 
         /// <remarks />
-        public const uint WorkOrderType_Encoding_DefaultBinary = 21012;
+        public const uint WorkOrderType_Encoding_DefaultBinary = 3528;
 
         /// <remarks />
-        public const uint ScalarValueDataType_Encoding_DefaultXml = 11418;
+        public const uint ScalarValueDataType_Encoding_DefaultXml = 3554;
 
         /// <remarks />
-        public const uint ArrayValueDataType_Encoding_DefaultXml = 11419;
+        public const uint ArrayValueDataType_Encoding_DefaultXml = 3555;
 
         /// <remarks />
-        public const uint UserScalarValueDataType_Encoding_DefaultXml = 11420;
+        public const uint UserScalarValueDataType_Encoding_DefaultXml = 3556;
 
         /// <remarks />
-        public const uint UserArrayValueDataType_Encoding_DefaultXml = 11421;
+        public const uint UserArrayValueDataType_Encoding_DefaultXml = 3557;
 
         /// <remarks />
-        public const uint Vector_Encoding_DefaultXml = 1036;
+        public const uint Vector_Encoding_DefaultXml = 3558;
 
         /// <remarks />
-        public const uint WorkOrderStatusType_Encoding_DefaultXml = 1039;
+        public const uint WorkOrderStatusType_Encoding_DefaultXml = 3559;
 
         /// <remarks />
-        public const uint WorkOrderType_Encoding_DefaultXml = 1040;
+        public const uint WorkOrderType_Encoding_DefaultXml = 3560;
 
         /// <remarks />
-        public const uint ScalarValueDataType_Encoding_DefaultJson = 15047;
+        public const uint ScalarValueDataType_Encoding_DefaultJson = 3586;
 
         /// <remarks />
-        public const uint ArrayValueDataType_Encoding_DefaultJson = 15048;
+        public const uint ArrayValueDataType_Encoding_DefaultJson = 3587;
 
         /// <remarks />
-        public const uint UserScalarValueDataType_Encoding_DefaultJson = 15049;
+        public const uint UserScalarValueDataType_Encoding_DefaultJson = 3588;
 
         /// <remarks />
-        public const uint UserArrayValueDataType_Encoding_DefaultJson = 15050;
+        public const uint UserArrayValueDataType_Encoding_DefaultJson = 3589;
 
         /// <remarks />
-        public const uint Vector_Encoding_DefaultJson = 1064;
+        public const uint Vector_Encoding_DefaultJson = 3590;
 
         /// <remarks />
-        public const uint WorkOrderStatusType_Encoding_DefaultJson = 1067;
+        public const uint WorkOrderStatusType_Encoding_DefaultJson = 3591;
 
         /// <remarks />
-        public const uint WorkOrderType_Encoding_DefaultJson = 1068;
+        public const uint WorkOrderType_Encoding_DefaultJson = 3592;
     }
     #endregion
 
@@ -713,34 +713,34 @@ namespace TestData
     public static partial class ObjectTypes
     {
         /// <remarks />
-        public const uint GenerateValuesEventType = 9371;
+        public const uint GenerateValuesEventType = 1003;
 
         /// <remarks />
-        public const uint TestDataObjectType = 9383;
+        public const uint TestDataObjectType = 1015;
 
         /// <remarks />
-        public const uint ScalarValueObjectType = 9450;
+        public const uint ScalarValueObjectType = 1241;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType = 9534;
+        public const uint AnalogScalarValueObjectType = 1332;
 
         /// <remarks />
-        public const uint ArrayValueObjectType = 9679;
+        public const uint ArrayValueObjectType = 1483;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType = 9763;
+        public const uint AnalogArrayValueObjectType = 1574;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType = 9921;
+        public const uint UserScalarValueObjectType = 1738;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType = 10007;
+        public const uint UserArrayValueObjectType = 1830;
 
         /// <remarks />
-        public const uint MethodTestType = 10092;
+        public const uint MethodTestType = 1928;
 
         /// <remarks />
-        public const uint TestSystemConditionType = 10123;
+        public const uint TestSystemConditionType = 1959;
     }
     #endregion
 
@@ -751,3934 +751,3988 @@ namespace TestData
     public static partial class Variables
     {
         /// <remarks />
-        public const uint GenerateValuesEventType_Iterations = 9381;
+        public const uint GenerateValuesEventType_Iterations = 1013;
 
         /// <remarks />
-        public const uint GenerateValuesEventType_NewValueCount = 9382;
+        public const uint GenerateValuesEventType_NewValueCount = 1014;
 
         /// <remarks />
-        public const uint TestDataObjectType_SimulationActive = 9384;
+        public const uint TestDataObjectType_SimulationActive = 1016;
 
         /// <remarks />
-        public const uint TestDataObjectType_GenerateValues_InputArguments = 9386;
+        public const uint TestDataObjectType_GenerateValues_InputArguments = 1018;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_EventId = 9388;
+        public const uint TestDataObjectType_CycleComplete_EventId = 1020;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_EventType = 9389;
+        public const uint TestDataObjectType_CycleComplete_EventType = 1021;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_SourceNode = 9390;
+        public const uint TestDataObjectType_CycleComplete_SourceNode = 1022;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_SourceName = 9391;
+        public const uint TestDataObjectType_CycleComplete_SourceName = 1023;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Time = 9392;
+        public const uint TestDataObjectType_CycleComplete_Time = 1024;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_ReceiveTime = 9393;
+        public const uint TestDataObjectType_CycleComplete_ReceiveTime = 1025;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Message = 9395;
+        public const uint TestDataObjectType_CycleComplete_Message = 1027;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Severity = 9396;
+        public const uint TestDataObjectType_CycleComplete_Severity = 1028;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_ConditionClassId = 11578;
+        public const uint TestDataObjectType_CycleComplete_ConditionClassId = 1029;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_ConditionClassName = 11579;
+        public const uint TestDataObjectType_CycleComplete_ConditionClassName = 1030;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_ConditionName = 11557;
+        public const uint TestDataObjectType_CycleComplete_ConditionName = 1033;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_BranchId = 9397;
+        public const uint TestDataObjectType_CycleComplete_BranchId = 1034;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Retain = 9398;
+        public const uint TestDataObjectType_CycleComplete_Retain = 1035;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_EnabledState = 9399;
+        public const uint TestDataObjectType_CycleComplete_EnabledState = 1036;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_EnabledState_Id = 9400;
+        public const uint TestDataObjectType_CycleComplete_EnabledState_Id = 1037;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Quality = 9405;
+        public const uint TestDataObjectType_CycleComplete_Quality = 1045;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Quality_SourceTimestamp = 9406;
+        public const uint TestDataObjectType_CycleComplete_Quality_SourceTimestamp = 1046;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_LastSeverity = 9409;
+        public const uint TestDataObjectType_CycleComplete_LastSeverity = 1047;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_LastSeverity_SourceTimestamp = 9410;
+        public const uint TestDataObjectType_CycleComplete_LastSeverity_SourceTimestamp = 1048;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Comment = 9411;
+        public const uint TestDataObjectType_CycleComplete_Comment = 1049;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Comment_SourceTimestamp = 9412;
+        public const uint TestDataObjectType_CycleComplete_Comment_SourceTimestamp = 1050;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_ClientUserId = 9413;
+        public const uint TestDataObjectType_CycleComplete_ClientUserId = 1051;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_AddComment_InputArguments = 9417;
+        public const uint TestDataObjectType_CycleComplete_AddComment_InputArguments = 1055;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_AckedState = 9420;
+        public const uint TestDataObjectType_CycleComplete_AckedState = 1056;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_AckedState_Id = 9421;
+        public const uint TestDataObjectType_CycleComplete_AckedState_Id = 1057;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_ConfirmedState_Id = 9429;
+        public const uint TestDataObjectType_CycleComplete_ConfirmedState_Id = 1066;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Acknowledge_InputArguments = 9437;
+        public const uint TestDataObjectType_CycleComplete_Acknowledge_InputArguments = 1075;
 
         /// <remarks />
-        public const uint TestDataObjectType_CycleComplete_Confirm_InputArguments = 9439;
+        public const uint TestDataObjectType_CycleComplete_Confirm_InputArguments = 1077;
 
         /// <remarks />
-        public const uint TestDataVariableType_SimulationActive = 1;
+        public const uint TestDataVariableType_SimulationActive = 1080;
 
         /// <remarks />
-        public const uint TestDataVariableType_GenerateValues_InputArguments = 3;
+        public const uint TestDataVariableType_GenerateValues_InputArguments = 1082;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_EventId = 5;
+        public const uint TestDataVariableType_CycleComplete_EventId = 1084;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_EventType = 6;
+        public const uint TestDataVariableType_CycleComplete_EventType = 1085;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_SourceNode = 7;
+        public const uint TestDataVariableType_CycleComplete_SourceNode = 1086;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_SourceName = 8;
+        public const uint TestDataVariableType_CycleComplete_SourceName = 1087;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Time = 9;
+        public const uint TestDataVariableType_CycleComplete_Time = 1088;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_ReceiveTime = 10;
+        public const uint TestDataVariableType_CycleComplete_ReceiveTime = 1089;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Message = 12;
+        public const uint TestDataVariableType_CycleComplete_Message = 1091;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Severity = 13;
+        public const uint TestDataVariableType_CycleComplete_Severity = 1092;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_ConditionClassId = 14;
+        public const uint TestDataVariableType_CycleComplete_ConditionClassId = 1093;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_ConditionClassName = 15;
+        public const uint TestDataVariableType_CycleComplete_ConditionClassName = 1094;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_ConditionName = 18;
+        public const uint TestDataVariableType_CycleComplete_ConditionName = 1097;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_BranchId = 19;
+        public const uint TestDataVariableType_CycleComplete_BranchId = 1098;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Retain = 20;
+        public const uint TestDataVariableType_CycleComplete_Retain = 1099;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_EnabledState = 21;
+        public const uint TestDataVariableType_CycleComplete_EnabledState = 1100;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_EnabledState_Id = 22;
+        public const uint TestDataVariableType_CycleComplete_EnabledState_Id = 1101;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Quality = 30;
+        public const uint TestDataVariableType_CycleComplete_Quality = 1109;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Quality_SourceTimestamp = 31;
+        public const uint TestDataVariableType_CycleComplete_Quality_SourceTimestamp = 1110;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_LastSeverity = 32;
+        public const uint TestDataVariableType_CycleComplete_LastSeverity = 1111;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_LastSeverity_SourceTimestamp = 33;
+        public const uint TestDataVariableType_CycleComplete_LastSeverity_SourceTimestamp = 1112;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Comment = 34;
+        public const uint TestDataVariableType_CycleComplete_Comment = 1113;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Comment_SourceTimestamp = 35;
+        public const uint TestDataVariableType_CycleComplete_Comment_SourceTimestamp = 1114;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_ClientUserId = 36;
+        public const uint TestDataVariableType_CycleComplete_ClientUserId = 1115;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_AddComment_InputArguments = 40;
+        public const uint TestDataVariableType_CycleComplete_AddComment_InputArguments = 1119;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_AckedState = 41;
+        public const uint TestDataVariableType_CycleComplete_AckedState = 1120;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_AckedState_Id = 42;
+        public const uint TestDataVariableType_CycleComplete_AckedState_Id = 1121;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_ConfirmedState_Id = 51;
+        public const uint TestDataVariableType_CycleComplete_ConfirmedState_Id = 1130;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Acknowledge_InputArguments = 60;
+        public const uint TestDataVariableType_CycleComplete_Acknowledge_InputArguments = 1139;
 
         /// <remarks />
-        public const uint TestDataVariableType_CycleComplete_Confirm_InputArguments = 62;
+        public const uint TestDataVariableType_CycleComplete_Confirm_InputArguments = 1141;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_GenerateValues_InputArguments = 65;
+        public const uint ScalarValueVariableType_GenerateValues_InputArguments = 1145;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_EventId = 67;
+        public const uint ScalarValueVariableType_CycleComplete_EventId = 1147;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_EventType = 68;
+        public const uint ScalarValueVariableType_CycleComplete_EventType = 1148;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_SourceNode = 69;
+        public const uint ScalarValueVariableType_CycleComplete_SourceNode = 1149;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_SourceName = 70;
+        public const uint ScalarValueVariableType_CycleComplete_SourceName = 1150;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Time = 71;
+        public const uint ScalarValueVariableType_CycleComplete_Time = 1151;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_ReceiveTime = 72;
+        public const uint ScalarValueVariableType_CycleComplete_ReceiveTime = 1152;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Message = 74;
+        public const uint ScalarValueVariableType_CycleComplete_Message = 1154;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Severity = 75;
+        public const uint ScalarValueVariableType_CycleComplete_Severity = 1155;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_ConditionClassId = 76;
+        public const uint ScalarValueVariableType_CycleComplete_ConditionClassId = 1156;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_ConditionClassName = 77;
+        public const uint ScalarValueVariableType_CycleComplete_ConditionClassName = 1157;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_ConditionName = 80;
+        public const uint ScalarValueVariableType_CycleComplete_ConditionName = 1160;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_BranchId = 81;
+        public const uint ScalarValueVariableType_CycleComplete_BranchId = 1161;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Retain = 82;
+        public const uint ScalarValueVariableType_CycleComplete_Retain = 1162;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_EnabledState = 83;
+        public const uint ScalarValueVariableType_CycleComplete_EnabledState = 1163;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_EnabledState_Id = 84;
+        public const uint ScalarValueVariableType_CycleComplete_EnabledState_Id = 1164;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Quality = 92;
+        public const uint ScalarValueVariableType_CycleComplete_Quality = 1172;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Quality_SourceTimestamp = 93;
+        public const uint ScalarValueVariableType_CycleComplete_Quality_SourceTimestamp = 1173;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_LastSeverity = 94;
+        public const uint ScalarValueVariableType_CycleComplete_LastSeverity = 1174;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_LastSeverity_SourceTimestamp = 95;
+        public const uint ScalarValueVariableType_CycleComplete_LastSeverity_SourceTimestamp = 1175;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Comment = 96;
+        public const uint ScalarValueVariableType_CycleComplete_Comment = 1176;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Comment_SourceTimestamp = 97;
+        public const uint ScalarValueVariableType_CycleComplete_Comment_SourceTimestamp = 1177;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_ClientUserId = 98;
+        public const uint ScalarValueVariableType_CycleComplete_ClientUserId = 1178;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_AddComment_InputArguments = 102;
+        public const uint ScalarValueVariableType_CycleComplete_AddComment_InputArguments = 1182;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_AckedState = 103;
+        public const uint ScalarValueVariableType_CycleComplete_AckedState = 1183;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_AckedState_Id = 104;
+        public const uint ScalarValueVariableType_CycleComplete_AckedState_Id = 1184;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_ConfirmedState_Id = 113;
+        public const uint ScalarValueVariableType_CycleComplete_ConfirmedState_Id = 1193;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Acknowledge_InputArguments = 122;
+        public const uint ScalarValueVariableType_CycleComplete_Acknowledge_InputArguments = 1202;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_CycleComplete_Confirm_InputArguments = 124;
+        public const uint ScalarValueVariableType_CycleComplete_Confirm_InputArguments = 1204;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_BooleanValue = 1003;
+        public const uint ScalarValueVariableType_BooleanValue = 1205;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_SByteValue = 1004;
+        public const uint ScalarValueVariableType_SByteValue = 1206;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_ByteValue = 1005;
+        public const uint ScalarValueVariableType_ByteValue = 1207;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_Int16Value = 1006;
+        public const uint ScalarValueVariableType_Int16Value = 1208;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_UInt16Value = 1007;
+        public const uint ScalarValueVariableType_UInt16Value = 1209;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_Int32Value = 1008;
+        public const uint ScalarValueVariableType_Int32Value = 1210;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_UInt32Value = 1009;
+        public const uint ScalarValueVariableType_UInt32Value = 1211;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_Int64Value = 1010;
+        public const uint ScalarValueVariableType_Int64Value = 1212;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_UInt64Value = 1011;
+        public const uint ScalarValueVariableType_UInt64Value = 1213;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_FloatValue = 1012;
+        public const uint ScalarValueVariableType_FloatValue = 1214;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_DoubleValue = 1013;
+        public const uint ScalarValueVariableType_DoubleValue = 1215;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_StringValue = 1014;
+        public const uint ScalarValueVariableType_StringValue = 1216;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_DateTimeValue = 1015;
+        public const uint ScalarValueVariableType_DateTimeValue = 1217;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_GuidValue = 1016;
+        public const uint ScalarValueVariableType_GuidValue = 1218;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_ByteStringValue = 1017;
+        public const uint ScalarValueVariableType_ByteStringValue = 1219;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_XmlElementValue = 1018;
+        public const uint ScalarValueVariableType_XmlElementValue = 1220;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_NodeIdValue = 1019;
+        public const uint ScalarValueVariableType_NodeIdValue = 1221;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_ExpandedNodeIdValue = 1020;
+        public const uint ScalarValueVariableType_ExpandedNodeIdValue = 1222;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_QualifiedNameValue = 1021;
+        public const uint ScalarValueVariableType_QualifiedNameValue = 1223;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_LocalizedTextValue = 1022;
+        public const uint ScalarValueVariableType_LocalizedTextValue = 1224;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_StatusCodeValue = 1023;
+        public const uint ScalarValueVariableType_StatusCodeValue = 1225;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_VariantValue = 1030;
+        public const uint ScalarValueVariableType_VariantValue = 1226;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_EnumerationValue = 1031;
+        public const uint ScalarValueVariableType_EnumerationValue = 1227;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_StructureValue = 1032;
+        public const uint ScalarValueVariableType_StructureValue = 1228;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_NumberValue = 1033;
+        public const uint ScalarValueVariableType_NumberValue = 1229;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_IntegerValue = 1034;
+        public const uint ScalarValueVariableType_IntegerValue = 1230;
 
         /// <remarks />
-        public const uint ScalarValueVariableType_UIntegerValue = 1035;
+        public const uint ScalarValueVariableType_UIntegerValue = 1231;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_GenerateValues_InputArguments = 9453;
+        public const uint ScalarValueObjectType_GenerateValues_InputArguments = 1244;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_EventId = 9455;
+        public const uint ScalarValueObjectType_CycleComplete_EventId = 1246;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_EventType = 9456;
+        public const uint ScalarValueObjectType_CycleComplete_EventType = 1247;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_SourceNode = 9457;
+        public const uint ScalarValueObjectType_CycleComplete_SourceNode = 1248;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_SourceName = 9458;
+        public const uint ScalarValueObjectType_CycleComplete_SourceName = 1249;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Time = 9459;
+        public const uint ScalarValueObjectType_CycleComplete_Time = 1250;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_ReceiveTime = 9460;
+        public const uint ScalarValueObjectType_CycleComplete_ReceiveTime = 1251;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Message = 9462;
+        public const uint ScalarValueObjectType_CycleComplete_Message = 1253;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Severity = 9463;
+        public const uint ScalarValueObjectType_CycleComplete_Severity = 1254;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_ConditionClassId = 11580;
+        public const uint ScalarValueObjectType_CycleComplete_ConditionClassId = 1255;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_ConditionClassName = 11581;
+        public const uint ScalarValueObjectType_CycleComplete_ConditionClassName = 1256;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_ConditionName = 11558;
+        public const uint ScalarValueObjectType_CycleComplete_ConditionName = 1259;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_BranchId = 9464;
+        public const uint ScalarValueObjectType_CycleComplete_BranchId = 1260;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Retain = 9465;
+        public const uint ScalarValueObjectType_CycleComplete_Retain = 1261;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_EnabledState = 9466;
+        public const uint ScalarValueObjectType_CycleComplete_EnabledState = 1262;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_EnabledState_Id = 9467;
+        public const uint ScalarValueObjectType_CycleComplete_EnabledState_Id = 1263;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Quality = 9472;
+        public const uint ScalarValueObjectType_CycleComplete_Quality = 1271;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Quality_SourceTimestamp = 9473;
+        public const uint ScalarValueObjectType_CycleComplete_Quality_SourceTimestamp = 1272;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_LastSeverity = 9476;
+        public const uint ScalarValueObjectType_CycleComplete_LastSeverity = 1273;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 9477;
+        public const uint ScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 1274;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Comment = 9478;
+        public const uint ScalarValueObjectType_CycleComplete_Comment = 1275;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Comment_SourceTimestamp = 9479;
+        public const uint ScalarValueObjectType_CycleComplete_Comment_SourceTimestamp = 1276;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_ClientUserId = 9480;
+        public const uint ScalarValueObjectType_CycleComplete_ClientUserId = 1277;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_AddComment_InputArguments = 9484;
+        public const uint ScalarValueObjectType_CycleComplete_AddComment_InputArguments = 1281;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_AckedState = 9487;
+        public const uint ScalarValueObjectType_CycleComplete_AckedState = 1282;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_AckedState_Id = 9488;
+        public const uint ScalarValueObjectType_CycleComplete_AckedState_Id = 1283;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_ConfirmedState_Id = 9496;
+        public const uint ScalarValueObjectType_CycleComplete_ConfirmedState_Id = 1292;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Acknowledge_InputArguments = 9504;
+        public const uint ScalarValueObjectType_CycleComplete_Acknowledge_InputArguments = 1301;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_CycleComplete_Confirm_InputArguments = 9506;
+        public const uint ScalarValueObjectType_CycleComplete_Confirm_InputArguments = 1303;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_BooleanValue = 9507;
+        public const uint ScalarValueObjectType_BooleanValue = 1304;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_SByteValue = 9508;
+        public const uint ScalarValueObjectType_SByteValue = 1305;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_ByteValue = 9509;
+        public const uint ScalarValueObjectType_ByteValue = 1306;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_Int16Value = 9510;
+        public const uint ScalarValueObjectType_Int16Value = 1307;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_UInt16Value = 9511;
+        public const uint ScalarValueObjectType_UInt16Value = 1308;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_Int32Value = 9512;
+        public const uint ScalarValueObjectType_Int32Value = 1309;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_UInt32Value = 9513;
+        public const uint ScalarValueObjectType_UInt32Value = 1310;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_Int64Value = 9514;
+        public const uint ScalarValueObjectType_Int64Value = 1311;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_UInt64Value = 9515;
+        public const uint ScalarValueObjectType_UInt64Value = 1312;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_FloatValue = 9516;
+        public const uint ScalarValueObjectType_FloatValue = 1313;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_DoubleValue = 9517;
+        public const uint ScalarValueObjectType_DoubleValue = 1314;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_StringValue = 9518;
+        public const uint ScalarValueObjectType_StringValue = 1315;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_DateTimeValue = 9519;
+        public const uint ScalarValueObjectType_DateTimeValue = 1316;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_GuidValue = 9520;
+        public const uint ScalarValueObjectType_GuidValue = 1317;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_ByteStringValue = 9521;
+        public const uint ScalarValueObjectType_ByteStringValue = 1318;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_XmlElementValue = 9522;
+        public const uint ScalarValueObjectType_XmlElementValue = 1319;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_NodeIdValue = 9523;
+        public const uint ScalarValueObjectType_NodeIdValue = 1320;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_ExpandedNodeIdValue = 9524;
+        public const uint ScalarValueObjectType_ExpandedNodeIdValue = 1321;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_QualifiedNameValue = 9525;
+        public const uint ScalarValueObjectType_QualifiedNameValue = 1322;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_LocalizedTextValue = 9526;
+        public const uint ScalarValueObjectType_LocalizedTextValue = 1323;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_StatusCodeValue = 9527;
+        public const uint ScalarValueObjectType_StatusCodeValue = 1324;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_VariantValue = 9528;
+        public const uint ScalarValueObjectType_VariantValue = 1325;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_EnumerationValue = 9529;
+        public const uint ScalarValueObjectType_EnumerationValue = 1326;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_StructureValue = 9530;
+        public const uint ScalarValueObjectType_StructureValue = 1327;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_NumberValue = 9531;
+        public const uint ScalarValueObjectType_NumberValue = 1328;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_IntegerValue = 9532;
+        public const uint ScalarValueObjectType_IntegerValue = 1329;
 
         /// <remarks />
-        public const uint ScalarValueObjectType_UIntegerValue = 9533;
+        public const uint ScalarValueObjectType_UIntegerValue = 1330;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_GenerateValues_InputArguments = 9537;
+        public const uint ScalarValueObjectType_VectorValue = 1331;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_EventId = 9539;
+        public const uint ScalarValueObjectType_VectorValue_X = 3593;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_EventType = 9540;
+        public const uint ScalarValueObjectType_VectorValue_Y = 3594;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_SourceNode = 9541;
+        public const uint ScalarValueObjectType_VectorValue_Z = 3595;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_SourceName = 9542;
+        public const uint AnalogScalarValueObjectType_GenerateValues_InputArguments = 1335;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Time = 9543;
+        public const uint AnalogScalarValueObjectType_CycleComplete_EventId = 1337;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_ReceiveTime = 9544;
+        public const uint AnalogScalarValueObjectType_CycleComplete_EventType = 1338;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Message = 9546;
+        public const uint AnalogScalarValueObjectType_CycleComplete_SourceNode = 1339;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Severity = 9547;
+        public const uint AnalogScalarValueObjectType_CycleComplete_SourceName = 1340;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_ConditionClassId = 11582;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Time = 1341;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_ConditionClassName = 11583;
+        public const uint AnalogScalarValueObjectType_CycleComplete_ReceiveTime = 1342;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_ConditionName = 11559;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Message = 1344;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_BranchId = 9548;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Severity = 1345;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Retain = 9549;
+        public const uint AnalogScalarValueObjectType_CycleComplete_ConditionClassId = 1346;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_EnabledState = 9550;
+        public const uint AnalogScalarValueObjectType_CycleComplete_ConditionClassName = 1347;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_EnabledState_Id = 9551;
+        public const uint AnalogScalarValueObjectType_CycleComplete_ConditionName = 1350;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Quality = 9556;
+        public const uint AnalogScalarValueObjectType_CycleComplete_BranchId = 1351;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Quality_SourceTimestamp = 9557;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Retain = 1352;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_LastSeverity = 9560;
+        public const uint AnalogScalarValueObjectType_CycleComplete_EnabledState = 1353;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 9561;
+        public const uint AnalogScalarValueObjectType_CycleComplete_EnabledState_Id = 1354;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Comment = 9562;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Quality = 1362;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Comment_SourceTimestamp = 9563;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Quality_SourceTimestamp = 1363;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_ClientUserId = 9564;
+        public const uint AnalogScalarValueObjectType_CycleComplete_LastSeverity = 1364;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_AddComment_InputArguments = 9568;
+        public const uint AnalogScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 1365;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_AckedState = 9571;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Comment = 1366;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_AckedState_Id = 9572;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Comment_SourceTimestamp = 1367;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_ConfirmedState_Id = 9580;
+        public const uint AnalogScalarValueObjectType_CycleComplete_ClientUserId = 1368;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Acknowledge_InputArguments = 9588;
+        public const uint AnalogScalarValueObjectType_CycleComplete_AddComment_InputArguments = 1372;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_CycleComplete_Confirm_InputArguments = 9590;
+        public const uint AnalogScalarValueObjectType_CycleComplete_AckedState = 1373;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_SByteValue = 9591;
+        public const uint AnalogScalarValueObjectType_CycleComplete_AckedState_Id = 1374;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_SByteValue_EURange = 9594;
+        public const uint AnalogScalarValueObjectType_CycleComplete_ConfirmedState_Id = 1383;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_ByteValue = 9597;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Acknowledge_InputArguments = 1392;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_ByteValue_EURange = 9600;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Confirm_InputArguments = 1394;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_Int16Value = 9603;
+        public const uint AnalogScalarValueObjectType_SByteValue = 1395;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_Int16Value_EURange = 9606;
+        public const uint AnalogScalarValueObjectType_SByteValue_EURange = 1399;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_UInt16Value = 9609;
+        public const uint AnalogScalarValueObjectType_ByteValue = 1401;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_UInt16Value_EURange = 9612;
+        public const uint AnalogScalarValueObjectType_ByteValue_EURange = 1405;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_Int32Value = 9615;
+        public const uint AnalogScalarValueObjectType_Int16Value = 1407;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_Int32Value_EURange = 9618;
+        public const uint AnalogScalarValueObjectType_Int16Value_EURange = 1411;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_UInt32Value = 9621;
+        public const uint AnalogScalarValueObjectType_UInt16Value = 1413;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_UInt32Value_EURange = 9624;
+        public const uint AnalogScalarValueObjectType_UInt16Value_EURange = 1417;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_Int64Value = 9627;
+        public const uint AnalogScalarValueObjectType_Int32Value = 1419;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_Int64Value_EURange = 9630;
+        public const uint AnalogScalarValueObjectType_Int32Value_EURange = 1423;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_UInt64Value = 9633;
+        public const uint AnalogScalarValueObjectType_UInt32Value = 1425;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_UInt64Value_EURange = 9636;
+        public const uint AnalogScalarValueObjectType_UInt32Value_EURange = 1429;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_FloatValue = 9639;
+        public const uint AnalogScalarValueObjectType_Int64Value = 1431;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_FloatValue_EURange = 9642;
+        public const uint AnalogScalarValueObjectType_Int64Value_EURange = 1435;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_DoubleValue = 9645;
+        public const uint AnalogScalarValueObjectType_UInt64Value = 1437;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_DoubleValue_EURange = 9648;
+        public const uint AnalogScalarValueObjectType_UInt64Value_EURange = 1441;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_NumberValue = 9651;
+        public const uint AnalogScalarValueObjectType_FloatValue = 1443;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_NumberValue_EURange = 9654;
+        public const uint AnalogScalarValueObjectType_FloatValue_EURange = 1447;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_IntegerValue = 9657;
+        public const uint AnalogScalarValueObjectType_DoubleValue = 1449;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_IntegerValue_EURange = 9660;
+        public const uint AnalogScalarValueObjectType_DoubleValue_EURange = 1453;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_UIntegerValue = 9663;
+        public const uint AnalogScalarValueObjectType_NumberValue = 1455;
 
         /// <remarks />
-        public const uint AnalogScalarValueObjectType_UIntegerValue_EURange = 9666;
+        public const uint AnalogScalarValueObjectType_NumberValue_EURange = 1459;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_GenerateValues_InputArguments = 9682;
+        public const uint AnalogScalarValueObjectType_IntegerValue = 1461;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_EventId = 9684;
+        public const uint AnalogScalarValueObjectType_IntegerValue_EURange = 1465;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_EventType = 9685;
+        public const uint AnalogScalarValueObjectType_UIntegerValue = 1467;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_SourceNode = 9686;
+        public const uint AnalogScalarValueObjectType_UIntegerValue_EURange = 1471;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_SourceName = 9687;
+        public const uint ArrayValueObjectType_GenerateValues_InputArguments = 1486;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Time = 9688;
+        public const uint ArrayValueObjectType_CycleComplete_EventId = 1488;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_ReceiveTime = 9689;
+        public const uint ArrayValueObjectType_CycleComplete_EventType = 1489;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Message = 9691;
+        public const uint ArrayValueObjectType_CycleComplete_SourceNode = 1490;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Severity = 9692;
+        public const uint ArrayValueObjectType_CycleComplete_SourceName = 1491;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_ConditionClassId = 11584;
+        public const uint ArrayValueObjectType_CycleComplete_Time = 1492;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_ConditionClassName = 11585;
+        public const uint ArrayValueObjectType_CycleComplete_ReceiveTime = 1493;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_ConditionName = 11560;
+        public const uint ArrayValueObjectType_CycleComplete_Message = 1495;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_BranchId = 9693;
+        public const uint ArrayValueObjectType_CycleComplete_Severity = 1496;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Retain = 9694;
+        public const uint ArrayValueObjectType_CycleComplete_ConditionClassId = 1497;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_EnabledState = 9695;
+        public const uint ArrayValueObjectType_CycleComplete_ConditionClassName = 1498;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_EnabledState_Id = 9696;
+        public const uint ArrayValueObjectType_CycleComplete_ConditionName = 1501;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Quality = 9701;
+        public const uint ArrayValueObjectType_CycleComplete_BranchId = 1502;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Quality_SourceTimestamp = 9702;
+        public const uint ArrayValueObjectType_CycleComplete_Retain = 1503;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_LastSeverity = 9705;
+        public const uint ArrayValueObjectType_CycleComplete_EnabledState = 1504;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 9706;
+        public const uint ArrayValueObjectType_CycleComplete_EnabledState_Id = 1505;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Comment = 9707;
+        public const uint ArrayValueObjectType_CycleComplete_Quality = 1513;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Comment_SourceTimestamp = 9708;
+        public const uint ArrayValueObjectType_CycleComplete_Quality_SourceTimestamp = 1514;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_ClientUserId = 9709;
+        public const uint ArrayValueObjectType_CycleComplete_LastSeverity = 1515;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_AddComment_InputArguments = 9713;
+        public const uint ArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 1516;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_AckedState = 9716;
+        public const uint ArrayValueObjectType_CycleComplete_Comment = 1517;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_AckedState_Id = 9717;
+        public const uint ArrayValueObjectType_CycleComplete_Comment_SourceTimestamp = 1518;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_ConfirmedState_Id = 9725;
+        public const uint ArrayValueObjectType_CycleComplete_ClientUserId = 1519;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Acknowledge_InputArguments = 9733;
+        public const uint ArrayValueObjectType_CycleComplete_AddComment_InputArguments = 1523;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_CycleComplete_Confirm_InputArguments = 9735;
+        public const uint ArrayValueObjectType_CycleComplete_AckedState = 1524;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_BooleanValue = 9736;
+        public const uint ArrayValueObjectType_CycleComplete_AckedState_Id = 1525;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_SByteValue = 9737;
+        public const uint ArrayValueObjectType_CycleComplete_ConfirmedState_Id = 1534;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_ByteValue = 9738;
+        public const uint ArrayValueObjectType_CycleComplete_Acknowledge_InputArguments = 1543;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_Int16Value = 9739;
+        public const uint ArrayValueObjectType_CycleComplete_Confirm_InputArguments = 1545;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_UInt16Value = 9740;
+        public const uint ArrayValueObjectType_BooleanValue = 1546;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_Int32Value = 9741;
+        public const uint ArrayValueObjectType_SByteValue = 1547;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_UInt32Value = 9742;
+        public const uint ArrayValueObjectType_ByteValue = 1548;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_Int64Value = 9743;
+        public const uint ArrayValueObjectType_Int16Value = 1549;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_UInt64Value = 9744;
+        public const uint ArrayValueObjectType_UInt16Value = 1550;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_FloatValue = 9745;
+        public const uint ArrayValueObjectType_Int32Value = 1551;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_DoubleValue = 9746;
+        public const uint ArrayValueObjectType_UInt32Value = 1552;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_StringValue = 9747;
+        public const uint ArrayValueObjectType_Int64Value = 1553;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_DateTimeValue = 9748;
+        public const uint ArrayValueObjectType_UInt64Value = 1554;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_GuidValue = 9749;
+        public const uint ArrayValueObjectType_FloatValue = 1555;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_ByteStringValue = 9750;
+        public const uint ArrayValueObjectType_DoubleValue = 1556;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_XmlElementValue = 9751;
+        public const uint ArrayValueObjectType_StringValue = 1557;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_NodeIdValue = 9752;
+        public const uint ArrayValueObjectType_DateTimeValue = 1558;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_ExpandedNodeIdValue = 9753;
+        public const uint ArrayValueObjectType_GuidValue = 1559;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_QualifiedNameValue = 9754;
+        public const uint ArrayValueObjectType_ByteStringValue = 1560;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_LocalizedTextValue = 9755;
+        public const uint ArrayValueObjectType_XmlElementValue = 1561;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_StatusCodeValue = 9756;
+        public const uint ArrayValueObjectType_NodeIdValue = 1562;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_VariantValue = 9757;
+        public const uint ArrayValueObjectType_ExpandedNodeIdValue = 1563;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_EnumerationValue = 9758;
+        public const uint ArrayValueObjectType_QualifiedNameValue = 1564;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_StructureValue = 9759;
+        public const uint ArrayValueObjectType_LocalizedTextValue = 1565;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_NumberValue = 9760;
+        public const uint ArrayValueObjectType_StatusCodeValue = 1566;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_IntegerValue = 9761;
+        public const uint ArrayValueObjectType_VariantValue = 1567;
 
         /// <remarks />
-        public const uint ArrayValueObjectType_UIntegerValue = 9762;
+        public const uint ArrayValueObjectType_EnumerationValue = 1568;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_GenerateValues_InputArguments = 9766;
+        public const uint ArrayValueObjectType_StructureValue = 1569;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_EventId = 9768;
+        public const uint ArrayValueObjectType_NumberValue = 1570;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_EventType = 9769;
+        public const uint ArrayValueObjectType_IntegerValue = 1571;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_SourceNode = 9770;
+        public const uint ArrayValueObjectType_UIntegerValue = 1572;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_SourceName = 9771;
+        public const uint ArrayValueObjectType_VectorValue = 1573;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Time = 9772;
+        public const uint AnalogArrayValueObjectType_GenerateValues_InputArguments = 1577;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_ReceiveTime = 9773;
+        public const uint AnalogArrayValueObjectType_CycleComplete_EventId = 1579;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Message = 9775;
+        public const uint AnalogArrayValueObjectType_CycleComplete_EventType = 1580;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Severity = 9776;
+        public const uint AnalogArrayValueObjectType_CycleComplete_SourceNode = 1581;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_ConditionClassId = 11586;
+        public const uint AnalogArrayValueObjectType_CycleComplete_SourceName = 1582;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_ConditionClassName = 11587;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Time = 1583;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_ConditionName = 11561;
+        public const uint AnalogArrayValueObjectType_CycleComplete_ReceiveTime = 1584;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_BranchId = 9777;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Message = 1586;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Retain = 9778;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Severity = 1587;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_EnabledState = 9779;
+        public const uint AnalogArrayValueObjectType_CycleComplete_ConditionClassId = 1588;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_EnabledState_Id = 9780;
+        public const uint AnalogArrayValueObjectType_CycleComplete_ConditionClassName = 1589;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Quality = 9785;
+        public const uint AnalogArrayValueObjectType_CycleComplete_ConditionName = 1592;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Quality_SourceTimestamp = 9786;
+        public const uint AnalogArrayValueObjectType_CycleComplete_BranchId = 1593;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_LastSeverity = 9789;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Retain = 1594;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 9790;
+        public const uint AnalogArrayValueObjectType_CycleComplete_EnabledState = 1595;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Comment = 9791;
+        public const uint AnalogArrayValueObjectType_CycleComplete_EnabledState_Id = 1596;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Comment_SourceTimestamp = 9792;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Quality = 1604;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_ClientUserId = 9793;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Quality_SourceTimestamp = 1605;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_AddComment_InputArguments = 9797;
+        public const uint AnalogArrayValueObjectType_CycleComplete_LastSeverity = 1606;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_AckedState = 9800;
+        public const uint AnalogArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 1607;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_AckedState_Id = 9801;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Comment = 1608;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_ConfirmedState_Id = 9809;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Comment_SourceTimestamp = 1609;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Acknowledge_InputArguments = 9817;
+        public const uint AnalogArrayValueObjectType_CycleComplete_ClientUserId = 1610;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_CycleComplete_Confirm_InputArguments = 9819;
+        public const uint AnalogArrayValueObjectType_CycleComplete_AddComment_InputArguments = 1614;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_SByteValue = 9820;
+        public const uint AnalogArrayValueObjectType_CycleComplete_AckedState = 1615;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_SByteValue_EURange = 9823;
+        public const uint AnalogArrayValueObjectType_CycleComplete_AckedState_Id = 1616;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_ByteValue = 9826;
+        public const uint AnalogArrayValueObjectType_CycleComplete_ConfirmedState_Id = 1625;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_ByteValue_EURange = 9829;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Acknowledge_InputArguments = 1634;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_Int16Value = 9832;
+        public const uint AnalogArrayValueObjectType_CycleComplete_Confirm_InputArguments = 1636;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_Int16Value_EURange = 9835;
+        public const uint AnalogArrayValueObjectType_SByteValue = 1637;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_UInt16Value = 9838;
+        public const uint AnalogArrayValueObjectType_SByteValue_EURange = 1641;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_UInt16Value_EURange = 9841;
+        public const uint AnalogArrayValueObjectType_ByteValue = 1643;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_Int32Value = 9844;
+        public const uint AnalogArrayValueObjectType_ByteValue_EURange = 1647;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_Int32Value_EURange = 9847;
+        public const uint AnalogArrayValueObjectType_Int16Value = 1649;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_UInt32Value = 9850;
+        public const uint AnalogArrayValueObjectType_Int16Value_EURange = 1653;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_UInt32Value_EURange = 9853;
+        public const uint AnalogArrayValueObjectType_UInt16Value = 1655;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_Int64Value = 9856;
+        public const uint AnalogArrayValueObjectType_UInt16Value_EURange = 1659;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_Int64Value_EURange = 9859;
+        public const uint AnalogArrayValueObjectType_Int32Value = 1661;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_UInt64Value = 9862;
+        public const uint AnalogArrayValueObjectType_Int32Value_EURange = 1665;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_UInt64Value_EURange = 9865;
+        public const uint AnalogArrayValueObjectType_UInt32Value = 1667;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_FloatValue = 9868;
+        public const uint AnalogArrayValueObjectType_UInt32Value_EURange = 1671;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_FloatValue_EURange = 9871;
+        public const uint AnalogArrayValueObjectType_Int64Value = 1673;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_DoubleValue = 9874;
+        public const uint AnalogArrayValueObjectType_Int64Value_EURange = 1677;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_DoubleValue_EURange = 9877;
+        public const uint AnalogArrayValueObjectType_UInt64Value = 1679;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_NumberValue = 9880;
+        public const uint AnalogArrayValueObjectType_UInt64Value_EURange = 1683;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_NumberValue_EURange = 9883;
+        public const uint AnalogArrayValueObjectType_FloatValue = 1685;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_IntegerValue = 9886;
+        public const uint AnalogArrayValueObjectType_FloatValue_EURange = 1689;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_IntegerValue_EURange = 9889;
+        public const uint AnalogArrayValueObjectType_DoubleValue = 1691;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_UIntegerValue = 9892;
+        public const uint AnalogArrayValueObjectType_DoubleValue_EURange = 1695;
 
         /// <remarks />
-        public const uint AnalogArrayValueObjectType_UIntegerValue_EURange = 9895;
+        public const uint AnalogArrayValueObjectType_NumberValue = 1697;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_GenerateValues_InputArguments = 9924;
+        public const uint AnalogArrayValueObjectType_NumberValue_EURange = 1701;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_EventId = 9926;
+        public const uint AnalogArrayValueObjectType_IntegerValue = 1703;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_EventType = 9927;
+        public const uint AnalogArrayValueObjectType_IntegerValue_EURange = 1707;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_SourceNode = 9928;
+        public const uint AnalogArrayValueObjectType_UIntegerValue = 1709;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_SourceName = 9929;
+        public const uint AnalogArrayValueObjectType_UIntegerValue_EURange = 1713;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Time = 9930;
+        public const uint UserScalarValueObjectType_GenerateValues_InputArguments = 1741;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_ReceiveTime = 9931;
+        public const uint UserScalarValueObjectType_CycleComplete_EventId = 1743;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Message = 9933;
+        public const uint UserScalarValueObjectType_CycleComplete_EventType = 1744;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Severity = 9934;
+        public const uint UserScalarValueObjectType_CycleComplete_SourceNode = 1745;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_ConditionClassId = 11588;
+        public const uint UserScalarValueObjectType_CycleComplete_SourceName = 1746;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_ConditionClassName = 11589;
+        public const uint UserScalarValueObjectType_CycleComplete_Time = 1747;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_ConditionName = 11562;
+        public const uint UserScalarValueObjectType_CycleComplete_ReceiveTime = 1748;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_BranchId = 9935;
+        public const uint UserScalarValueObjectType_CycleComplete_Message = 1750;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Retain = 9936;
+        public const uint UserScalarValueObjectType_CycleComplete_Severity = 1751;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_EnabledState = 9937;
+        public const uint UserScalarValueObjectType_CycleComplete_ConditionClassId = 1752;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_EnabledState_Id = 9938;
+        public const uint UserScalarValueObjectType_CycleComplete_ConditionClassName = 1753;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Quality = 9943;
+        public const uint UserScalarValueObjectType_CycleComplete_ConditionName = 1756;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Quality_SourceTimestamp = 9944;
+        public const uint UserScalarValueObjectType_CycleComplete_BranchId = 1757;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_LastSeverity = 9947;
+        public const uint UserScalarValueObjectType_CycleComplete_Retain = 1758;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 9948;
+        public const uint UserScalarValueObjectType_CycleComplete_EnabledState = 1759;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Comment = 9949;
+        public const uint UserScalarValueObjectType_CycleComplete_EnabledState_Id = 1760;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Comment_SourceTimestamp = 9950;
+        public const uint UserScalarValueObjectType_CycleComplete_Quality = 1768;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_ClientUserId = 9951;
+        public const uint UserScalarValueObjectType_CycleComplete_Quality_SourceTimestamp = 1769;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_AddComment_InputArguments = 9955;
+        public const uint UserScalarValueObjectType_CycleComplete_LastSeverity = 1770;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_AckedState = 9958;
+        public const uint UserScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 1771;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_AckedState_Id = 9959;
+        public const uint UserScalarValueObjectType_CycleComplete_Comment = 1772;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_ConfirmedState_Id = 9967;
+        public const uint UserScalarValueObjectType_CycleComplete_Comment_SourceTimestamp = 1773;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Acknowledge_InputArguments = 9975;
+        public const uint UserScalarValueObjectType_CycleComplete_ClientUserId = 1774;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_CycleComplete_Confirm_InputArguments = 9977;
+        public const uint UserScalarValueObjectType_CycleComplete_AddComment_InputArguments = 1778;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_BooleanValue = 9978;
+        public const uint UserScalarValueObjectType_CycleComplete_AckedState = 1779;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_SByteValue = 9979;
+        public const uint UserScalarValueObjectType_CycleComplete_AckedState_Id = 1780;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_ByteValue = 9980;
+        public const uint UserScalarValueObjectType_CycleComplete_ConfirmedState_Id = 1789;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_Int16Value = 9981;
+        public const uint UserScalarValueObjectType_CycleComplete_Acknowledge_InputArguments = 1798;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_UInt16Value = 9982;
+        public const uint UserScalarValueObjectType_CycleComplete_Confirm_InputArguments = 1800;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_Int32Value = 9983;
+        public const uint UserScalarValueObjectType_BooleanValue = 1801;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_UInt32Value = 9984;
+        public const uint UserScalarValueObjectType_SByteValue = 1802;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_Int64Value = 9985;
+        public const uint UserScalarValueObjectType_ByteValue = 1803;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_UInt64Value = 9986;
+        public const uint UserScalarValueObjectType_Int16Value = 1804;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_FloatValue = 9987;
+        public const uint UserScalarValueObjectType_UInt16Value = 1805;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_DoubleValue = 9988;
+        public const uint UserScalarValueObjectType_Int32Value = 1806;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_StringValue = 9989;
+        public const uint UserScalarValueObjectType_UInt32Value = 1807;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_DateTimeValue = 9990;
+        public const uint UserScalarValueObjectType_Int64Value = 1808;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_GuidValue = 9991;
+        public const uint UserScalarValueObjectType_UInt64Value = 1809;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_ByteStringValue = 9992;
+        public const uint UserScalarValueObjectType_FloatValue = 1810;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_XmlElementValue = 9993;
+        public const uint UserScalarValueObjectType_DoubleValue = 1811;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_NodeIdValue = 9994;
+        public const uint UserScalarValueObjectType_StringValue = 1812;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_ExpandedNodeIdValue = 9995;
+        public const uint UserScalarValueObjectType_DateTimeValue = 1813;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_QualifiedNameValue = 9996;
+        public const uint UserScalarValueObjectType_GuidValue = 1814;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_LocalizedTextValue = 9997;
+        public const uint UserScalarValueObjectType_ByteStringValue = 1815;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_StatusCodeValue = 9998;
+        public const uint UserScalarValueObjectType_XmlElementValue = 1816;
 
         /// <remarks />
-        public const uint UserScalarValueObjectType_VariantValue = 9999;
+        public const uint UserScalarValueObjectType_NodeIdValue = 1817;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_GenerateValues_InputArguments = 10010;
+        public const uint UserScalarValueObjectType_ExpandedNodeIdValue = 1818;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_EventId = 10012;
+        public const uint UserScalarValueObjectType_QualifiedNameValue = 1819;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_EventType = 10013;
+        public const uint UserScalarValueObjectType_LocalizedTextValue = 1820;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_SourceNode = 10014;
+        public const uint UserScalarValueObjectType_StatusCodeValue = 1821;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_SourceName = 10015;
+        public const uint UserScalarValueObjectType_VariantValue = 1822;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Time = 10016;
+        public const uint UserArrayValueObjectType_GenerateValues_InputArguments = 1833;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_ReceiveTime = 10017;
+        public const uint UserArrayValueObjectType_CycleComplete_EventId = 1835;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Message = 10019;
+        public const uint UserArrayValueObjectType_CycleComplete_EventType = 1836;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Severity = 10020;
+        public const uint UserArrayValueObjectType_CycleComplete_SourceNode = 1837;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_ConditionClassId = 11590;
+        public const uint UserArrayValueObjectType_CycleComplete_SourceName = 1838;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_ConditionClassName = 11591;
+        public const uint UserArrayValueObjectType_CycleComplete_Time = 1839;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_ConditionName = 11563;
+        public const uint UserArrayValueObjectType_CycleComplete_ReceiveTime = 1840;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_BranchId = 10021;
+        public const uint UserArrayValueObjectType_CycleComplete_Message = 1842;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Retain = 10022;
+        public const uint UserArrayValueObjectType_CycleComplete_Severity = 1843;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_EnabledState = 10023;
+        public const uint UserArrayValueObjectType_CycleComplete_ConditionClassId = 1844;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_EnabledState_Id = 10024;
+        public const uint UserArrayValueObjectType_CycleComplete_ConditionClassName = 1845;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Quality = 10029;
+        public const uint UserArrayValueObjectType_CycleComplete_ConditionName = 1848;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Quality_SourceTimestamp = 10030;
+        public const uint UserArrayValueObjectType_CycleComplete_BranchId = 1849;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_LastSeverity = 10033;
+        public const uint UserArrayValueObjectType_CycleComplete_Retain = 1850;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 10034;
+        public const uint UserArrayValueObjectType_CycleComplete_EnabledState = 1851;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Comment = 10035;
+        public const uint UserArrayValueObjectType_CycleComplete_EnabledState_Id = 1852;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Comment_SourceTimestamp = 10036;
+        public const uint UserArrayValueObjectType_CycleComplete_Quality = 1860;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_ClientUserId = 10037;
+        public const uint UserArrayValueObjectType_CycleComplete_Quality_SourceTimestamp = 1861;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_AddComment_InputArguments = 10041;
+        public const uint UserArrayValueObjectType_CycleComplete_LastSeverity = 1862;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_AckedState = 10044;
+        public const uint UserArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 1863;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_AckedState_Id = 10045;
+        public const uint UserArrayValueObjectType_CycleComplete_Comment = 1864;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_ConfirmedState_Id = 10053;
+        public const uint UserArrayValueObjectType_CycleComplete_Comment_SourceTimestamp = 1865;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Acknowledge_InputArguments = 10061;
+        public const uint UserArrayValueObjectType_CycleComplete_ClientUserId = 1866;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_CycleComplete_Confirm_InputArguments = 10063;
+        public const uint UserArrayValueObjectType_CycleComplete_AddComment_InputArguments = 1870;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_BooleanValue = 10064;
+        public const uint UserArrayValueObjectType_CycleComplete_AckedState = 1871;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_SByteValue = 10065;
+        public const uint UserArrayValueObjectType_CycleComplete_AckedState_Id = 1872;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_ByteValue = 10066;
+        public const uint UserArrayValueObjectType_CycleComplete_ConfirmedState_Id = 1881;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_Int16Value = 10067;
+        public const uint UserArrayValueObjectType_CycleComplete_Acknowledge_InputArguments = 1890;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_UInt16Value = 10068;
+        public const uint UserArrayValueObjectType_CycleComplete_Confirm_InputArguments = 1892;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_Int32Value = 10069;
+        public const uint UserArrayValueObjectType_BooleanValue = 1893;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_UInt32Value = 10070;
+        public const uint UserArrayValueObjectType_SByteValue = 1894;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_Int64Value = 10071;
+        public const uint UserArrayValueObjectType_ByteValue = 1895;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_UInt64Value = 10072;
+        public const uint UserArrayValueObjectType_Int16Value = 1896;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_FloatValue = 10073;
+        public const uint UserArrayValueObjectType_UInt16Value = 1897;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_DoubleValue = 10074;
+        public const uint UserArrayValueObjectType_Int32Value = 1898;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_StringValue = 10075;
+        public const uint UserArrayValueObjectType_UInt32Value = 1899;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_DateTimeValue = 10076;
+        public const uint UserArrayValueObjectType_Int64Value = 1900;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_GuidValue = 10077;
+        public const uint UserArrayValueObjectType_UInt64Value = 1901;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_ByteStringValue = 10078;
+        public const uint UserArrayValueObjectType_FloatValue = 1902;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_XmlElementValue = 10079;
+        public const uint UserArrayValueObjectType_DoubleValue = 1903;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_NodeIdValue = 10080;
+        public const uint UserArrayValueObjectType_StringValue = 1904;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_ExpandedNodeIdValue = 10081;
+        public const uint UserArrayValueObjectType_DateTimeValue = 1905;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_QualifiedNameValue = 10082;
+        public const uint UserArrayValueObjectType_GuidValue = 1906;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_LocalizedTextValue = 10083;
+        public const uint UserArrayValueObjectType_ByteStringValue = 1907;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_StatusCodeValue = 10084;
+        public const uint UserArrayValueObjectType_XmlElementValue = 1908;
 
         /// <remarks />
-        public const uint UserArrayValueObjectType_VariantValue = 10085;
+        public const uint UserArrayValueObjectType_NodeIdValue = 1909;
 
         /// <remarks />
-        public const uint MethodTestType_ScalarMethod1_InputArguments = 10094;
+        public const uint UserArrayValueObjectType_ExpandedNodeIdValue = 1910;
 
         /// <remarks />
-        public const uint MethodTestType_ScalarMethod1_OutputArguments = 10095;
+        public const uint UserArrayValueObjectType_QualifiedNameValue = 1911;
 
         /// <remarks />
-        public const uint MethodTestType_ScalarMethod2_InputArguments = 10097;
+        public const uint UserArrayValueObjectType_LocalizedTextValue = 1912;
 
         /// <remarks />
-        public const uint MethodTestType_ScalarMethod2_OutputArguments = 10098;
+        public const uint UserArrayValueObjectType_StatusCodeValue = 1913;
 
         /// <remarks />
-        public const uint MethodTestType_ScalarMethod3_InputArguments = 10100;
+        public const uint UserArrayValueObjectType_VariantValue = 1914;
 
         /// <remarks />
-        public const uint MethodTestType_ScalarMethod3_OutputArguments = 10101;
+        public const uint VectorVariableType_X = 1917;
 
         /// <remarks />
-        public const uint MethodTestType_ArrayMethod1_InputArguments = 10103;
+        public const uint VectorVariableType_Y = 1918;
 
         /// <remarks />
-        public const uint MethodTestType_ArrayMethod1_OutputArguments = 10104;
+        public const uint VectorVariableType_Z = 1919;
 
         /// <remarks />
-        public const uint MethodTestType_ArrayMethod2_InputArguments = 10106;
+        public const uint MethodTestType_ScalarMethod1_InputArguments = 1930;
 
         /// <remarks />
-        public const uint MethodTestType_ArrayMethod2_OutputArguments = 10107;
+        public const uint MethodTestType_ScalarMethod1_OutputArguments = 1931;
 
         /// <remarks />
-        public const uint MethodTestType_ArrayMethod3_InputArguments = 10109;
+        public const uint MethodTestType_ScalarMethod2_InputArguments = 1933;
 
         /// <remarks />
-        public const uint MethodTestType_ArrayMethod3_OutputArguments = 10110;
+        public const uint MethodTestType_ScalarMethod2_OutputArguments = 1934;
 
         /// <remarks />
-        public const uint MethodTestType_UserScalarMethod1_InputArguments = 10112;
+        public const uint MethodTestType_ScalarMethod3_InputArguments = 1936;
 
         /// <remarks />
-        public const uint MethodTestType_UserScalarMethod1_OutputArguments = 10113;
+        public const uint MethodTestType_ScalarMethod3_OutputArguments = 1937;
 
         /// <remarks />
-        public const uint MethodTestType_UserScalarMethod2_InputArguments = 10115;
+        public const uint MethodTestType_ArrayMethod1_InputArguments = 1939;
 
         /// <remarks />
-        public const uint MethodTestType_UserScalarMethod2_OutputArguments = 10116;
+        public const uint MethodTestType_ArrayMethod1_OutputArguments = 1940;
 
         /// <remarks />
-        public const uint MethodTestType_UserArrayMethod1_InputArguments = 10118;
+        public const uint MethodTestType_ArrayMethod2_InputArguments = 1942;
 
         /// <remarks />
-        public const uint MethodTestType_UserArrayMethod1_OutputArguments = 10119;
+        public const uint MethodTestType_ArrayMethod2_OutputArguments = 1943;
 
         /// <remarks />
-        public const uint MethodTestType_UserArrayMethod2_InputArguments = 10121;
+        public const uint MethodTestType_ArrayMethod3_InputArguments = 1945;
 
         /// <remarks />
-        public const uint MethodTestType_UserArrayMethod2_OutputArguments = 10122;
+        public const uint MethodTestType_ArrayMethod3_OutputArguments = 1946;
 
         /// <remarks />
-        public const uint TestSystemConditionType_EnabledState_Id = 10136;
+        public const uint MethodTestType_UserScalarMethod1_InputArguments = 1948;
 
         /// <remarks />
-        public const uint TestSystemConditionType_Quality_SourceTimestamp = 10142;
+        public const uint MethodTestType_UserScalarMethod1_OutputArguments = 1949;
 
         /// <remarks />
-        public const uint TestSystemConditionType_LastSeverity_SourceTimestamp = 10146;
+        public const uint MethodTestType_UserScalarMethod2_InputArguments = 1951;
 
         /// <remarks />
-        public const uint TestSystemConditionType_Comment_SourceTimestamp = 10148;
+        public const uint MethodTestType_UserScalarMethod2_OutputArguments = 1952;
 
         /// <remarks />
-        public const uint TestSystemConditionType_AddComment_InputArguments = 10153;
+        public const uint MethodTestType_UserArrayMethod1_InputArguments = 1954;
 
         /// <remarks />
-        public const uint TestSystemConditionType_ConditionRefresh_InputArguments = 10155;
+        public const uint MethodTestType_UserArrayMethod1_OutputArguments = 1955;
 
         /// <remarks />
-        public const uint TestSystemConditionType_ConditionRefresh2_InputArguments = 15018;
+        public const uint MethodTestType_UserArrayMethod2_InputArguments = 1957;
 
         /// <remarks />
-        public const uint TestSystemConditionType_MonitoredNodeCount = 10156;
+        public const uint MethodTestType_UserArrayMethod2_OutputArguments = 1958;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_SimulationActive = 10160;
+        public const uint TestSystemConditionType_EnabledState_Id = 1977;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_GenerateValues_InputArguments = 10162;
+        public const uint TestSystemConditionType_Quality_SourceTimestamp = 1986;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_EventId = 10164;
+        public const uint TestSystemConditionType_LastSeverity_SourceTimestamp = 1988;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_EventType = 10165;
+        public const uint TestSystemConditionType_Comment_SourceTimestamp = 1990;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_SourceNode = 10166;
+        public const uint TestSystemConditionType_AddComment_InputArguments = 1995;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_SourceName = 10167;
+        public const uint TestSystemConditionType_ConditionRefresh_InputArguments = 1997;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Time = 10168;
+        public const uint TestSystemConditionType_ConditionRefresh2_InputArguments = 1999;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_ReceiveTime = 10169;
+        public const uint TestSystemConditionType_MonitoredNodeCount = 2000;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Message = 10171;
+        public const uint Data_Static_Scalar_SimulationActive = 2004;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Severity = 10172;
+        public const uint Data_Static_Scalar_GenerateValues_InputArguments = 2006;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_ConditionClassId = 11594;
+        public const uint Data_Static_Scalar_CycleComplete_EventId = 2008;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_ConditionClassName = 11595;
+        public const uint Data_Static_Scalar_CycleComplete_EventType = 2009;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_ConditionName = 11565;
+        public const uint Data_Static_Scalar_CycleComplete_SourceNode = 2010;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_BranchId = 10173;
+        public const uint Data_Static_Scalar_CycleComplete_SourceName = 2011;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Retain = 10174;
+        public const uint Data_Static_Scalar_CycleComplete_Time = 2012;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_EnabledState = 10175;
+        public const uint Data_Static_Scalar_CycleComplete_ReceiveTime = 2013;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_EnabledState_Id = 10176;
+        public const uint Data_Static_Scalar_CycleComplete_Message = 2015;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Quality = 10181;
+        public const uint Data_Static_Scalar_CycleComplete_Severity = 2016;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Quality_SourceTimestamp = 10182;
+        public const uint Data_Static_Scalar_CycleComplete_ConditionClassId = 2017;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_LastSeverity = 10185;
+        public const uint Data_Static_Scalar_CycleComplete_ConditionClassName = 2018;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_LastSeverity_SourceTimestamp = 10186;
+        public const uint Data_Static_Scalar_CycleComplete_ConditionName = 2021;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Comment = 10187;
+        public const uint Data_Static_Scalar_CycleComplete_BranchId = 2022;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Comment_SourceTimestamp = 10188;
+        public const uint Data_Static_Scalar_CycleComplete_Retain = 2023;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_ClientUserId = 10189;
+        public const uint Data_Static_Scalar_CycleComplete_EnabledState = 2024;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_AddComment_InputArguments = 10193;
+        public const uint Data_Static_Scalar_CycleComplete_EnabledState_Id = 2025;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_AckedState = 10196;
+        public const uint Data_Static_Scalar_CycleComplete_Quality = 2033;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_AckedState_Id = 10197;
+        public const uint Data_Static_Scalar_CycleComplete_Quality_SourceTimestamp = 2034;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_ConfirmedState_Id = 10205;
+        public const uint Data_Static_Scalar_CycleComplete_LastSeverity = 2035;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Acknowledge_InputArguments = 10213;
+        public const uint Data_Static_Scalar_CycleComplete_LastSeverity_SourceTimestamp = 2036;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_CycleComplete_Confirm_InputArguments = 10215;
+        public const uint Data_Static_Scalar_CycleComplete_Comment = 2037;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_BooleanValue = 10216;
+        public const uint Data_Static_Scalar_CycleComplete_Comment_SourceTimestamp = 2038;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_SByteValue = 10217;
+        public const uint Data_Static_Scalar_CycleComplete_ClientUserId = 2039;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_ByteValue = 10218;
+        public const uint Data_Static_Scalar_CycleComplete_AddComment_InputArguments = 2043;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_Int16Value = 10219;
+        public const uint Data_Static_Scalar_CycleComplete_AckedState = 2044;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_UInt16Value = 10220;
+        public const uint Data_Static_Scalar_CycleComplete_AckedState_Id = 2045;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_Int32Value = 10221;
+        public const uint Data_Static_Scalar_CycleComplete_ConfirmedState_Id = 2054;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_UInt32Value = 10222;
+        public const uint Data_Static_Scalar_CycleComplete_Acknowledge_InputArguments = 2063;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_Int64Value = 10223;
+        public const uint Data_Static_Scalar_CycleComplete_Confirm_InputArguments = 2065;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_UInt64Value = 10224;
+        public const uint Data_Static_Scalar_BooleanValue = 2066;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_FloatValue = 10225;
+        public const uint Data_Static_Scalar_SByteValue = 2067;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_DoubleValue = 10226;
+        public const uint Data_Static_Scalar_ByteValue = 2068;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_StringValue = 10227;
+        public const uint Data_Static_Scalar_Int16Value = 2069;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_DateTimeValue = 10228;
+        public const uint Data_Static_Scalar_UInt16Value = 2070;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_GuidValue = 10229;
+        public const uint Data_Static_Scalar_Int32Value = 2071;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_ByteStringValue = 10230;
+        public const uint Data_Static_Scalar_UInt32Value = 2072;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_XmlElementValue = 10231;
+        public const uint Data_Static_Scalar_Int64Value = 2073;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_NodeIdValue = 10232;
+        public const uint Data_Static_Scalar_UInt64Value = 2074;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_ExpandedNodeIdValue = 10233;
+        public const uint Data_Static_Scalar_FloatValue = 2075;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_QualifiedNameValue = 10234;
+        public const uint Data_Static_Scalar_DoubleValue = 2076;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_LocalizedTextValue = 10235;
+        public const uint Data_Static_Scalar_StringValue = 2077;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_StatusCodeValue = 10236;
+        public const uint Data_Static_Scalar_DateTimeValue = 2078;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_VariantValue = 10237;
+        public const uint Data_Static_Scalar_GuidValue = 2079;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_EnumerationValue = 10238;
+        public const uint Data_Static_Scalar_ByteStringValue = 2080;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_StructureValue = 10239;
+        public const uint Data_Static_Scalar_XmlElementValue = 2081;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_NumberValue = 10240;
+        public const uint Data_Static_Scalar_NodeIdValue = 2082;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_IntegerValue = 10241;
+        public const uint Data_Static_Scalar_ExpandedNodeIdValue = 2083;
 
         /// <remarks />
-        public const uint Data_Static_Scalar_UIntegerValue = 10242;
+        public const uint Data_Static_Scalar_QualifiedNameValue = 2084;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar = 187;
+        public const uint Data_Static_Scalar_LocalizedTextValue = 2085;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_SimulationActive = 188;
+        public const uint Data_Static_Scalar_StatusCodeValue = 2086;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_GenerateValues_InputArguments = 190;
+        public const uint Data_Static_Scalar_VariantValue = 2087;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_EventId = 192;
+        public const uint Data_Static_Scalar_EnumerationValue = 2088;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_EventType = 193;
+        public const uint Data_Static_Scalar_StructureValue = 2089;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_SourceNode = 194;
+        public const uint Data_Static_Scalar_NumberValue = 2090;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_SourceName = 195;
+        public const uint Data_Static_Scalar_IntegerValue = 2091;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Time = 196;
+        public const uint Data_Static_Scalar_UIntegerValue = 2092;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_ReceiveTime = 197;
+        public const uint Data_Static_Scalar_VectorValue = 2093;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Message = 199;
+        public const uint Data_Static_Scalar_VectorValue_X = 3596;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Severity = 200;
+        public const uint Data_Static_Scalar_VectorValue_Y = 3597;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_ConditionClassId = 201;
+        public const uint Data_Static_Scalar_VectorValue_Z = 3598;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_ConditionClassName = 202;
+        public const uint Data_Static_StructureScalar = 2094;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_ConditionName = 205;
+        public const uint Data_Static_StructureScalar_SimulationActive = 2095;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_BranchId = 206;
+        public const uint Data_Static_StructureScalar_GenerateValues_InputArguments = 2097;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Retain = 207;
+        public const uint Data_Static_StructureScalar_CycleComplete_EventId = 2099;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_EnabledState = 208;
+        public const uint Data_Static_StructureScalar_CycleComplete_EventType = 2100;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_EnabledState_Id = 209;
+        public const uint Data_Static_StructureScalar_CycleComplete_SourceNode = 2101;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Quality = 217;
+        public const uint Data_Static_StructureScalar_CycleComplete_SourceName = 2102;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Quality_SourceTimestamp = 218;
+        public const uint Data_Static_StructureScalar_CycleComplete_Time = 2103;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_LastSeverity = 219;
+        public const uint Data_Static_StructureScalar_CycleComplete_ReceiveTime = 2104;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_LastSeverity_SourceTimestamp = 220;
+        public const uint Data_Static_StructureScalar_CycleComplete_Message = 2106;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Comment = 221;
+        public const uint Data_Static_StructureScalar_CycleComplete_Severity = 2107;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Comment_SourceTimestamp = 222;
+        public const uint Data_Static_StructureScalar_CycleComplete_ConditionClassId = 2108;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_ClientUserId = 223;
+        public const uint Data_Static_StructureScalar_CycleComplete_ConditionClassName = 2109;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_AddComment_InputArguments = 227;
+        public const uint Data_Static_StructureScalar_CycleComplete_ConditionName = 2112;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_AckedState = 228;
+        public const uint Data_Static_StructureScalar_CycleComplete_BranchId = 2113;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_AckedState_Id = 229;
+        public const uint Data_Static_StructureScalar_CycleComplete_Retain = 2114;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_ConfirmedState_Id = 238;
+        public const uint Data_Static_StructureScalar_CycleComplete_EnabledState = 2115;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Acknowledge_InputArguments = 247;
+        public const uint Data_Static_StructureScalar_CycleComplete_EnabledState_Id = 2116;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_CycleComplete_Confirm_InputArguments = 249;
+        public const uint Data_Static_StructureScalar_CycleComplete_Quality = 2124;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_BooleanValue = 250;
+        public const uint Data_Static_StructureScalar_CycleComplete_Quality_SourceTimestamp = 2125;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_SByteValue = 251;
+        public const uint Data_Static_StructureScalar_CycleComplete_LastSeverity = 2126;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_ByteValue = 252;
+        public const uint Data_Static_StructureScalar_CycleComplete_LastSeverity_SourceTimestamp = 2127;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_Int16Value = 253;
+        public const uint Data_Static_StructureScalar_CycleComplete_Comment = 2128;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_UInt16Value = 254;
+        public const uint Data_Static_StructureScalar_CycleComplete_Comment_SourceTimestamp = 2129;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_Int32Value = 255;
+        public const uint Data_Static_StructureScalar_CycleComplete_ClientUserId = 2130;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_UInt32Value = 256;
+        public const uint Data_Static_StructureScalar_CycleComplete_AddComment_InputArguments = 2134;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_Int64Value = 257;
+        public const uint Data_Static_StructureScalar_CycleComplete_AckedState = 2135;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_UInt64Value = 258;
+        public const uint Data_Static_StructureScalar_CycleComplete_AckedState_Id = 2136;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_FloatValue = 259;
+        public const uint Data_Static_StructureScalar_CycleComplete_ConfirmedState_Id = 2145;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_DoubleValue = 260;
+        public const uint Data_Static_StructureScalar_CycleComplete_Acknowledge_InputArguments = 2154;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_StringValue = 261;
+        public const uint Data_Static_StructureScalar_CycleComplete_Confirm_InputArguments = 2156;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_DateTimeValue = 262;
+        public const uint Data_Static_StructureScalar_BooleanValue = 2157;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_GuidValue = 263;
+        public const uint Data_Static_StructureScalar_SByteValue = 2158;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_ByteStringValue = 264;
+        public const uint Data_Static_StructureScalar_ByteValue = 2159;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_XmlElementValue = 265;
+        public const uint Data_Static_StructureScalar_Int16Value = 2160;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_NodeIdValue = 266;
+        public const uint Data_Static_StructureScalar_UInt16Value = 2161;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_ExpandedNodeIdValue = 267;
+        public const uint Data_Static_StructureScalar_Int32Value = 2162;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_QualifiedNameValue = 268;
+        public const uint Data_Static_StructureScalar_UInt32Value = 2163;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_LocalizedTextValue = 269;
+        public const uint Data_Static_StructureScalar_Int64Value = 2164;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_StatusCodeValue = 270;
+        public const uint Data_Static_StructureScalar_UInt64Value = 2165;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_VariantValue = 271;
+        public const uint Data_Static_StructureScalar_FloatValue = 2166;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_EnumerationValue = 272;
+        public const uint Data_Static_StructureScalar_DoubleValue = 2167;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_StructureValue = 273;
+        public const uint Data_Static_StructureScalar_StringValue = 2168;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_NumberValue = 274;
+        public const uint Data_Static_StructureScalar_DateTimeValue = 2169;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_IntegerValue = 275;
+        public const uint Data_Static_StructureScalar_GuidValue = 2170;
 
         /// <remarks />
-        public const uint Data_Static_StructureScalar_UIntegerValue = 276;
+        public const uint Data_Static_StructureScalar_ByteStringValue = 2171;
 
         /// <remarks />
-        public const uint Data_Static_Array_SimulationActive = 10244;
+        public const uint Data_Static_StructureScalar_XmlElementValue = 2172;
 
         /// <remarks />
-        public const uint Data_Static_Array_GenerateValues_InputArguments = 10246;
+        public const uint Data_Static_StructureScalar_NodeIdValue = 2173;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_EventId = 10248;
+        public const uint Data_Static_StructureScalar_ExpandedNodeIdValue = 2174;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_EventType = 10249;
+        public const uint Data_Static_StructureScalar_QualifiedNameValue = 2175;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_SourceNode = 10250;
+        public const uint Data_Static_StructureScalar_LocalizedTextValue = 2176;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_SourceName = 10251;
+        public const uint Data_Static_StructureScalar_StatusCodeValue = 2177;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Time = 10252;
+        public const uint Data_Static_StructureScalar_VariantValue = 2178;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_ReceiveTime = 10253;
+        public const uint Data_Static_StructureScalar_EnumerationValue = 2179;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Message = 10255;
+        public const uint Data_Static_StructureScalar_StructureValue = 2180;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Severity = 10256;
+        public const uint Data_Static_StructureScalar_NumberValue = 2181;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_ConditionClassId = 11596;
+        public const uint Data_Static_StructureScalar_IntegerValue = 2182;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_ConditionClassName = 11597;
+        public const uint Data_Static_StructureScalar_UIntegerValue = 2183;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_ConditionName = 11566;
+        public const uint Data_Static_Array_SimulationActive = 2185;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_BranchId = 10257;
+        public const uint Data_Static_Array_GenerateValues_InputArguments = 2187;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Retain = 10258;
+        public const uint Data_Static_Array_CycleComplete_EventId = 2189;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_EnabledState = 10259;
+        public const uint Data_Static_Array_CycleComplete_EventType = 2190;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_EnabledState_Id = 10260;
+        public const uint Data_Static_Array_CycleComplete_SourceNode = 2191;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Quality = 10265;
+        public const uint Data_Static_Array_CycleComplete_SourceName = 2192;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Quality_SourceTimestamp = 10266;
+        public const uint Data_Static_Array_CycleComplete_Time = 2193;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_LastSeverity = 10269;
+        public const uint Data_Static_Array_CycleComplete_ReceiveTime = 2194;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_LastSeverity_SourceTimestamp = 10270;
+        public const uint Data_Static_Array_CycleComplete_Message = 2196;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Comment = 10271;
+        public const uint Data_Static_Array_CycleComplete_Severity = 2197;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Comment_SourceTimestamp = 10272;
+        public const uint Data_Static_Array_CycleComplete_ConditionClassId = 2198;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_ClientUserId = 10273;
+        public const uint Data_Static_Array_CycleComplete_ConditionClassName = 2199;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_AddComment_InputArguments = 10277;
+        public const uint Data_Static_Array_CycleComplete_ConditionName = 2202;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_AckedState = 10280;
+        public const uint Data_Static_Array_CycleComplete_BranchId = 2203;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_AckedState_Id = 10281;
+        public const uint Data_Static_Array_CycleComplete_Retain = 2204;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_ConfirmedState_Id = 10289;
+        public const uint Data_Static_Array_CycleComplete_EnabledState = 2205;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Acknowledge_InputArguments = 10297;
+        public const uint Data_Static_Array_CycleComplete_EnabledState_Id = 2206;
 
         /// <remarks />
-        public const uint Data_Static_Array_CycleComplete_Confirm_InputArguments = 10299;
+        public const uint Data_Static_Array_CycleComplete_Quality = 2214;
 
         /// <remarks />
-        public const uint Data_Static_Array_BooleanValue = 10300;
+        public const uint Data_Static_Array_CycleComplete_Quality_SourceTimestamp = 2215;
 
         /// <remarks />
-        public const uint Data_Static_Array_SByteValue = 10301;
+        public const uint Data_Static_Array_CycleComplete_LastSeverity = 2216;
 
         /// <remarks />
-        public const uint Data_Static_Array_ByteValue = 10302;
+        public const uint Data_Static_Array_CycleComplete_LastSeverity_SourceTimestamp = 2217;
 
         /// <remarks />
-        public const uint Data_Static_Array_Int16Value = 10303;
+        public const uint Data_Static_Array_CycleComplete_Comment = 2218;
 
         /// <remarks />
-        public const uint Data_Static_Array_UInt16Value = 10304;
+        public const uint Data_Static_Array_CycleComplete_Comment_SourceTimestamp = 2219;
 
         /// <remarks />
-        public const uint Data_Static_Array_Int32Value = 10305;
+        public const uint Data_Static_Array_CycleComplete_ClientUserId = 2220;
 
         /// <remarks />
-        public const uint Data_Static_Array_UInt32Value = 10306;
+        public const uint Data_Static_Array_CycleComplete_AddComment_InputArguments = 2224;
 
         /// <remarks />
-        public const uint Data_Static_Array_Int64Value = 10307;
+        public const uint Data_Static_Array_CycleComplete_AckedState = 2225;
 
         /// <remarks />
-        public const uint Data_Static_Array_UInt64Value = 10308;
+        public const uint Data_Static_Array_CycleComplete_AckedState_Id = 2226;
 
         /// <remarks />
-        public const uint Data_Static_Array_FloatValue = 10309;
+        public const uint Data_Static_Array_CycleComplete_ConfirmedState_Id = 2235;
 
         /// <remarks />
-        public const uint Data_Static_Array_DoubleValue = 10310;
+        public const uint Data_Static_Array_CycleComplete_Acknowledge_InputArguments = 2244;
 
         /// <remarks />
-        public const uint Data_Static_Array_StringValue = 10311;
+        public const uint Data_Static_Array_CycleComplete_Confirm_InputArguments = 2246;
 
         /// <remarks />
-        public const uint Data_Static_Array_DateTimeValue = 10312;
+        public const uint Data_Static_Array_BooleanValue = 2247;
 
         /// <remarks />
-        public const uint Data_Static_Array_GuidValue = 10313;
+        public const uint Data_Static_Array_SByteValue = 2248;
 
         /// <remarks />
-        public const uint Data_Static_Array_ByteStringValue = 10314;
+        public const uint Data_Static_Array_ByteValue = 2249;
 
         /// <remarks />
-        public const uint Data_Static_Array_XmlElementValue = 10315;
+        public const uint Data_Static_Array_Int16Value = 2250;
 
         /// <remarks />
-        public const uint Data_Static_Array_NodeIdValue = 10316;
+        public const uint Data_Static_Array_UInt16Value = 2251;
 
         /// <remarks />
-        public const uint Data_Static_Array_ExpandedNodeIdValue = 10317;
+        public const uint Data_Static_Array_Int32Value = 2252;
 
         /// <remarks />
-        public const uint Data_Static_Array_QualifiedNameValue = 10318;
+        public const uint Data_Static_Array_UInt32Value = 2253;
 
         /// <remarks />
-        public const uint Data_Static_Array_LocalizedTextValue = 10319;
+        public const uint Data_Static_Array_Int64Value = 2254;
 
         /// <remarks />
-        public const uint Data_Static_Array_StatusCodeValue = 10320;
+        public const uint Data_Static_Array_UInt64Value = 2255;
 
         /// <remarks />
-        public const uint Data_Static_Array_VariantValue = 10321;
+        public const uint Data_Static_Array_FloatValue = 2256;
 
         /// <remarks />
-        public const uint Data_Static_Array_EnumerationValue = 10322;
+        public const uint Data_Static_Array_DoubleValue = 2257;
 
         /// <remarks />
-        public const uint Data_Static_Array_StructureValue = 10323;
+        public const uint Data_Static_Array_StringValue = 2258;
 
         /// <remarks />
-        public const uint Data_Static_Array_NumberValue = 10324;
+        public const uint Data_Static_Array_DateTimeValue = 2259;
 
         /// <remarks />
-        public const uint Data_Static_Array_IntegerValue = 10325;
+        public const uint Data_Static_Array_GuidValue = 2260;
 
         /// <remarks />
-        public const uint Data_Static_Array_UIntegerValue = 10326;
+        public const uint Data_Static_Array_ByteStringValue = 2261;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_SimulationActive = 10328;
+        public const uint Data_Static_Array_XmlElementValue = 2262;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_GenerateValues_InputArguments = 10330;
+        public const uint Data_Static_Array_NodeIdValue = 2263;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_EventId = 10332;
+        public const uint Data_Static_Array_ExpandedNodeIdValue = 2264;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_EventType = 10333;
+        public const uint Data_Static_Array_QualifiedNameValue = 2265;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_SourceNode = 10334;
+        public const uint Data_Static_Array_LocalizedTextValue = 2266;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_SourceName = 10335;
+        public const uint Data_Static_Array_StatusCodeValue = 2267;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Time = 10336;
+        public const uint Data_Static_Array_VariantValue = 2268;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_ReceiveTime = 10337;
+        public const uint Data_Static_Array_EnumerationValue = 2269;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Message = 10339;
+        public const uint Data_Static_Array_StructureValue = 2270;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Severity = 10340;
+        public const uint Data_Static_Array_NumberValue = 2271;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_ConditionClassId = 11598;
+        public const uint Data_Static_Array_IntegerValue = 2272;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_ConditionClassName = 11599;
+        public const uint Data_Static_Array_UIntegerValue = 2273;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_ConditionName = 11567;
+        public const uint Data_Static_Array_VectorValue = 2274;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_BranchId = 10341;
+        public const uint Data_Static_UserScalar_SimulationActive = 2276;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Retain = 10342;
+        public const uint Data_Static_UserScalar_GenerateValues_InputArguments = 2278;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_EnabledState = 10343;
+        public const uint Data_Static_UserScalar_CycleComplete_EventId = 2280;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_EnabledState_Id = 10344;
+        public const uint Data_Static_UserScalar_CycleComplete_EventType = 2281;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Quality = 10349;
+        public const uint Data_Static_UserScalar_CycleComplete_SourceNode = 2282;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Quality_SourceTimestamp = 10350;
+        public const uint Data_Static_UserScalar_CycleComplete_SourceName = 2283;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_LastSeverity = 10353;
+        public const uint Data_Static_UserScalar_CycleComplete_Time = 2284;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_LastSeverity_SourceTimestamp = 10354;
+        public const uint Data_Static_UserScalar_CycleComplete_ReceiveTime = 2285;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Comment = 10355;
+        public const uint Data_Static_UserScalar_CycleComplete_Message = 2287;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Comment_SourceTimestamp = 10356;
+        public const uint Data_Static_UserScalar_CycleComplete_Severity = 2288;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_ClientUserId = 10357;
+        public const uint Data_Static_UserScalar_CycleComplete_ConditionClassId = 2289;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_AddComment_InputArguments = 10361;
+        public const uint Data_Static_UserScalar_CycleComplete_ConditionClassName = 2290;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_AckedState = 10364;
+        public const uint Data_Static_UserScalar_CycleComplete_ConditionName = 2293;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_AckedState_Id = 10365;
+        public const uint Data_Static_UserScalar_CycleComplete_BranchId = 2294;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_ConfirmedState_Id = 10373;
+        public const uint Data_Static_UserScalar_CycleComplete_Retain = 2295;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Acknowledge_InputArguments = 10381;
+        public const uint Data_Static_UserScalar_CycleComplete_EnabledState = 2296;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_CycleComplete_Confirm_InputArguments = 10383;
+        public const uint Data_Static_UserScalar_CycleComplete_EnabledState_Id = 2297;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_BooleanValue = 10384;
+        public const uint Data_Static_UserScalar_CycleComplete_Quality = 2305;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_SByteValue = 10385;
+        public const uint Data_Static_UserScalar_CycleComplete_Quality_SourceTimestamp = 2306;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_ByteValue = 10386;
+        public const uint Data_Static_UserScalar_CycleComplete_LastSeverity = 2307;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_Int16Value = 10387;
+        public const uint Data_Static_UserScalar_CycleComplete_LastSeverity_SourceTimestamp = 2308;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_UInt16Value = 10388;
+        public const uint Data_Static_UserScalar_CycleComplete_Comment = 2309;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_Int32Value = 10389;
+        public const uint Data_Static_UserScalar_CycleComplete_Comment_SourceTimestamp = 2310;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_UInt32Value = 10390;
+        public const uint Data_Static_UserScalar_CycleComplete_ClientUserId = 2311;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_Int64Value = 10391;
+        public const uint Data_Static_UserScalar_CycleComplete_AddComment_InputArguments = 2315;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_UInt64Value = 10392;
+        public const uint Data_Static_UserScalar_CycleComplete_AckedState = 2316;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_FloatValue = 10393;
+        public const uint Data_Static_UserScalar_CycleComplete_AckedState_Id = 2317;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_DoubleValue = 10394;
+        public const uint Data_Static_UserScalar_CycleComplete_ConfirmedState_Id = 2326;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_StringValue = 10395;
+        public const uint Data_Static_UserScalar_CycleComplete_Acknowledge_InputArguments = 2335;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_DateTimeValue = 10396;
+        public const uint Data_Static_UserScalar_CycleComplete_Confirm_InputArguments = 2337;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_GuidValue = 10397;
+        public const uint Data_Static_UserScalar_BooleanValue = 2338;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_ByteStringValue = 10398;
+        public const uint Data_Static_UserScalar_SByteValue = 2339;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_XmlElementValue = 10399;
+        public const uint Data_Static_UserScalar_ByteValue = 2340;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_NodeIdValue = 10400;
+        public const uint Data_Static_UserScalar_Int16Value = 2341;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_ExpandedNodeIdValue = 10401;
+        public const uint Data_Static_UserScalar_UInt16Value = 2342;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_QualifiedNameValue = 10402;
+        public const uint Data_Static_UserScalar_Int32Value = 2343;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_LocalizedTextValue = 10403;
+        public const uint Data_Static_UserScalar_UInt32Value = 2344;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_StatusCodeValue = 10404;
+        public const uint Data_Static_UserScalar_Int64Value = 2345;
 
         /// <remarks />
-        public const uint Data_Static_UserScalar_VariantValue = 10405;
+        public const uint Data_Static_UserScalar_UInt64Value = 2346;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_SimulationActive = 10407;
+        public const uint Data_Static_UserScalar_FloatValue = 2347;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_GenerateValues_InputArguments = 10409;
+        public const uint Data_Static_UserScalar_DoubleValue = 2348;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_EventId = 10411;
+        public const uint Data_Static_UserScalar_StringValue = 2349;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_EventType = 10412;
+        public const uint Data_Static_UserScalar_DateTimeValue = 2350;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_SourceNode = 10413;
+        public const uint Data_Static_UserScalar_GuidValue = 2351;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_SourceName = 10414;
+        public const uint Data_Static_UserScalar_ByteStringValue = 2352;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Time = 10415;
+        public const uint Data_Static_UserScalar_XmlElementValue = 2353;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_ReceiveTime = 10416;
+        public const uint Data_Static_UserScalar_NodeIdValue = 2354;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Message = 10418;
+        public const uint Data_Static_UserScalar_ExpandedNodeIdValue = 2355;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Severity = 10419;
+        public const uint Data_Static_UserScalar_QualifiedNameValue = 2356;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_ConditionClassId = 11600;
+        public const uint Data_Static_UserScalar_LocalizedTextValue = 2357;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_ConditionClassName = 11601;
+        public const uint Data_Static_UserScalar_StatusCodeValue = 2358;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_ConditionName = 11568;
+        public const uint Data_Static_UserScalar_VariantValue = 2359;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_BranchId = 10420;
+        public const uint Data_Static_UserArray_SimulationActive = 2361;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Retain = 10421;
+        public const uint Data_Static_UserArray_GenerateValues_InputArguments = 2363;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_EnabledState = 10422;
+        public const uint Data_Static_UserArray_CycleComplete_EventId = 2365;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_EnabledState_Id = 10423;
+        public const uint Data_Static_UserArray_CycleComplete_EventType = 2366;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Quality = 10428;
+        public const uint Data_Static_UserArray_CycleComplete_SourceNode = 2367;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Quality_SourceTimestamp = 10429;
+        public const uint Data_Static_UserArray_CycleComplete_SourceName = 2368;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_LastSeverity = 10432;
+        public const uint Data_Static_UserArray_CycleComplete_Time = 2369;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_LastSeverity_SourceTimestamp = 10433;
+        public const uint Data_Static_UserArray_CycleComplete_ReceiveTime = 2370;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Comment = 10434;
+        public const uint Data_Static_UserArray_CycleComplete_Message = 2372;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Comment_SourceTimestamp = 10435;
+        public const uint Data_Static_UserArray_CycleComplete_Severity = 2373;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_ClientUserId = 10436;
+        public const uint Data_Static_UserArray_CycleComplete_ConditionClassId = 2374;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_AddComment_InputArguments = 10440;
+        public const uint Data_Static_UserArray_CycleComplete_ConditionClassName = 2375;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_AckedState = 10443;
+        public const uint Data_Static_UserArray_CycleComplete_ConditionName = 2378;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_AckedState_Id = 10444;
+        public const uint Data_Static_UserArray_CycleComplete_BranchId = 2379;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_ConfirmedState_Id = 10452;
+        public const uint Data_Static_UserArray_CycleComplete_Retain = 2380;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Acknowledge_InputArguments = 10460;
+        public const uint Data_Static_UserArray_CycleComplete_EnabledState = 2381;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_CycleComplete_Confirm_InputArguments = 10462;
+        public const uint Data_Static_UserArray_CycleComplete_EnabledState_Id = 2382;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_BooleanValue = 10463;
+        public const uint Data_Static_UserArray_CycleComplete_Quality = 2390;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_SByteValue = 10464;
+        public const uint Data_Static_UserArray_CycleComplete_Quality_SourceTimestamp = 2391;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_ByteValue = 10465;
+        public const uint Data_Static_UserArray_CycleComplete_LastSeverity = 2392;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_Int16Value = 10466;
+        public const uint Data_Static_UserArray_CycleComplete_LastSeverity_SourceTimestamp = 2393;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_UInt16Value = 10467;
+        public const uint Data_Static_UserArray_CycleComplete_Comment = 2394;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_Int32Value = 10468;
+        public const uint Data_Static_UserArray_CycleComplete_Comment_SourceTimestamp = 2395;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_UInt32Value = 10469;
+        public const uint Data_Static_UserArray_CycleComplete_ClientUserId = 2396;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_Int64Value = 10470;
+        public const uint Data_Static_UserArray_CycleComplete_AddComment_InputArguments = 2400;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_UInt64Value = 10471;
+        public const uint Data_Static_UserArray_CycleComplete_AckedState = 2401;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_FloatValue = 10472;
+        public const uint Data_Static_UserArray_CycleComplete_AckedState_Id = 2402;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_DoubleValue = 10473;
+        public const uint Data_Static_UserArray_CycleComplete_ConfirmedState_Id = 2411;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_StringValue = 10474;
+        public const uint Data_Static_UserArray_CycleComplete_Acknowledge_InputArguments = 2420;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_DateTimeValue = 10475;
+        public const uint Data_Static_UserArray_CycleComplete_Confirm_InputArguments = 2422;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_GuidValue = 10476;
+        public const uint Data_Static_UserArray_BooleanValue = 2423;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_ByteStringValue = 10477;
+        public const uint Data_Static_UserArray_SByteValue = 2424;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_XmlElementValue = 10478;
+        public const uint Data_Static_UserArray_ByteValue = 2425;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_NodeIdValue = 10479;
+        public const uint Data_Static_UserArray_Int16Value = 2426;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_ExpandedNodeIdValue = 10480;
+        public const uint Data_Static_UserArray_UInt16Value = 2427;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_QualifiedNameValue = 10481;
+        public const uint Data_Static_UserArray_Int32Value = 2428;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_LocalizedTextValue = 10482;
+        public const uint Data_Static_UserArray_UInt32Value = 2429;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_StatusCodeValue = 10483;
+        public const uint Data_Static_UserArray_Int64Value = 2430;
 
         /// <remarks />
-        public const uint Data_Static_UserArray_VariantValue = 10484;
+        public const uint Data_Static_UserArray_UInt64Value = 2431;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_SimulationActive = 10486;
+        public const uint Data_Static_UserArray_FloatValue = 2432;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_GenerateValues_InputArguments = 10488;
+        public const uint Data_Static_UserArray_DoubleValue = 2433;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_EventId = 10490;
+        public const uint Data_Static_UserArray_StringValue = 2434;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_EventType = 10491;
+        public const uint Data_Static_UserArray_DateTimeValue = 2435;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_SourceNode = 10492;
+        public const uint Data_Static_UserArray_GuidValue = 2436;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_SourceName = 10493;
+        public const uint Data_Static_UserArray_ByteStringValue = 2437;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Time = 10494;
+        public const uint Data_Static_UserArray_XmlElementValue = 2438;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_ReceiveTime = 10495;
+        public const uint Data_Static_UserArray_NodeIdValue = 2439;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Message = 10497;
+        public const uint Data_Static_UserArray_ExpandedNodeIdValue = 2440;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Severity = 10498;
+        public const uint Data_Static_UserArray_QualifiedNameValue = 2441;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_ConditionClassId = 11602;
+        public const uint Data_Static_UserArray_LocalizedTextValue = 2442;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_ConditionClassName = 11603;
+        public const uint Data_Static_UserArray_StatusCodeValue = 2443;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_ConditionName = 11569;
+        public const uint Data_Static_UserArray_VariantValue = 2444;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_BranchId = 10499;
+        public const uint Data_Static_AnalogScalar_SimulationActive = 2446;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Retain = 10500;
+        public const uint Data_Static_AnalogScalar_GenerateValues_InputArguments = 2448;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_EnabledState = 10501;
+        public const uint Data_Static_AnalogScalar_CycleComplete_EventId = 2450;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_EnabledState_Id = 10502;
+        public const uint Data_Static_AnalogScalar_CycleComplete_EventType = 2451;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Quality = 10507;
+        public const uint Data_Static_AnalogScalar_CycleComplete_SourceNode = 2452;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Quality_SourceTimestamp = 10508;
+        public const uint Data_Static_AnalogScalar_CycleComplete_SourceName = 2453;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_LastSeverity = 10511;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Time = 2454;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_LastSeverity_SourceTimestamp = 10512;
+        public const uint Data_Static_AnalogScalar_CycleComplete_ReceiveTime = 2455;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Comment = 10513;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Message = 2457;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Comment_SourceTimestamp = 10514;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Severity = 2458;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_ClientUserId = 10515;
+        public const uint Data_Static_AnalogScalar_CycleComplete_ConditionClassId = 2459;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_AddComment_InputArguments = 10519;
+        public const uint Data_Static_AnalogScalar_CycleComplete_ConditionClassName = 2460;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_AckedState = 10522;
+        public const uint Data_Static_AnalogScalar_CycleComplete_ConditionName = 2463;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_AckedState_Id = 10523;
+        public const uint Data_Static_AnalogScalar_CycleComplete_BranchId = 2464;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_ConfirmedState_Id = 10531;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Retain = 2465;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Acknowledge_InputArguments = 10539;
+        public const uint Data_Static_AnalogScalar_CycleComplete_EnabledState = 2466;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_CycleComplete_Confirm_InputArguments = 10541;
+        public const uint Data_Static_AnalogScalar_CycleComplete_EnabledState_Id = 2467;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_SByteValue = 10542;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Quality = 2475;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_SByteValue_EURange = 10545;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Quality_SourceTimestamp = 2476;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_ByteValue = 10548;
+        public const uint Data_Static_AnalogScalar_CycleComplete_LastSeverity = 2477;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_ByteValue_EURange = 10551;
+        public const uint Data_Static_AnalogScalar_CycleComplete_LastSeverity_SourceTimestamp = 2478;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_Int16Value = 10554;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Comment = 2479;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_Int16Value_EURange = 10557;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Comment_SourceTimestamp = 2480;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_UInt16Value = 10560;
+        public const uint Data_Static_AnalogScalar_CycleComplete_ClientUserId = 2481;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_UInt16Value_EURange = 10563;
+        public const uint Data_Static_AnalogScalar_CycleComplete_AddComment_InputArguments = 2485;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_Int32Value = 10566;
+        public const uint Data_Static_AnalogScalar_CycleComplete_AckedState = 2486;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_Int32Value_EURange = 10569;
+        public const uint Data_Static_AnalogScalar_CycleComplete_AckedState_Id = 2487;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_UInt32Value = 10572;
+        public const uint Data_Static_AnalogScalar_CycleComplete_ConfirmedState_Id = 2496;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_UInt32Value_EURange = 10575;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Acknowledge_InputArguments = 2505;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_Int64Value = 10578;
+        public const uint Data_Static_AnalogScalar_CycleComplete_Confirm_InputArguments = 2507;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_Int64Value_EURange = 10581;
+        public const uint Data_Static_AnalogScalar_SByteValue = 2508;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_UInt64Value = 10584;
+        public const uint Data_Static_AnalogScalar_SByteValue_EURange = 2512;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_UInt64Value_EURange = 10587;
+        public const uint Data_Static_AnalogScalar_ByteValue = 2514;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_FloatValue = 10590;
+        public const uint Data_Static_AnalogScalar_ByteValue_EURange = 2518;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_FloatValue_EURange = 10593;
+        public const uint Data_Static_AnalogScalar_Int16Value = 2520;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_DoubleValue = 10596;
+        public const uint Data_Static_AnalogScalar_Int16Value_EURange = 2524;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_DoubleValue_EURange = 10599;
+        public const uint Data_Static_AnalogScalar_UInt16Value = 2526;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_NumberValue = 10602;
+        public const uint Data_Static_AnalogScalar_UInt16Value_EURange = 2530;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_NumberValue_EURange = 10605;
+        public const uint Data_Static_AnalogScalar_Int32Value = 2532;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_IntegerValue = 10608;
+        public const uint Data_Static_AnalogScalar_Int32Value_EURange = 2536;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_IntegerValue_EURange = 10611;
+        public const uint Data_Static_AnalogScalar_UInt32Value = 2538;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_UIntegerValue = 10614;
+        public const uint Data_Static_AnalogScalar_UInt32Value_EURange = 2542;
 
         /// <remarks />
-        public const uint Data_Static_AnalogScalar_UIntegerValue_EURange = 10617;
+        public const uint Data_Static_AnalogScalar_Int64Value = 2544;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_SimulationActive = 10621;
+        public const uint Data_Static_AnalogScalar_Int64Value_EURange = 2548;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_GenerateValues_InputArguments = 10623;
+        public const uint Data_Static_AnalogScalar_UInt64Value = 2550;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_EventId = 10625;
+        public const uint Data_Static_AnalogScalar_UInt64Value_EURange = 2554;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_EventType = 10626;
+        public const uint Data_Static_AnalogScalar_FloatValue = 2556;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_SourceNode = 10627;
+        public const uint Data_Static_AnalogScalar_FloatValue_EURange = 2560;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_SourceName = 10628;
+        public const uint Data_Static_AnalogScalar_DoubleValue = 2562;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Time = 10629;
+        public const uint Data_Static_AnalogScalar_DoubleValue_EURange = 2566;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_ReceiveTime = 10630;
+        public const uint Data_Static_AnalogScalar_NumberValue = 2568;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Message = 10632;
+        public const uint Data_Static_AnalogScalar_NumberValue_EURange = 2572;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Severity = 10633;
+        public const uint Data_Static_AnalogScalar_IntegerValue = 2574;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_ConditionClassId = 11604;
+        public const uint Data_Static_AnalogScalar_IntegerValue_EURange = 2578;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_ConditionClassName = 11605;
+        public const uint Data_Static_AnalogScalar_UIntegerValue = 2580;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_ConditionName = 11570;
+        public const uint Data_Static_AnalogScalar_UIntegerValue_EURange = 2584;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_BranchId = 10634;
+        public const uint Data_Static_AnalogArray_SimulationActive = 2587;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Retain = 10635;
+        public const uint Data_Static_AnalogArray_GenerateValues_InputArguments = 2589;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_EnabledState = 10636;
+        public const uint Data_Static_AnalogArray_CycleComplete_EventId = 2591;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_EnabledState_Id = 10637;
+        public const uint Data_Static_AnalogArray_CycleComplete_EventType = 2592;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Quality = 10642;
+        public const uint Data_Static_AnalogArray_CycleComplete_SourceNode = 2593;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Quality_SourceTimestamp = 10643;
+        public const uint Data_Static_AnalogArray_CycleComplete_SourceName = 2594;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_LastSeverity = 10646;
+        public const uint Data_Static_AnalogArray_CycleComplete_Time = 2595;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_LastSeverity_SourceTimestamp = 10647;
+        public const uint Data_Static_AnalogArray_CycleComplete_ReceiveTime = 2596;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Comment = 10648;
+        public const uint Data_Static_AnalogArray_CycleComplete_Message = 2598;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Comment_SourceTimestamp = 10649;
+        public const uint Data_Static_AnalogArray_CycleComplete_Severity = 2599;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_ClientUserId = 10650;
+        public const uint Data_Static_AnalogArray_CycleComplete_ConditionClassId = 2600;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_AddComment_InputArguments = 10654;
+        public const uint Data_Static_AnalogArray_CycleComplete_ConditionClassName = 2601;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_AckedState = 10657;
+        public const uint Data_Static_AnalogArray_CycleComplete_ConditionName = 2604;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_AckedState_Id = 10658;
+        public const uint Data_Static_AnalogArray_CycleComplete_BranchId = 2605;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_ConfirmedState_Id = 10666;
+        public const uint Data_Static_AnalogArray_CycleComplete_Retain = 2606;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Acknowledge_InputArguments = 10674;
+        public const uint Data_Static_AnalogArray_CycleComplete_EnabledState = 2607;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_CycleComplete_Confirm_InputArguments = 10676;
+        public const uint Data_Static_AnalogArray_CycleComplete_EnabledState_Id = 2608;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_SByteValue = 10677;
+        public const uint Data_Static_AnalogArray_CycleComplete_Quality = 2616;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_SByteValue_EURange = 10680;
+        public const uint Data_Static_AnalogArray_CycleComplete_Quality_SourceTimestamp = 2617;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_ByteValue = 10683;
+        public const uint Data_Static_AnalogArray_CycleComplete_LastSeverity = 2618;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_ByteValue_EURange = 10686;
+        public const uint Data_Static_AnalogArray_CycleComplete_LastSeverity_SourceTimestamp = 2619;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_Int16Value = 10689;
+        public const uint Data_Static_AnalogArray_CycleComplete_Comment = 2620;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_Int16Value_EURange = 10692;
+        public const uint Data_Static_AnalogArray_CycleComplete_Comment_SourceTimestamp = 2621;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_UInt16Value = 10695;
+        public const uint Data_Static_AnalogArray_CycleComplete_ClientUserId = 2622;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_UInt16Value_EURange = 10698;
+        public const uint Data_Static_AnalogArray_CycleComplete_AddComment_InputArguments = 2626;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_Int32Value = 10701;
+        public const uint Data_Static_AnalogArray_CycleComplete_AckedState = 2627;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_Int32Value_EURange = 10704;
+        public const uint Data_Static_AnalogArray_CycleComplete_AckedState_Id = 2628;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_UInt32Value = 10707;
+        public const uint Data_Static_AnalogArray_CycleComplete_ConfirmedState_Id = 2637;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_UInt32Value_EURange = 10710;
+        public const uint Data_Static_AnalogArray_CycleComplete_Acknowledge_InputArguments = 2646;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_Int64Value = 10713;
+        public const uint Data_Static_AnalogArray_CycleComplete_Confirm_InputArguments = 2648;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_Int64Value_EURange = 10716;
+        public const uint Data_Static_AnalogArray_SByteValue = 2649;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_UInt64Value = 10719;
+        public const uint Data_Static_AnalogArray_SByteValue_EURange = 2653;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_UInt64Value_EURange = 10722;
+        public const uint Data_Static_AnalogArray_ByteValue = 2655;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_FloatValue = 10725;
+        public const uint Data_Static_AnalogArray_ByteValue_EURange = 2659;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_FloatValue_EURange = 10728;
+        public const uint Data_Static_AnalogArray_Int16Value = 2661;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_DoubleValue = 10731;
+        public const uint Data_Static_AnalogArray_Int16Value_EURange = 2665;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_DoubleValue_EURange = 10734;
+        public const uint Data_Static_AnalogArray_UInt16Value = 2667;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_NumberValue = 10737;
+        public const uint Data_Static_AnalogArray_UInt16Value_EURange = 2671;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_NumberValue_EURange = 10740;
+        public const uint Data_Static_AnalogArray_Int32Value = 2673;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_IntegerValue = 10743;
+        public const uint Data_Static_AnalogArray_Int32Value_EURange = 2677;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_IntegerValue_EURange = 10746;
+        public const uint Data_Static_AnalogArray_UInt32Value = 2679;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_UIntegerValue = 10749;
+        public const uint Data_Static_AnalogArray_UInt32Value_EURange = 2683;
 
         /// <remarks />
-        public const uint Data_Static_AnalogArray_UIntegerValue_EURange = 10752;
+        public const uint Data_Static_AnalogArray_Int64Value = 2685;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ScalarMethod1_InputArguments = 10757;
+        public const uint Data_Static_AnalogArray_Int64Value_EURange = 2689;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ScalarMethod1_OutputArguments = 10758;
+        public const uint Data_Static_AnalogArray_UInt64Value = 2691;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ScalarMethod2_InputArguments = 10760;
+        public const uint Data_Static_AnalogArray_UInt64Value_EURange = 2695;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ScalarMethod2_OutputArguments = 10761;
+        public const uint Data_Static_AnalogArray_FloatValue = 2697;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ScalarMethod3_InputArguments = 10763;
+        public const uint Data_Static_AnalogArray_FloatValue_EURange = 2701;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ScalarMethod3_OutputArguments = 10764;
+        public const uint Data_Static_AnalogArray_DoubleValue = 2703;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ArrayMethod1_InputArguments = 10766;
+        public const uint Data_Static_AnalogArray_DoubleValue_EURange = 2707;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ArrayMethod1_OutputArguments = 10767;
+        public const uint Data_Static_AnalogArray_NumberValue = 2709;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ArrayMethod2_InputArguments = 10769;
+        public const uint Data_Static_AnalogArray_NumberValue_EURange = 2713;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ArrayMethod2_OutputArguments = 10770;
+        public const uint Data_Static_AnalogArray_IntegerValue = 2715;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ArrayMethod3_InputArguments = 10772;
+        public const uint Data_Static_AnalogArray_IntegerValue_EURange = 2719;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_ArrayMethod3_OutputArguments = 10773;
+        public const uint Data_Static_AnalogArray_UIntegerValue = 2721;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_UserScalarMethod1_InputArguments = 10775;
+        public const uint Data_Static_AnalogArray_UIntegerValue_EURange = 2725;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_UserScalarMethod1_OutputArguments = 10776;
+        public const uint Data_Static_MethodTest_ScalarMethod1_InputArguments = 2729;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_UserScalarMethod2_InputArguments = 10778;
+        public const uint Data_Static_MethodTest_ScalarMethod1_OutputArguments = 2730;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_UserScalarMethod2_OutputArguments = 10779;
+        public const uint Data_Static_MethodTest_ScalarMethod2_InputArguments = 2732;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_UserArrayMethod1_InputArguments = 10781;
+        public const uint Data_Static_MethodTest_ScalarMethod2_OutputArguments = 2733;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_UserArrayMethod1_OutputArguments = 10782;
+        public const uint Data_Static_MethodTest_ScalarMethod3_InputArguments = 2735;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_UserArrayMethod2_InputArguments = 10784;
+        public const uint Data_Static_MethodTest_ScalarMethod3_OutputArguments = 2736;
 
         /// <remarks />
-        public const uint Data_Static_MethodTest_UserArrayMethod2_OutputArguments = 10785;
+        public const uint Data_Static_MethodTest_ArrayMethod1_InputArguments = 2738;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_SimulationActive = 10788;
+        public const uint Data_Static_MethodTest_ArrayMethod1_OutputArguments = 2739;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_GenerateValues_InputArguments = 10790;
+        public const uint Data_Static_MethodTest_ArrayMethod2_InputArguments = 2741;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_EventId = 10792;
+        public const uint Data_Static_MethodTest_ArrayMethod2_OutputArguments = 2742;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_EventType = 10793;
+        public const uint Data_Static_MethodTest_ArrayMethod3_InputArguments = 2744;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_SourceNode = 10794;
+        public const uint Data_Static_MethodTest_ArrayMethod3_OutputArguments = 2745;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_SourceName = 10795;
+        public const uint Data_Static_MethodTest_UserScalarMethod1_InputArguments = 2747;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Time = 10796;
+        public const uint Data_Static_MethodTest_UserScalarMethod1_OutputArguments = 2748;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_ReceiveTime = 10797;
+        public const uint Data_Static_MethodTest_UserScalarMethod2_InputArguments = 2750;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Message = 10799;
+        public const uint Data_Static_MethodTest_UserScalarMethod2_OutputArguments = 2751;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Severity = 10800;
+        public const uint Data_Static_MethodTest_UserArrayMethod1_InputArguments = 2753;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_ConditionClassId = 11606;
+        public const uint Data_Static_MethodTest_UserArrayMethod1_OutputArguments = 2754;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_ConditionClassName = 11607;
+        public const uint Data_Static_MethodTest_UserArrayMethod2_InputArguments = 2756;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_ConditionName = 11571;
+        public const uint Data_Static_MethodTest_UserArrayMethod2_OutputArguments = 2757;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_BranchId = 10801;
+        public const uint Data_Dynamic_Scalar_SimulationActive = 2760;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Retain = 10802;
+        public const uint Data_Dynamic_Scalar_GenerateValues_InputArguments = 2762;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_EnabledState = 10803;
+        public const uint Data_Dynamic_Scalar_CycleComplete_EventId = 2764;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_EnabledState_Id = 10804;
+        public const uint Data_Dynamic_Scalar_CycleComplete_EventType = 2765;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Quality = 10809;
+        public const uint Data_Dynamic_Scalar_CycleComplete_SourceNode = 2766;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Quality_SourceTimestamp = 10810;
+        public const uint Data_Dynamic_Scalar_CycleComplete_SourceName = 2767;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_LastSeverity = 10813;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Time = 2768;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_LastSeverity_SourceTimestamp = 10814;
+        public const uint Data_Dynamic_Scalar_CycleComplete_ReceiveTime = 2769;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Comment = 10815;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Message = 2771;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Comment_SourceTimestamp = 10816;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Severity = 2772;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_ClientUserId = 10817;
+        public const uint Data_Dynamic_Scalar_CycleComplete_ConditionClassId = 2773;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_AddComment_InputArguments = 10821;
+        public const uint Data_Dynamic_Scalar_CycleComplete_ConditionClassName = 2774;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_AckedState = 10824;
+        public const uint Data_Dynamic_Scalar_CycleComplete_ConditionName = 2777;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_AckedState_Id = 10825;
+        public const uint Data_Dynamic_Scalar_CycleComplete_BranchId = 2778;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_ConfirmedState_Id = 10833;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Retain = 2779;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Acknowledge_InputArguments = 10841;
+        public const uint Data_Dynamic_Scalar_CycleComplete_EnabledState = 2780;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_CycleComplete_Confirm_InputArguments = 10843;
+        public const uint Data_Dynamic_Scalar_CycleComplete_EnabledState_Id = 2781;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_BooleanValue = 10844;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Quality = 2789;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_SByteValue = 10845;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Quality_SourceTimestamp = 2790;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_ByteValue = 10846;
+        public const uint Data_Dynamic_Scalar_CycleComplete_LastSeverity = 2791;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_Int16Value = 10847;
+        public const uint Data_Dynamic_Scalar_CycleComplete_LastSeverity_SourceTimestamp = 2792;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_UInt16Value = 10848;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Comment = 2793;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_Int32Value = 10849;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Comment_SourceTimestamp = 2794;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_UInt32Value = 10850;
+        public const uint Data_Dynamic_Scalar_CycleComplete_ClientUserId = 2795;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_Int64Value = 10851;
+        public const uint Data_Dynamic_Scalar_CycleComplete_AddComment_InputArguments = 2799;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_UInt64Value = 10852;
+        public const uint Data_Dynamic_Scalar_CycleComplete_AckedState = 2800;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_FloatValue = 10853;
+        public const uint Data_Dynamic_Scalar_CycleComplete_AckedState_Id = 2801;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_DoubleValue = 10854;
+        public const uint Data_Dynamic_Scalar_CycleComplete_ConfirmedState_Id = 2810;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_StringValue = 10855;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Acknowledge_InputArguments = 2819;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_DateTimeValue = 10856;
+        public const uint Data_Dynamic_Scalar_CycleComplete_Confirm_InputArguments = 2821;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_GuidValue = 10857;
+        public const uint Data_Dynamic_Scalar_BooleanValue = 2822;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_ByteStringValue = 10858;
+        public const uint Data_Dynamic_Scalar_SByteValue = 2823;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_XmlElementValue = 10859;
+        public const uint Data_Dynamic_Scalar_ByteValue = 2824;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_NodeIdValue = 10860;
+        public const uint Data_Dynamic_Scalar_Int16Value = 2825;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_ExpandedNodeIdValue = 10861;
+        public const uint Data_Dynamic_Scalar_UInt16Value = 2826;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_QualifiedNameValue = 10862;
+        public const uint Data_Dynamic_Scalar_Int32Value = 2827;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_LocalizedTextValue = 10863;
+        public const uint Data_Dynamic_Scalar_UInt32Value = 2828;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_StatusCodeValue = 10864;
+        public const uint Data_Dynamic_Scalar_Int64Value = 2829;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_VariantValue = 10865;
+        public const uint Data_Dynamic_Scalar_UInt64Value = 2830;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_EnumerationValue = 10866;
+        public const uint Data_Dynamic_Scalar_FloatValue = 2831;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_StructureValue = 10867;
+        public const uint Data_Dynamic_Scalar_DoubleValue = 2832;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_NumberValue = 10868;
+        public const uint Data_Dynamic_Scalar_StringValue = 2833;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_IntegerValue = 10869;
+        public const uint Data_Dynamic_Scalar_DateTimeValue = 2834;
 
         /// <remarks />
-        public const uint Data_Dynamic_Scalar_UIntegerValue = 10870;
+        public const uint Data_Dynamic_Scalar_GuidValue = 2835;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar = 277;
+        public const uint Data_Dynamic_Scalar_ByteStringValue = 2836;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_SimulationActive = 278;
+        public const uint Data_Dynamic_Scalar_XmlElementValue = 2837;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_GenerateValues_InputArguments = 280;
+        public const uint Data_Dynamic_Scalar_NodeIdValue = 2838;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_EventId = 282;
+        public const uint Data_Dynamic_Scalar_ExpandedNodeIdValue = 2839;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_EventType = 283;
+        public const uint Data_Dynamic_Scalar_QualifiedNameValue = 2840;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_SourceNode = 284;
+        public const uint Data_Dynamic_Scalar_LocalizedTextValue = 2841;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_SourceName = 285;
+        public const uint Data_Dynamic_Scalar_StatusCodeValue = 2842;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Time = 286;
+        public const uint Data_Dynamic_Scalar_VariantValue = 2843;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_ReceiveTime = 287;
+        public const uint Data_Dynamic_Scalar_EnumerationValue = 2844;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Message = 289;
+        public const uint Data_Dynamic_Scalar_StructureValue = 2845;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Severity = 290;
+        public const uint Data_Dynamic_Scalar_NumberValue = 2846;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_ConditionClassId = 291;
+        public const uint Data_Dynamic_Scalar_IntegerValue = 2847;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_ConditionClassName = 292;
+        public const uint Data_Dynamic_Scalar_UIntegerValue = 2848;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_ConditionName = 295;
+        public const uint Data_Dynamic_Scalar_VectorValue = 2849;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_BranchId = 296;
+        public const uint Data_Dynamic_Scalar_VectorValue_X = 3599;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Retain = 297;
+        public const uint Data_Dynamic_Scalar_VectorValue_Y = 3600;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_EnabledState = 298;
+        public const uint Data_Dynamic_Scalar_VectorValue_Z = 3601;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_EnabledState_Id = 299;
+        public const uint Data_Dynamic_StructureScalar = 2850;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Quality = 307;
+        public const uint Data_Dynamic_StructureScalar_SimulationActive = 2851;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Quality_SourceTimestamp = 308;
+        public const uint Data_Dynamic_StructureScalar_GenerateValues_InputArguments = 2853;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_LastSeverity = 309;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_EventId = 2855;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_LastSeverity_SourceTimestamp = 310;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_EventType = 2856;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Comment = 311;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_SourceNode = 2857;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Comment_SourceTimestamp = 312;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_SourceName = 2858;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_ClientUserId = 313;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Time = 2859;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_AddComment_InputArguments = 317;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_ReceiveTime = 2860;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_AckedState = 318;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Message = 2862;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_AckedState_Id = 319;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Severity = 2863;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_ConfirmedState_Id = 328;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_ConditionClassId = 2864;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Acknowledge_InputArguments = 337;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_ConditionClassName = 2865;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_CycleComplete_Confirm_InputArguments = 339;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_ConditionName = 2868;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_BooleanValue = 340;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_BranchId = 2869;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_SByteValue = 341;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Retain = 2870;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_ByteValue = 342;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_EnabledState = 2871;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_Int16Value = 343;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_EnabledState_Id = 2872;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_UInt16Value = 344;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Quality = 2880;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_Int32Value = 345;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Quality_SourceTimestamp = 2881;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_UInt32Value = 346;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_LastSeverity = 2882;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_Int64Value = 347;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_LastSeverity_SourceTimestamp = 2883;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_UInt64Value = 348;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Comment = 2884;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_FloatValue = 349;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Comment_SourceTimestamp = 2885;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_DoubleValue = 350;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_ClientUserId = 2886;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_StringValue = 351;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_AddComment_InputArguments = 2890;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_DateTimeValue = 352;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_AckedState = 2891;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_GuidValue = 353;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_AckedState_Id = 2892;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_ByteStringValue = 354;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_ConfirmedState_Id = 2901;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_XmlElementValue = 355;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Acknowledge_InputArguments = 2910;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_NodeIdValue = 356;
+        public const uint Data_Dynamic_StructureScalar_CycleComplete_Confirm_InputArguments = 2912;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_ExpandedNodeIdValue = 357;
+        public const uint Data_Dynamic_StructureScalar_BooleanValue = 2913;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_QualifiedNameValue = 358;
+        public const uint Data_Dynamic_StructureScalar_SByteValue = 2914;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_LocalizedTextValue = 359;
+        public const uint Data_Dynamic_StructureScalar_ByteValue = 2915;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_StatusCodeValue = 360;
+        public const uint Data_Dynamic_StructureScalar_Int16Value = 2916;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_VariantValue = 361;
+        public const uint Data_Dynamic_StructureScalar_UInt16Value = 2917;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_EnumerationValue = 362;
+        public const uint Data_Dynamic_StructureScalar_Int32Value = 2918;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_StructureValue = 363;
+        public const uint Data_Dynamic_StructureScalar_UInt32Value = 2919;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_NumberValue = 364;
+        public const uint Data_Dynamic_StructureScalar_Int64Value = 2920;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_IntegerValue = 365;
+        public const uint Data_Dynamic_StructureScalar_UInt64Value = 2921;
 
         /// <remarks />
-        public const uint Data_Dynamic_StructureScalar_UIntegerValue = 366;
+        public const uint Data_Dynamic_StructureScalar_FloatValue = 2922;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_SimulationActive = 10872;
+        public const uint Data_Dynamic_StructureScalar_DoubleValue = 2923;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_GenerateValues_InputArguments = 10874;
+        public const uint Data_Dynamic_StructureScalar_StringValue = 2924;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_EventId = 10876;
+        public const uint Data_Dynamic_StructureScalar_DateTimeValue = 2925;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_EventType = 10877;
+        public const uint Data_Dynamic_StructureScalar_GuidValue = 2926;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_SourceNode = 10878;
+        public const uint Data_Dynamic_StructureScalar_ByteStringValue = 2927;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_SourceName = 10879;
+        public const uint Data_Dynamic_StructureScalar_XmlElementValue = 2928;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Time = 10880;
+        public const uint Data_Dynamic_StructureScalar_NodeIdValue = 2929;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_ReceiveTime = 10881;
+        public const uint Data_Dynamic_StructureScalar_ExpandedNodeIdValue = 2930;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Message = 10883;
+        public const uint Data_Dynamic_StructureScalar_QualifiedNameValue = 2931;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Severity = 10884;
+        public const uint Data_Dynamic_StructureScalar_LocalizedTextValue = 2932;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_ConditionClassId = 11608;
+        public const uint Data_Dynamic_StructureScalar_StatusCodeValue = 2933;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_ConditionClassName = 11609;
+        public const uint Data_Dynamic_StructureScalar_VariantValue = 2934;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_ConditionName = 11572;
+        public const uint Data_Dynamic_StructureScalar_EnumerationValue = 2935;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_BranchId = 10885;
+        public const uint Data_Dynamic_StructureScalar_StructureValue = 2936;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Retain = 10886;
+        public const uint Data_Dynamic_StructureScalar_NumberValue = 2937;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_EnabledState = 10887;
+        public const uint Data_Dynamic_StructureScalar_IntegerValue = 2938;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_EnabledState_Id = 10888;
+        public const uint Data_Dynamic_StructureScalar_UIntegerValue = 2939;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Quality = 10893;
+        public const uint Data_Dynamic_Array_SimulationActive = 2941;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Quality_SourceTimestamp = 10894;
+        public const uint Data_Dynamic_Array_GenerateValues_InputArguments = 2943;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_LastSeverity = 10897;
+        public const uint Data_Dynamic_Array_CycleComplete_EventId = 2945;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_LastSeverity_SourceTimestamp = 10898;
+        public const uint Data_Dynamic_Array_CycleComplete_EventType = 2946;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Comment = 10899;
+        public const uint Data_Dynamic_Array_CycleComplete_SourceNode = 2947;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Comment_SourceTimestamp = 10900;
+        public const uint Data_Dynamic_Array_CycleComplete_SourceName = 2948;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_ClientUserId = 10901;
+        public const uint Data_Dynamic_Array_CycleComplete_Time = 2949;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_AddComment_InputArguments = 10905;
+        public const uint Data_Dynamic_Array_CycleComplete_ReceiveTime = 2950;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_AckedState = 10908;
+        public const uint Data_Dynamic_Array_CycleComplete_Message = 2952;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_AckedState_Id = 10909;
+        public const uint Data_Dynamic_Array_CycleComplete_Severity = 2953;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_ConfirmedState_Id = 10917;
+        public const uint Data_Dynamic_Array_CycleComplete_ConditionClassId = 2954;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Acknowledge_InputArguments = 10925;
+        public const uint Data_Dynamic_Array_CycleComplete_ConditionClassName = 2955;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_CycleComplete_Confirm_InputArguments = 10927;
+        public const uint Data_Dynamic_Array_CycleComplete_ConditionName = 2958;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_BooleanValue = 10928;
+        public const uint Data_Dynamic_Array_CycleComplete_BranchId = 2959;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_SByteValue = 10929;
+        public const uint Data_Dynamic_Array_CycleComplete_Retain = 2960;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_ByteValue = 10930;
+        public const uint Data_Dynamic_Array_CycleComplete_EnabledState = 2961;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_Int16Value = 10931;
+        public const uint Data_Dynamic_Array_CycleComplete_EnabledState_Id = 2962;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_UInt16Value = 10932;
+        public const uint Data_Dynamic_Array_CycleComplete_Quality = 2970;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_Int32Value = 10933;
+        public const uint Data_Dynamic_Array_CycleComplete_Quality_SourceTimestamp = 2971;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_UInt32Value = 10934;
+        public const uint Data_Dynamic_Array_CycleComplete_LastSeverity = 2972;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_Int64Value = 10935;
+        public const uint Data_Dynamic_Array_CycleComplete_LastSeverity_SourceTimestamp = 2973;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_UInt64Value = 10936;
+        public const uint Data_Dynamic_Array_CycleComplete_Comment = 2974;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_FloatValue = 10937;
+        public const uint Data_Dynamic_Array_CycleComplete_Comment_SourceTimestamp = 2975;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_DoubleValue = 10938;
+        public const uint Data_Dynamic_Array_CycleComplete_ClientUserId = 2976;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_StringValue = 10939;
+        public const uint Data_Dynamic_Array_CycleComplete_AddComment_InputArguments = 2980;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_DateTimeValue = 10940;
+        public const uint Data_Dynamic_Array_CycleComplete_AckedState = 2981;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_GuidValue = 10941;
+        public const uint Data_Dynamic_Array_CycleComplete_AckedState_Id = 2982;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_ByteStringValue = 10942;
+        public const uint Data_Dynamic_Array_CycleComplete_ConfirmedState_Id = 2991;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_XmlElementValue = 10943;
+        public const uint Data_Dynamic_Array_CycleComplete_Acknowledge_InputArguments = 3000;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_NodeIdValue = 10944;
+        public const uint Data_Dynamic_Array_CycleComplete_Confirm_InputArguments = 3002;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_ExpandedNodeIdValue = 10945;
+        public const uint Data_Dynamic_Array_BooleanValue = 3003;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_QualifiedNameValue = 10946;
+        public const uint Data_Dynamic_Array_SByteValue = 3004;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_LocalizedTextValue = 10947;
+        public const uint Data_Dynamic_Array_ByteValue = 3005;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_StatusCodeValue = 10948;
+        public const uint Data_Dynamic_Array_Int16Value = 3006;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_VariantValue = 10949;
+        public const uint Data_Dynamic_Array_UInt16Value = 3007;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_EnumerationValue = 10950;
+        public const uint Data_Dynamic_Array_Int32Value = 3008;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_StructureValue = 10951;
+        public const uint Data_Dynamic_Array_UInt32Value = 3009;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_NumberValue = 10952;
+        public const uint Data_Dynamic_Array_Int64Value = 3010;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_IntegerValue = 10953;
+        public const uint Data_Dynamic_Array_UInt64Value = 3011;
 
         /// <remarks />
-        public const uint Data_Dynamic_Array_UIntegerValue = 10954;
+        public const uint Data_Dynamic_Array_FloatValue = 3012;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_SimulationActive = 10956;
+        public const uint Data_Dynamic_Array_DoubleValue = 3013;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_GenerateValues_InputArguments = 10958;
+        public const uint Data_Dynamic_Array_StringValue = 3014;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_EventId = 10960;
+        public const uint Data_Dynamic_Array_DateTimeValue = 3015;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_EventType = 10961;
+        public const uint Data_Dynamic_Array_GuidValue = 3016;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_SourceNode = 10962;
+        public const uint Data_Dynamic_Array_ByteStringValue = 3017;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_SourceName = 10963;
+        public const uint Data_Dynamic_Array_XmlElementValue = 3018;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Time = 10964;
+        public const uint Data_Dynamic_Array_NodeIdValue = 3019;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_ReceiveTime = 10965;
+        public const uint Data_Dynamic_Array_ExpandedNodeIdValue = 3020;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Message = 10967;
+        public const uint Data_Dynamic_Array_QualifiedNameValue = 3021;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Severity = 10968;
+        public const uint Data_Dynamic_Array_LocalizedTextValue = 3022;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_ConditionClassId = 11610;
+        public const uint Data_Dynamic_Array_StatusCodeValue = 3023;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_ConditionClassName = 11611;
+        public const uint Data_Dynamic_Array_VariantValue = 3024;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_ConditionName = 11573;
+        public const uint Data_Dynamic_Array_EnumerationValue = 3025;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_BranchId = 10969;
+        public const uint Data_Dynamic_Array_StructureValue = 3026;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Retain = 10970;
+        public const uint Data_Dynamic_Array_NumberValue = 3027;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_EnabledState = 10971;
+        public const uint Data_Dynamic_Array_IntegerValue = 3028;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_EnabledState_Id = 10972;
+        public const uint Data_Dynamic_Array_UIntegerValue = 3029;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Quality = 10977;
+        public const uint Data_Dynamic_Array_VectorValue = 3030;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Quality_SourceTimestamp = 10978;
+        public const uint Data_Dynamic_UserScalar_SimulationActive = 3032;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_LastSeverity = 10981;
+        public const uint Data_Dynamic_UserScalar_GenerateValues_InputArguments = 3034;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_LastSeverity_SourceTimestamp = 10982;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_EventId = 3036;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Comment = 10983;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_EventType = 3037;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Comment_SourceTimestamp = 10984;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_SourceNode = 3038;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_ClientUserId = 10985;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_SourceName = 3039;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_AddComment_InputArguments = 10989;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Time = 3040;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_AckedState = 10992;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_ReceiveTime = 3041;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_AckedState_Id = 10993;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Message = 3043;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_ConfirmedState_Id = 11001;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Severity = 3044;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Acknowledge_InputArguments = 11009;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_ConditionClassId = 3045;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_CycleComplete_Confirm_InputArguments = 11011;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_ConditionClassName = 3046;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_BooleanValue = 11012;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_ConditionName = 3049;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_SByteValue = 11013;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_BranchId = 3050;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_ByteValue = 11014;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Retain = 3051;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_Int16Value = 11015;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_EnabledState = 3052;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_UInt16Value = 11016;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_EnabledState_Id = 3053;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_Int32Value = 11017;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Quality = 3061;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_UInt32Value = 11018;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Quality_SourceTimestamp = 3062;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_Int64Value = 11019;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_LastSeverity = 3063;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_UInt64Value = 11020;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_LastSeverity_SourceTimestamp = 3064;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_FloatValue = 11021;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Comment = 3065;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_DoubleValue = 11022;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Comment_SourceTimestamp = 3066;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_StringValue = 11023;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_ClientUserId = 3067;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_DateTimeValue = 11024;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_AddComment_InputArguments = 3071;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_GuidValue = 11025;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_AckedState = 3072;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_ByteStringValue = 11026;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_AckedState_Id = 3073;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_XmlElementValue = 11027;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_ConfirmedState_Id = 3082;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_NodeIdValue = 11028;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Acknowledge_InputArguments = 3091;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_ExpandedNodeIdValue = 11029;
+        public const uint Data_Dynamic_UserScalar_CycleComplete_Confirm_InputArguments = 3093;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_QualifiedNameValue = 11030;
+        public const uint Data_Dynamic_UserScalar_BooleanValue = 3094;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_LocalizedTextValue = 11031;
+        public const uint Data_Dynamic_UserScalar_SByteValue = 3095;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_StatusCodeValue = 11032;
+        public const uint Data_Dynamic_UserScalar_ByteValue = 3096;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserScalar_VariantValue = 11033;
+        public const uint Data_Dynamic_UserScalar_Int16Value = 3097;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_SimulationActive = 11035;
+        public const uint Data_Dynamic_UserScalar_UInt16Value = 3098;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_GenerateValues_InputArguments = 11037;
+        public const uint Data_Dynamic_UserScalar_Int32Value = 3099;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_EventId = 11039;
+        public const uint Data_Dynamic_UserScalar_UInt32Value = 3100;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_EventType = 11040;
+        public const uint Data_Dynamic_UserScalar_Int64Value = 3101;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_SourceNode = 11041;
+        public const uint Data_Dynamic_UserScalar_UInt64Value = 3102;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_SourceName = 11042;
+        public const uint Data_Dynamic_UserScalar_FloatValue = 3103;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Time = 11043;
+        public const uint Data_Dynamic_UserScalar_DoubleValue = 3104;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_ReceiveTime = 11044;
+        public const uint Data_Dynamic_UserScalar_StringValue = 3105;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Message = 11046;
+        public const uint Data_Dynamic_UserScalar_DateTimeValue = 3106;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Severity = 11047;
+        public const uint Data_Dynamic_UserScalar_GuidValue = 3107;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_ConditionClassId = 11612;
+        public const uint Data_Dynamic_UserScalar_ByteStringValue = 3108;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_ConditionClassName = 11613;
+        public const uint Data_Dynamic_UserScalar_XmlElementValue = 3109;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_ConditionName = 11574;
+        public const uint Data_Dynamic_UserScalar_NodeIdValue = 3110;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_BranchId = 11048;
+        public const uint Data_Dynamic_UserScalar_ExpandedNodeIdValue = 3111;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Retain = 11049;
+        public const uint Data_Dynamic_UserScalar_QualifiedNameValue = 3112;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_EnabledState = 11050;
+        public const uint Data_Dynamic_UserScalar_LocalizedTextValue = 3113;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_EnabledState_Id = 11051;
+        public const uint Data_Dynamic_UserScalar_StatusCodeValue = 3114;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Quality = 11056;
+        public const uint Data_Dynamic_UserScalar_VariantValue = 3115;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Quality_SourceTimestamp = 11057;
+        public const uint Data_Dynamic_UserArray_SimulationActive = 3117;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_LastSeverity = 11060;
+        public const uint Data_Dynamic_UserArray_GenerateValues_InputArguments = 3119;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_LastSeverity_SourceTimestamp = 11061;
+        public const uint Data_Dynamic_UserArray_CycleComplete_EventId = 3121;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Comment = 11062;
+        public const uint Data_Dynamic_UserArray_CycleComplete_EventType = 3122;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Comment_SourceTimestamp = 11063;
+        public const uint Data_Dynamic_UserArray_CycleComplete_SourceNode = 3123;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_ClientUserId = 11064;
+        public const uint Data_Dynamic_UserArray_CycleComplete_SourceName = 3124;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_AddComment_InputArguments = 11068;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Time = 3125;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_AckedState = 11071;
+        public const uint Data_Dynamic_UserArray_CycleComplete_ReceiveTime = 3126;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_AckedState_Id = 11072;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Message = 3128;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_ConfirmedState_Id = 11080;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Severity = 3129;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Acknowledge_InputArguments = 11088;
+        public const uint Data_Dynamic_UserArray_CycleComplete_ConditionClassId = 3130;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_CycleComplete_Confirm_InputArguments = 11090;
+        public const uint Data_Dynamic_UserArray_CycleComplete_ConditionClassName = 3131;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_BooleanValue = 11091;
+        public const uint Data_Dynamic_UserArray_CycleComplete_ConditionName = 3134;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_SByteValue = 11092;
+        public const uint Data_Dynamic_UserArray_CycleComplete_BranchId = 3135;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_ByteValue = 11093;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Retain = 3136;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_Int16Value = 11094;
+        public const uint Data_Dynamic_UserArray_CycleComplete_EnabledState = 3137;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_UInt16Value = 11095;
+        public const uint Data_Dynamic_UserArray_CycleComplete_EnabledState_Id = 3138;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_Int32Value = 11096;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Quality = 3146;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_UInt32Value = 11097;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Quality_SourceTimestamp = 3147;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_Int64Value = 11098;
+        public const uint Data_Dynamic_UserArray_CycleComplete_LastSeverity = 3148;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_UInt64Value = 11099;
+        public const uint Data_Dynamic_UserArray_CycleComplete_LastSeverity_SourceTimestamp = 3149;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_FloatValue = 11100;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Comment = 3150;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_DoubleValue = 11101;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Comment_SourceTimestamp = 3151;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_StringValue = 11102;
+        public const uint Data_Dynamic_UserArray_CycleComplete_ClientUserId = 3152;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_DateTimeValue = 11103;
+        public const uint Data_Dynamic_UserArray_CycleComplete_AddComment_InputArguments = 3156;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_GuidValue = 11104;
+        public const uint Data_Dynamic_UserArray_CycleComplete_AckedState = 3157;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_ByteStringValue = 11105;
+        public const uint Data_Dynamic_UserArray_CycleComplete_AckedState_Id = 3158;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_XmlElementValue = 11106;
+        public const uint Data_Dynamic_UserArray_CycleComplete_ConfirmedState_Id = 3167;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_NodeIdValue = 11107;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Acknowledge_InputArguments = 3176;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_ExpandedNodeIdValue = 11108;
+        public const uint Data_Dynamic_UserArray_CycleComplete_Confirm_InputArguments = 3178;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_QualifiedNameValue = 11109;
+        public const uint Data_Dynamic_UserArray_BooleanValue = 3179;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_LocalizedTextValue = 11110;
+        public const uint Data_Dynamic_UserArray_SByteValue = 3180;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_StatusCodeValue = 11111;
+        public const uint Data_Dynamic_UserArray_ByteValue = 3181;
 
         /// <remarks />
-        public const uint Data_Dynamic_UserArray_VariantValue = 11112;
+        public const uint Data_Dynamic_UserArray_Int16Value = 3182;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_SimulationActive = 11114;
+        public const uint Data_Dynamic_UserArray_UInt16Value = 3183;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_GenerateValues_InputArguments = 11116;
+        public const uint Data_Dynamic_UserArray_Int32Value = 3184;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_EventId = 11118;
+        public const uint Data_Dynamic_UserArray_UInt32Value = 3185;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_EventType = 11119;
+        public const uint Data_Dynamic_UserArray_Int64Value = 3186;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_SourceNode = 11120;
+        public const uint Data_Dynamic_UserArray_UInt64Value = 3187;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_SourceName = 11121;
+        public const uint Data_Dynamic_UserArray_FloatValue = 3188;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Time = 11122;
+        public const uint Data_Dynamic_UserArray_DoubleValue = 3189;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_ReceiveTime = 11123;
+        public const uint Data_Dynamic_UserArray_StringValue = 3190;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Message = 11125;
+        public const uint Data_Dynamic_UserArray_DateTimeValue = 3191;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Severity = 11126;
+        public const uint Data_Dynamic_UserArray_GuidValue = 3192;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_ConditionClassId = 11614;
+        public const uint Data_Dynamic_UserArray_ByteStringValue = 3193;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_ConditionClassName = 11615;
+        public const uint Data_Dynamic_UserArray_XmlElementValue = 3194;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_ConditionName = 11575;
+        public const uint Data_Dynamic_UserArray_NodeIdValue = 3195;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_BranchId = 11127;
+        public const uint Data_Dynamic_UserArray_ExpandedNodeIdValue = 3196;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Retain = 11128;
+        public const uint Data_Dynamic_UserArray_QualifiedNameValue = 3197;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_EnabledState = 11129;
+        public const uint Data_Dynamic_UserArray_LocalizedTextValue = 3198;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_EnabledState_Id = 11130;
+        public const uint Data_Dynamic_UserArray_StatusCodeValue = 3199;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Quality = 11135;
+        public const uint Data_Dynamic_UserArray_VariantValue = 3200;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Quality_SourceTimestamp = 11136;
+        public const uint Data_Dynamic_AnalogScalar_SimulationActive = 3202;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_LastSeverity = 11139;
+        public const uint Data_Dynamic_AnalogScalar_GenerateValues_InputArguments = 3204;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_LastSeverity_SourceTimestamp = 11140;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_EventId = 3206;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Comment = 11141;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_EventType = 3207;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Comment_SourceTimestamp = 11142;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_SourceNode = 3208;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_ClientUserId = 11143;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_SourceName = 3209;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_AddComment_InputArguments = 11147;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Time = 3210;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_AckedState = 11150;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_ReceiveTime = 3211;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_AckedState_Id = 11151;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Message = 3213;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_ConfirmedState_Id = 11159;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Severity = 3214;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Acknowledge_InputArguments = 11167;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_ConditionClassId = 3215;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Confirm_InputArguments = 11169;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_ConditionClassName = 3216;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_SByteValue = 11170;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_ConditionName = 3219;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_SByteValue_EURange = 11173;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_BranchId = 3220;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_ByteValue = 11176;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Retain = 3221;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_ByteValue_EURange = 11179;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_EnabledState = 3222;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_Int16Value = 11182;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_EnabledState_Id = 3223;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_Int16Value_EURange = 11185;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Quality = 3231;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_UInt16Value = 11188;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Quality_SourceTimestamp = 3232;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_UInt16Value_EURange = 11191;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_LastSeverity = 3233;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_Int32Value = 11194;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_LastSeverity_SourceTimestamp = 3234;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_Int32Value_EURange = 11197;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Comment = 3235;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_UInt32Value = 11200;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Comment_SourceTimestamp = 3236;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_UInt32Value_EURange = 11203;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_ClientUserId = 3237;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_Int64Value = 11206;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_AddComment_InputArguments = 3241;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_Int64Value_EURange = 11209;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_AckedState = 3242;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_UInt64Value = 11212;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_AckedState_Id = 3243;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_UInt64Value_EURange = 11215;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_ConfirmedState_Id = 3252;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_FloatValue = 11218;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Acknowledge_InputArguments = 3261;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_FloatValue_EURange = 11221;
+        public const uint Data_Dynamic_AnalogScalar_CycleComplete_Confirm_InputArguments = 3263;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_DoubleValue = 11224;
+        public const uint Data_Dynamic_AnalogScalar_SByteValue = 3264;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_DoubleValue_EURange = 11227;
+        public const uint Data_Dynamic_AnalogScalar_SByteValue_EURange = 3268;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_NumberValue = 11230;
+        public const uint Data_Dynamic_AnalogScalar_ByteValue = 3270;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_NumberValue_EURange = 11233;
+        public const uint Data_Dynamic_AnalogScalar_ByteValue_EURange = 3274;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_IntegerValue = 11236;
+        public const uint Data_Dynamic_AnalogScalar_Int16Value = 3276;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_IntegerValue_EURange = 11239;
+        public const uint Data_Dynamic_AnalogScalar_Int16Value_EURange = 3280;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_UIntegerValue = 11242;
+        public const uint Data_Dynamic_AnalogScalar_UInt16Value = 3282;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogScalar_UIntegerValue_EURange = 11245;
+        public const uint Data_Dynamic_AnalogScalar_UInt16Value_EURange = 3286;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_SimulationActive = 11249;
+        public const uint Data_Dynamic_AnalogScalar_Int32Value = 3288;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_GenerateValues_InputArguments = 11251;
+        public const uint Data_Dynamic_AnalogScalar_Int32Value_EURange = 3292;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_EventId = 11253;
+        public const uint Data_Dynamic_AnalogScalar_UInt32Value = 3294;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_EventType = 11254;
+        public const uint Data_Dynamic_AnalogScalar_UInt32Value_EURange = 3298;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_SourceNode = 11255;
+        public const uint Data_Dynamic_AnalogScalar_Int64Value = 3300;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_SourceName = 11256;
+        public const uint Data_Dynamic_AnalogScalar_Int64Value_EURange = 3304;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Time = 11257;
+        public const uint Data_Dynamic_AnalogScalar_UInt64Value = 3306;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_ReceiveTime = 11258;
+        public const uint Data_Dynamic_AnalogScalar_UInt64Value_EURange = 3310;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Message = 11260;
+        public const uint Data_Dynamic_AnalogScalar_FloatValue = 3312;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Severity = 11261;
+        public const uint Data_Dynamic_AnalogScalar_FloatValue_EURange = 3316;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_ConditionClassId = 11616;
+        public const uint Data_Dynamic_AnalogScalar_DoubleValue = 3318;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_ConditionClassName = 11617;
+        public const uint Data_Dynamic_AnalogScalar_DoubleValue_EURange = 3322;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_ConditionName = 11576;
+        public const uint Data_Dynamic_AnalogScalar_NumberValue = 3324;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_BranchId = 11262;
+        public const uint Data_Dynamic_AnalogScalar_NumberValue_EURange = 3328;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Retain = 11263;
+        public const uint Data_Dynamic_AnalogScalar_IntegerValue = 3330;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_EnabledState = 11264;
+        public const uint Data_Dynamic_AnalogScalar_IntegerValue_EURange = 3334;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_EnabledState_Id = 11265;
+        public const uint Data_Dynamic_AnalogScalar_UIntegerValue = 3336;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Quality = 11270;
+        public const uint Data_Dynamic_AnalogScalar_UIntegerValue_EURange = 3340;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Quality_SourceTimestamp = 11271;
+        public const uint Data_Dynamic_AnalogArray_SimulationActive = 3343;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_LastSeverity = 11274;
+        public const uint Data_Dynamic_AnalogArray_GenerateValues_InputArguments = 3345;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_LastSeverity_SourceTimestamp = 11275;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_EventId = 3347;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Comment = 11276;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_EventType = 3348;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Comment_SourceTimestamp = 11277;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_SourceNode = 3349;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_ClientUserId = 11278;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_SourceName = 3350;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_AddComment_InputArguments = 11282;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Time = 3351;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_AckedState = 11285;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_ReceiveTime = 3352;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_AckedState_Id = 11286;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Message = 3354;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_ConfirmedState_Id = 11294;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Severity = 3355;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Acknowledge_InputArguments = 11302;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_ConditionClassId = 3356;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_Confirm_InputArguments = 11304;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_ConditionClassName = 3357;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_SByteValue = 11305;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_ConditionName = 3360;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_SByteValue_EURange = 11308;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_BranchId = 3361;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_ByteValue = 11311;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Retain = 3362;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_ByteValue_EURange = 11314;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_EnabledState = 3363;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_Int16Value = 11317;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_EnabledState_Id = 3364;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_Int16Value_EURange = 11320;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Quality = 3372;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_UInt16Value = 11323;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Quality_SourceTimestamp = 3373;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_UInt16Value_EURange = 11326;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_LastSeverity = 3374;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_Int32Value = 11329;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_LastSeverity_SourceTimestamp = 3375;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_Int32Value_EURange = 11332;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Comment = 3376;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_UInt32Value = 11335;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Comment_SourceTimestamp = 3377;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_UInt32Value_EURange = 11338;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_ClientUserId = 3378;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_Int64Value = 11341;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_AddComment_InputArguments = 3382;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_Int64Value_EURange = 11344;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_AckedState = 3383;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_UInt64Value = 11347;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_AckedState_Id = 3384;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_UInt64Value_EURange = 11350;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_ConfirmedState_Id = 3393;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_FloatValue = 11353;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Acknowledge_InputArguments = 3402;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_FloatValue_EURange = 11356;
+        public const uint Data_Dynamic_AnalogArray_CycleComplete_Confirm_InputArguments = 3404;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_DoubleValue = 11359;
+        public const uint Data_Dynamic_AnalogArray_SByteValue = 3405;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_DoubleValue_EURange = 11362;
+        public const uint Data_Dynamic_AnalogArray_SByteValue_EURange = 3409;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_NumberValue = 11365;
+        public const uint Data_Dynamic_AnalogArray_ByteValue = 3411;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_NumberValue_EURange = 11368;
+        public const uint Data_Dynamic_AnalogArray_ByteValue_EURange = 3415;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_IntegerValue = 11371;
+        public const uint Data_Dynamic_AnalogArray_Int16Value = 3417;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_IntegerValue_EURange = 11374;
+        public const uint Data_Dynamic_AnalogArray_Int16Value_EURange = 3421;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_UIntegerValue = 11377;
+        public const uint Data_Dynamic_AnalogArray_UInt16Value = 3423;
 
         /// <remarks />
-        public const uint Data_Dynamic_AnalogArray_UIntegerValue_EURange = 11380;
+        public const uint Data_Dynamic_AnalogArray_UInt16Value_EURange = 3427;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_EventId = 11385;
+        public const uint Data_Dynamic_AnalogArray_Int32Value = 3429;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_EventType = 11386;
+        public const uint Data_Dynamic_AnalogArray_Int32Value_EURange = 3433;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_SourceNode = 11387;
+        public const uint Data_Dynamic_AnalogArray_UInt32Value = 3435;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_SourceName = 11388;
+        public const uint Data_Dynamic_AnalogArray_UInt32Value_EURange = 3439;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_Time = 11389;
+        public const uint Data_Dynamic_AnalogArray_Int64Value = 3441;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_ReceiveTime = 11390;
+        public const uint Data_Dynamic_AnalogArray_Int64Value_EURange = 3445;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_Message = 11392;
+        public const uint Data_Dynamic_AnalogArray_UInt64Value = 3447;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_Severity = 11393;
+        public const uint Data_Dynamic_AnalogArray_UInt64Value_EURange = 3451;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_ConditionClassId = 11618;
+        public const uint Data_Dynamic_AnalogArray_FloatValue = 3453;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_ConditionClassName = 11619;
+        public const uint Data_Dynamic_AnalogArray_FloatValue_EURange = 3457;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_ConditionName = 11577;
+        public const uint Data_Dynamic_AnalogArray_DoubleValue = 3459;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_BranchId = 11394;
+        public const uint Data_Dynamic_AnalogArray_DoubleValue_EURange = 3463;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_Retain = 11395;
+        public const uint Data_Dynamic_AnalogArray_NumberValue = 3465;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_EnabledState = 11396;
+        public const uint Data_Dynamic_AnalogArray_NumberValue_EURange = 3469;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_EnabledState_Id = 11397;
+        public const uint Data_Dynamic_AnalogArray_IntegerValue = 3471;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_Quality = 11402;
+        public const uint Data_Dynamic_AnalogArray_IntegerValue_EURange = 3475;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_Quality_SourceTimestamp = 11403;
+        public const uint Data_Dynamic_AnalogArray_UIntegerValue = 3477;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_LastSeverity = 11406;
+        public const uint Data_Dynamic_AnalogArray_UIntegerValue_EURange = 3481;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_LastSeverity_SourceTimestamp = 11407;
+        public const uint Data_Conditions_SystemStatus_EventId = 3485;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_Comment = 11408;
+        public const uint Data_Conditions_SystemStatus_EventType = 3486;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_Comment_SourceTimestamp = 11409;
+        public const uint Data_Conditions_SystemStatus_SourceNode = 3487;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_ClientUserId = 11410;
+        public const uint Data_Conditions_SystemStatus_SourceName = 3488;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_AddComment_InputArguments = 11414;
+        public const uint Data_Conditions_SystemStatus_Time = 3489;
 
         /// <remarks />
-        public const uint Data_Conditions_SystemStatus_MonitoredNodeCount = 11417;
+        public const uint Data_Conditions_SystemStatus_ReceiveTime = 3490;
 
         /// <remarks />
-        public const uint TestData_BinarySchema = 11422;
+        public const uint Data_Conditions_SystemStatus_Message = 3492;
 
         /// <remarks />
-        public const uint TestData_BinarySchema_NamespaceUri = 11424;
+        public const uint Data_Conditions_SystemStatus_Severity = 3493;
 
         /// <remarks />
-        public const uint TestData_BinarySchema_Deprecated = 15045;
+        public const uint Data_Conditions_SystemStatus_ConditionClassId = 3494;
 
         /// <remarks />
-        public const uint TestData_BinarySchema_ScalarValueDataType = 11425;
+        public const uint Data_Conditions_SystemStatus_ConditionClassName = 3495;
 
         /// <remarks />
-        public const uint TestData_BinarySchema_ArrayValueDataType = 11428;
+        public const uint Data_Conditions_SystemStatus_ConditionName = 3498;
 
         /// <remarks />
-        public const uint TestData_BinarySchema_UserScalarValueDataType = 11431;
+        public const uint Data_Conditions_SystemStatus_BranchId = 3499;
 
         /// <remarks />
-        public const uint TestData_BinarySchema_UserArrayValueDataType = 11434;
+        public const uint Data_Conditions_SystemStatus_Retain = 3500;
 
         /// <remarks />
-        public const uint TestData_BinarySchema_Vector = 21015;
+        public const uint Data_Conditions_SystemStatus_EnabledState = 3501;
 
         /// <remarks />
-        public const uint TestData_BinarySchema_WorkOrderStatusType = 1024;
+        public const uint Data_Conditions_SystemStatus_EnabledState_Id = 3502;
 
         /// <remarks />
-        public const uint TestData_BinarySchema_WorkOrderType = 1027;
+        public const uint Data_Conditions_SystemStatus_Quality = 3510;
 
         /// <remarks />
-        public const uint TestData_XmlSchema = 11441;
+        public const uint Data_Conditions_SystemStatus_Quality_SourceTimestamp = 3511;
 
         /// <remarks />
-        public const uint TestData_XmlSchema_NamespaceUri = 11443;
+        public const uint Data_Conditions_SystemStatus_LastSeverity = 3512;
 
         /// <remarks />
-        public const uint TestData_XmlSchema_Deprecated = 15046;
+        public const uint Data_Conditions_SystemStatus_LastSeverity_SourceTimestamp = 3513;
 
         /// <remarks />
-        public const uint TestData_XmlSchema_ScalarValueDataType = 11444;
+        public const uint Data_Conditions_SystemStatus_Comment = 3514;
 
         /// <remarks />
-        public const uint TestData_XmlSchema_ArrayValueDataType = 11447;
+        public const uint Data_Conditions_SystemStatus_Comment_SourceTimestamp = 3515;
 
         /// <remarks />
-        public const uint TestData_XmlSchema_UserScalarValueDataType = 11450;
+        public const uint Data_Conditions_SystemStatus_ClientUserId = 3516;
 
         /// <remarks />
-        public const uint TestData_XmlSchema_UserArrayValueDataType = 11453;
+        public const uint Data_Conditions_SystemStatus_AddComment_InputArguments = 3520;
 
         /// <remarks />
-        public const uint TestData_XmlSchema_Vector = 1043;
+        public const uint Data_Conditions_SystemStatus_MonitoredNodeCount = 3521;
 
         /// <remarks />
-        public const uint TestData_XmlSchema_WorkOrderStatusType = 1052;
+        public const uint TestData_BinarySchema = 3529;
 
         /// <remarks />
-        public const uint TestData_XmlSchema_WorkOrderType = 1055;
+        public const uint TestData_BinarySchema_NamespaceUri = 3531;
+
+        /// <remarks />
+        public const uint TestData_BinarySchema_Deprecated = 3532;
+
+        /// <remarks />
+        public const uint TestData_BinarySchema_ScalarValueDataType = 3533;
+
+        /// <remarks />
+        public const uint TestData_BinarySchema_ArrayValueDataType = 3536;
+
+        /// <remarks />
+        public const uint TestData_BinarySchema_UserScalarValueDataType = 3539;
+
+        /// <remarks />
+        public const uint TestData_BinarySchema_UserArrayValueDataType = 3542;
+
+        /// <remarks />
+        public const uint TestData_BinarySchema_Vector = 3545;
+
+        /// <remarks />
+        public const uint TestData_BinarySchema_WorkOrderStatusType = 3548;
+
+        /// <remarks />
+        public const uint TestData_BinarySchema_WorkOrderType = 3551;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema = 3561;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema_NamespaceUri = 3563;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema_Deprecated = 3564;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema_ScalarValueDataType = 3565;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema_ArrayValueDataType = 3568;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema_UserScalarValueDataType = 3571;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema_UserArrayValueDataType = 3574;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema_Vector = 3577;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema_WorkOrderStatusType = 3580;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema_WorkOrderType = 3583;
     }
     #endregion
 
@@ -4689,10 +4743,13 @@ namespace TestData
     public static partial class VariableTypes
     {
         /// <remarks />
-        public const uint TestDataVariableType = 1001;
+        public const uint TestDataVariableType = 1079;
 
         /// <remarks />
-        public const uint ScalarValueVariableType = 1002;
+        public const uint ScalarValueVariableType = 1142;
+
+        /// <remarks />
+        public const uint VectorVariableType = 1916;
     }
     #endregion
 
@@ -5932,6 +5989,18 @@ namespace TestData
         public static readonly ExpandedNodeId ScalarValueObjectType_UIntegerValue = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_UIntegerValue, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueObjectType_VectorValue = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_VectorValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueObjectType_VectorValue_X = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_VectorValue_X, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueObjectType_VectorValue_Y = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_VectorValue_Y, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueObjectType_VectorValue_Z = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_VectorValue_Z, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId AnalogScalarValueObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -6263,6 +6332,9 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId ArrayValueObjectType_UIntegerValue = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_UIntegerValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ArrayValueObjectType_VectorValue = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_VectorValue, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId AnalogArrayValueObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
@@ -6736,6 +6808,15 @@ namespace TestData
         public static readonly ExpandedNodeId UserArrayValueObjectType_VariantValue = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_VariantValue, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId VectorVariableType_X = new ExpandedNodeId(TestData.Variables.VectorVariableType_X, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId VectorVariableType_Y = new ExpandedNodeId(TestData.Variables.VectorVariableType_Y, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId VectorVariableType_Z = new ExpandedNodeId(TestData.Variables.VectorVariableType_Z, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId MethodTestType_ScalarMethod1_InputArguments = new ExpandedNodeId(TestData.Variables.MethodTestType_ScalarMethod1_InputArguments, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -6989,6 +7070,18 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Static_Scalar_UIntegerValue = new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_UIntegerValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Static_Scalar_VectorValue = new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_VectorValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Static_Scalar_VectorValue_X = new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_VectorValue_X, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Static_Scalar_VectorValue_Y = new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_VectorValue_Y, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Static_Scalar_VectorValue_Z = new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_VectorValue_Z, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Static_StructureScalar = new ExpandedNodeId(TestData.Variables.Data_Static_StructureScalar, TestData.Namespaces.TestData);
@@ -7334,6 +7427,9 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Static_Array_UIntegerValue = new ExpandedNodeId(TestData.Variables.Data_Static_Array_UIntegerValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Static_Array_VectorValue = new ExpandedNodeId(TestData.Variables.Data_Static_Array_VectorValue, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Static_UserScalar_SimulationActive = new ExpandedNodeId(TestData.Variables.Data_Static_UserScalar_SimulationActive, TestData.Namespaces.TestData);
@@ -8215,6 +8311,18 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Dynamic_Scalar_UIntegerValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_UIntegerValue, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId Data_Dynamic_Scalar_VectorValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_VectorValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Dynamic_Scalar_VectorValue_X = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_VectorValue_X, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Dynamic_Scalar_VectorValue_Y = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_VectorValue_Y, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Dynamic_Scalar_VectorValue_Z = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_VectorValue_Z, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic_StructureScalar = new ExpandedNodeId(TestData.Variables.Data_Dynamic_StructureScalar, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -8558,6 +8666,9 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic_Array_UIntegerValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Array_UIntegerValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Dynamic_Array_VectorValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Array_VectorValue, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic_UserScalar_SimulationActive = new ExpandedNodeId(TestData.Variables.Data_Dynamic_UserScalar_SimulationActive, TestData.Namespaces.TestData);
@@ -9352,6 +9463,9 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId ScalarValueVariableType = new ExpandedNodeId(TestData.VariableTypes.ScalarValueVariableType, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId VectorVariableType = new ExpandedNodeId(TestData.VariableTypes.VectorVariableType, TestData.Namespaces.TestData);
     }
     #endregion
 
@@ -9619,16 +9733,31 @@ namespace TestData
         public const string Vector = "Vector";
 
         /// <remarks />
+        public const string VectorValue = "VectorValue";
+
+        /// <remarks />
+        public const string VectorVariableType = "VectorVariableType";
+
+        /// <remarks />
         public const string WorkOrderStatusType = "WorkOrderStatusType";
 
         /// <remarks />
         public const string WorkOrderType = "WorkOrderType";
 
         /// <remarks />
+        public const string X = "X";
+
+        /// <remarks />
         public const string XmlElementDataType = "XmlElementDataType";
 
         /// <remarks />
         public const string XmlElementValue = "XmlElementValue";
+
+        /// <remarks />
+        public const string Y = "Y";
+
+        /// <remarks />
+        public const string Z = "Z";
     }
     #endregion
 

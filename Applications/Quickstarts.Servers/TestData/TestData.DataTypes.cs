@@ -626,9 +626,9 @@ namespace TestData
             m_variantValue = new VariantCollection();
             m_enumerationValue = new Int32Collection();
             m_structureValue = new ExtensionObjectCollection();
-            m_number = new VariantCollection();
-            m_integer = new VariantCollection();
-            m_uInteger = new VariantCollection();
+            m_numberValue = new VariantCollection();
+            m_integerValue = new VariantCollection();
+            m_uIntegerValue = new VariantCollection();
         }
         #endregion
 
@@ -1114,61 +1114,61 @@ namespace TestData
         }
 
         /// <remarks />
-        [DataMember(Name = "Number", IsRequired = false, Order = 25)]
-        public VariantCollection Number
+        [DataMember(Name = "NumberValue", IsRequired = false, Order = 25)]
+        public VariantCollection NumberValue
         {
             get
             {
-                return m_number;
+                return m_numberValue;
             }
 
             set
             {
-                m_number = value;
+                m_numberValue = value;
 
                 if (value == null)
                 {
-                    m_number = new VariantCollection();
+                    m_numberValue = new VariantCollection();
                 }
             }
         }
 
         /// <remarks />
-        [DataMember(Name = "Integer", IsRequired = false, Order = 26)]
-        public VariantCollection Integer
+        [DataMember(Name = "IntegerValue", IsRequired = false, Order = 26)]
+        public VariantCollection IntegerValue
         {
             get
             {
-                return m_integer;
+                return m_integerValue;
             }
 
             set
             {
-                m_integer = value;
+                m_integerValue = value;
 
                 if (value == null)
                 {
-                    m_integer = new VariantCollection();
+                    m_integerValue = new VariantCollection();
                 }
             }
         }
 
         /// <remarks />
-        [DataMember(Name = "UInteger", IsRequired = false, Order = 27)]
-        public VariantCollection UInteger
+        [DataMember(Name = "UIntegerValue", IsRequired = false, Order = 27)]
+        public VariantCollection UIntegerValue
         {
             get
             {
-                return m_uInteger;
+                return m_uIntegerValue;
             }
 
             set
             {
-                m_uInteger = value;
+                m_uIntegerValue = value;
 
                 if (value == null)
                 {
-                    m_uInteger = new VariantCollection();
+                    m_uIntegerValue = new VariantCollection();
                 }
             }
         }
@@ -1216,9 +1216,9 @@ namespace TestData
             encoder.WriteVariantArray("VariantValue", VariantValue);
             encoder.WriteInt32Array("EnumerationValue", EnumerationValue);
             encoder.WriteExtensionObjectArray("StructureValue", StructureValue);
-            encoder.WriteVariantArray("Number", Number);
-            encoder.WriteVariantArray("Integer", Integer);
-            encoder.WriteVariantArray("UInteger", UInteger);
+            encoder.WriteVariantArray("NumberValue", NumberValue);
+            encoder.WriteVariantArray("IntegerValue", IntegerValue);
+            encoder.WriteVariantArray("UIntegerValue", UIntegerValue);
 
             encoder.PopNamespace();
         }
@@ -1252,9 +1252,9 @@ namespace TestData
             VariantValue = decoder.ReadVariantArray("VariantValue");
             EnumerationValue = decoder.ReadInt32Array("EnumerationValue");
             StructureValue = decoder.ReadExtensionObjectArray("StructureValue");
-            Number = decoder.ReadVariantArray("Number");
-            Integer = decoder.ReadVariantArray("Integer");
-            UInteger = decoder.ReadVariantArray("UInteger");
+            NumberValue = decoder.ReadVariantArray("NumberValue");
+            IntegerValue = decoder.ReadVariantArray("IntegerValue");
+            UIntegerValue = decoder.ReadVariantArray("UIntegerValue");
 
             decoder.PopNamespace();
         }
@@ -1298,9 +1298,9 @@ namespace TestData
             if (!Utils.IsEqual(m_variantValue, value.m_variantValue)) return false;
             if (!Utils.IsEqual(m_enumerationValue, value.m_enumerationValue)) return false;
             if (!Utils.IsEqual(m_structureValue, value.m_structureValue)) return false;
-            if (!Utils.IsEqual(m_number, value.m_number)) return false;
-            if (!Utils.IsEqual(m_integer, value.m_integer)) return false;
-            if (!Utils.IsEqual(m_uInteger, value.m_uInteger)) return false;
+            if (!Utils.IsEqual(m_numberValue, value.m_numberValue)) return false;
+            if (!Utils.IsEqual(m_integerValue, value.m_integerValue)) return false;
+            if (!Utils.IsEqual(m_uIntegerValue, value.m_uIntegerValue)) return false;
 
             return true;
         }
@@ -1340,9 +1340,9 @@ namespace TestData
             clone.m_variantValue = (VariantCollection)Utils.Clone(this.m_variantValue);
             clone.m_enumerationValue = (Int32Collection)Utils.Clone(this.m_enumerationValue);
             clone.m_structureValue = (ExtensionObjectCollection)Utils.Clone(this.m_structureValue);
-            clone.m_number = (VariantCollection)Utils.Clone(this.m_number);
-            clone.m_integer = (VariantCollection)Utils.Clone(this.m_integer);
-            clone.m_uInteger = (VariantCollection)Utils.Clone(this.m_uInteger);
+            clone.m_numberValue = (VariantCollection)Utils.Clone(this.m_numberValue);
+            clone.m_integerValue = (VariantCollection)Utils.Clone(this.m_integerValue);
+            clone.m_uIntegerValue = (VariantCollection)Utils.Clone(this.m_uIntegerValue);
 
             return clone;
         }
@@ -1373,9 +1373,9 @@ namespace TestData
         private VariantCollection m_variantValue;
         private Int32Collection m_enumerationValue;
         private ExtensionObjectCollection m_structureValue;
-        private VariantCollection m_number;
-        private VariantCollection m_integer;
-        private VariantCollection m_uInteger;
+        private VariantCollection m_numberValue;
+        private VariantCollection m_integerValue;
+        private VariantCollection m_uIntegerValue;
         #endregion
     }
 
