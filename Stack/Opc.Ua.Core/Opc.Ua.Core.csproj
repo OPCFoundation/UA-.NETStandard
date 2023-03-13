@@ -56,7 +56,7 @@
   </Choose>
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net48'">
