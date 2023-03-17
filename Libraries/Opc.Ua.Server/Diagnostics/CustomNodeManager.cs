@@ -1979,7 +1979,7 @@ namespace Opc.Ua.Server
                     }
 
                     // updates to source finished - report changes to monitored items.
-                    handle.Node.ClearChangeMasks(systemContext, false);
+                    handle.Node.ClearChangeMasks(systemContext, true);
                 }
 
                 // check for nothing to do.
