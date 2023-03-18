@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using Opc.Ua;
 using Range = Opc.Ua.Range;
 
@@ -73,6 +74,17 @@ namespace TestData
             if (!SimulationActive.Value)
             {
                 variable.AccessLevel = variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+                var children = new List<BaseInstanceState>();
+                variable.GetChildren(context, children);
+                foreach (var child in children)
+                {
+                    if (child is BaseVariableState variableChild)
+                    {
+                        variableChild.AccessLevel = variableChild.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                    }
+                }
+
             }
 
             // set the EU range.
@@ -88,9 +100,8 @@ namespace TestData
                 {
                     euRange.Value = new Range(100, -100);
                 }
+                variable.OnSimpleWriteValue = OnWriteAnalogValue;
             }
-
-            variable.OnSimpleWriteValue = OnWriteAnalogValue;
         }
 
         /// <summary>
@@ -266,6 +277,6 @@ namespace TestData
                 return new ServiceResult(e);
             }
         }
-        #endregion
+#endregion
     }
 }
