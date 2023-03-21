@@ -70,6 +70,10 @@ namespace Opc.Ua.Server
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
+
+            // create queue and event for condition refresh worker
+            m_conditionRefreshEvent = new ManualResetEvent(false);
+            m_conditionRefreshQueue = new Queue<ConditionRefreshTask>();
         }
         #endregion
 
@@ -221,6 +225,12 @@ namespace Opc.Ua.Server
                 Task.Factory.StartNew(() => {
                     PublishSubscriptions(m_publishingResolution);
                 }, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+
+                m_conditionRefreshEvent.Reset();
+
+                Task.Factory.StartNew(() => {
+                    ConditionRefreshWorker();
+                }, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
             }
         }
 
@@ -233,6 +243,9 @@ namespace Opc.Ua.Server
             {
                 // stop the publishing thread.
                 m_shutdownEvent.Set();
+
+                // trigger the condition refresh thread.
+                m_conditionRefreshEvent.Set();
 
                 // dispose of publish queues.
                 foreach (SessionPublishQueue queue in m_publishQueues.Values)
@@ -355,10 +368,28 @@ namespace Opc.Ua.Server
             // ensure a condition refresh is allowed.
             subscription.ValidateConditionRefresh(context);
 
-            // do the actual refresh in the background.
-            Task.Run(() => {
-                DoConditionRefresh(subscription);
-            });
+            var conditionRefreshTask = new ConditionRefreshTask(subscription, 0);
+
+            ServiceResultException serviceResultException = null;
+            lock (m_conditionRefreshLock)
+            {
+                if (!m_conditionRefreshQueue.Contains(conditionRefreshTask))
+                {
+                    m_conditionRefreshQueue.Enqueue(conditionRefreshTask);
+                }
+                else
+                {
+                    serviceResultException = new ServiceResultException(StatusCodes.BadRefreshInProgress);
+                }
+
+                // trigger the refresh worker.
+                m_conditionRefreshEvent.Set();
+            }
+
+            if (serviceResultException != null)
+            {
+                throw serviceResultException;
+            }
         }
 
         /// <summary>
@@ -381,30 +412,33 @@ namespace Opc.Ua.Server
             // ensure a condition refresh is allowed.
             subscription.ValidateConditionRefresh2(context, monitoredItemId);
 
-            // do the actual refresh in the background.
-            Task.Run(() => {
-                DoConditionRefresh2(subscription, monitoredItemId);
-            });
+            var conditionRefreshTask = new ConditionRefreshTask(subscription, monitoredItemId);
+
+            lock (m_conditionRefreshLock)
+            {
+                if (!m_conditionRefreshQueue.Contains(conditionRefreshTask))
+                {
+                    m_conditionRefreshQueue.Enqueue(conditionRefreshTask);
+                }
+                else
+                {
+                    throw new ServiceResultException(StatusCodes.BadRefreshInProgress);
+                }
+
+                // trigger the refresh worker.
+                m_conditionRefreshEvent.Set();
+            }
         }
 
         /// <summary>
         /// Completes a refresh conditions request.
         /// </summary>
-        private void DoConditionRefresh(object state)
+        private void DoConditionRefresh(Subscription subscription)
         {
             try
             {
-                Subscription subscription = state as Subscription;
-
-                if (subscription != null)
-                {
-                    Utils.LogInfo("Subscription {0} started, Id={1}.", "ConditionRefresh", subscription.Id);
-                    subscription.ConditionRefresh();
-                }
-                else
-                {
-                    Utils.LogWarning("Subscription - DoConditionRefresh called with invalid Subscription.");
-                }
+                Utils.LogInfo("Subscription ConditionRefresh started, Id={0}.", subscription.Id);
+                subscription.ConditionRefresh();
             }
             catch (Exception e)
             {
@@ -415,21 +449,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Completes a refresh conditions request.
         /// </summary>
-        private void DoConditionRefresh2(object state, uint monitoredItemId)
+        private void DoConditionRefresh2(Subscription subscription, uint monitoredItemId)
         {
             try
             {
-                Subscription subscription = state as Subscription;
-                if (subscription != null)
-                {
-                    Utils.LogInfo("Subscription {0} started, Id={1}, MonitoredItemId={2}.",
-                        "ConditionRefresh2", subscription.Id, monitoredItemId);
-                    subscription.ConditionRefresh2(monitoredItemId);
-                }
-                else
-                {
-                    Utils.LogWarning("Subscription - DoConditionRefresh2 called with invalid Subscription. MonitoredItemId={0}.", monitoredItemId);
-                }
+                Utils.LogInfo("Subscription ConditionRefresh2 started, Id={0}, MonitoredItemId={1}.",
+                    subscription.Id, monitoredItemId);
+                subscription.ConditionRefresh2(monitoredItemId);
             }
             catch (Exception e)
             {
@@ -1339,7 +1365,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                for(int i = 0; i < results.Count; i++)
+                for (int i = 0; i < results.Count; i++)
                 {
                     m_server.ReportAuditTransferSubscriptionEvent(context.AuditEntryId, context.Session, results[i].StatusCode);
                 }
@@ -1833,6 +1859,62 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// A single thread to execute the condition refresh.
+        /// </summary>
+        private void ConditionRefreshWorker()
+        {
+            try
+            {
+                Utils.LogInfo("Subscription - ConditionRefresh Thread {0:X8} Started.", Environment.CurrentManagedThreadId);
+
+                do
+                {
+                    ConditionRefreshTask conditionRefreshTask = null; ;
+
+                    lock (m_conditionRefreshLock)
+                    {
+                        if (m_conditionRefreshQueue.Count > 0)
+                        {
+                            conditionRefreshTask = m_conditionRefreshQueue.Dequeue();
+                        }
+                        else
+                        {
+                            m_conditionRefreshEvent.Reset();
+                        }
+                    }
+
+                    if (conditionRefreshTask == null)
+                    {
+                        m_conditionRefreshEvent.WaitOne();
+                    }
+                    else
+                    {
+                        if (conditionRefreshTask.MonitoredItemId == 0)
+                        {
+                            DoConditionRefresh(conditionRefreshTask.Subscription);
+                        }
+                        else
+                        {
+                            DoConditionRefresh2(conditionRefreshTask.Subscription, conditionRefreshTask.MonitoredItemId);
+                        }
+                    }
+
+                    // use shutdown event to end loop
+                    if (m_shutdownEvent.WaitOne(0))
+                    {
+                        Utils.LogInfo("Subscription - ConditionRefresh Thread {0:X8} Exited Normally.", Environment.CurrentManagedThreadId);
+                        break;
+                    }
+                }
+                while (true);
+            }
+            catch (Exception e)
+            {
+                Utils.LogError(e, "Subscription - ConditionRefresh Thread {0:X8} Exited Unexpectedly.", Environment.CurrentManagedThreadId);
+            }
+        }
+
+        /// <summary>
         /// Cleanups the subscriptions.
         /// </summary>
         /// <param name="server">The server.</param>
@@ -1885,6 +1967,41 @@ namespace Opc.Ua.Server
         }
         #endregion
 
+        #region ConditionRefreshTask Class
+        private class ConditionRefreshTask
+        {
+            public ConditionRefreshTask(Subscription subscription, uint monitoredItemId)
+            {
+                Subscription = subscription;
+                MonitoredItemId = monitoredItemId;
+            }
+
+            public Subscription Subscription { get; private set; }
+            public uint MonitoredItemId { get; private set; }
+
+            public override bool Equals(Object obj)
+            {
+                var crt = obj as ConditionRefreshTask;
+
+                if (crt != null)
+                {
+                    if (Subscription?.Id == crt.Subscription?.Id &&
+                        MonitoredItemId == crt.MonitoredItemId)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(Subscription.Id, MonitoredItemId);
+            }
+        }
+        #endregion
+
         #region Private Fields
         private object m_lock = new object();
         private long m_lastSubscriptionId;
@@ -1901,11 +2018,14 @@ namespace Opc.Ua.Server
         private Dictionary<uint, Subscription> m_subscriptions;
         private List<Subscription> m_abandonedSubscriptions;
         private Dictionary<NodeId, Queue<StatusMessage>> m_statusMessages;
-        private object m_statusMessagesLock = new object();
         private Dictionary<NodeId, SessionPublishQueue> m_publishQueues;
         private ManualResetEvent m_shutdownEvent;
+        private Queue<ConditionRefreshTask> m_conditionRefreshQueue;
+        private ManualResetEvent m_conditionRefreshEvent;
 
+        private object m_statusMessagesLock = new object();
         private object m_eventLock = new object();
+        private object m_conditionRefreshLock = new object();
         private event SubscriptionEventHandler m_SubscriptionCreated;
         private event SubscriptionEventHandler m_SubscriptionDeleted;
         #endregion
