@@ -52,6 +52,10 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </remarks>
     public class ComplexTypeSystem
     {
+        // an internal limit to prevent the retry
+        // datatype loader mechanism to loop forever
+        private const int MaxLoopCount = 100;
+
         #region Constructors
         /// <summary>
         /// Initializes the type system with a session to load the custom types.
@@ -387,10 +391,13 @@ namespace Opc.Ua.Client.ComplexTypes
                     AddEnumTypes(complexTypeBuilder, typeDictionary, enumList, allEnumTypes, serverEnumTypes);
 
                     // handle structures
+                    int loopCounter = 0;
                     int lastStructureCount = 0;
                     while (structureList.Count > 0 &&
-                        structureList.Count != lastStructureCount)
+                        structureList.Count != lastStructureCount &&
+                        loopCounter < MaxLoopCount)
                     {
+                        loopCounter++;
                         lastStructureCount = structureList.Count;
                         var retryStructureList = new List<Schema.Binary.TypeDescription>();
                         // build structured types
@@ -639,8 +646,10 @@ namespace Opc.Ua.Client.ComplexTypes
             m_complexTypeResolver.BrowseForEncodings(nodeIds, m_supportedEncodings);
 
             // create structured types for all namespaces
+            int loopCounter = 0;
             do
             {
+                loopCounter++;
                 retryAddStructType = false;
                 for (uint i = 0; i < namespaceCount; i++)
                 {
@@ -736,7 +745,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 // due to type dependencies, retry missing types until there is no more progress
                 if (retryAddStructType &&
-                    structTypesWorkList.Count != structTypesToDoList.Count)
+                    structTypesWorkList.Count != structTypesToDoList.Count &&
+                    loopCounter < MaxLoopCount)
                 {
                     structTypesWorkList = structTypesToDoList;
                     structTypesToDoList = new List<INode>();
@@ -745,6 +755,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     break;
                 }
+
             } while (retryAddStructType);
 
             // all types loaded
@@ -1092,7 +1103,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (fieldType == null)
             {
-                var superType = GetBuiltInSuperType(field.DataType, allowSubTypes);
+                var superType = GetBuiltInSuperType(field.DataType, allowSubTypes, field.IsOptional);
                 if (superType?.IsNullNodeId == false)
                 {
                     field.DataType = superType;
@@ -1116,7 +1127,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Find superType for a datatype.
         /// </summary>
-        private NodeId GetBuiltInSuperType(NodeId dataType, bool allowSubTypes)
+        private NodeId GetBuiltInSuperType(NodeId dataType, bool allowSubTypes, bool isOptional)
         {
             NodeId superType = dataType;
             while (true)
@@ -1141,7 +1152,16 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     else if (superType == DataTypeIds.Structure)
                     {
-                        if (allowSubTypes || IsAbstractType(dataType))
+                        // throw on invalid combinations of allowSubTypes, isOptional and abstract types
+                        // in such case the encoding as ExtensionObject is undetermined and not specified
+                        if ((dataType != DataTypeIds.Structure) &&
+                            ((allowSubTypes && !isOptional) || !allowSubTypes) &&
+                            IsAbstractType(dataType))
+                        {
+                            throw new DataTypeNotSupportedException("Invalid definition of a abstract subtype of a structure.");
+                        }
+
+                        if (allowSubTypes && isOptional)
                         {
                             return superType;
                         }
