@@ -432,31 +432,27 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a unique hashcode for the object.
         /// </summary>
-        /// <remarks>
-        /// Returns a unique hashcode for the object.
-        /// </remarks>
         public override int GetHashCode()
         {
-            int hash = 0;
-
-            hash ^= this.m_symbolicId.GetHashCode();
-            hash ^= this.m_namespaceUri.GetHashCode();
-            hash ^= this.m_locale.GetHashCode();
-            hash ^= this.m_localizedText.GetHashCode();
+            var hash = new HashCode();
+            hash.Add(this.m_symbolicId);
+            hash.Add(this.m_namespaceUri);
+            hash.Add(this.m_locale);
+            hash.Add(this.m_localizedText);
 
             if (this.m_additionalInfo != null)
             {
-                hash ^= this.m_additionalInfo.GetHashCode();
+                hash.Add(this.m_additionalInfo);
             }
 
-            hash ^= this.m_innerStatusCode.GetHashCode();
+            hash.Add(this.m_innerStatusCode);
 
             if (this.m_innerDiagnosticInfo != null)
             {
-                hash ^= this.m_innerDiagnosticInfo.GetHashCode();
+                hash.Add(this.m_innerDiagnosticInfo);
             }
 
-            return 0;
+            return hash.ToHashCode();
         }
 
         /// <summary>

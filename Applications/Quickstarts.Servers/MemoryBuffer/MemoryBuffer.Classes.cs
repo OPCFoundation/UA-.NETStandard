@@ -38,49 +38,37 @@ namespace MemoryBuffer
 {
     #region MemoryTagState Class
     #if (!OPCUA_EXCLUDE_MemoryTagState)
-    /// <summary>
-    /// Stores an instance of the MemoryTagType VariableType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class MemoryTagState : BaseDataVariableState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public MemoryTagState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(MemoryBuffer.VariableTypes.MemoryTagType, MemoryBuffer.Namespaces.MemoryBuffer, namespaceUris);
         }
 
-        /// <summary>
-        /// Returns the id of the default data type node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Opc.Ua.DataTypes.BaseDataType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        /// <summary>
-        /// Returns the id of the default value rank for the instance.
-        /// </summary>
+        /// <remarks />
         protected override int GetDefaultValueRank()
         {
             return ValueRanks.Scalar;
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -88,18 +76,14 @@ namespace MemoryBuffer
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -124,25 +108,19 @@ namespace MemoryBuffer
     }
 
     #region MemoryTagState<T> Class
-    /// <summary>
-    /// A typed version of the MemoryTagType variable.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public class MemoryTagState<T> : MemoryTagState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the instance with its defalt attribute values.
-        /// </summary>
+        /// <remarks />
         public MemoryTagState(NodeState parent) : base(parent)
         {
             Value = default(T);
         }
 
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -152,9 +130,7 @@ namespace MemoryBuffer
             ValueRank = TypeInfo.GetValueRank(typeof(T));
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
@@ -163,19 +139,17 @@ namespace MemoryBuffer
         #endregion
 
         #region Public Members
-        /// <summary>
-        /// The value of the variable.
-        /// </summary>
+        /// <remarks />
         public new T Value
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -186,33 +160,25 @@ namespace MemoryBuffer
 
     #region MemoryBufferState Class
     #if (!OPCUA_EXCLUDE_MemoryBufferState)
-    /// <summary>
-    /// Stores an instance of the MemoryBufferType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class MemoryBufferState : BaseObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public MemoryBufferState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(MemoryBuffer.ObjectTypes.MemoryBufferType, MemoryBuffer.Namespaces.MemoryBuffer, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -220,18 +186,14 @@ namespace MemoryBuffer
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -288,11 +250,7 @@ namespace MemoryBuffer
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -309,10 +267,8 @@ namespace MemoryBuffer
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,

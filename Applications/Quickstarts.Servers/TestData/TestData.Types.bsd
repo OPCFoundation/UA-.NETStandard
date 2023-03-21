@@ -33,9 +33,9 @@
     <opc:Field Name="VariantValue" TypeName="ua:Variant" />
     <opc:Field Name="EnumerationValue" TypeName="opc:Int32" />
     <opc:Field Name="StructureValue" TypeName="ua:ExtensionObject" />
-    <opc:Field Name="Number" TypeName="ua:Variant" />
-    <opc:Field Name="Integer" TypeName="ua:Variant" />
-    <opc:Field Name="UInteger" TypeName="ua:Variant" />
+    <opc:Field Name="NumberValue" TypeName="ua:Variant" />
+    <opc:Field Name="IntegerValue" TypeName="ua:Variant" />
+    <opc:Field Name="UIntegerValue" TypeName="ua:Variant" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="ArrayValueDataType" BaseType="ua:ExtensionObject">
@@ -87,12 +87,12 @@
     <opc:Field Name="EnumerationValue" TypeName="opc:Int32" LengthField="NoOfEnumerationValue" />
     <opc:Field Name="NoOfStructureValue" TypeName="opc:Int32" />
     <opc:Field Name="StructureValue" TypeName="ua:ExtensionObject" LengthField="NoOfStructureValue" />
-    <opc:Field Name="NoOfNumber" TypeName="opc:Int32" />
-    <opc:Field Name="Number" TypeName="ua:Variant" LengthField="NoOfNumber" />
-    <opc:Field Name="NoOfInteger" TypeName="opc:Int32" />
-    <opc:Field Name="Integer" TypeName="ua:Variant" LengthField="NoOfInteger" />
-    <opc:Field Name="NoOfUInteger" TypeName="opc:Int32" />
-    <opc:Field Name="UInteger" TypeName="ua:Variant" LengthField="NoOfUInteger" />
+    <opc:Field Name="NoOfNumberValue" TypeName="opc:Int32" />
+    <opc:Field Name="NumberValue" TypeName="ua:Variant" LengthField="NoOfNumberValue" />
+    <opc:Field Name="NoOfIntegerValue" TypeName="opc:Int32" />
+    <opc:Field Name="IntegerValue" TypeName="ua:Variant" LengthField="NoOfIntegerValue" />
+    <opc:Field Name="NoOfUIntegerValue" TypeName="opc:Int32" />
+    <opc:Field Name="UIntegerValue" TypeName="ua:Variant" LengthField="NoOfUIntegerValue" />
   </opc:StructuredType>
 
   <opc:OpaqueType Name="BooleanDataType">
