@@ -87,7 +87,8 @@ namespace Opc.Ua.Client.ComplexTypes
             setIl.Emit(OpCodes.Ldarg_0);
             setIl.Emit(OpCodes.Ldarg_1);
             setIl.Emit(OpCodes.Stfld, fieldBuilder);
-            if (m_structureType == StructureType.Union)
+            if (m_structureType == StructureType.Union ||
+                m_structureType == StructureType.UnionWithSubtypedValues)
             {
                 // set the union selector to the new field index
                 FieldInfo unionField = typeof(UnionComplexType).GetField(
