@@ -991,12 +991,13 @@ namespace Opc.Ua.Client.ComplexTypes
             missingTypes = null;
 
             var localDataTypeId = ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris);
+            bool allowSubTypes = IsAllowSubTypes(structureDefinition);
 
             // check all types
             var typeList = new List<Type>();
             foreach (StructureField field in structureDefinition.Fields)
             {
-                Type newType = GetFieldType(field);
+                Type newType = GetFieldType(field, allowSubTypes);
                 if (newType == null &&
                     !IsRecursiveDataType(localDataTypeId, field.DataType))
                 {
@@ -1004,7 +1005,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         missingTypes = new ExpandedNodeIdCollection() { field.DataType };
                     }
-                    else
+                    else if (!missingTypes.Contains(field.DataType))
                     {
                         missingTypes.Add(field.DataType);
                     }
@@ -1038,7 +1039,8 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 // check for recursive data type:
                 //    field has the same data type as the parent structure
-                var isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris), field.DataType);
+                var nodeId = ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris);
+                var isRecursiveDataType = IsRecursiveDataType(nodeId, field.DataType);
                 if (isRecursiveDataType)
                 {
                     fieldBuilder.AddField(field, fieldBuilder.GetStructureType(field.ValueRank), order);
@@ -1053,13 +1055,30 @@ namespace Opc.Ua.Client.ComplexTypes
             return fieldBuilder.CreateType();
         }
 
+        bool IsAllowSubTypes(StructureDefinition structureDefinition)
+        {
+            switch (structureDefinition.StructureType)
+            {
+                case StructureType.UnionWithSubtypedValues:
+                case StructureType.StructureWithSubtypedValues:
+                    return true;
+            }
+            return false;
+        }
+
+        private bool IsAbstractType(NodeId fieldDataType)
+        {
+            var dataTypeNode = m_complexTypeResolver.Find(fieldDataType) as DataTypeNode;
+            return dataTypeNode?.IsAbstract == true;
+        }
+
         private bool IsRecursiveDataType(NodeId structureDataType, NodeId fieldDataType)
             => fieldDataType.Equals(structureDataType);
 
         /// <summary>
         /// Determine the type of a field in a StructureField definition.
         /// </summary>
-        private Type GetFieldType(StructureField field)
+        private Type GetFieldType(StructureField field, bool allowSubTypes)
         {
             if (field.ValueRank != ValueRanks.Scalar &&
                 field.ValueRank < ValueRanks.OneDimension)
@@ -1073,11 +1092,11 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (fieldType == null)
             {
-                var superType = GetBuiltInSuperType(field.DataType);
+                var superType = GetBuiltInSuperType(field.DataType, allowSubTypes);
                 if (superType?.IsNullNodeId == false)
                 {
                     field.DataType = superType;
-                    return GetFieldType(field);
+                    return GetFieldType(field, allowSubTypes);
                 }
                 return null;
             }
@@ -1097,7 +1116,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Find superType for a datatype.
         /// </summary>
-        private NodeId GetBuiltInSuperType(NodeId dataType)
+        private NodeId GetBuiltInSuperType(NodeId dataType, bool allowSubTypes)
         {
             NodeId superType = dataType;
             while (true)
@@ -1116,9 +1135,16 @@ namespace Opc.Ua.Client.ComplexTypes
                         // which are not in the type system are encoded as UInt32
                         return new NodeId((uint)BuiltInType.UInt32);
                     }
-                    if (superType == DataTypeIds.Enumeration ||
-                        superType == DataTypeIds.Structure)
+                    if (superType == DataTypeIds.Enumeration)
                     {
+                        return null;
+                    }
+                    else if (superType == DataTypeIds.Structure)
+                    {
+                        if (allowSubTypes || IsAbstractType(dataType))
+                        {
+                            return superType;
+                        }
                         return null;
                     }
                     break;

@@ -34,7 +34,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Attribute for a base complex type field definition.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+    [AttributeUsage(AttributeTargets.Property)]
     public class StructureFieldAttribute : Attribute
     {
         #region Constructors

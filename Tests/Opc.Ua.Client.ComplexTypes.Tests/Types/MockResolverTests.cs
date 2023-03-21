@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -614,6 +615,31 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             Assert.AreEqual(1, definitions.Count);
             Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
         }
+
+        [Test]
+        public void CreateBaseComplexTypeTest()
+        {
+            var testDataComplexType = new TestDataComplexType() {
+                PropertyInt8 = 1,
+                PropertyInt16 = 2,
+                PropertyInt32 = 3,
+                PropertyInt64 = 4,
+                PropertyInt32Array = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 },
+                PropertyInt322DArray = new[,] { { 1, 2, 3, }, { 4, 5, 6 } },
+                PropertyInt325DArray = new[, , , ,] {
+                    {
+                        { { { 1, 2, 3, }, { 4, 5, 6 } }, { { 7, 8, 9 }, { 10, 11, 12 } } },
+                        { { { 111, 112, 113, }, { 114, 115, 116 } }, { { 117, 118, 119 }, { 1110, 1111, 1112 } } },
+                        { { { 311, 312, 313, }, { 314, 315, 316 } }, { { 317, 318, 319 }, { 3110, 3111, 3112 } } },
+                    },
+                    {
+                        { { { 71, 72, 73, }, { 74, 75, 76 } }, { { 77, 78, 79 }, { 710, 711, 712 } } },
+                        { { { 7111, 7112, 7113, }, { 7114, 7115, 7116 } }, { { 7117, 7118, 7119 }, { 71110, 71111, 71112 } } },
+                        { { { 7311, 7312, 7313, }, { 7314, 7315, 7316 } }, { { 7317, 7318, 7319 }, { 73110, 73111, 73112 } } },
+                    }
+                },
+            };
+        }
         #endregion
 
         #region Private Methods
@@ -675,4 +701,43 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
         #endregion Private Methods
     }
+
+    #region TestDataComplexType
+    [StructureDefinition(BaseDataType = StructureBaseDataType.Structure)]
+    [StructureTypeId(ComplexTypeId = "i=10000", BinaryEncodingId = "i=10001", XmlEncodingId = "i=10002")]
+    public class TestDataComplexType : BaseComplexType
+    {
+        public TestDataComplexType()
+        {
+        }
+
+        [DataMember(Order =0)]
+        [StructureField(BuiltInType = (int)BuiltInType.SByte)]
+        public SByte PropertyInt8 { get; set; }
+
+        [DataMember(Order = 1)]
+        [StructureField(BuiltInType = (int)BuiltInType.Int16)]
+        public Int16 PropertyInt16 { get; set; }
+
+        [DataMember(Order = 2)]
+        [StructureField(BuiltInType = (int)BuiltInType.Int32)]
+        public Int32 PropertyInt32 { get; set; }
+
+        [DataMember(Order = 3)]
+        [StructureField(BuiltInType = (int)BuiltInType.Int64)]
+        public Int64 PropertyInt64 { get; set; }
+
+        [DataMember(Order = 4)]
+        [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 1, IsOptional = false)]
+        public Int32[] PropertyInt32Array { get; set; }
+
+        [DataMember(Order = 5)]
+        [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 2, IsOptional = false)]
+        public Int32[,] PropertyInt322DArray { get; set; }
+
+        [DataMember(Order = 6)]
+        [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 5, IsOptional = false)]
+        public Int32[,,,,] PropertyInt325DArray { get; set; }
+    }
+    #endregion
 }
