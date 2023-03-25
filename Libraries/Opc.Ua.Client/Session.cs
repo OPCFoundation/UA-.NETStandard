@@ -505,6 +505,37 @@ namespace Opc.Ua.Client
                 m_SessionClosing -= value;
             }
         }
+
+        /// <summary>
+        /// Raised to indicate the session has been closed unexpectedly.
+        /// </summary>
+        public event EventHandler BadSessionClosed
+        {
+            add
+            {
+                m_BadSessionClosed += value;
+            }
+
+            remove
+            {
+                m_BadSessionClosed -= value;
+            }
+        }
+
+        /// <summary>
+        /// Raised to indicate the secure channel has been closed unexpectedly.
+        /// </summary>
+        public event EventHandler BadSecureChannelClosed
+        {
+            add
+            {
+                m_BadSecureChannelClosed += value;
+            }
+            remove
+            {
+                m_BadSecureChannelClosed -= value;
+            }
+        }
         #endregion
 
         #region Public Properties
@@ -5221,11 +5252,21 @@ namespace Opc.Ua.Client
                             Utils.LogInfo("PUBLISH - Too many requests, set limit to GoodPublishRequestCount={0}.", m_tooManyPublishRequests);
                         }
                         return;
-                    case StatusCodes.BadNoSubscription:
                     case StatusCodes.BadSessionClosed:
+                        if (m_BadSessionClosed != null)
+                        {
+                            m_BadSessionClosed(this, null);
+                        }
+                        return;
+                    case StatusCodes.BadSecureChannelClosed:
+                        if (m_BadSecureChannelClosed != null)
+                        {
+                            m_BadSecureChannelClosed(this, null);
+                        }
+                        return;
+                    case StatusCodes.BadNoSubscription:
                     case StatusCodes.BadSessionIdInvalid:
                     case StatusCodes.BadSecureChannelIdInvalid:
-                    case StatusCodes.BadSecureChannelClosed:
                     case StatusCodes.BadServerHalted:
                         return;
                 }
@@ -5768,6 +5809,8 @@ namespace Opc.Ua.Client
         private event PublishErrorEventHandler m_PublishError;
         private event EventHandler m_SubscriptionsChanged;
         private event EventHandler m_SessionClosing;
+        private event EventHandler m_BadSessionClosed;
+        private event EventHandler m_BadSecureChannelClosed;
         #endregion
     }
 
