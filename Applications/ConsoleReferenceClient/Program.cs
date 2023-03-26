@@ -452,7 +452,7 @@ namespace Quickstarts.ConsoleReferenceClient
             }
         }
 
-        private static List<Node> FetchSubTypes(Opc.Ua.Client.Session session, ExpandedNodeId startNode)
+        private static List<Node> FetchSubTypes(Opc.Ua.Client.ISession session, ExpandedNodeId startNode)
         {
             var nodeCache = session.NodeCache;
             var node = nodeCache.FetchNode(startNode);

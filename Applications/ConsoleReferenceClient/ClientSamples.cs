@@ -742,7 +742,7 @@ namespace Quickstarts
         /// The NodeCache needs this information to function properly with subtypes of hierarchical calls.
         /// </remarks>
         /// <param name="session">The session to use</param>
-        void FetchReferenceIdTypes(Session session)
+        void FetchReferenceIdTypes(ISession session)
         {
             // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
             var bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
