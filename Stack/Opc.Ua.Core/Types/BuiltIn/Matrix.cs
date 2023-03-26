@@ -158,19 +158,20 @@ namespace Opc.Ua
         /// </summary>
         public override int GetHashCode()
         {
+            var hash = new HashCode();
             if (m_elements != null)
             {
-                return m_elements.GetHashCode();
+                hash.Add(m_elements);
             }
             if (m_typeInfo != null)
             {
-                return m_typeInfo.GetHashCode();
+                hash.Add(m_typeInfo);
             }
             if (m_dimensions != null)
             {
-                return m_dimensions.GetHashCode();
+                hash.Add(m_dimensions);
             }
-            return base.GetHashCode();
+            return hash.ToHashCode();
         }
         #endregion
 

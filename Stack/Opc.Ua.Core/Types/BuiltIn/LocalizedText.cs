@@ -335,12 +335,18 @@ namespace Opc.Ua
         /// </remarks>
         public override int GetHashCode()
         {
+            var hash = new HashCode();
             if (m_text != null)
             {
-                return m_text.GetHashCode();
+                hash.Add(m_text);
             }
 
-            return 0;
+            if (m_locale != null)
+            {
+                hash.Add(m_locale);
+            }
+
+            return hash.ToHashCode();
         }
 
         /// <summary>

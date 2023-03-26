@@ -322,7 +322,7 @@ namespace Opc.Ua
         /// </remarks>
         public override int GetHashCode()
         {
-            return m_begin.GetHashCode() + m_end.GetHashCode();
+            return HashCode.Combine(m_begin, m_end);
         }
 
         /// <summary>
@@ -933,7 +933,7 @@ namespace Opc.Ua
                 }
             }
 
-            if(dst is Matrix)
+            if (dst is Matrix)
             {
                 // dstArray is a copy of the data of the dst Matrix so create new Matrix with modified data
                 dst = new Matrix(dstArray, dstTypeInfo.BuiltInType);
@@ -1002,7 +1002,7 @@ namespace Opc.Ua
                 return ApplyMultiRange(ref value);
             }
 
-            if(list == null && array == null)
+            if (list == null && array == null)
             {
                 value = null;
                 return StatusCodes.BadIndexRangeNoData;

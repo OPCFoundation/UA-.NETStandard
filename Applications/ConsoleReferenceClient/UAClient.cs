@@ -39,7 +39,7 @@ namespace Quickstarts
     /// <summary>
     /// OPC UA Client with examples of basic functionality.
     /// </summary>
-    public class UAClient : IDisposable
+    public class UAClient : IUAClient, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -75,7 +75,7 @@ namespace Quickstarts
         /// <summary>
         /// Gets the client session.
         /// </summary>
-        public Session Session => m_session;
+        public ISession Session => m_session;
 
         /// <summary>
         /// The session keepalive interval to be used in ms.
