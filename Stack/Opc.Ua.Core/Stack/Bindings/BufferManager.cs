@@ -16,6 +16,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Opc.Ua.Bindings
 {
@@ -123,9 +124,21 @@ namespace Opc.Ua.Bindings
         {
             int maxArrayLength = maxBufferSize + m_cookieLength;
             m_name = name;
-            m_arrayPool = ArrayPool<byte>.Create(maxArrayLength, 4);
+            m_arrayPool = ArrayPool<byte>.Shared;
             m_maxBufferSize = maxBufferSize;
             m_maxUsedQuota = maxUsedQuota;
+            m_buffersInUse = 0;
+        }
+
+        /// <summary>
+        /// Check for floating buffers in the destructor.
+        /// </summary>
+        ~BufferManager()
+        {
+            if (m_buffersInUse != 0)
+            {
+                Utils.LogError("Buffers in use: {0} {1}", m_name, m_buffersInUse);
+            }
         }
         #endregion
 
@@ -143,33 +156,38 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentOutOfRangeException(nameof(size));
             }
 
+            int buffersInUse = Interlocked.Increment(ref m_buffersInUse);
+            byte[] buffer = m_arrayPool.Rent(size + m_cookieLength);
+#if TRACK_MEMORY
             lock (m_lock)
             {
-                byte[] buffer = m_arrayPool.Rent(size + m_cookieLength);
-#if TRACK_MEMORY
                 byte[] bytes = BitConverter.GetBytes(++m_id);
-                Array.Copy(bytes, 0, buffer, buffer.Length-5, bytes.Length);                
+                Array.Copy(bytes, 0, buffer, buffer.Length - 5, bytes.Length);
 
                 m_allocated += buffer.Length;
 
                 Allocation allocation = new Allocation();
-                
+
                 allocation.Id = m_id;
                 allocation.Buffer = buffer;
                 allocation.Timestamp = DateTime.UtcNow;
                 allocation.Owner = owner;
 
                 m_allocations[m_id] = allocation;
+            }
 #endif
 #if TRACE_MEMORY
-                Utils.EventLog.Trace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
+            Utils.LogTrace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
 #endif
-                buffer[buffer.Length - 1] = m_cookieUnlocked;
+            buffer[buffer.Length - 1] = m_cookieUnlocked;
 
-                m_buffersInUse++;
-
-                return buffer;
+            // TODO remove
+            if ((buffersInUse % 50) == 0)
+            {
+                Utils.LogInfo("Buffers: {0}", buffersInUse);
             }
+
+            return buffer;
         }
 
         /// <summary>
@@ -197,17 +215,17 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        Utils.EventLog.Trace("{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***", 
+                        Utils.LogTrace("{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***",
                             m_name,
-                            allocation.Id, 
-                            allocation.Owner, 
-                            allocation.Buffer.Length/1024);
+                            allocation.Id,
+                            allocation.Owner,
+                            allocation.Buffer.Length / 1024);
                     }
                 }
             }
 #endif
 #if TRACE_MEMORY
-            Utils.EventLog.Trace("{0:X}:TransferBuffer({1:X},{2:X},{3})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner);
+            Utils.LogTrace("{0:X}:TransferBuffer({1:X},{2:X},{3})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner);
 #endif
         }
 
@@ -222,7 +240,7 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("Buffer is already locked.");
             }
 #if TRACE_MEMORY
-            Utils.EventLog.Trace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+            Utils.LogTrace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
             buffer[buffer.Length - 1] = m_cookieLocked;
         }
@@ -238,7 +256,7 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("Buffer is not locked.");
             }
 #if TRACE_MEMORY
-            Utils.EventLog.Trace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+            Utils.LogTrace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
             buffer[buffer.Length - 1] = m_cookieUnlocked;
         }
@@ -255,23 +273,24 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            lock (m_lock)
-            {
 #if TRACE_MEMORY
-                Utils.EventLog.Trace("{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, --m_buffersTaken);
+            Utils.LogTrace("{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, --m_buffersTaken);
 #endif
-                if (buffer[buffer.Length - 1] != m_cookieUnlocked)
-                {
-                    throw new InvalidOperationException("Buffer has been locked.");
-                }
+            if (buffer[buffer.Length - 1] != m_cookieUnlocked)
+            {
+                throw new InvalidOperationException("Buffer has been locked.");
+            }
 
-                // destroy cookie
-                buffer[buffer.Length - 1] = m_cookieUnlocked ^ m_cookieLocked;
+            // destroy cookie
+            buffer[buffer.Length - 1] = m_cookieUnlocked ^ m_cookieLocked;
 
 #if TRACK_MEMORY
+            lock (m_lock)
+            {
+
                 m_allocated -= buffer.Length;
 
-                int id = BitConverter.ToInt32(buffer, buffer.Length-5);       
+                int id = BitConverter.ToInt32(buffer, buffer.Length - 5);
 
                 Allocation allocation = null;
 
@@ -281,20 +300,20 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        Utils.EventLog.Trace("{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***", 
+                        Utils.LogTrace("{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***",
                             m_name,
-                            allocation.Id, 
-                            allocation.Owner, 
+                            allocation.Id,
+                            allocation.Owner,
                             allocation.ReleasedBy,
-                            allocation.Buffer.Length/1024);
+                            allocation.Buffer.Length / 1024);
                     }
                 }
 
                 m_allocations.Remove(id);
-                               
-                Utils.EventLog.Trace("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
 
-                foreach (KeyValuePair<int,Allocation> current in m_allocations)
+                Utils.LogTrace("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
+
+                foreach (KeyValuePair<int, Allocation> current in m_allocations)
                 {
                     allocation = current.Value;
 
@@ -307,15 +326,15 @@ namespace Opc.Ua.Bindings
 
                     double age = Math.Truncate(new TimeSpan(DateTime.UtcNow.Ticks - ticks).TotalSeconds);
 
-                    if (age > 3 && Math.Truncate(age)%3 == 0)
-                    {        
+                    if (age > 3 && Math.Truncate(age) % 3 == 0)
+                    {
                         if (allocation.Reported < age)
                         {
-                            Utils.EventLog.Trace("{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}", 
+                            Utils.LogTrace("{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}",
                                 m_name,
-                                allocation.Id, 
-                                allocation.Owner, 
-                                allocation.Buffer.Length/1024, 
+                                allocation.Id,
+                                allocation.Owner,
+                                allocation.Buffer.Length / 1024,
                                 age);
 
                             allocation.Reported = (int)age;
@@ -323,7 +342,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                for (int ii = 0; ii < buffer.Length-5; ii++)
+                for (int ii = 0; ii < buffer.Length - 5; ii++)
                 {
                     if (m_name == "Server")
                     {
@@ -334,29 +353,23 @@ namespace Opc.Ua.Bindings
                         buffer[ii] = 0xFC;
                     }
                 }
-#endif
-                m_arrayPool.Return(buffer);
-                m_buffersInUse--;
-
             }
+#endif
+            m_arrayPool.Return(buffer);
+            Interlocked.Decrement(ref m_buffersInUse);
         }
 
-        internal bool InAllowedBuffersQuota()
+        internal bool BufferCountExceeded()
         {
-            lock (m_lock)
-            {
-                return m_buffersInUse <= m_maxUsedQuota;
-            }
+            return m_buffersInUse >= m_maxUsedQuota;
         }
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
-        private string m_name;
-        private int m_maxBufferSize;
-        private int m_buffersInUse = 0;
-        private int m_maxUsedQuota = (int)Int32.MaxValue;
-
+        private readonly string m_name;
+        private readonly int m_maxBufferSize;
+        private int m_buffersInUse;
+        private int m_maxUsedQuota;
 #if TRACE_MEMORY
         private int m_buffersTaken = 0;
 #endif
@@ -374,10 +387,10 @@ namespace Opc.Ua.Bindings
             public string ReleasedBy;
             public int Reported;
         }
-
+        private readonly object m_lock = new object();
         private int m_allocated;
         private int m_id;
-        private SortedDictionary<int,Allocation> m_allocations = new SortedDictionary<int,Allocation>();
+        private SortedDictionary<int, Allocation> m_allocations = new SortedDictionary<int, Allocation>();
 #else
         const byte m_cookieLength = 1;
 #endif

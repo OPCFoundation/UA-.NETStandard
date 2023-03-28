@@ -532,36 +532,39 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    bool quotaInLimits = m_bufferManager.InAllowedBuffersQuota();
-                    if (!quotaInLimits)
-                    {
-                        m_readState = ReadState.Error;
-                        error = ServiceResult.Create(StatusCodes.BadTcpInternalError, "BufferCount too high");
-
-                        if (m_receiveBuffer != null)
-                        {
-                            lock (m_socketLock)
-                            {
-                                BufferManager.UnlockBuffer(m_receiveBuffer);
-                            }
-                            m_bufferManager.ReturnBuffer(m_receiveBuffer, "OnReadComplete");
-                            m_receiveBuffer = null;
-                        }
-
-                        m_sink?.OnReceiveError(this, error);
-                        Close();
-                        Utils.Trace("BufferManager allocated buffer quota exceeded while reading data from channel");
-                        return;
-                    }
-                    
                     bool innerCall = m_readState == ReadState.ReadComplete;
 
                     error = DoReadComplete(e);
+
+                    int timeout = 0;
+                    BackPressure backPressure = m_sink?.ReceiveChannelBackPressure ?? BackPressure.None;
+                    if (backPressure != BackPressure.None)
+                    {
+                        switch (backPressure)
+                        {
+                            case BackPressure.Low: timeout = 2; break;
+                            case BackPressure.Medium: timeout = 10; break;
+                            case BackPressure.High: timeout = 20; break;
+                            default: break;
+                        }
+                        // TODO: remove log
+                        Utils.LogInfo("Throttle {0}", timeout);
+                        Thread.Sleep(timeout);
+                    }
+
                     // to avoid recursion, inner calls of OnReadComplete return
                     // after processing the ReadComplete and let the outer call handle it
                     if (!innerCall && !ServiceResult.IsBad(error))
                     {
-                        while (ReadNext()) ;
+                        while (ReadNext())
+                        {
+                            // TODO: remove sleep
+                            if (timeout != 0)
+                            {
+                                Utils.LogInfo("Throttle");
+                                Thread.Sleep(timeout);
+                            }
+                        }
                     }
                 }
                 catch (Exception ex)

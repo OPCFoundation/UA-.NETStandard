@@ -85,10 +85,53 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
+    /// The amount of backpressure to apply to the receive
+    /// channel depends on the ability of the sink to process
+    /// incoming data.
+    /// </summary>
+    public enum BackPressure
+    {
+        /// <summary>
+        /// No back pressure.
+        /// </summary>
+        None,
+
+        /// <summary>
+        /// Apply a low duty cycle of 25%
+        /// back pressure to the incoming channel.
+        /// </summary>
+        Low,
+
+        /// <summary>
+        /// Apply a medium duty cycle of 50%
+        /// back pressure to the incoming channel.
+        /// </summary>
+        Medium,
+
+        /// <summary>
+        /// Apply a high duty cycle of 75%
+        /// back pressure to the incoming channel.
+        /// </summary>
+        High,
+
+        /// <summary>
+        /// Due to the overload of sink processing
+        /// disconnect the incoming channel.
+        /// </summary>
+        Break
+    }
+
+    /// <summary>
     /// An interface to an object that received messages from the socket.
     /// </summary>
     public interface IMessageSink
     {
+        /// <summary>
+        /// Indicates the amount of back pressure
+        /// to apply to the receive channel.
+        /// </summary>
+        BackPressure ReceiveChannelBackPressure { get; }
+
         /// <summary>
         /// Called when a new message arrives.
         /// </summary>

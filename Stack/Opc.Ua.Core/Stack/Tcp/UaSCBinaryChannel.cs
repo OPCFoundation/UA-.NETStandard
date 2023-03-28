@@ -13,6 +13,7 @@
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -101,6 +102,7 @@ namespace Opc.Ua.Bindings
             m_state = TcpChannelState.Closed;
             m_receiveBufferSize = quotas.MaxBufferSize;
             m_sendBufferSize = quotas.MaxBufferSize;
+            m_activeWriteRequests = 0;
 
             if (m_receiveBufferSize < TcpMessageLimits.MinBufferSize)
             {
@@ -300,7 +302,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Code executed when the 
+        /// Code executed when the message limits are exceeded.
         /// </summary>
         protected virtual void DoMessageLimitsExceeded()
         {
@@ -310,8 +312,45 @@ namespace Opc.Ua.Bindings
 
         #region IMessageSink Members
         /// <summary>
-        /// Processes an incoming message.
+        /// TODO remove
         /// </summary>
+        public int ActiveWriteRequests => m_activeWriteRequests;
+
+        /// <inheritdoc/>
+        public virtual BackPressure ReceiveChannelBackPressure
+        {
+            get
+            {
+                return CalculateBackPressure(m_activeWriteRequests, 10, 50, 100);
+            }
+        }
+
+        /// <summary>
+        /// Calculate a back pressure value.
+        /// </summary>
+        /// <param name="value">The value which determines the load.</param>
+        /// <param name="lowPressure">The low pressure threshold.</param>
+        /// <param name="highPressure">The high pressure threshold</param>
+        /// <param name="breakThreshold">The threshold on which the circuit breaks.</param>
+        /// <returns></returns>
+        protected BackPressure CalculateBackPressure(int value, int lowPressure, int highPressure, int breakThreshold)
+        {
+            if (value > breakThreshold) { return BackPressure.Break; }
+            if (value > highPressure) { return BackPressure.High; }
+            if (value > lowPressure + (highPressure - lowPressure) / 2) { return BackPressure.Medium; }
+            if (value > lowPressure) { return BackPressure.Low; }
+            return BackPressure.None;
+        }
+
+        /// <summary>
+        /// Combines 
+        /// </summary>
+        protected BackPressure CombineBackPressure(BackPressure pressureA, BackPressure pressureB)
+        {
+            return (pressureA > pressureB) ? pressureA : pressureB;
+        }
+
+        /// <inheritdoc/>
         public virtual void OnMessageReceived(IMessageSocket source, ArraySegment<byte> message)
         {
             lock (DataLock)
@@ -367,9 +406,7 @@ namespace Opc.Ua.Bindings
         }
         #endregion
 
-        /// <summary>
-        /// Handles a receive error.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void OnReceiveError(IMessageSocket source, ServiceResult result)
         {
             lock (DataLock)
@@ -432,6 +469,12 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                var requests = Interlocked.Increment(ref m_activeWriteRequests);
+                // TODO remove
+                if (requests % 100 == 0)
+                {
+                    Utils.LogInfo("Send Requests: {0}", requests);
+                }
                 args.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
@@ -469,6 +512,13 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                var requests = Interlocked.Increment(ref m_activeWriteRequests);
+                // TODO remove 
+                if (requests % 100 == 0)
+                {
+                    Utils.LogInfo("Send Requests: {0}", requests);
+                }
+
                 args.BufferList = buffers;
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
@@ -505,6 +555,7 @@ namespace Opc.Ua.Bindings
             {
                 buffers.Release(BufferManager, "WriteOperation");
             }
+            Interlocked.Decrement(ref m_activeWriteRequests);
         }
 
         /// <summary>
@@ -810,6 +861,7 @@ namespace Opc.Ua.Bindings
         private ChannelQuotas m_quotas;
         private int m_receiveBufferSize;
         private int m_sendBufferSize;
+        private int m_activeWriteRequests;
         private int m_maxRequestMessageSize;
         private int m_maxResponseMessageSize;
         private int m_maxRequestChunkCount;

@@ -239,7 +239,7 @@ namespace Opc.Ua.Bindings
         public const int DefaultMaxBufferSize = 65535;
 
         /// <summary>
-        /// The default buffer count used per channel
+        /// The default buffer count used per channel.
         /// </summary>
         public const int DefaultMaxBufferCount = 200;
 
