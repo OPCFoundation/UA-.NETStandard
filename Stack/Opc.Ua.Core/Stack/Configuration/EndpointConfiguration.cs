@@ -37,6 +37,7 @@ namespace Opc.Ua
             configuration.MaxBufferSize         = UInt16.MaxValue;
             configuration.ChannelLifetime       = 120000;
             configuration.SecurityTokenLifetime = 3600000;
+            configuration.MaxBufferCount = 200;
 
             return configuration;
         }
@@ -61,10 +62,19 @@ namespace Opc.Ua
             configuration.MaxStringLength       = applicationConfiguration.TransportQuotas.MaxStringLength;
             configuration.MaxBufferSize         = applicationConfiguration.TransportQuotas.MaxBufferSize;
             configuration.ChannelLifetime       = applicationConfiguration.TransportQuotas.ChannelLifetime;
-            configuration.SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime; 
+            configuration.SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime;
+            configuration.MaxBufferCount        = applicationConfiguration.TransportQuotas.MaxBufferCount;
 
             return configuration;
         }
+        #endregion
+
+        #region  Public Properties
+        /// <summary>
+        /// The Maximum numbers of buffers in use per channel
+        /// </summary>
+        public int MaxBufferCount { get; set; }
+
         #endregion
     }
 }

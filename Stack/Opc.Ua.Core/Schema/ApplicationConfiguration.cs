@@ -319,6 +319,7 @@ namespace Opc.Ua
             m_maxBufferSize = 65535;
             m_channelLifetime = 600000;
             m_securityTokenLifetime = 3600000;
+            m_maxBufferCount = 200;
         }
 
         /// <summary>
@@ -417,6 +418,17 @@ namespace Opc.Ua
             get { return m_securityTokenLifetime; }
             set { m_securityTokenLifetime = value; }
         }
+
+        /// <summary>
+        /// The maximum number of buffers in use by a channel
+        /// </summary>
+        /// <value>The maximum number of buffers.</value>
+        [DataMember(IsRequired = false, Order = 8)]
+        public int MaxBufferCount
+        {
+            get { return m_maxBufferCount; }
+            set { m_maxBufferCount = value; }
+        }
         #endregion
 
         #region Private Fields
@@ -428,6 +440,7 @@ namespace Opc.Ua
         private int m_maxBufferSize;
         private int m_channelLifetime;
         private int m_securityTokenLifetime;
+        private int m_maxBufferCount;
         #endregion
     }
     #endregion

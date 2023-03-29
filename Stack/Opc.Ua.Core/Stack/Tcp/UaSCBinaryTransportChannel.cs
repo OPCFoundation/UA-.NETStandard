@@ -400,7 +400,7 @@ namespace Opc.Ua.Bindings
             m_quotas = new ChannelQuotas();
 
             m_quotas.MaxBufferSize = m_settings.Configuration.MaxBufferSize;
-            m_quotas.MaxBufferCount = TcpMessageLimits.DefaultMaxBufferCount;//m_settings.Configuration.MaxBufferSize;
+            m_quotas.MaxBufferCount = m_settings.Configuration.MaxBufferCount;
             m_quotas.MaxMessageSize = m_settings.Configuration.MaxMessageSize;
             m_quotas.ChannelLifetime = m_settings.Configuration.ChannelLifetime;
             m_quotas.SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime;

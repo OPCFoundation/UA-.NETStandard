@@ -225,7 +225,7 @@ namespace Opc.Ua.Bindings
             TcpServerChannel channel = new TcpServerChannel(
                 m_listenerId,
                 this,
-                m_bufferManager,
+                new BufferManager("ServerReverseConnect", m_quotas.MaxBufferCount, m_quotas.MaxBufferSize),
                 m_quotas,
                 m_serverCertificate,
                 m_descriptions);

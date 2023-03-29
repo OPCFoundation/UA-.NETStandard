@@ -85,6 +85,7 @@
       <xs:element name="MaxBufferSize" type="xs:int" minOccurs="0" />
       <xs:element name="ChannelLifetime" type="xs:int" minOccurs="0" />
       <xs:element name="SecurityTokenLifetime" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxBufferCount" type="xs:int" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
 
