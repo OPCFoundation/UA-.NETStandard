@@ -239,11 +239,6 @@ namespace Opc.Ua.Bindings
         public const int DefaultMaxBufferSize = 65535;
 
         /// <summary>
-        /// The default buffer count used per channel.
-        /// </summary>
-        public const int DefaultMaxBufferCount = 200;
-
-        /// <summary>
         /// The default maximum chunk count for Request and Response messages.
         /// </summary>
         public const int DefaultMaxChunkCount = 16;

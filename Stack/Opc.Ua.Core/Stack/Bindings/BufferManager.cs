@@ -118,15 +118,15 @@ namespace Opc.Ua.Bindings
         /// Constructs the buffer manager.
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="maxUsedQuota">Max allowed number of buffers to be used</param>
+        /// <param name="maxBufferCount">Max allowed number of buffers to be used</param>
         /// <param name="maxBufferSize">Max size of the buffer.</param>
-        public BufferManager(string name, int maxUsedQuota, int maxBufferSize)
+        public BufferManager(string name, int maxBufferCount, int maxBufferSize)
         {
             int maxArrayLength = maxBufferSize + m_cookieLength;
             m_name = name;
-            m_arrayPool = ArrayPool<byte>.Shared;
+            m_arrayPool = ArrayPool<byte>.Create(maxBufferSize, 32);
             m_maxBufferSize = maxBufferSize;
-            m_maxUsedQuota = maxUsedQuota;
+            m_maxBufferCount = maxBufferCount;
             m_buffersInUse = 0;
         }
 
@@ -136,7 +136,8 @@ namespace Opc.Ua.Bindings
         ~BufferManager()
         {
             if (m_buffersInUse != 0)
-            {
+            {   // TODO
+                //Debug.Assert(m_buffersInUse == 0);
                 Utils.LogError("Buffers in use: {0} {1}", m_name, m_buffersInUse);
             }
         }
@@ -358,18 +359,13 @@ namespace Opc.Ua.Bindings
             m_arrayPool.Return(buffer);
             Interlocked.Decrement(ref m_buffersInUse);
         }
-
-        internal bool BufferCountExceeded()
-        {
-            return m_buffersInUse >= m_maxUsedQuota;
-        }
         #endregion
 
         #region Private Fields
         private readonly string m_name;
         private readonly int m_maxBufferSize;
         private int m_buffersInUse;
-        private int m_maxUsedQuota;
+        private int m_maxBufferCount;
 #if TRACE_MEMORY
         private int m_buffersTaken = 0;
 #endif

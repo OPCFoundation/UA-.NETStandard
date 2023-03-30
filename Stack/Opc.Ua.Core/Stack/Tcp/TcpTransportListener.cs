@@ -121,7 +121,6 @@ namespace Opc.Ua.Bindings
             if (configuration != null)
             {
                 m_quotas.MaxBufferSize = configuration.MaxBufferSize;
-                m_quotas.MaxBufferCount = configuration.MaxBufferCount;
                 m_quotas.MaxMessageSize = configuration.MaxMessageSize;
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
@@ -225,7 +224,7 @@ namespace Opc.Ua.Bindings
             TcpServerChannel channel = new TcpServerChannel(
                 m_listenerId,
                 this,
-                new BufferManager("ServerReverseConnect", m_quotas.MaxBufferCount, m_quotas.MaxBufferSize),
+                new BufferManager("ServerReverseConnect", 200, m_quotas.MaxBufferSize),
                 m_quotas,
                 m_serverCertificate,
                 m_descriptions);
@@ -498,7 +497,7 @@ namespace Opc.Ua.Bindings
                                 channel = new TcpReverseConnectChannel(
                                     m_listenerId,
                                     this,
-                                    new BufferManager($"ClientReverseConnect #{channelId}", m_quotas.MaxBufferCount, m_quotas.MaxBufferSize),
+                                    new BufferManager($"ClientReverseConnect #{channelId}", 200, m_quotas.MaxBufferSize),
                                     m_quotas,
                                     m_descriptions);
                             }
@@ -508,7 +507,7 @@ namespace Opc.Ua.Bindings
                                 channel = new TcpServerChannel(
                                     m_listenerId,
                                     this,
-                                    new BufferManager($"ServerChannel #{channelId}", m_quotas.MaxBufferCount, m_quotas.MaxBufferSize),
+                                    new BufferManager($"ServerChannel #{channelId}", 200, m_quotas.MaxBufferSize),
                                     m_quotas,
                                     m_serverCertificate,
                                     m_serverCertificateChain,

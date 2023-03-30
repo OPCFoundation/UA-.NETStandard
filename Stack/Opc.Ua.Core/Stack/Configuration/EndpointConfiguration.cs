@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
@@ -36,7 +35,6 @@ namespace Opc.Ua
             configuration.MaxMessageSize        = UInt16.MaxValue*64;
             configuration.MaxStringLength       = UInt16.MaxValue;
             configuration.MaxBufferSize         = UInt16.MaxValue;
-            configuration.MaxBufferCount        = 64*8;
             configuration.ChannelLifetime       = 120000;
             configuration.SecurityTokenLifetime = 3600000;
 
@@ -62,26 +60,11 @@ namespace Opc.Ua
             configuration.MaxMessageSize        = applicationConfiguration.TransportQuotas.MaxMessageSize;
             configuration.MaxStringLength       = applicationConfiguration.TransportQuotas.MaxStringLength;
             configuration.MaxBufferSize         = applicationConfiguration.TransportQuotas.MaxBufferSize;
-            configuration.MaxBufferCount        = applicationConfiguration.TransportQuotas.MaxBufferCount;
             configuration.ChannelLifetime       = applicationConfiguration.TransportQuotas.ChannelLifetime;
             configuration.SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime; 
 
             return configuration;
         }
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        [DataMember(Name = "MaxBufferCount", IsRequired = false, Order = 20)]
-        public int MaxBufferCount
-        {
-            get { return m_maxBufferCount; }
-            set { m_maxBufferCount = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private int m_maxBufferCount;
         #endregion
     }
 }

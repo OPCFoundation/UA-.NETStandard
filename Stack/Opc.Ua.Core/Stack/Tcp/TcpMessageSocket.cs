@@ -533,9 +533,7 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     bool innerCall = m_readState == ReadState.ReadComplete;
-
                     error = DoReadComplete(e);
-
                     // to avoid recursion, inner calls of OnReadComplete return
                     // after processing the ReadComplete and let the outer call handle it
                     if (!innerCall && !ServiceResult.IsBad(error))

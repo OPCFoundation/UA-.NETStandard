@@ -22,6 +22,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -147,9 +148,9 @@ namespace Opc.Ua
         /// Schedules an incoming request.
         /// </summary>
         /// <param name="request">The request.</param>
-        public virtual bool ScheduleIncomingRequest(IEndpointIncomingRequest request)
+        public virtual void ScheduleIncomingRequest(IEndpointIncomingRequest request)
         {
-            return m_requestQueue.ScheduleIncomingRequest(request);
+            m_requestQueue.ScheduleIncomingRequest(request);
         }
 
         #region IAuditEventCallback Members
@@ -895,7 +896,7 @@ namespace Opc.Ua
 
                 // ensure each policy has a unique id within the context of the Server
                 clone.PolicyId = Utils.Format("{0}", ++m_userTokenPolicyId);
-
+                
                 policies.Add(clone);
             }
 
@@ -1431,8 +1432,8 @@ namespace Opc.Ua
                 m_activeThreadCount = 0;
 
 #if THREAD_SCHEDULER
-                m_totalThreadCount = 0;
                 m_queue = new Queue<IEndpointIncomingRequest>(maxRequestCount);
+                m_totalThreadCount = 0;
 #endif
 
                 // adjust ThreadPool, only increase values if necessary
@@ -1486,10 +1487,9 @@ namespace Opc.Ua
             /// Schedules an incoming request.
             /// </summary>
             /// <param name="request">The request.</param>
-            public bool ScheduleIncomingRequest(IEndpointIncomingRequest request)
+            public void ScheduleIncomingRequest(IEndpointIncomingRequest request)
             {
 #if THREAD_SCHEDULER
-                bool throttleCaller = false;
                 int totalThreadCount;
                 int activeThreadCount;
 
@@ -1498,13 +1498,6 @@ namespace Opc.Ua
                 bool monitorExit = true;
                 try
                 {
-                    // TODO remove
-                    int count = m_queue.Count;
-                    if (count > 0 && (count % 10 == 0))
-                    {
-                        Utils.LogInfo("RequestQueue: {0}", count);
-                    }
-
                     // check able to schedule requests.
                     if (m_stopped || m_queue.Count >= m_maxRequestCount)
                     {
@@ -1518,25 +1511,16 @@ namespace Opc.Ua
 
                         Utils.LogTrace("Too many operations. Total: {0} Active: {1}",
                             totalThreadCount, activeThreadCount);
-
-                        return true;
                     }
                     else
                     {
                         m_queue.Enqueue(request);
-                        // TODO remove
-                        if (m_queue.Count * 2 >= m_maxRequestCount)
-                        {
-                            Utils.LogInfo("RequestQueue half full {0}");
-                            throttleCaller = true;
-                        }
 
                         // wake up an idle thread to handle the request if there is one
                         if (m_activeThreadCount < m_totalThreadCount)
                         {
                             Monitor.Pulse(m_lock);
                         }
-
                         // start a new thread to handle the request if none are idle and the pool is not full.
                         else if (m_totalThreadCount < m_maxThreadCount)
                         {
@@ -1546,21 +1530,14 @@ namespace Opc.Ua
                             Monitor.Exit(m_lock);
 
                             // new threads start in an active state
-#if TODO                    // user the modern API here?
                             Thread thread = new Thread(OnProcessRequestQueue);
                             thread.IsBackground = true;
-                            thread.Name = $"Request Worker #{activeThreadCount}";
                             thread.Start(null);
+
                             Utils.LogInfo("Thread created: {0:X8}. Total: {1} Active: {2}",
                                 thread.ManagedThreadId, totalThreadCount, activeThreadCount);
-#else
-                            Task task = Task.Factory.StartNew(OnProcessRequestQueue, TaskCreationOptions.PreferFairness);
-                            Utils.LogInfo("Task created: {0:X8}. Total: {1} Active: {2}",
-                                0, totalThreadCount, activeThreadCount);
-#endif
 
-
-                            return throttleCaller;
+                            return;
                         }
                     }
                 }
@@ -1571,14 +1548,11 @@ namespace Opc.Ua
                         Monitor.Exit(m_lock);
                     }
                 }
-
-                return throttleCaller;
-
 #else
-                    if (m_stopped)
+                if (m_stopped)
                 {
                     request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
-                    return false;
+                    return;
                 }
 
                 int activeThreadCount = Interlocked.Increment(ref m_activeThreadCount);
@@ -1587,7 +1561,7 @@ namespace Opc.Ua
                     Interlocked.Decrement(ref m_activeThreadCount);
                     request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
                     Utils.LogWarning("Too many operations. Active thread count: {0}", m_activeThreadCount);
-                    return true;
+                    return;
                 }
 
                 Task.Run(() => {
@@ -1600,7 +1574,6 @@ namespace Opc.Ua
                         Interlocked.Decrement(ref m_activeThreadCount);
                     }
                 });
-                return false;
 #endif
             }
             #endregion
@@ -1622,7 +1595,7 @@ namespace Opc.Ua
                             m_activeThreadCount--;
 
                             // wait for a request. end the thread if no activity.
-                            if (m_stopped || (!Monitor.Wait(m_lock, 5_000) && m_totalThreadCount > m_minThreadCount))
+                            if (m_stopped || (!Monitor.Wait(m_lock, 15_000) && m_totalThreadCount > m_minThreadCount))
                             {
                                 m_totalThreadCount--;
                                 Utils.LogInfo("Thread ended: {0:X8}. Total: {1} Active: {2}",
@@ -1669,6 +1642,7 @@ namespace Opc.Ua
             private int m_totalThreadCount;
 #endif
             #endregion
+
         }
         #endregion
 
