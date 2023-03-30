@@ -311,43 +311,13 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region IMessageSink Members
-        /// <summary>
-        /// TODO remove
-        /// </summary>
-        public int ActiveWriteRequests => m_activeWriteRequests;
-
         /// <inheritdoc/>
-        public virtual BackPressure ReceiveChannelBackPressure
+        public virtual bool ChannelFull
         {
             get
             {
-                return CalculateBackPressure(m_activeWriteRequests, 10, 50, 100);
+                return m_activeWriteRequests > 100;
             }
-        }
-
-        /// <summary>
-        /// Calculate a back pressure value.
-        /// </summary>
-        /// <param name="value">The value which determines the load.</param>
-        /// <param name="lowPressure">The low pressure threshold.</param>
-        /// <param name="highPressure">The high pressure threshold</param>
-        /// <param name="breakThreshold">The threshold on which the circuit breaks.</param>
-        /// <returns></returns>
-        protected BackPressure CalculateBackPressure(int value, int lowPressure, int highPressure, int breakThreshold)
-        {
-            if (value > breakThreshold) { return BackPressure.Break; }
-            if (value > highPressure) { return BackPressure.High; }
-            if (value > lowPressure + (highPressure - lowPressure) / 2) { return BackPressure.Medium; }
-            if (value > lowPressure) { return BackPressure.Low; }
-            return BackPressure.None;
-        }
-
-        /// <summary>
-        /// Combines 
-        /// </summary>
-        protected BackPressure CombineBackPressure(BackPressure pressureA, BackPressure pressureB)
-        {
-            return (pressureA > pressureB) ? pressureA : pressureB;
         }
 
         /// <inheritdoc/>
@@ -429,31 +399,28 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual void OnWriteComplete(object sender, IMessageSocketAsyncEventArgs e)
         {
-            lock (DataLock)
+            ServiceResult error = ServiceResult.Good;
+            try
             {
-                ServiceResult error = ServiceResult.Good;
-                try
+                if (e.BytesTransferred == 0)
                 {
-                    if (e.BytesTransferred == 0)
-                    {
-                        error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
-                    }
-                    if (e.Buffer != null)
-                    {
-                        BufferManager.ReturnBuffer(e.Buffer, "OnWriteComplete");
-                    }
-                    HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
+                    error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
                 }
-                catch (Exception ex)
+                if (e.Buffer != null)
                 {
-                    if (ex is InvalidOperationException)
-                    {
-                        // suppress chained exception in HandleWriteComplete/ReturnBuffer
-                        e.BufferList = null;
-                    }
-                    error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
-                    HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
+                    BufferManager.ReturnBuffer(e.Buffer, "OnWriteComplete");
                 }
+                HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
+            }
+            catch (Exception ex)
+            {
+                if (ex is InvalidOperationException)
+                {
+                    // suppress chained exception in HandleWriteComplete/ReturnBuffer
+                    e.BufferList = null;
+                }
+                error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
+                HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
             }
 
             e.Dispose();

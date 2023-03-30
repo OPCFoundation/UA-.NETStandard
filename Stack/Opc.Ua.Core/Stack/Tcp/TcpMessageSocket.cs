@@ -536,35 +536,11 @@ namespace Opc.Ua.Bindings
 
                     error = DoReadComplete(e);
 
-                    int timeout = 0;
-                    BackPressure backPressure = m_sink?.ReceiveChannelBackPressure ?? BackPressure.None;
-                    if (backPressure != BackPressure.None)
-                    {
-                        switch (backPressure)
-                        {
-                            case BackPressure.Low: timeout = 2; break;
-                            case BackPressure.Medium: timeout = 10; break;
-                            case BackPressure.High: timeout = 20; break;
-                            default: break;
-                        }
-                        // TODO: remove log
-                        Utils.LogInfo("Throttle {0}", timeout);
-                        Thread.Sleep(timeout);
-                    }
-
                     // to avoid recursion, inner calls of OnReadComplete return
                     // after processing the ReadComplete and let the outer call handle it
                     if (!innerCall && !ServiceResult.IsBad(error))
                     {
-                        while (ReadNext())
-                        {
-                            // TODO: remove sleep
-                            if (timeout != 0)
-                            {
-                                Utils.LogInfo("Throttle");
-                                Thread.Sleep(timeout);
-                            }
-                        }
+                        while (ReadNext()) ;
                     }
                 }
                 catch (Exception ex)
@@ -849,7 +825,7 @@ namespace Opc.Ua.Bindings
             }
             args.Dispose();
         }
-        #endregion
+#endregion
 
         #region Write Handling
         /// <summary>

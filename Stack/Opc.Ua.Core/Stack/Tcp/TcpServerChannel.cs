@@ -40,7 +40,6 @@ namespace Opc.Ua.Bindings
         :
             this(contextId, listener, bufferManager, quotas, serverCertificate, null, endpoints)
         {
-            m_scheduledRequests = 0;
             m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
         }
 
@@ -58,7 +57,6 @@ namespace Opc.Ua.Bindings
         :
             base(contextId, listener, bufferManager, quotas, serverCertificate, serverCertificateChain, endpoints)
         {
-            m_scheduledRequests = 0;
             m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
         }
         #endregion
@@ -926,13 +924,21 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            BackPressure pressure = ReceiveChannelBackPressure;
-            bool buffersExceeded = BufferManager.BufferCountExceeded();
-            if (pressure == BackPressure.Break || buffersExceeded)
+            const int ChannelCloseCount = 5;
+            int countForDisconnect = ChannelCloseCount;
+            while (ChannelFull && countForDisconnect>=0)
             {
-                Utils.LogInfo("Break connect switch {0} {1} {2} {3}", pressure, m_scheduledRequests, ActiveWriteRequests, buffersExceeded);
-                ChannelClosed();
-                return false;
+                Utils.LogInfo("Channel {0}: full -- delay processing.", Id);
+
+                // delay reading from channel
+                Thread.Sleep(1000);
+
+                if (countForDisconnect-- == 0 && ChannelFull)
+                {
+                    Utils.LogInfo("Channel {0}: break connection.", Id);
+                    ChannelClosed();
+                    return false;
+                }
             }
 
             BufferCollection chunksToProcess = null;
@@ -981,15 +987,6 @@ namespace Opc.Ua.Bindings
                 // hand the request to the server.
                 RequestReceived?.Invoke(this, requestId, request);
 
-                // count scheduled request 
-                Interlocked.Increment(ref m_scheduledRequests);
-
-                // TODO: remove
-                if (m_scheduledRequests % 10 == 0)
-                {
-                    Utils.LogInfo("Channel {0} requests {1}", Id, m_scheduledRequests);
-                }
-
                 return true;
             }
             catch (Exception e)
@@ -1022,9 +1019,6 @@ namespace Opc.Ua.Bindings
                     m_queuedResponses[requestId] = response;
                     return;
                 }
-
-                // count scheduled request 
-                Interlocked.Decrement(ref m_scheduledRequests);
 
                 Utils.EventLog.SendResponse((int)ChannelId, (int)requestId);
 
@@ -1066,18 +1060,11 @@ namespace Opc.Ua.Bindings
                         buffers.Release(BufferManager, "SendResponse");
                     }
 
-                    Interlocked.Increment(ref m_scheduledRequests);
-
                     m_queuedResponses[requestId] = response;
                     return;
                 }
             }
         }
-
-        /// <inheritdoc/>
-        public override BackPressure ReceiveChannelBackPressure => CombineBackPressure(
-            CalculateBackPressure(m_scheduledRequests, 20, 50, 200),
-            base.ReceiveChannelBackPressure);
 
         /// <summary>
         /// Reset the sorted dictionary of queued responses after reconnect.
@@ -1099,7 +1086,6 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private int m_scheduledRequests;
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private readonly string m_ImplementationString = ".NET Standard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
         private ReverseConnectAsyncResult m_pendingReverseHello;
