@@ -15,7 +15,6 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -137,6 +136,7 @@ namespace Opc.Ua.Bindings
             m_serverCertificate = settings.ServerCertificate;
             m_serverCertificateChain = settings.ServerCertificateChain;
 
+            m_bufferManager = new BufferManager("Server", (int)Int32.MaxValue, m_quotas.MaxBufferSize);
             m_channels = new Dictionary<uint, TcpListenerChannel>();
             m_reverseConnectListener = settings.ReverseConnectListener;
 
@@ -224,7 +224,7 @@ namespace Opc.Ua.Bindings
             TcpServerChannel channel = new TcpServerChannel(
                 m_listenerId,
                 this,
-                new BufferManager("ServerReverseConnect", 200, m_quotas.MaxBufferSize),
+                m_bufferManager,
                 m_quotas,
                 m_serverCertificate,
                 m_descriptions);
@@ -488,16 +488,13 @@ namespace Opc.Ua.Bindings
                     {
                         try
                         {
-                            // get channel id
-                            uint channelId = GetNextChannelId();
-
                             if (m_reverseConnectListener)
                             {
                                 // create the channel to manage incoming reverse connections.
                                 channel = new TcpReverseConnectChannel(
                                     m_listenerId,
                                     this,
-                                    new BufferManager($"ClientReverseConnect #{channelId}", 200, m_quotas.MaxBufferSize),
+                                    m_bufferManager,
                                     m_quotas,
                                     m_descriptions);
                             }
@@ -507,7 +504,7 @@ namespace Opc.Ua.Bindings
                                 channel = new TcpServerChannel(
                                     m_listenerId,
                                     this,
-                                    new BufferManager($"ServerChannel #{channelId}", 200, m_quotas.MaxBufferSize),
+                                    m_bufferManager,
                                     m_quotas,
                                     m_serverCertificate,
                                     m_serverCertificateChain,
@@ -521,6 +518,9 @@ namespace Opc.Ua.Bindings
                                 channel.SetReportCloseSecureChannellAuditCalback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
                                 channel.SetReportCertificateAuditCalback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
                             }
+
+                            // get channel id
+                            uint channelId = GetNextChannelId();
 
                             // start accepting messages on the channel.
                             channel.Attach(channelId, e.AcceptSocket);
@@ -714,6 +714,7 @@ namespace Opc.Ua.Bindings
         private string m_listenerId;
         private Uri m_uri;
         private EndpointDescriptionCollection m_descriptions;
+        private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;
         private X509Certificate2 m_serverCertificate;
         private X509Certificate2Collection m_serverCertificateChain;
