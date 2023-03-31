@@ -118,16 +118,13 @@ namespace Opc.Ua.Bindings
         /// Constructs the buffer manager.
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="maxBufferCount">Max allowed number of buffers to be used</param>
         /// <param name="maxBufferSize">Max size of the buffer.</param>
-        public BufferManager(string name, int maxBufferCount, int maxBufferSize)
+        public BufferManager(string name, int maxBufferSize)
         {
             int maxArrayLength = maxBufferSize + m_cookieLength;
             m_name = name;
             m_arrayPool = ArrayPool<byte>.Create(maxBufferSize, 32);
             m_maxBufferSize = maxBufferSize;
-            m_maxBufferCount = maxBufferCount;
-            m_buffersInUse = 0;
         }
         #endregion
 
@@ -145,7 +142,6 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentOutOfRangeException(nameof(size));
             }
 
-            Interlocked.Increment(ref m_buffersInUse);
             byte[] buffer = m_arrayPool.Rent(size + m_cookieLength);
 #if TRACK_MEMORY
             lock (m_lock)
@@ -339,15 +335,12 @@ namespace Opc.Ua.Bindings
             }
 #endif
             m_arrayPool.Return(buffer);
-            Interlocked.Decrement(ref m_buffersInUse);
         }
         #endregion
 
         #region Private Fields
         private readonly string m_name;
         private readonly int m_maxBufferSize;
-        private int m_buffersInUse;
-        private int m_maxBufferCount;
 #if TRACE_MEMORY
         private int m_buffersTaken = 0;
 #endif
