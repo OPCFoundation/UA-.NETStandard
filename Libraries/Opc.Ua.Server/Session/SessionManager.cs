@@ -489,7 +489,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
+                throw new ServiceResultException(StatusCodes.BadUnexpectedError);
             }
         }
         #endregion
