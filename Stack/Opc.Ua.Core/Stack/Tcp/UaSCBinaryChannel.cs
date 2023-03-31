@@ -436,12 +436,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                var requests = Interlocked.Increment(ref m_activeWriteRequests);
-                // TODO remove
-                if (requests % 100 == 0)
-                {
-                    Utils.LogInfo("Send Requests: {0}", requests);
-                }
+                Interlocked.Increment(ref m_activeWriteRequests);
                 args.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
@@ -479,13 +474,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                var requests = Interlocked.Increment(ref m_activeWriteRequests);
-                // TODO remove 
-                if (requests % 100 == 0)
-                {
-                    Utils.LogInfo("Send Requests: {0}", requests);
-                }
-
+                Interlocked.Increment(ref m_activeWriteRequests);
                 args.BufferList = buffers;
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
