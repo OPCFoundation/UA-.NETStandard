@@ -1534,7 +1534,7 @@ namespace Opc.Ua
                             thread.IsBackground = true;
                             thread.Start(null);
 
-                            Utils.LogInfo("Thread created: {0:X8}. Total: {1} Active: {2}",
+                            Utils.LogTrace("Thread created: {0:X8}. Total: {1} Active: {2}",
                                 thread.ManagedThreadId, totalThreadCount, activeThreadCount);
 
                             return;
@@ -1598,7 +1598,7 @@ namespace Opc.Ua
                             if (m_stopped || (!Monitor.Wait(m_lock, 15_000) && m_totalThreadCount > m_minThreadCount))
                             {
                                 m_totalThreadCount--;
-                                Utils.LogInfo("Thread ended: {0:X8}. Total: {1} Active: {2}",
+                                Utils.LogTrace("Thread ended: {0:X8}. Total: {1} Active: {2}",
                                     Environment.CurrentManagedThreadId, m_totalThreadCount, m_activeThreadCount);
                                 return;
                             }

@@ -926,16 +926,16 @@ namespace Opc.Ua.Bindings
 
             const int ChannelCloseCount = 5;
             int countForDisconnect = ChannelCloseCount;
-            while (ChannelFull && countForDisconnect>=0)
+            while (ChannelFull && countForDisconnect > 0)
             {
                 Utils.LogInfo("Channel {0}: full -- delay processing.", Id);
 
                 // delay reading from channel
                 Thread.Sleep(1000);
 
-                if (countForDisconnect-- == 0 && ChannelFull)
+                if (--countForDisconnect == 0 && ChannelFull)
                 {
-                    Utils.LogInfo("Channel {0}: break connection.", Id);
+                    Utils.LogWarning("Channel {0}: break socket connection.", Id);
                     ChannelClosed();
                     return false;
                 }

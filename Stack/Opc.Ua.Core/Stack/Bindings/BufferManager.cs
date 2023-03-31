@@ -129,18 +129,6 @@ namespace Opc.Ua.Bindings
             m_maxBufferCount = maxBufferCount;
             m_buffersInUse = 0;
         }
-
-        /// <summary>
-        /// Check for floating buffers in the destructor.
-        /// </summary>
-        ~BufferManager()
-        {
-            if (m_buffersInUse != 0)
-            {   // TODO
-                //Debug.Assert(m_buffersInUse == 0);
-                Utils.LogError("Buffers in use: {0} {1}", m_name, m_buffersInUse);
-            }
-        }
         #endregion
 
         #region Public Methods
@@ -157,7 +145,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentOutOfRangeException(nameof(size));
             }
 
-            int buffersInUse = Interlocked.Increment(ref m_buffersInUse);
+            Interlocked.Increment(ref m_buffersInUse);
             byte[] buffer = m_arrayPool.Rent(size + m_cookieLength);
 #if TRACK_MEMORY
             lock (m_lock)
@@ -181,12 +169,6 @@ namespace Opc.Ua.Bindings
             Utils.LogTrace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
 #endif
             buffer[buffer.Length - 1] = m_cookieUnlocked;
-
-            // TODO remove
-            if ((buffersInUse % 50) == 0)
-            {
-                Utils.LogInfo("Buffers: {0}", buffersInUse);
-            }
 
             return buffer;
         }
