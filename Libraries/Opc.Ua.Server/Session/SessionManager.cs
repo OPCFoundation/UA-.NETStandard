@@ -452,7 +452,7 @@ namespace Opc.Ua.Server
                     // find session.
                     if (!m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
                     {
-                        var handler = m_validateSessionLessRequest;
+                        EventHandler<ValidateSessionLessRequestEventArgs> handler = m_validateSessionLessRequest;
 
                         if (handler != null)
                         {
@@ -489,7 +489,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+                throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
             }
         }
         #endregion
