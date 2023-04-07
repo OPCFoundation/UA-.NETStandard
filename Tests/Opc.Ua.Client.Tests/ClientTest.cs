@@ -195,71 +195,74 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Try to use the discovery channel to access other services.
+        /// Try to use the discovery channel to read a node.
         /// </summary>
-        [Test, Order(101)]
-        [TestCase("SmallRead")]
-        [TestCase("LargeRead")]
-        [TestCase("GetEndpointsTooBig")]
-        public void ReadOnDiscoveryChannelAsync(string testCase)
+        [Test, Order(105)]
+        [TestCase(1000)]
+        [TestCase(10000)]
+        public void ReadOnDiscoveryChannel(int readCount)
         {
             var endpointConfiguration = EndpointConfiguration.Create();
-            endpointConfiguration.OperationTimeout = 120000;
+            endpointConfiguration.OperationTimeout = 10000;
 
             using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
             {
                 var endpoints = client.GetEndpoints(null);
                 Assert.NotNull(endpoints);
 
-                if (testCase == "SmallRead" || testCase == "LargeRead")
+                // cast Innerchannel to ISessionChannel
+                ITransportChannel channel = client.TransportChannel;
+
+                var sessionClient = new SessionClient(channel) {
+                    ReturnDiagnostics = DiagnosticsMasks.All
+                };
+
+                var request = new ReadRequest {
+                    RequestHeader = null
+                };
+
+                var readMessage = new ReadMessage() {
+                    ReadRequest = request,
+                };
+
+                var readValueId = new ReadValueId() {
+                    NodeId = new NodeId(Guid.NewGuid().ToString()),
+                    AttributeId = Attributes.Value
+                };
+
+                var readValues = new ReadValueIdCollection();
+                for (int i = 0; i < readCount; i++)
                 {
-                    // cast Innerchannel to ISessionChannel
-                    ITransportChannel channel = client.TransportChannel;
-
-                    var sessionClient = new SessionClient(channel) {
-                        ReturnDiagnostics = DiagnosticsMasks.All
-                    };
-
-                    var request = new ReadRequest {
-                        RequestHeader = null
-                    };
-
-                    var readMessage = new ReadMessage() {
-                        ReadRequest = request,
-                    };
-
-                    var readValueId = new ReadValueId() {
-                        NodeId = new NodeId(Guid.NewGuid().ToString()),
-                        AttributeId = Attributes.Value
-                    };
-
-                    int readCount = 1000;
-                    if (testCase == "LargeRead")
-                    {
-                        readCount = 10000;
-                    }
-                    var readValues = new ReadValueIdCollection();
-                    for (int i = 0; i < readCount; i++)
-                    {
-                        readValues.Add(readValueId);
-                    }
-
-                    // try to read nodes using discovery channel
-                    var sre = Assert.Throws<ServiceResultException>(() =>
-                        sessionClient.Read(null, 0, TimestampsToReturn.Neither,
-                            readValues, out var results, out var diagnosticInfos));
-                    Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
+                    readValues.Add(readValueId);
                 }
-                else if (testCase == "GetEndpointsTooBig")
+
+                // try to read nodes using discovery channel
+                var sre = Assert.Throws<ServiceResultException>(() =>
+                    sessionClient.Read(null, 0, TimestampsToReturn.Neither,
+                        readValues, out var results, out var diagnosticInfos));
+                Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
+            }
+        }
+
+        /// <summary>
+        /// GetEndpoints on the discovery channel,
+        /// but an oversized message should through an error.
+        /// </summary>
+        [Test, Order(105)]
+        public void GetEndpointsOnDiscoveryChannel()
+        {
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = 10000;
+
+            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
+            {
+                var profileUris = new StringCollection();
+                for (int i = 0; i < 10000; i++)
                 {
-                    var profileUris = new StringCollection();
-                    for (int i = 0; i < 10000; i++)
-                    {
-                        profileUris.Add($"https://opcfoundation.org/ProfileUri={i}");
-                    }
-                    var sre = Assert.Throws<ServiceResultException>(() => client.GetEndpoints(profileUris));
-                    Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
+                    profileUris.Add($"https://opcfoundation.org/ProfileUri={i}");
                 }
+                var sre = Assert.Throws<ServiceResultException>(() => client.GetEndpoints(profileUris));
+                Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
             }
         }
 

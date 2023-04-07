@@ -361,14 +361,25 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                if (endpoint == null &&
-                    input.TypeId != DataTypeIds.GetEndpointsRequest &&
-                    input.TypeId != DataTypeIds.FindServersRequest)
+                if (endpoint == null)
                 {
-                    var serviceResultException = new ServiceResultException(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery.");
-                    IServiceResponse serviceResponse = EndpointBase.CreateFault(null, serviceResultException);
-                    await WriteServiceResponseAsync(context, serviceResponse, ct).ConfigureAwait(false);
-                    return;
+                    ServiceResultException serviceResultException = null;
+                    if (input.TypeId != DataTypeIds.GetEndpointsRequest &&
+                        input.TypeId != DataTypeIds.FindServersRequest)
+                    {
+                        serviceResultException = new ServiceResultException(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery.");
+                    }
+                    else if (length > TcpMessageLimits.DefaultDiscoveryMaxMessageSize)
+                    {
+                        serviceResultException = new ServiceResultException(StatusCodes.BadSecurityPolicyRejected, "Discovery Channel message size exceeded.");
+                    }
+
+                    if (serviceResultException != null)
+                    {
+                        IServiceResponse serviceResponse = EndpointBase.CreateFault(null, serviceResultException);
+                        await WriteServiceResponseAsync(context, serviceResponse, ct).ConfigureAwait(false);
+                        return;
+                    }
                 }
 
                 // note: do not use Task.Factory.FromAsync here 
@@ -464,7 +475,7 @@ namespace Opc.Ua.Bindings
                 return memory.ToArray();
             }
         }
-#endregion
+        #endregion
 
         #region Private Fields
         private string m_listenerId;
