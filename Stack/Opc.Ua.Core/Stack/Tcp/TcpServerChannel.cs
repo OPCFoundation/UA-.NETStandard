@@ -431,24 +431,25 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    MemoryStream ostrm = new MemoryStream(buffer, 0, SendBufferSize);
-                    BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext);
+                    using (MemoryStream ostrm = new MemoryStream(buffer, 0, SendBufferSize))
+                    using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext))
+                    {
+                        encoder.WriteUInt32(null, TcpMessageType.Acknowledge);
+                        encoder.WriteUInt32(null, 0);
+                        encoder.WriteUInt32(null, 0); // ProtocolVersion
+                        encoder.WriteUInt32(null, (uint)ReceiveBufferSize);
+                        encoder.WriteUInt32(null, (uint)SendBufferSize);
+                        encoder.WriteUInt32(null, (uint)MaxRequestMessageSize);
+                        encoder.WriteUInt32(null, (uint)MaxRequestChunkCount);
 
-                    encoder.WriteUInt32(null, TcpMessageType.Acknowledge);
-                    encoder.WriteUInt32(null, 0);
-                    encoder.WriteUInt32(null, 0); // ProtocolVersion
-                    encoder.WriteUInt32(null, (uint)ReceiveBufferSize);
-                    encoder.WriteUInt32(null, (uint)SendBufferSize);
-                    encoder.WriteUInt32(null, (uint)MaxRequestMessageSize);
-                    encoder.WriteUInt32(null, (uint)MaxRequestChunkCount);
+                        int size = encoder.Close();
+                        UpdateMessageSize(buffer, 0, size);
 
-                    int size = encoder.Close();
-                    UpdateMessageSize(buffer, 0, size);
+                        // now ready for the open or bind request.
+                        State = TcpChannelState.Opening;
 
-                    // now ready for the open or bind request.
-                    State = TcpChannelState.Opening;
-
-                    BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
+                        BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
+                    }
                     buffer = null;
                 }
                 finally
@@ -935,7 +936,30 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody, true);
+                    bool firstChunk = SaveIntermediateChunk(requestId, messageBody, true);
+
+                    // validate the type is allowed with a discovery channel
+                    if (firstChunk && DiscoveryOnly)
+                    {
+                        var decoder = new BinaryDecoder(messageBody.AsMemory().ToArray(), Quotas.MessageContext);
+
+                        // read the type of the message before more chunks are processed.
+                        NodeId typeId = decoder.ReadNodeId(null);
+
+                        if (typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary &&
+                            typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
+                            typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
+                        {
+                            chunksToProcess = GetSavedChunks(0, messageBody, true);
+                            SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
+                        }
+                    }
+                    else if (DiscoveryOnly && (GetSavedChunksTotalSize() > TcpMessageLimits.DefaultDiscoveryMaxMessageSize))
+                    {
+                        chunksToProcess = GetSavedChunks(0, messageBody, true);
+                        SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Discovery Channel message size exceeded."));
+                    }
+
                     return true;
                 }
 

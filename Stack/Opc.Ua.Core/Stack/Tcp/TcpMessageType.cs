@@ -249,6 +249,11 @@ namespace Opc.Ua.Bindings
         public const int DefaultMaxMessageSize = DefaultMaxChunkCount * DefaultMaxBufferSize;
 
         /// <summary>
+        /// The default maximum message size for the discovery channel.
+        /// </summary>
+        public const int DefaultDiscoveryMaxMessageSize = DefaultMaxBufferSize;
+
+        /// <summary>
         /// How long a connection will remain in the server after it goes into a faulted state.
         /// </summary>
         public const int DefaultChannelLifetime = 60000;

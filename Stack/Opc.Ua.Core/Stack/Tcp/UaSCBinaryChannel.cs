@@ -13,6 +13,7 @@
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -256,10 +257,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Saves an intermediate chunk for an incoming message.
         /// </summary>
-        protected void SaveIntermediateChunk(uint requestId, ArraySegment<byte> chunk, bool isServerContext)
+        protected bool SaveIntermediateChunk(uint requestId, ArraySegment<byte> chunk, bool isServerContext)
         {
+            bool firstChunk = false;
             if (m_partialMessageChunks == null)
             {
+                firstChunk = true;
                 m_partialMessageChunks = new BufferCollection();
             }
 
@@ -278,7 +281,7 @@ namespace Opc.Ua.Bindings
             if (chunkOrSizeLimitsExceeded)
             {
                 DoMessageLimitsExceeded();
-                return;
+                return firstChunk;
             }
 
             if (requestId != 0)
@@ -286,6 +289,8 @@ namespace Opc.Ua.Bindings
                 m_partialRequestId = requestId;
                 m_partialMessageChunks.Add(chunk);
             }
+
+            return firstChunk;
         }
 
         /// <summary>
@@ -297,6 +302,18 @@ namespace Opc.Ua.Bindings
             BufferCollection savedChunks = m_partialMessageChunks;
             m_partialMessageChunks = null;
             return savedChunks;
+        }
+
+        /// <summary>
+        /// Returns total length of the chunks saved for message.
+        /// </summary>
+        protected int GetSavedChunksTotalSize()
+        {
+            if (m_partialMessageChunks != null)
+            {
+                return m_partialMessageChunks.TotalSize;
+            }
+            return 0;
         }
 
         /// <summary>
@@ -392,31 +409,28 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual void OnWriteComplete(object sender, IMessageSocketAsyncEventArgs e)
         {
-            lock (DataLock)
+            ServiceResult error = ServiceResult.Good;
+            try
             {
-                ServiceResult error = ServiceResult.Good;
-                try
+                if (e.BytesTransferred == 0)
                 {
-                    if (e.BytesTransferred == 0)
-                    {
-                        error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
-                    }
-                    if (e.Buffer != null)
-                    {
-                        BufferManager.ReturnBuffer(e.Buffer, "OnWriteComplete");
-                    }
-                    HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
+                    error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
                 }
-                catch (Exception ex)
+                if (e.Buffer != null)
                 {
-                    if (ex is InvalidOperationException)
-                    {
-                        // suppress chained exception in HandleWriteComplete/ReturnBuffer
-                        e.BufferList = null;
-                    }
-                    error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
-                    HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
+                    BufferManager.ReturnBuffer(e.Buffer, "OnWriteComplete");
                 }
+                HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
+            }
+            catch (Exception ex)
+            {
+                if (ex is InvalidOperationException)
+                {
+                    // suppress chained exception in HandleWriteComplete/ReturnBuffer
+                    e.BufferList = null;
+                }
+                error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
+                HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
             }
 
             e.Dispose();

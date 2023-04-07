@@ -194,6 +194,54 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+        /// <summary>
+        /// Try to use the discovery channel to access other services.
+        /// </summary>
+        [Test, Order(101)]
+        public void ReadOnDiscoveryChannelAsync()
+        {
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = 120000;
+
+            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
+            {
+                var endpoints = client.GetEndpoints(null);
+                Assert.NotNull(endpoints);
+
+                // cast Innerchannel to ISessionChannel
+                ITransportChannel channel = client.TransportChannel;
+
+                var sessionClient = new SessionClient(channel) {
+                    ReturnDiagnostics = DiagnosticsMasks.All
+                };
+
+                var request = new ReadRequest {
+                    RequestHeader = null
+                };
+
+                var readMessage = new ReadMessage() {
+                    ReadRequest = request,
+                };
+
+                var readValueId = new ReadValueId() {
+                    NodeId = new NodeId(Guid.NewGuid().ToString()),
+                    AttributeId = Attributes.Value
+                };
+
+                var readValues = new ReadValueIdCollection();
+                for (int i = 0; i < 10000; i++)
+                {
+                    readValues.Add(readValueId);
+                }
+
+                // try to read nodes using discovery channel
+                var sre = Assert.Throws<ServiceResultException>(() =>
+                    sessionClient.Read(null, 0, TimestampsToReturn.Neither,
+                        readValues, out var results, out var diagnosticInfos));
+                Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
+            }
+        }
+
         [Test, Order(110)]
         public async Task InvalidConfiguration()
         {
