@@ -198,7 +198,10 @@ namespace Opc.Ua.Client.Tests
         /// Try to use the discovery channel to access other services.
         /// </summary>
         [Test, Order(101)]
-        public void ReadOnDiscoveryChannelAsync()
+        [TestCase("SmallRead")]
+        [TestCase("LargeRead")]
+        [TestCase("GetEndpointsTooBig")]
+        public void ReadOnDiscoveryChannelAsync(string testCase)
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 120000;
@@ -208,37 +211,55 @@ namespace Opc.Ua.Client.Tests
                 var endpoints = client.GetEndpoints(null);
                 Assert.NotNull(endpoints);
 
-                // cast Innerchannel to ISessionChannel
-                ITransportChannel channel = client.TransportChannel;
-
-                var sessionClient = new SessionClient(channel) {
-                    ReturnDiagnostics = DiagnosticsMasks.All
-                };
-
-                var request = new ReadRequest {
-                    RequestHeader = null
-                };
-
-                var readMessage = new ReadMessage() {
-                    ReadRequest = request,
-                };
-
-                var readValueId = new ReadValueId() {
-                    NodeId = new NodeId(Guid.NewGuid().ToString()),
-                    AttributeId = Attributes.Value
-                };
-
-                var readValues = new ReadValueIdCollection();
-                for (int i = 0; i < 10000; i++)
+                if (testCase == "SmallRead" || testCase == "LargeRead")
                 {
-                    readValues.Add(readValueId);
-                }
+                    // cast Innerchannel to ISessionChannel
+                    ITransportChannel channel = client.TransportChannel;
 
-                // try to read nodes using discovery channel
-                var sre = Assert.Throws<ServiceResultException>(() =>
-                    sessionClient.Read(null, 0, TimestampsToReturn.Neither,
-                        readValues, out var results, out var diagnosticInfos));
-                Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
+                    var sessionClient = new SessionClient(channel) {
+                        ReturnDiagnostics = DiagnosticsMasks.All
+                    };
+
+                    var request = new ReadRequest {
+                        RequestHeader = null
+                    };
+
+                    var readMessage = new ReadMessage() {
+                        ReadRequest = request,
+                    };
+
+                    var readValueId = new ReadValueId() {
+                        NodeId = new NodeId(Guid.NewGuid().ToString()),
+                        AttributeId = Attributes.Value
+                    };
+
+                    int readCount = 1000;
+                    if (testCase == "LargeRead")
+                    {
+                        readCount = 10000;
+                    }
+                    var readValues = new ReadValueIdCollection();
+                    for (int i = 0; i < readCount; i++)
+                    {
+                        readValues.Add(readValueId);
+                    }
+
+                    // try to read nodes using discovery channel
+                    var sre = Assert.Throws<ServiceResultException>(() =>
+                        sessionClient.Read(null, 0, TimestampsToReturn.Neither,
+                            readValues, out var results, out var diagnosticInfos));
+                    Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
+                }
+                else if (testCase == "GetEndpointsTooBig")
+                {
+                    var profileUris = new StringCollection();
+                    for (int i = 0; i < 10000; i++)
+                    {
+                        profileUris.Add($"https://opcfoundation.org/ProfileUri={i}");
+                    }
+                    var sre = Assert.Throws<ServiceResultException>(() => client.GetEndpoints(profileUris));
+                    Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
+                }
             }
         }
 

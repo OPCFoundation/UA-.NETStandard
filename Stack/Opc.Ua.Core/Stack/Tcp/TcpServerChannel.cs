@@ -939,31 +939,34 @@ namespace Opc.Ua.Bindings
                     bool firstChunk = SaveIntermediateChunk(requestId, messageBody, true);
 
                     // validate the type is allowed with a discovery channel
-                    if (firstChunk && DiscoveryOnly)
+                    if (DiscoveryOnly)
                     {
-                        var decoder = new BinaryDecoder(messageBody.AsMemory().ToArray(), Quotas.MessageContext);
-
-                        // read the type of the message before more chunks are processed.
-                        NodeId typeId = decoder.ReadNodeId(null);
-
-                        if (typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary &&
-                            typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
-                            typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
+                        if (firstChunk)
+                        {
+                            if (!ValidateDiscoveryServiceCall(token, requestId, messageBody))
+                            {
+                                ChannelClosed();
+                            }
+                        }
+                        else if (GetSavedChunksTotalSize() > TcpMessageLimits.DefaultDiscoveryMaxMessageSize)
                         {
                             chunksToProcess = GetSavedChunks(0, messageBody, true);
-                            SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
+                            SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Discovery Channel message size exceeded."));
+                            ChannelClosed();
                         }
-                    }
-                    else if (DiscoveryOnly && (GetSavedChunksTotalSize() > TcpMessageLimits.DefaultDiscoveryMaxMessageSize))
-                    {
-                        chunksToProcess = GetSavedChunks(0, messageBody, true);
-                        SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Discovery Channel message size exceeded."));
                     }
 
                     return true;
                 }
 
                 // Utils.LogTrace("ChannelId {0}: ProcessRequestMessage RequestId {1}", ChannelId, requestId);
+                if (DiscoveryOnly && GetSavedChunksTotalSize() == 0)
+                {
+                    if (!ValidateDiscoveryServiceCall(token, requestId, messageBody))
+                    {
+                        return true;
+                    }
+                }
 
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
@@ -1015,6 +1018,29 @@ namespace Opc.Ua.Bindings
             base.DoMessageLimitsExceeded();
             ChannelClosed();
         }
+
+        /// <summary>
+        /// Validate the type of message before it is decoded.
+        /// </summary>
+        private bool ValidateDiscoveryServiceCall(ChannelToken token, uint requestId, ArraySegment<byte> messageBody)
+        {
+            using (var decoder = new BinaryDecoder(messageBody.AsMemory().ToArray(), Quotas.MessageContext))
+            {
+                // read the type of the message before more chunks are processed.
+                NodeId typeId = decoder.ReadNodeId(null);
+
+                if (typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary &&
+                    typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
+                    typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
+                {
+                    GetSavedChunks(0, messageBody, true);
+                    SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
+                    return false;
+                }
+                return true;
+            }
+        }
+
         #endregion
 
         #region Private Fields
