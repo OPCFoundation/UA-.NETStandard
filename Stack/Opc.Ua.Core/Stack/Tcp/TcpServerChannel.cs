@@ -943,7 +943,7 @@ namespace Opc.Ua.Bindings
                     {
                         if (firstChunk)
                         {
-                            if (!ValidateDiscoveryServiceCall(token, requestId, messageBody))
+                            if (!ValidateDiscoveryServiceCall(token, requestId, messageBody, out chunksToProcess))
                             {
                                 ChannelClosed();
                             }
@@ -962,7 +962,7 @@ namespace Opc.Ua.Bindings
                 // Utils.LogTrace("ChannelId {0}: ProcessRequestMessage RequestId {1}", ChannelId, requestId);
                 if (DiscoveryOnly && GetSavedChunksTotalSize() == 0)
                 {
-                    if (!ValidateDiscoveryServiceCall(token, requestId, messageBody))
+                    if (!ValidateDiscoveryServiceCall(token, requestId, messageBody, out chunksToProcess))
                     {
                         return true;
                     }
@@ -1022,8 +1022,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Validate the type of message before it is decoded.
         /// </summary>
-        private bool ValidateDiscoveryServiceCall(ChannelToken token, uint requestId, ArraySegment<byte> messageBody)
+        private bool ValidateDiscoveryServiceCall(ChannelToken token, uint requestId, ArraySegment<byte> messageBody, out BufferCollection chunksToProcess)
         {
+            chunksToProcess = null;
             using (var decoder = new BinaryDecoder(messageBody.AsMemory().ToArray(), Quotas.MessageContext))
             {
                 // read the type of the message before more chunks are processed.
@@ -1033,7 +1034,7 @@ namespace Opc.Ua.Bindings
                     typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
                     typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
                 {
-                    GetSavedChunks(0, messageBody, true);
+                    chunksToProcess = GetSavedChunks(0, messageBody, true);
                     SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
                     return false;
                 }
