@@ -131,15 +131,18 @@ namespace Opc.Ua.Client.Tests
                 new MonitoredItem(subscription.DefaultItem)
                 {
                     DisplayName = "ServerStatusState", StartNodeId = VariableIds.Server_ServerStatus_State
-                }
+                },
             };
+
+            var simulatedNodes = GetTestSetSimulation(Session.NamespaceUris);
+            list2.AddRange(CreateMonitoredItemTestSet(subscription, simulatedNodes));
             list2.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
                 foreach (var value in item.DequeueValues())
                 {
                     TestContext.Out.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
                 }
             });
-            subscription.AddItems(list);
+            subscription.AddItems(list2);
             subscription.ApplyChanges();
             subscription.SetPublishingMode(false);
             Assert.False(subscription.PublishingEnabled);
@@ -221,15 +224,18 @@ namespace Opc.Ua.Client.Tests
                 new MonitoredItem(subscription.DefaultItem)
                 {
                     DisplayName = "ServerStatusState", StartNodeId = VariableIds.Server_ServerStatus_State
-                }
+                },
             };
+
+            var simulatedNodes = GetTestSetSimulation(Session.NamespaceUris);
+            list2.AddRange(CreateMonitoredItemTestSet(subscription, simulatedNodes));
             list2.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
                 foreach (var value in item.DequeueValues())
                 {
                     TestContext.Out.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
                 }
             });
-            subscription.AddItems(list);
+            subscription.AddItems(list2);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);
             await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
             Assert.False(subscription.PublishingEnabled);
@@ -272,20 +278,27 @@ namespace Opc.Ua.Client.Tests
 
             foreach (var subscription in subscriptions)
             {
+                var list = subscription.MonitoredItems.ToList();
+                list.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
+                    foreach (var value in item.DequeueValues())
+                    {
+                        TestContext.Out.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+                    }
+                });
+
                 Session.AddSubscription(subscription);
                 subscription.Create();
             }
 
             Thread.Sleep(5000);
 
-            foreach (var subscription in subscriptions)
+            foreach (var subscription in Session.Subscriptions)
             {
                 OutputSubscriptionInfo(TestContext.Out, subscription);
             }
 
             var result = Session.RemoveSubscriptions(subscriptions);
             Assert.True(result);
-
         }
 
         [Theory, Order(300)]
@@ -477,7 +490,7 @@ namespace Opc.Ua.Client.Tests
             /// <summary>
             /// The origin session gets network disconnected,
             /// after transfer available sequence numbers are
-            /// just ackoledged.
+            /// just acknoledged.
             /// </summary>
             DisconnectedAck,
             /// <summary>
@@ -586,8 +599,8 @@ namespace Opc.Ua.Client.Tests
             var transferSubscriptions = new SubscriptionCollection();
             if (transferType != TransferType.KeepOpen)
             {
-                // load
-                transferSubscriptions.AddRange(targetSession.Load(filePath));
+                // load subscriptions for transfer
+                transferSubscriptions.AddRange(targetSession.Load(filePath, true));
 
                 // hook notifications for log output
                 int ii = 0;
