@@ -62,6 +62,7 @@ namespace Opc.Ua.Server
             m_sessions = new List<SessionDiagnosticsData>();
             m_subscriptions = new List<SubscriptionDiagnosticsData>();
             m_diagnosticsEnabled = true;
+            m_doScanBusy = false;
             m_sampledItems = new List<MonitoredItem>();
             m_minimumSamplingInterval = 100;
         }
@@ -609,10 +610,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void ForceDiagnosticsScan()
         {
-            lock (Lock)
-            {
-                m_lastDiagnosticsScanTime = DateTime.MinValue;
-            }
+            m_lastDiagnosticsScanTime = DateTime.MinValue;
         }
 
         /// <summary>
@@ -1550,123 +1548,132 @@ namespace Opc.Ua.Server
             {
                 lock (Lock)
                 {
-                    if (!m_diagnosticsEnabled)
+                    if (!m_diagnosticsEnabled || m_doScanBusy)
                     {
                         return;
                     }
 
-                    m_lastDiagnosticsScanTime = DateTime.UtcNow;
-
-                    // update server diagnostics.
-                    UpdateServerDiagnosticsSummary();
-
-                    // update session diagnostics.
-                    bool sessionsChanged = alwaysUpdateArrays != null;
-                    SessionDiagnosticsDataType[] sessionArray = new SessionDiagnosticsDataType[m_sessions.Count];
-
-                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    try
                     {
-                        SessionDiagnosticsData diagnostics = m_sessions[ii];
+                        m_doScanBusy = true;
 
-                        if (UpdateSessionDiagnostics(null, diagnostics, sessionArray, ii))
+                        m_lastDiagnosticsScanTime = DateTime.UtcNow;
+
+                        // update server diagnostics.
+                        UpdateServerDiagnosticsSummary();
+
+                        // update session diagnostics.
+                        bool sessionsChanged = alwaysUpdateArrays != null;
+                        SessionDiagnosticsDataType[] sessionArray = new SessionDiagnosticsDataType[m_sessions.Count];
+
+                        for (int ii = 0; ii < m_sessions.Count; ii++)
                         {
-                            sessionsChanged = true;
-                        }
-                    }
+                            SessionDiagnosticsData diagnostics = m_sessions[ii];
 
-                    // check of the session diagnostics array node needs to be updated.
-                    SessionDiagnosticsArrayState sessionsNode = (SessionDiagnosticsArrayState)FindPredefinedNode(
-                        VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray,
-                        typeof(SessionDiagnosticsArrayState));
-
-                    if (sessionsNode != null && (sessionsNode.Value == null || StatusCode.IsBad(sessionsNode.StatusCode) || sessionsChanged))
-                    {
-                        sessionsNode.Value = sessionArray;
-                        sessionsNode.ClearChangeMasks(SystemContext, false);
-                    }
-
-                    bool sessionsSecurityChanged = alwaysUpdateArrays != null;
-                    SessionSecurityDiagnosticsDataType[] sessionSecurityArray = new SessionSecurityDiagnosticsDataType[m_sessions.Count];
-
-                    for (int ii = 0; ii < m_sessions.Count; ii++)
-                    {
-                        SessionDiagnosticsData diagnostics = m_sessions[ii];
-
-                        if (UpdateSessionSecurityDiagnostics(null, diagnostics, sessionSecurityArray, ii))
-                        {
-                            sessionsSecurityChanged = true;
-                        }
-                    }
-
-                    // check of the array node needs to be updated.
-                    SessionSecurityDiagnosticsArrayState sessionsSecurityNode = (SessionSecurityDiagnosticsArrayState)FindPredefinedNode(
-                        VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray,
-                        typeof(SessionSecurityDiagnosticsArrayState));
-
-                    if (sessionsSecurityNode != null && (sessionsSecurityNode.Value == null || StatusCode.IsBad(sessionsSecurityNode.StatusCode) || sessionsSecurityChanged))
-                    {
-                        sessionsSecurityNode.Value = sessionSecurityArray;
-                        sessionsSecurityNode.ClearChangeMasks(SystemContext, false);
-                    }
-
-                    bool subscriptionsChanged = alwaysUpdateArrays != null;
-                    SubscriptionDiagnosticsDataType[] subscriptionArray = new SubscriptionDiagnosticsDataType[m_subscriptions.Count];
-
-                    for (int ii = 0; ii < m_subscriptions.Count; ii++)
-                    {
-                        SubscriptionDiagnosticsData diagnostics = m_subscriptions[ii];
-
-                        if (UpdateSubscriptionDiagnostics(null, diagnostics, subscriptionArray, ii))
-                        {
-                            subscriptionsChanged = true;
-                        }
-                    }
-
-                    // check of the subscription node needs to be updated.
-                    SubscriptionDiagnosticsArrayState subscriptionsNode = (SubscriptionDiagnosticsArrayState)FindPredefinedNode(
-                        VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray,
-                        typeof(SubscriptionDiagnosticsArrayState));
-
-                    if (subscriptionsNode != null && (subscriptionsNode.Value == null || StatusCode.IsBad(subscriptionsNode.StatusCode) || subscriptionsChanged))
-                    {
-                        subscriptionsNode.Value = subscriptionArray;
-                        subscriptionsNode.ClearChangeMasks(SystemContext, false);
-                    }
-
-                    for (int ii = 0; ii < m_sessions.Count; ii++)
-                    {
-                        SessionDiagnosticsData diagnostics = m_sessions[ii];
-                        List<SubscriptionDiagnosticsDataType> subscriptionDiagnosticsArray = new List<SubscriptionDiagnosticsDataType>();
-
-                        NodeId sessionId = diagnostics.Summary.NodeId;
-
-                        for (int jj = 0; jj < m_subscriptions.Count; jj++)
-                        {
-                            SubscriptionDiagnosticsData subscriptionDiagnostics = m_subscriptions[jj];
-
-                            if (subscriptionDiagnostics.Value.Value == null)
+                            if (UpdateSessionDiagnostics(null, diagnostics, sessionArray, ii))
                             {
-                                continue;
+                                sessionsChanged = true;
                             }
-
-                            if (subscriptionDiagnostics.Value.Value.SessionId != sessionId)
-                            {
-                                continue;
-                            }
-
-                            subscriptionDiagnosticsArray.Add(subscriptionDiagnostics.Value.Value);
                         }
 
-                        // update session subscription array.
-                        subscriptionsNode = (SubscriptionDiagnosticsArrayState)diagnostics.Summary.CreateChild(
-                            SystemContext,
-                            BrowseNames.SubscriptionDiagnosticsArray);
+                        // check of the session diagnostics array node needs to be updated.
+                        SessionDiagnosticsArrayState sessionsNode = (SessionDiagnosticsArrayState)FindPredefinedNode(
+                            VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray,
+                            typeof(SessionDiagnosticsArrayState));
+
+                        if (sessionsNode != null && (sessionsNode.Value == null || StatusCode.IsBad(sessionsNode.StatusCode) || sessionsChanged))
+                        {
+                            sessionsNode.Value = sessionArray;
+                            sessionsNode.ClearChangeMasks(SystemContext, false);
+                        }
+
+                        bool sessionsSecurityChanged = alwaysUpdateArrays != null;
+                        SessionSecurityDiagnosticsDataType[] sessionSecurityArray = new SessionSecurityDiagnosticsDataType[m_sessions.Count];
+
+                        for (int ii = 0; ii < m_sessions.Count; ii++)
+                        {
+                            SessionDiagnosticsData diagnostics = m_sessions[ii];
+
+                            if (UpdateSessionSecurityDiagnostics(null, diagnostics, sessionSecurityArray, ii))
+                            {
+                                sessionsSecurityChanged = true;
+                            }
+                        }
+
+                        // check of the array node needs to be updated.
+                        SessionSecurityDiagnosticsArrayState sessionsSecurityNode = (SessionSecurityDiagnosticsArrayState)FindPredefinedNode(
+                            VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray,
+                            typeof(SessionSecurityDiagnosticsArrayState));
+
+                        if (sessionsSecurityNode != null && (sessionsSecurityNode.Value == null || StatusCode.IsBad(sessionsSecurityNode.StatusCode) || sessionsSecurityChanged))
+                        {
+                            sessionsSecurityNode.Value = sessionSecurityArray;
+                            sessionsSecurityNode.ClearChangeMasks(SystemContext, false);
+                        }
+
+                        bool subscriptionsChanged = alwaysUpdateArrays != null;
+                        SubscriptionDiagnosticsDataType[] subscriptionArray = new SubscriptionDiagnosticsDataType[m_subscriptions.Count];
+
+                        for (int ii = 0; ii < m_subscriptions.Count; ii++)
+                        {
+                            SubscriptionDiagnosticsData diagnostics = m_subscriptions[ii];
+
+                            if (UpdateSubscriptionDiagnostics(null, diagnostics, subscriptionArray, ii))
+                            {
+                                subscriptionsChanged = true;
+                            }
+                        }
+
+                        // check of the subscription node needs to be updated.
+                        SubscriptionDiagnosticsArrayState subscriptionsNode = (SubscriptionDiagnosticsArrayState)FindPredefinedNode(
+                            VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray,
+                            typeof(SubscriptionDiagnosticsArrayState));
 
                         if (subscriptionsNode != null && (subscriptionsNode.Value == null || StatusCode.IsBad(subscriptionsNode.StatusCode) || subscriptionsChanged))
                         {
-                            subscriptionsNode.Value = subscriptionDiagnosticsArray.ToArray();
+                            subscriptionsNode.Value = subscriptionArray;
                             subscriptionsNode.ClearChangeMasks(SystemContext, false);
                         }
+
+                        for (int ii = 0; ii < m_sessions.Count; ii++)
+                        {
+                            SessionDiagnosticsData diagnostics = m_sessions[ii];
+                            List<SubscriptionDiagnosticsDataType> subscriptionDiagnosticsArray = new List<SubscriptionDiagnosticsDataType>();
+
+                            NodeId sessionId = diagnostics.Summary.NodeId;
+
+                            for (int jj = 0; jj < m_subscriptions.Count; jj++)
+                            {
+                                SubscriptionDiagnosticsData subscriptionDiagnostics = m_subscriptions[jj];
+
+                                if (subscriptionDiagnostics.Value.Value == null)
+                                {
+                                    continue;
+                                }
+
+                                if (subscriptionDiagnostics.Value.Value.SessionId != sessionId)
+                                {
+                                    continue;
+                                }
+
+                                subscriptionDiagnosticsArray.Add(subscriptionDiagnostics.Value.Value);
+                            }
+
+                            // update session subscription array.
+                            subscriptionsNode = (SubscriptionDiagnosticsArrayState)diagnostics.Summary.CreateChild(
+                                SystemContext,
+                                BrowseNames.SubscriptionDiagnosticsArray);
+
+                            if (subscriptionsNode != null && (subscriptionsNode.Value == null || StatusCode.IsBad(subscriptionsNode.StatusCode) || subscriptionsChanged))
+                            {
+                                subscriptionsNode.Value = subscriptionDiagnosticsArray.ToArray();
+                                subscriptionsNode.ClearChangeMasks(SystemContext, false);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        m_doScanBusy = false;
                     }
                 }
             }
@@ -2100,6 +2107,7 @@ namespace Opc.Ua.Server
         private Timer m_diagnosticsScanTimer;
         private int m_diagnosticsMonitoringCount;
         private bool m_diagnosticsEnabled;
+        private bool m_doScanBusy;
         private DateTime m_lastDiagnosticsScanTime;
         private ServerDiagnosticsSummaryValue m_serverDiagnostics;
         private NodeValueSimpleEventHandler m_serverDiagnosticsCallback;
