@@ -35,6 +35,7 @@ using System.Xml;
 using System.IO;
 using Opc.Ua;
 using Opc.Ua.Server;
+using System.Linq;
 
 namespace TestData
 {
@@ -45,6 +46,14 @@ namespace TestData
             object value,
             StatusCode statusCode,
             DateTime timestamp);
+
+        void OnGenerateValues(BaseVariableState variable);
+
+    }
+
+    public interface ITestDataSystemValuesGenerator
+    {
+        StatusCode OnGenerateValues(ISystemContext context);
     }
 
     public class TestDataSystem
@@ -349,6 +358,16 @@ namespace TestData
                         return m_generator.GetRandom(BuiltInType.UInteger);
                     }
 
+                    case TestData.Variables.ScalarValueObjectType_VectorValue:
+                    {
+                        return GetRandomVector();
+                    }
+
+                    case TestData.Variables.ArrayValueObjectType_VectorValue:
+                    {
+                        return GetRandomVectorArray();
+                    }
+
                     case TestData.Variables.ArrayValueObjectType_BooleanValue:
                     case TestData.Variables.UserArrayValueObjectType_BooleanValue:
                     {
@@ -635,10 +654,145 @@ namespace TestData
                     {
                         return m_generator.GetRandomArray(BuiltInType.UInteger, false, 100, false);
                     }
+
+                    case TestData.Variables.Data_Static_StructureScalar:
+                    case TestData.Variables.Data_Dynamic_StructureScalar:
+                        return GetRandomScalarValueDataType();
+
+                    case TestData.Variables.Data_Static_StructureScalar_BooleanValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_BooleanValue:
+                        return m_generator.GetRandomBoolean();
+
+                    case TestData.Variables.Data_Static_StructureScalar_SByteValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_SByteValue:
+                        return m_generator.GetRandomSByte();
+
+                    case TestData.Variables.Data_Static_StructureScalar_ByteValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_ByteValue:
+                        return m_generator.GetRandomByte();
+
+                    case TestData.Variables.Data_Static_StructureScalar_Int16Value:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_Int16Value:
+                        return m_generator.GetRandomInt16();
+
+                    case TestData.Variables.Data_Static_StructureScalar_UInt16Value:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_UInt16Value:
+                        return m_generator.GetRandomUInt16();
+
+                    case TestData.Variables.Data_Static_StructureScalar_Int32Value:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_Int32Value:
+                        return m_generator.GetRandomInt32();
+
+                    case TestData.Variables.Data_Static_StructureScalar_UInt32Value:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_UInt32Value:
+                        return m_generator.GetRandomUInt32();
+
+                    case TestData.Variables.Data_Static_StructureScalar_Int64Value:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_Int64Value:
+                        return m_generator.GetRandomInt64();
+
+                    case TestData.Variables.Data_Static_StructureScalar_UInt64Value:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_UInt64Value:
+                        return m_generator.GetRandomUInt64();
+
+                    case TestData.Variables.Data_Static_StructureScalar_FloatValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_FloatValue:
+                        return m_generator.GetRandomFloat();
+
+                    case TestData.Variables.Data_Static_StructureScalar_DoubleValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_DoubleValue:
+                        return m_generator.GetRandomDouble();
+
+                    case TestData.Variables.Data_Static_StructureScalar_StringValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_StringValue:
+                        return m_generator.GetRandomString();
+
+                    case TestData.Variables.Data_Static_StructureScalar_DateTimeValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_DateTimeValue:
+                        return m_generator.GetRandomDateTime();
+
+                    case TestData.Variables.Data_Static_StructureScalar_GuidValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_GuidValue:
+                        return m_generator.GetRandomGuid();
+
+                    case TestData.Variables.Data_Static_StructureScalar_ByteStringValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_ByteStringValue:
+                        return m_generator.GetRandomByteString();
+
+                    case TestData.Variables.Data_Static_StructureScalar_XmlElementValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_XmlElementValue:
+                        return m_generator.GetRandomXmlElement();
+
+                    case TestData.Variables.Data_Static_StructureScalar_NodeIdValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_NodeIdValue:
+                        return m_generator.GetRandomNodeId();
+
+                    case TestData.Variables.Data_Static_StructureScalar_ExpandedNodeIdValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_ExpandedNodeIdValue:
+                        return m_generator.GetRandomExpandedNodeId();
+
+                    case TestData.Variables.Data_Static_StructureScalar_QualifiedNameValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_QualifiedNameValue:
+                        return m_generator.GetRandomQualifiedName();
+
+                    case TestData.Variables.Data_Static_StructureScalar_LocalizedTextValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_LocalizedTextValue:
+                        return m_generator.GetRandomLocalizedText();
+
+                    case TestData.Variables.Data_Static_StructureScalar_StatusCodeValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_StatusCodeValue:
+                        return m_generator.GetRandomStatusCode();
+
+                    case TestData.Variables.Data_Static_StructureScalar_VariantValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_VariantValue:
+                        return m_generator.GetRandomVariant();
+
+                    case TestData.Variables.Data_Static_StructureScalar_EnumerationValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_EnumerationValue:
+                        return m_generator.GetRandomByte();
+
+                    case TestData.Variables.Data_Static_StructureScalar_StructureValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_StructureValue:
+                        return GetRandomStructure();
+
+                    case TestData.Variables.Data_Static_StructureScalar_NumberValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_NumberValue:
+                        return new Variant(m_generator.GetRandomNumber());
+
+                    case TestData.Variables.Data_Static_StructureScalar_IntegerValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_IntegerValue:
+                        return new Variant(m_generator.GetRandomInteger());
+
+                    case TestData.Variables.Data_Static_StructureScalar_UIntegerValue:
+                    case TestData.Variables.Data_Dynamic_StructureScalar_UIntegerValue:
+                        return new Variant(m_generator.GetRandomUInteger());
                 }
 
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Return random vector;
+        /// </summary>
+        public Vector GetRandomVector()
+        {
+            return new Vector() {
+                X = (double)m_generator.GetRandom(BuiltInType.Double),
+                Y = (double)m_generator.GetRandom(BuiltInType.Double),
+                Z = (double)m_generator.GetRandom(BuiltInType.Double),
+            };
+        }
+
+        private Vector[] GetRandomVectorArray()
+        {
+            int size = m_generator.GetRandomByte() % 8 + 1;
+            Vector[] result = new Vector[size];
+            for (int ii = 0; ii < size; ii++)
+            {
+                result[ii] = GetRandomVector();
+            }
+            return result;
         }
 
         /// <summary>
@@ -648,68 +802,83 @@ namespace TestData
         {
             if (m_generator.GetRandomBoolean())
             {
-                ScalarValueDataType value = new ScalarValueDataType();
-
-                value.BooleanValue = m_generator.GetRandom<bool>(false);
-                value.SByteValue = m_generator.GetRandom<sbyte>(false);
-                value.ByteValue = m_generator.GetRandom<byte>(false);
-                value.Int16Value = m_generator.GetRandom<short>(false);
-                value.UInt16Value = m_generator.GetRandom<ushort>(false);
-                value.Int32Value = m_generator.GetRandom<int>(false);
-                value.UInt32Value = m_generator.GetRandom<uint>(false);
-                value.Int64Value = m_generator.GetRandom<long>(false);
-                value.UInt64Value = m_generator.GetRandom<ulong>(false);
-                value.FloatValue = m_generator.GetRandom<float>(false);
-                value.DoubleValue = m_generator.GetRandom<double>(false);
-                value.StringValue = m_generator.GetRandom<string>(false);
-                value.DateTimeValue = m_generator.GetRandom<DateTime>(false);
-                value.GuidValue = m_generator.GetRandom<Uuid>(false);
-                value.ByteStringValue = m_generator.GetRandom<byte[]>(false);
-                value.XmlElementValue = m_generator.GetRandom<XmlElement>(false);
-                value.NodeIdValue = m_generator.GetRandom<Opc.Ua.NodeId>(false);
-                value.ExpandedNodeIdValue = m_generator.GetRandom<ExpandedNodeId>(false);
-                value.QualifiedNameValue = m_generator.GetRandom<QualifiedName>(false);
-                value.LocalizedTextValue = m_generator.GetRandom<LocalizedText>(false);
-                value.StatusCodeValue = m_generator.GetRandom<StatusCode>(false);
-                value.VariantValue = m_generator.GetRandomVariant(false);
-
+                ScalarValueDataType value = GetRandomScalarValueDataType();
                 return new ExtensionObject(value.TypeId, value);
             }
             else
             {
-                ArrayValueDataType value = new ArrayValueDataType();
-
-                value.BooleanValue = m_generator.GetRandomArray<bool>(false, 10, false);
-                value.SByteValue = m_generator.GetRandomArray<sbyte>(false, 10, false);
-                value.ByteValue = m_generator.GetRandomArray<byte>(false, 10, false);
-                value.Int16Value = m_generator.GetRandomArray<short>(false, 10, false);
-                value.UInt16Value = m_generator.GetRandomArray<ushort>(false, 10, false);
-                value.Int32Value = m_generator.GetRandomArray<int>(false, 10, false);
-                value.UInt32Value = m_generator.GetRandomArray<uint>(false, 10, false);
-                value.Int64Value = m_generator.GetRandomArray<long>(false, 10, false);
-                value.UInt64Value = m_generator.GetRandomArray<ulong>(false, 10, false);
-                value.FloatValue = m_generator.GetRandomArray<float>(false, 10, false);
-                value.DoubleValue = m_generator.GetRandomArray<double>(false, 10, false);
-                value.StringValue = m_generator.GetRandomArray<string>(false, 10, false);
-                value.DateTimeValue = m_generator.GetRandomArray<DateTime>(false, 10, false);
-                value.GuidValue = m_generator.GetRandomArray<Uuid>(false, 10, false);
-                value.ByteStringValue = m_generator.GetRandomArray<byte[]>(false, 10, false);
-                value.XmlElementValue = m_generator.GetRandomArray<XmlElement>(false, 10, false);
-                value.NodeIdValue = m_generator.GetRandomArray<Opc.Ua.NodeId>(false, 10, false);
-                value.ExpandedNodeIdValue = m_generator.GetRandomArray<ExpandedNodeId>(false, 10, false);
-                value.QualifiedNameValue = m_generator.GetRandomArray<QualifiedName>(false, 10, false);
-                value.LocalizedTextValue = m_generator.GetRandomArray<LocalizedText>(false, 10, false);
-                value.StatusCodeValue = m_generator.GetRandomArray<StatusCode>(false, 10, false);
-
-                object[] values = m_generator.GetRandomArray<object>(false, 10, false);
-
-                for (int ii = 0; values != null && ii < values.Length; ii++)
-                {
-                    value.VariantValue.Add(new Variant(values[ii]));
-                }
-
+                ArrayValueDataType value = GetRandomArrayValueDataType();
                 return new ExtensionObject(value.TypeId, value);
             }
+        }
+
+        public ScalarValueDataType GetRandomScalarValueDataType()
+        {
+            ScalarValueDataType value = new ScalarValueDataType {
+                BooleanValue = m_generator.GetRandom<bool>(false),
+                SByteValue = m_generator.GetRandom<sbyte>(false),
+                ByteValue = m_generator.GetRandom<byte>(false),
+                Int16Value = m_generator.GetRandom<short>(false),
+                UInt16Value = m_generator.GetRandom<ushort>(false),
+                Int32Value = m_generator.GetRandom<int>(false),
+                UInt32Value = m_generator.GetRandom<uint>(false),
+                Int64Value = m_generator.GetRandom<long>(false),
+                UInt64Value = m_generator.GetRandom<ulong>(false),
+                FloatValue = m_generator.GetRandom<float>(false),
+                DoubleValue = m_generator.GetRandom<double>(false),
+                StringValue = m_generator.GetRandom<string>(false),
+                DateTimeValue = m_generator.GetRandom<DateTime>(false),
+                GuidValue = m_generator.GetRandom<Uuid>(false),
+                ByteStringValue = m_generator.GetRandom<byte[]>(false),
+                XmlElementValue = m_generator.GetRandom<XmlElement>(false),
+                NodeIdValue = m_generator.GetRandom<Opc.Ua.NodeId>(false),
+                ExpandedNodeIdValue = m_generator.GetRandom<ExpandedNodeId>(false),
+                QualifiedNameValue = m_generator.GetRandom<QualifiedName>(false),
+                LocalizedTextValue = m_generator.GetRandom<LocalizedText>(false),
+                StatusCodeValue = m_generator.GetRandom<StatusCode>(false),
+                VariantValue = m_generator.GetRandomVariant(false),
+                IntegerValue = new Variant(m_generator.GetRandomInteger()),
+                UIntegerValue = new Variant(m_generator.GetRandomUInteger()),
+                NumberValue = new Variant(m_generator.GetRandomNumber())
+            };
+
+            return value;
+        }
+
+        public ArrayValueDataType GetRandomArrayValueDataType()
+        {
+            ArrayValueDataType value = new ArrayValueDataType {
+                BooleanValue = m_generator.GetRandomArray<bool>(false, 10, false),
+                SByteValue = m_generator.GetRandomArray<sbyte>(false, 10, false),
+                ByteValue = m_generator.GetRandomArray<byte>(false, 10, false),
+                Int16Value = m_generator.GetRandomArray<short>(false, 10, false),
+                UInt16Value = m_generator.GetRandomArray<ushort>(false, 10, false),
+                Int32Value = m_generator.GetRandomArray<int>(false, 10, false),
+                UInt32Value = m_generator.GetRandomArray<uint>(false, 10, false),
+                Int64Value = m_generator.GetRandomArray<long>(false, 10, false),
+                UInt64Value = m_generator.GetRandomArray<ulong>(false, 10, false),
+                FloatValue = m_generator.GetRandomArray<float>(false, 10, false),
+                DoubleValue = m_generator.GetRandomArray<double>(false, 10, false),
+                StringValue = m_generator.GetRandomArray<string>(false, 10, false),
+                DateTimeValue = m_generator.GetRandomArray<DateTime>(false, 10, false),
+                GuidValue = m_generator.GetRandomArray<Uuid>(false, 10, false),
+                ByteStringValue = m_generator.GetRandomArray<byte[]>(false, 10, false),
+                XmlElementValue = m_generator.GetRandomArray<XmlElement>(false, 10, false),
+                NodeIdValue = m_generator.GetRandomArray<Opc.Ua.NodeId>(false, 10, false),
+                ExpandedNodeIdValue = m_generator.GetRandomArray<ExpandedNodeId>(false, 10, false),
+                QualifiedNameValue = m_generator.GetRandomArray<QualifiedName>(false, 10, false),
+                LocalizedTextValue = m_generator.GetRandomArray<LocalizedText>(false, 10, false),
+                StatusCodeValue = m_generator.GetRandomArray<StatusCode>(false, 10, false),
+            };
+
+            object[] values = m_generator.GetRandomArray<object>(false, 10, false);
+
+            for (int ii = 0; values != null && ii < values.Length; ii++)
+            {
+                value.VariantValue.Add(new Variant(values[ii]));
+            }
+
+            return value;
         }
 
         public void StartMonitoringValue(uint monitoredItemId, double samplingInterval, BaseVariableState variable)
@@ -769,7 +938,8 @@ namespace TestData
         {
             Utils.LogTrace("DoSample HiRes={0:ss.ffff} Now={1:ss.ffff}", HiResClock.UtcNow, DateTime.UtcNow);
 
-            Queue<Sample> samples = new Queue<Sample>();
+            var samples = new Queue<Sample>();
+            var generateValues = new List<BaseVariableState>();
 
             lock (m_lock)
             {
@@ -780,14 +950,25 @@ namespace TestData
 
                 foreach (BaseVariableState variable in m_monitoredNodes.Values)
                 {
-                    Sample sample = new Sample();
+                    if (variable is ITestDataSystemValuesGenerator)
+                    {
+                        generateValues.Add(variable);
+                    }
+                    else if (variable.Parent is ITestDataSystemValuesGenerator)
+                    {
+                        generateValues.Add(variable.Parent as BaseVariableState);
+                    }
+                    else
+                    {
+                        Sample sample = new Sample();
 
-                    sample.Variable = variable;
-                    sample.Value = ReadValue(sample.Variable);
-                    sample.StatusCode = StatusCodes.Good;
-                    sample.Timestamp = DateTime.UtcNow;
+                        sample.Variable = variable;
+                        sample.Value = ReadValue(sample.Variable);
+                        sample.StatusCode = StatusCodes.Good;
+                        sample.Timestamp = DateTime.UtcNow;
 
-                    samples.Enqueue(sample);
+                        samples.Enqueue(sample);
+                    }
                 }
             }
 
@@ -801,6 +982,13 @@ namespace TestData
                     sample.StatusCode,
                     sample.Timestamp);
             }
+
+            var distinctValues = generateValues.Distinct().ToList();
+            foreach (var generateValue in distinctValues)
+            {
+                m_callback.OnGenerateValues(generateValue);
+            }
+
         }
 
         public void StopMonitoringValue(uint monitoredItemId)

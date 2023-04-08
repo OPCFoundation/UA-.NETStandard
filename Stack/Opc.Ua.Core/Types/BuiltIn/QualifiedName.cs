@@ -217,12 +217,15 @@ namespace Opc.Ua
         /// </summary>
         public override int GetHashCode()
         {
+            var hash = new HashCode();
             if (m_name != null)
             {
-                return m_name.GetHashCode();
+                hash.Add(m_name);
             }
 
-            return 0;
+            hash.Add(m_namespaceIndex);
+
+            return hash.ToHashCode();
         }
 
         /// <summary>

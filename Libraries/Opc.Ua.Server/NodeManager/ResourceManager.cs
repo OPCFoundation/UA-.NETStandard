@@ -444,11 +444,18 @@ namespace Opc.Ua.Server
         {
             culture = null;
             TranslationTable match = null;
+
+            if (preferredLocales == null || preferredLocales.Count == 0) { return null; }
             
             for (int jj = 0; jj < preferredLocales.Count; jj++)
             {
                 // parse the locale.
                 string language = preferredLocales[jj];
+
+                if (language == null)
+                {
+                    continue;
+                }
 
                 int index = language.IndexOf('-');
 

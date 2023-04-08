@@ -35,8 +35,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Tests;
-using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
+using Quickstarts;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests
@@ -47,8 +47,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [NonParallelizable]
-    public class TypeSystemClientTest
+    public class TypeSystemClientTest : IUAClient
     {
+        public ISession Session => m_session;
+
         const int kMaxReferences = 100;
         const int kMaxTimeout = 10000;
         ServerFixture<ReferenceServer> m_serverFixture;
@@ -183,6 +185,148 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     Assert.IsTrue(definitions[localTypeId] is StructureDefinition);
                 }
             }
+        }
+
+        [Test, Order(200)]
+        public async Task BrowseComplexTypesServer()
+        {
+            var samples = new ClientSamples(TestContext.Out, null, null, true);
+
+            await samples.LoadTypeSystem(Session).ConfigureAwait(false);
+
+            ReferenceDescriptionCollection referenceDescriptions =
+                samples.BrowseFullAddressSpace(this, Objects.RootFolder);
+
+            TestContext.Out.WriteLine("References: {0}", referenceDescriptions.Count);
+
+            NodeIdCollection variableIds = new NodeIdCollection(referenceDescriptions
+                .Where(r => r.NodeClass == NodeClass.Variable && r.TypeDefinition.NamespaceIndex != 0)
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)));
+
+            TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
+
+            (var values, var serviceResults) = await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
+
+            foreach (var serviceResult in serviceResults)
+            {
+                Assert.IsTrue(ServiceResult.IsGood(serviceResult));
+            }
+        }
+
+        [Test, Order(300)]
+        public async Task FetchComplexTypesServer()
+        {
+            var samples = new ClientSamples(TestContext.Out, null, null, true);
+
+            await samples.LoadTypeSystem(m_session).ConfigureAwait(false);
+
+            IList<INode> allNodes = null;
+            allNodes = samples.FetchAllNodesNodeCache(
+                this, Objects.RootFolder, true, true, false);
+
+            TestContext.Out.WriteLine("References: {0}", allNodes.Count);
+
+            NodeIdCollection variableIds = new NodeIdCollection(allNodes
+                .Where(r => r.NodeClass == NodeClass.Variable && ((VariableNode)r).DataType.NamespaceIndex != 0)
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)));
+
+            TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
+
+            (var values, var serviceResults) = await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
+
+            foreach (var serviceResult in serviceResults)
+            {
+                Assert.IsTrue(ServiceResult.IsGood(serviceResult));
+            }
+        }
+
+        [Test, Order(400)]
+        public async Task ReadWriteScalaVariableType()
+        {
+            var samples = new ClientSamples(TestContext.Out, null, null, true);
+            await samples.LoadTypeSystem(m_session).ConfigureAwait(false);
+
+            // test the static version of the structure
+            ExpandedNodeId structureVariable = TestData.VariableIds.Data_Static_StructureScalar;
+            Assert.NotNull(structureVariable);
+            NodeId nodeId = ExpandedNodeId.ToNodeId(structureVariable, m_session.NamespaceUris);
+            Assert.NotNull(nodeId);
+            Node node = await m_session.ReadNodeAsync(nodeId);
+            Assert.NotNull(node);
+            Assert.True(node is VariableNode);
+            VariableNode variableNode = (VariableNode)node;
+            DataValue dataValue = await m_session.ReadValueAsync(nodeId);
+            Assert.NotNull(dataValue);
+
+            // test the accessor to the complex types
+            Assert.True(dataValue.Value is ExtensionObject);
+            ExtensionObject extensionObject = (ExtensionObject)dataValue.Value;
+            Assert.True(extensionObject.Body is IEncodeable);
+            IEncodeable encodeable = extensionObject.Body as IEncodeable;
+            Assert.NotNull(encodeable);
+            Assert.True(extensionObject.Body is IComplexTypeProperties);
+            IComplexTypeProperties complexType = extensionObject.Body as IComplexTypeProperties;
+            Assert.NotNull(complexType);
+
+            // list properties
+            TestContext.Out.WriteLine("{0} Properties", complexType.GetPropertyCount());
+            foreach (var property in complexType.GetPropertyEnumerator())
+            {
+                TestContext.Out.WriteLine("{0}:{1:20}: Type: {2}: ValueRank: {3} Value: {4}",
+                    property.Order, property.Name, property.PropertyType.Name, property.ValueRank, complexType[property.Name].ToString());
+            }
+
+            complexType["ByteValue"] = (byte)0;
+            complexType["StringValue"] = "badbeef";
+            complexType["NumberValue"] = new Variant((UInt32)3210);
+            complexType["IntegerValue"] = new Variant((Int64)54321);
+            complexType["UIntegerValue"] = new Variant((UInt64)12345);
+
+            var dataWriteValue = new DataValue(dataValue.WrappedValue);
+            dataWriteValue.SourceTimestamp = DateTime.UtcNow;
+
+            // write value back
+            var writeValues = new WriteValueCollection() {
+                new WriteValue() {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value,
+                    Value = dataWriteValue
+                    }
+                };
+            WriteResponse response = await m_session.WriteAsync(null, writeValues, CancellationToken.None);
+            Assert.NotNull(response);
+            Assert.NotNull(response.Results);
+            TestContext.Out.WriteLine(new ServiceResult(response.Results[0]).StatusCode);
+            TestContext.Out.WriteLine(response.Results[0].ToString());
+            Assert.True(StatusCode.IsGood(response.Results[0]));
+
+            // read back written values
+            dataValue = await m_session.ReadValueAsync(nodeId);
+            Assert.NotNull(dataValue);
+
+            Assert.True(dataValue.Value is ExtensionObject);
+            extensionObject = (ExtensionObject)dataValue.Value;
+            Assert.True(extensionObject.Body is IEncodeable);
+            encodeable = extensionObject.Body as IEncodeable;
+            Assert.NotNull(encodeable);
+            Assert.True(extensionObject.Body is IComplexTypeProperties);
+            complexType = extensionObject.Body as IComplexTypeProperties;
+            Assert.NotNull(complexType);
+
+            // list properties
+            TestContext.Out.WriteLine("{0} Properties", complexType.GetPropertyCount());
+            foreach (var property in complexType.GetPropertyEnumerator())
+            {
+                TestContext.Out.WriteLine("{0}:{1:20}: Type: {2}: ValueRank: {3} Value: {4}",
+                    property.Order, property.Name, property.GetType().Name, property.ValueRank, complexType[property.Name].ToString());
+            }
+
+            Assert.AreEqual(complexType["ByteValue"], (byte)0);
+            Assert.AreEqual(complexType["StringValue"], "badbeef");
+            Assert.AreEqual(complexType["NumberValue"], new Variant((UInt32)3210));
+            Assert.AreEqual(complexType["IntegerValue"], new Variant((Int64)54321));
+            Assert.AreEqual(complexType["UIntegerValue"], new Variant((UInt64)12345));
+
         }
         #endregion
     }

@@ -59,7 +59,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         #region Test Setup
         /// <summary>
-        /// Set up a Global Discovery Server and Client instance and connect the session
+        /// Create a dictionary for certificates.
         /// </summary>
         [OneTimeSetUp]
         protected void OneTimeSetUp()
@@ -68,7 +68,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// Clean up the Test PKI folder
+        /// One time cleanup.
         /// </summary>
         [OneTimeTearDown]
         protected void OneTimeTearDown()
@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 var cert = CertificateFactory.CreateCertificate($"CN=Test Cert {i}, O=Contoso")
                     .SetIssuer(issuerCertificate)
-                    .SetRSAKeySize((ushort) (keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048))
+                    .SetRSAKeySize((ushort)(keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048))
                     .CreateForRSA();
                 revokedCerts.Add(cert);
                 Assert.False(X509Utils.VerifySelfSigned(cert));
@@ -242,6 +242,54 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             foreach (var cert in revokedCerts)
             {
                 Assert.True(crl.IsRevoked(cert));
+            }
+        }
+
+        /// <summary>
+        /// Parse a certificate blob.
+        /// </summary>
+        [Test, Order(500)]
+        public void ParseCertificateBlob()
+        {
+            // check if complete chain should be sent.
+            if (m_rootCACertificate != null &&
+                m_rootCACertificate.Count > 0)
+            {
+                var byteServerCertificateChain = new List<byte>();
+                var certArray = m_rootCACertificate.Values.ToArray();
+
+                TestContext.Out.WriteLine("testing {0} certificates", certArray.Length);
+
+                for (int i = 0; i < certArray.Length; i++)
+                {
+                    byteServerCertificateChain.AddRange(certArray[i].RawData);
+                }
+
+                var certBlob = byteServerCertificateChain.ToArray();
+
+                var singleBlob = AsnUtils.ParseX509Blob(certBlob);
+                Assert.NotNull(singleBlob);
+                var certX = new X509Certificate2(singleBlob);
+                Assert.NotNull(certX);
+                Assert.AreEqual(certArray[0].RawData, singleBlob);
+                Assert.AreEqual(singleBlob, certX.RawData);
+                Assert.AreEqual(certArray[0].RawData, certX.RawData);
+
+                var cert = Utils.ParseCertificateBlob(certBlob);
+                Assert.NotNull(cert);
+                Assert.AreEqual(cert.RawData, certArray[0].RawData);
+                var certChain = Utils.ParseCertificateChainBlob(certBlob);
+                Assert.NotNull(certChain);
+                for (int i = 0; i < certArray.Length; i++)
+                {
+                    TestContext.Out.WriteLine(certChain[i]);
+                    Assert.AreEqual(certChain[i].RawData, certArray[i].RawData);
+                }
+
+            }
+            else
+            {
+                Assert.Ignore("No certificates for blob test");
             }
         }
         #endregion
