@@ -365,7 +365,8 @@ namespace Opc.Ua.Bindings
                 {
                     ServiceResultException serviceResultException = null;
                     if (input.TypeId != DataTypeIds.GetEndpointsRequest &&
-                        input.TypeId != DataTypeIds.FindServersRequest)
+                        input.TypeId != DataTypeIds.FindServersRequest &&
+                        input.TypeId != DataTypeIds.FindServersOnNetworkRequest)
                     {
                         serviceResultException = new ServiceResultException(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery.");
                     }

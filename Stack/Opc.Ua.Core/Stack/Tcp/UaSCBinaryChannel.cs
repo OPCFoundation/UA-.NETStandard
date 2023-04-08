@@ -321,7 +321,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual void DoMessageLimitsExceeded()
         {
-            Utils.LogError("ChannelId {0}: - Message limits exceeded while building up message. Channel will be closed", ChannelId);
+            Utils.LogError("ChannelId {0}: - Message limits exceeded while building up message. Channel will be closed.", ChannelId);
         }
         #endregion
 

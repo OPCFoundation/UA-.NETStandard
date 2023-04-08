@@ -194,6 +194,33 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+        [Test, Order(100)]
+        public async Task FindServersOnNetworkAsync()
+        {
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = 10000;
+
+            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
+            {
+                try
+                {
+                    var response = await client.FindServersOnNetworkAsync(null, 0, 100, null, CancellationToken.None).ConfigureAwait(false);
+                    foreach (ServerOnNetwork server in response.Servers)
+                    {
+                        TestContext.Out.WriteLine("{0}", server.ServerName);
+                        TestContext.Out.WriteLine("  {0}", server.RecordId);
+                        TestContext.Out.WriteLine("  {0}", server.ServerCapabilities);
+                        TestContext.Out.WriteLine("  {0}", server.DiscoveryUrl);
+                    }
+                }
+                catch (ServiceResultException sre)
+                    when (sre.StatusCode == StatusCodes.BadServiceUnsupported)
+                {
+                    Assert.Ignore("FindServersOnNetwork not supported on server.");
+                }
+            }
+        }
+
         /// <summary>
         /// Try to use the discovery channel to read a node.
         /// </summary>
@@ -246,7 +273,7 @@ namespace Opc.Ua.Client.Tests
 
         /// <summary>
         /// GetEndpoints on the discovery channel,
-        /// but an oversized message should through an error.
+        /// but an oversized message should return an error.
         /// </summary>
         [Test, Order(105)]
         public void GetEndpointsOnDiscoveryChannel()
@@ -259,6 +286,7 @@ namespace Opc.Ua.Client.Tests
                 var profileUris = new StringCollection();
                 for (int i = 0; i < 10000; i++)
                 {
+                    // dummy uri to create a bigger message
                     profileUris.Add($"https://opcfoundation.org/ProfileUri={i}");
                 }
                 var sre = Assert.Throws<ServiceResultException>(() => client.GetEndpoints(profileUris));

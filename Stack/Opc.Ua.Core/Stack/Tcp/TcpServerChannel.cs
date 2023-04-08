@@ -983,7 +983,7 @@ namespace Opc.Ua.Bindings
                 // ensure that only discovery requests come through unsecured.
                 if (DiscoveryOnly)
                 {
-                    if (!(request is GetEndpointsRequest || request is FindServersRequest))
+                    if (!(request is GetEndpointsRequest || request is FindServersRequest || request is FindServersOnNetworkRequest))
                     {
                         SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
                         return true;
