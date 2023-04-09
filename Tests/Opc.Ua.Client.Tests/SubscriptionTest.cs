@@ -46,7 +46,7 @@ namespace Opc.Ua.Client.Tests
     [SetCulture("en-us"), SetUICulture("en-us")]
     public class SubscriptionTest : ClientTestFramework
     {
-        private readonly string m_subscriptionTestXml = Path.Combine(Path.GetTempPath(), "SubscriptionTest.xml");
+        private readonly string m_subscriptionTestXml = Path.Combine("D:\\", "SubscriptionTest.xml");
 
         #region Test Setup
         /// <summary>
@@ -267,7 +267,7 @@ namespace Opc.Ua.Client.Tests
 
 
         [Test, Order(200)]
-        public void LoadSubscription()
+        public async Task LoadSubscriptionAsync()
         {
             if (!File.Exists(m_subscriptionTestXml)) Assert.Ignore("Save file {0} does not exist yet", m_subscriptionTestXml);
 
@@ -276,28 +276,35 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(subscriptions);
             Assert.IsNotEmpty(subscriptions);
 
+            int valueChanges = 0;
+
             foreach (var subscription in subscriptions)
             {
                 var list = subscription.MonitoredItems.ToList();
                 list.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
                     foreach (var value in item.DequeueValues())
                     {
+                        valueChanges++; 
                         TestContext.Out.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
                     }
                 });
 
                 Session.AddSubscription(subscription);
-                subscription.Create();
+                await subscription.CreateAsync().ConfigureAwait(false);
             }
 
-            Thread.Sleep(5000);
+            await Task.Delay(5000);
+
+            TestContext.Out.WriteLine("{0} value changes.", valueChanges);
+
+            Assert.GreaterOrEqual(valueChanges, 10);
 
             foreach (var subscription in Session.Subscriptions)
             {
                 OutputSubscriptionInfo(TestContext.Out, subscription);
             }
 
-            var result = Session.RemoveSubscriptions(subscriptions);
+            var result = await Session.RemoveSubscriptionsAsync(subscriptions).ConfigureAwait(false);
             Assert.True(result);
         }
 
