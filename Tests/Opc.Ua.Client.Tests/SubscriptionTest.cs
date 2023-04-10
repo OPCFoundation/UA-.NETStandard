@@ -35,7 +35,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Server.Tests;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -46,7 +45,7 @@ namespace Opc.Ua.Client.Tests
     [SetCulture("en-us"), SetUICulture("en-us")]
     public class SubscriptionTest : ClientTestFramework
     {
-        private readonly string m_subscriptionTestXml = Path.Combine("D:\\", "SubscriptionTest.xml");
+        private readonly string m_subscriptionTestXml = Path.Combine(Path.GetTempPath(), "SubscriptionTest.xml");
 
         #region Test Setup
         /// <summary>
