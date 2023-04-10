@@ -40,6 +40,7 @@ namespace Opc.Ua.Bindings
         :
             this(contextId, listener, bufferManager, quotas, serverCertificate, null, endpoints)
         {
+            m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
         }
 
         /// <summary>
@@ -56,6 +57,7 @@ namespace Opc.Ua.Bindings
         :
             base(contextId, listener, bufferManager, quotas, serverCertificate, serverCertificateChain, endpoints)
         {
+            m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
         }
         #endregion
 
@@ -234,7 +236,7 @@ namespace Opc.Ua.Bindings
                     // send response.
                     SendOpenSecureChannelResponse(requestId, token, request);
 
-                    // send any queue responses.
+                    // send any queued responses.
                     ResetQueuedResponses(OnChannelReconnected);
                 }
                 catch (Exception e)
@@ -878,7 +880,9 @@ namespace Opc.Ua.Bindings
             // return false would double free the buffer
             return true;
         }
+        #endregion
 
+        #region Message Processing
         /// <summary>
         /// Processes a request message.
         /// </summary>
@@ -919,6 +923,23 @@ namespace Opc.Ua.Bindings
             {
                 ForceChannelFault(e, StatusCodes.BadSecurityChecksFailed, "Could not verify security on incoming request.");
                 return false;
+            }
+
+            const int ChannelCloseCount = 5;
+            int countForDisconnect = ChannelCloseCount;
+            while (ChannelFull && countForDisconnect > 0)
+            {
+                Utils.LogInfo("Channel {0}: full -- delay processing.", Id);
+
+                // delay reading from channel
+                Thread.Sleep(1000);
+
+                if (--countForDisconnect == 0 && ChannelFull)
+                {
+                    Utils.LogWarning("Channel {0}: break socket connection.", Id);
+                    ChannelClosed();
+                    return false;
+                }
             }
 
             BufferCollection chunksToProcess = null;
@@ -1011,6 +1032,77 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Sends the response for the specified request.
+        /// </summary>
+        public void SendResponse(uint requestId, IServiceResponse response)
+        {
+            if (response == null) throw new ArgumentNullException(nameof(response));
+
+            lock (DataLock)
+            {
+                // must queue the response if the channel is in the faulted state.
+                if (State == TcpChannelState.Faulted)
+                {
+                    m_queuedResponses[requestId] = response;
+                    return;
+                }
+
+                Utils.EventLog.SendResponse((int)ChannelId, (int)requestId);
+
+                BufferCollection buffers = null;
+
+                try
+                {
+                    // note that the server does nothing if the message limits are exceeded.
+                    bool limitsExceeded = false;
+
+                    buffers = WriteSymmetricMessage(
+                        TcpMessageType.Message,
+                        requestId,
+                        CurrentToken,
+                        response,
+                        false,
+                        out limitsExceeded);
+
+                }
+                catch (Exception e)
+                {
+                    SendServiceFault(
+                        CurrentToken,
+                        requestId,
+                        ServiceResult.Create(e, StatusCodes.BadEncodingError, "Could not encode outgoing message."));
+
+                    return;
+                }
+
+                try
+                {
+                    BeginWriteMessage(buffers, null);
+                    buffers = null;
+                }
+                catch (Exception)
+                {
+                    if (buffers != null)
+                    {
+                        buffers.Release(BufferManager, "SendResponse");
+                    }
+
+                    m_queuedResponses[requestId] = response;
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reset the sorted dictionary of queued responses after reconnect.
+        /// </summary>
+        private void ResetQueuedResponses(Action<object> action)
+        {
+            Task.Factory.StartNew(action, m_queuedResponses);
+            m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
+        }
+
+        /// <summary>
         /// Closes the channel in case the message limits have been exceeded
         /// </summary>
         protected override void DoMessageLimitsExceeded()
@@ -1045,6 +1137,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
+        private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private readonly string m_ImplementationString = ".NET Standard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
         private ReverseConnectAsyncResult m_pendingReverseHello;
         #endregion

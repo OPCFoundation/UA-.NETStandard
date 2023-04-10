@@ -102,6 +102,7 @@ namespace Opc.Ua.Bindings
             m_state = TcpChannelState.Closed;
             m_receiveBufferSize = quotas.MaxBufferSize;
             m_sendBufferSize = quotas.MaxBufferSize;
+            m_activeWriteRequests = 0;
 
             if (m_receiveBufferSize < TcpMessageLimits.MinBufferSize)
             {
@@ -317,7 +318,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Code executed when the 
+        /// Code executed when the message limits are exceeded.
         /// </summary>
         protected virtual void DoMessageLimitsExceeded()
         {
@@ -326,9 +327,16 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region IMessageSink Members
-        /// <summary>
-        /// Processes an incoming message.
-        /// </summary>
+        /// <inheritdoc/>
+        public virtual bool ChannelFull
+        {
+            get
+            {
+                return m_activeWriteRequests > 100;
+            }
+        }
+
+        /// <inheritdoc/>
         public virtual void OnMessageReceived(IMessageSocket source, ArraySegment<byte> message)
         {
             lock (DataLock)
@@ -384,9 +392,7 @@ namespace Opc.Ua.Bindings
         }
         #endregion
 
-        /// <summary>
-        /// Handles a receive error.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void OnReceiveError(IMessageSocket source, ServiceResult result)
         {
             lock (DataLock)
@@ -446,6 +452,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                Interlocked.Increment(ref m_activeWriteRequests);
                 args.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
@@ -483,6 +490,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                Interlocked.Increment(ref m_activeWriteRequests);
                 args.BufferList = buffers;
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
@@ -519,6 +527,7 @@ namespace Opc.Ua.Bindings
             {
                 buffers.Release(BufferManager, "WriteOperation");
             }
+            Interlocked.Decrement(ref m_activeWriteRequests);
         }
 
         /// <summary>
@@ -824,6 +833,7 @@ namespace Opc.Ua.Bindings
         private ChannelQuotas m_quotas;
         private int m_receiveBufferSize;
         private int m_sendBufferSize;
+        private int m_activeWriteRequests;
         private int m_maxRequestMessageSize;
         private int m_maxResponseMessageSize;
         private int m_maxRequestChunkCount;
