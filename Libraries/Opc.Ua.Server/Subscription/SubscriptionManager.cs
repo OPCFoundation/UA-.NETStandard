@@ -437,7 +437,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInfo("Subscription ConditionRefresh started, Id={0}.", subscription.Id);
+                Utils.LogTrace("Subscription ConditionRefresh started, Id={0}.", subscription.Id);
                 subscription.ConditionRefresh();
             }
             catch (Exception e)
@@ -453,7 +453,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInfo("Subscription ConditionRefresh2 started, Id={0}, MonitoredItemId={1}.",
+                Utils.LogTrace("Subscription ConditionRefresh2 started, Id={0}, MonitoredItemId={1}.",
                     subscription.Id, monitoredItemId);
                 subscription.ConditionRefresh2(monitoredItemId);
             }
