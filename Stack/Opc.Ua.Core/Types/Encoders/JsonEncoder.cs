@@ -351,6 +351,12 @@ namespace Opc.Ua
         public bool ForceNamespaceUri { get; set; }
 
         /// <summary>
+        /// The Json encoder to encode namespace URI for all
+        /// namespaces
+        /// </summary>
+        public bool ForceNamespaceUriForIndex1 { get; set; }
+
+        /// <summary>
         /// The Json encoder default value option.
         /// </summary>
         public bool IncludeDefaultValues { get; set; }
@@ -854,7 +860,8 @@ namespace Opc.Ua
                 return;
             }
 
-            if (!UseReversibleEncoding && namespaceIndex > 1)
+            if (!UseReversibleEncoding && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
+                
             {
                 var uri = m_context.NamespaceUris.GetString(namespaceIndex);
                 if (!String.IsNullOrEmpty(uri))
@@ -935,7 +942,7 @@ namespace Opc.Ua
             PushStructure(fieldName);
 
             ushort namespaceIndex = value.NamespaceIndex;
-            if (ForceNamespaceUri && namespaceIndex > 1)
+            if (ForceNamespaceUri && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
             {
                 string namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
                 WriteNodeIdContents(value, namespaceUri);
@@ -963,7 +970,7 @@ namespace Opc.Ua
 
             string namespaceUri = value.NamespaceUri;
             ushort namespaceIndex = value.InnerNodeId.NamespaceIndex;
-            if (ForceNamespaceUri && namespaceUri == null && namespaceIndex > 1)
+            if (ForceNamespaceUri && namespaceUri == null && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
             {
                 namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
             }
