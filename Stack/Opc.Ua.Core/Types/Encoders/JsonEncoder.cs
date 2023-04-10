@@ -860,7 +860,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (!UseReversibleEncoding && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
+            if ((!UseReversibleEncoding || ForceNamespaceUri) && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
                 
             {
                 var uri = m_context.NamespaceUris.GetString(namespaceIndex);
