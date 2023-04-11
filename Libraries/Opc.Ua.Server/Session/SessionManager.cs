@@ -130,7 +130,7 @@ namespace Opc.Ua.Server
             {
                 // stop the monitoring thread.
                 m_shutdownEvent.Set();
-                
+
                 // dispose of session objects.
                 foreach (Session session in m_sessions.Values)
                 {
@@ -472,6 +472,18 @@ namespace Opc.Ua.Server
 
                     // validate request header.
                     session.ValidateRequest(requestHeader, requestType);
+
+                    // validate user diagnostic permissions
+                    const uint adminDiagnosticsMask = (uint)(DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo);
+                    if ((requestHeader.ReturnDiagnostics & adminDiagnosticsMask) != 0)
+                    {
+                        var currentRoleIds = session.Identity.GrantedRoleIds;
+                        if ((currentRoleIds?.Contains(ObjectIds.WellKnownRole_SecurityAdmin)) == true ||
+                            (currentRoleIds?.Contains(ObjectIds.WellKnownRole_ConfigureAdmin)) == true)
+                        {
+                            requestHeader.ReturnDiagnostics |= (uint)DiagnosticsMasks.UserPermissionValidated;
+                        }
+                    }
 
                     // return context.
                     return new OperationContext(requestHeader, requestType, session);
