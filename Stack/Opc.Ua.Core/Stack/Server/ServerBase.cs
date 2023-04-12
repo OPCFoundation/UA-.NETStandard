@@ -1432,7 +1432,7 @@ namespace Opc.Ua
                 m_activeThreadCount = 0;
 
 #if THREAD_SCHEDULER
-                m_queue = new Queue<IEndpointIncomingRequest>();
+                m_queue = new Queue<IEndpointIncomingRequest>(maxRequestCount);
                 m_totalThreadCount = 0;
 #endif
 
@@ -1595,7 +1595,7 @@ namespace Opc.Ua
                             m_activeThreadCount--;
 
                             // wait for a request. end the thread if no activity.
-                            if (m_stopped || (!Monitor.Wait(m_lock, 30000) && m_totalThreadCount > m_minThreadCount))
+                            if (m_stopped || (!Monitor.Wait(m_lock, 15_000) && m_totalThreadCount > m_minThreadCount))
                             {
                                 m_totalThreadCount--;
                                 Utils.LogTrace("Thread ended: {0:X8}. Total: {1} Active: {2}",

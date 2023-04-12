@@ -179,13 +179,14 @@ namespace Opc.Ua
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
-            BinaryEncoder encoder = new BinaryEncoder(context);
+            using (BinaryEncoder encoder = new BinaryEncoder(context))
+            {
+                // encode message
+                encoder.EncodeMessage(message);
 
-            // encode message
-            encoder.EncodeMessage(message);
-
-            // close encoder.
-            return encoder.CloseAndReturnBuffer();
+                // close encoder.
+                return encoder.CloseAndReturnBuffer();
+            }
         }
 
         /// <summary>

@@ -296,15 +296,17 @@ namespace Opc.Ua.Client
         /// Load the list of subscriptions saved in a file.
         /// </summary>
         /// <param name="stream">The stream.</param>
+        /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
         /// <returns>The list of loaded subscriptions</returns>
-        IEnumerable<Subscription> Load(Stream stream);
+        IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false);
 
         /// <summary>
         /// Load the list of subscriptions saved in a file.
         /// </summary>
         /// <param name="filePath">The file path.</param>
+        /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
         /// <returns>The list of loaded subscriptions</returns>
-        IEnumerable<Subscription> Load(string filePath);
+        IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false);
 
         /// <summary>
         /// Updates the local copy of the server's namespace uri and server uri tables.

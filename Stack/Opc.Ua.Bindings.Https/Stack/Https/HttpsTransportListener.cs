@@ -361,14 +361,26 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                if (endpoint == null &&
-                    input.TypeId != DataTypeIds.GetEndpointsRequest &&
-                    input.TypeId != DataTypeIds.FindServersRequest)
+                if (endpoint == null)
                 {
-                    message = "Connection refused, invalid security policy.";
-                    Utils.LogError(message);
-                    await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
-                    return;
+                    ServiceResultException serviceResultException = null;
+                    if (input.TypeId != DataTypeIds.GetEndpointsRequest &&
+                        input.TypeId != DataTypeIds.FindServersRequest &&
+                        input.TypeId != DataTypeIds.FindServersOnNetworkRequest)
+                    {
+                        serviceResultException = new ServiceResultException(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery.");
+                    }
+                    else if (length > TcpMessageLimits.DefaultDiscoveryMaxMessageSize)
+                    {
+                        serviceResultException = new ServiceResultException(StatusCodes.BadSecurityPolicyRejected, "Discovery Channel message size exceeded.");
+                    }
+
+                    if (serviceResultException != null)
+                    {
+                        IServiceResponse serviceResponse = EndpointBase.CreateFault(null, serviceResultException);
+                        await WriteServiceResponseAsync(context, serviceResponse, ct).ConfigureAwait(false);
+                        return;
+                    }
                 }
 
                 // note: do not use Task.Factory.FromAsync here 
@@ -381,15 +393,8 @@ namespace Opc.Ua.Bindings
 
                 IServiceResponse output = m_callback.EndProcessRequest(result);
 
-                byte[] response = BinaryEncoder.EncodeMessage(output, m_quotas.MessageContext);
-                context.Response.ContentLength = response.Length;
-                context.Response.ContentType = context.Request.ContentType;
-                context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER || NETCOREAPP3_1_OR_GREATER
-                await context.Response.Body.WriteAsync(response.AsMemory(0, response.Length), ct).ConfigureAwait(false);
-#else
-                await context.Response.Body.WriteAsync(response, 0, response.Length, ct).ConfigureAwait(false);
-#endif
+                await WriteServiceResponseAsync(context, output, ct).ConfigureAwait(false);
+
                 return;
             }
             catch (Exception e)
@@ -436,6 +441,22 @@ namespace Opc.Ua.Bindings
             }
 
             Start();
+        }
+
+        /// <summary>
+        /// Encodes a service response and writes it back.
+        /// </summary>
+        private async Task WriteServiceResponseAsync(HttpContext context, IServiceResponse response, CancellationToken ct)
+        {
+            byte[] encodedResponse = BinaryEncoder.EncodeMessage(response, m_quotas.MessageContext);
+            context.Response.ContentLength = encodedResponse.Length;
+            context.Response.ContentType = context.Request.ContentType;
+            context.Response.StatusCode = (int)HttpStatusCode.OK;
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+            await context.Response.Body.WriteAsync(encodedResponse.AsMemory(0, encodedResponse.Length), ct).ConfigureAwait(false);
+#else
+            await context.Response.Body.WriteAsync(encodedResponse, 0, encodedResponse.Length, ct).ConfigureAwait(false);
+#endif
         }
 
         private static Task WriteResponseAsync(HttpResponse response, string message, HttpStatusCode status)
