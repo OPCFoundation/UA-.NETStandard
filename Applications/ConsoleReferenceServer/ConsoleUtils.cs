@@ -232,7 +232,7 @@ namespace Quickstarts
             // because in some environments (e.g. docker cloud) it is
             // the only supported way to pass arguments.
             var config = new ConfigurationBuilder()
-                .AddEnvironmentVariables()
+                .AddEnvironmentVariables(environmentPrefix + "_")
                 .Build();
 
             var argslist = args.ToList();
@@ -242,7 +242,7 @@ namespace Quickstarts
                 string longest = names.MaxBy(s => s.Length);
                 if (longest != null && longest.Length >= 3)
                 {
-                    string envKey = config[environmentPrefix.ToUpperInvariant() + "_" + longest.ToUpperInvariant()];
+                    string envKey = config[longest.ToUpperInvariant()];
                     if (envKey != null)
                     {
                         if (string.IsNullOrWhiteSpace(envKey) || option.OptionValueType == Mono.Options.OptionValueType.None)
