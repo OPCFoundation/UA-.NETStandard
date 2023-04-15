@@ -34,6 +34,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Mono.Options;
 using Opc.Ua;
@@ -223,8 +224,41 @@ namespace Quickstarts
             string[] args,
             Mono.Options.OptionSet options,
             ref bool showHelp,
+            string environmentPrefix,
             bool noExtraArgs = true)
         {
+#if NET5_0_OR_GREATER
+            // Convert environment settings to command line flags
+            // because in some environments (e.g. docker cloud) it is
+            // the only supported way to pass arguments.
+            var config = new ConfigurationBuilder()
+                .AddEnvironmentVariables()
+                .Build();
+
+            var argslist = args.ToList();
+            foreach (var option in options)
+            {
+                var names = option.GetNames();
+                string longest = names.MaxBy(s => s.Length);
+                if (longest != null && longest.Length >= 3)
+                {
+                    string envKey = config[environmentPrefix.ToUpperInvariant() + "_" + longest.ToUpperInvariant()];
+                    if (envKey != null)
+                    {
+                        if (string.IsNullOrWhiteSpace(envKey) || option.OptionValueType == Mono.Options.OptionValueType.None)
+                        {
+                            argslist.Add("--" + longest);
+                        }
+                        else
+                        {
+                            argslist.Add("--" + longest + "=" + envKey);
+                        }
+                    }
+                }
+            }
+            args = argslist.ToArray();
+#endif
+
             IList<string> extraArgs = null;
             try
             {

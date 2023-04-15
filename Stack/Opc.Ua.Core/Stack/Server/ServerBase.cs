@@ -20,9 +20,8 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -896,7 +895,7 @@ namespace Opc.Ua
 
                 // ensure each policy has a unique id within the context of the Server
                 clone.PolicyId = Utils.Format("{0}", ++m_userTokenPolicyId);
-                
+
                 policies.Add(clone);
             }
 
@@ -1311,8 +1310,19 @@ namespace Opc.Ua
 
             // load certificate chain.
             InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
-            List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-            configuration.CertificateValidator.GetIssuers(InstanceCertificateChain, issuers).Wait();
+            var issuers = new List<CertificateIdentifier>();
+            var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
+            configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).Wait();
+
+            if (validationErrors.Count > 0)
+            {
+                Utils.LogWarning("Issuer validation errors ignored on startup:");
+                // only list warning for errors to avoid that the server can not start
+                foreach (var error in validationErrors)
+                {
+                    Utils.LogCertificate(LogLevel.Warning, "- " + error.Value.Message, error.Key);
+                }
+            }
 
             for (int i = 0; i < issuers.Count; i++)
             {
