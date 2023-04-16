@@ -1001,15 +1001,8 @@ namespace Opc.Ua
         /// </summary>
         protected IList<BaseAddress> FilterByEndpointUrl(Uri endpointUrl, IList<BaseAddress> baseAddresses)
         {
-            // client gets all of the endpoints if it using a known variant of the hostname.
-            if (NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
-            {
-                return baseAddresses;
-            }
-
             // client only gets alternate addresses that match the DNS name that it used.
             List<BaseAddress> accessibleAddresses = new List<BaseAddress>();
-
             foreach (BaseAddress baseAddress in baseAddresses)
             {
                 if (baseAddress.Url.DnsSafeHost == endpointUrl.DnsSafeHost)
@@ -1031,16 +1024,27 @@ namespace Opc.Ua
                 }
             }
 
-            // no match on client DNS name. client gets only addresses that match the scheme.
-            if (accessibleAddresses.Count == 0)
+            if (accessibleAddresses.Count != 0)
             {
-                foreach (BaseAddress baseAddress in baseAddresses)
+                return accessibleAddresses;
+            }
+
+            // client gets all of the endpoints if it using a known variant of the hostname.
+            bool isHostName = NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost");
+            foreach (BaseAddress baseAddress in baseAddresses)
+            {
+                if (isHostName || baseAddress.Url.Scheme == endpointUrl.Scheme)
                 {
-                    if (baseAddress.Url.Scheme == endpointUrl.Scheme)
+                    accessibleAddresses.Add(baseAddress);
+
+                    if (baseAddress.AlternateUrls != null)
                     {
-                        accessibleAddresses.Add(baseAddress);
-                        continue;
+                        foreach (Uri alternateUrl in baseAddress.AlternateUrls)
+                        {
+                            accessibleAddresses.Add(new BaseAddress() { Url = alternateUrl, ProfileUri = baseAddress.ProfileUri, DiscoveryUrl = alternateUrl });
+                        }
                     }
+                    continue;
                 }
             }
 
