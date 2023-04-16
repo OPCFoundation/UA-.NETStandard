@@ -473,17 +473,8 @@ namespace Opc.Ua.Server
                     // validate request header.
                     session.ValidateRequest(requestHeader, requestType);
 
-                    // validate user diagnostic permissions
-                    const uint adminDiagnosticsMask = (uint)(DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo);
-                    if ((requestHeader.ReturnDiagnostics & adminDiagnosticsMask) != 0)
-                    {
-                        var currentRoleIds = session.Identity.GrantedRoleIds;
-                        if ((currentRoleIds?.Contains(ObjectIds.WellKnownRole_SecurityAdmin)) == true ||
-                            (currentRoleIds?.Contains(ObjectIds.WellKnownRole_ConfigureAdmin)) == true)
-                        {
-                            requestHeader.ReturnDiagnostics |= (uint)DiagnosticsMasks.UserPermissionValidated;
-                        }
-                    }
+                    // validate user has permissions for additional info
+                    session.ValidateDiagnosticInfo(requestHeader);
 
                     // return context.
                     return new OperationContext(requestHeader, requestType, session);
