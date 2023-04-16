@@ -1030,20 +1030,17 @@ namespace Opc.Ua
             }
 
             // client gets all of the endpoints if it using a known variant of the hostname.
-            bool isHostName = NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost");
+            if (NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
+            {
+                return baseAddresses;
+            }
+
+            // no match on client DNS name. client gets only addresses that match the scheme.
             foreach (BaseAddress baseAddress in baseAddresses)
             {
-                if (isHostName || baseAddress.Url.Scheme == endpointUrl.Scheme)
+                if (baseAddress.Url.Scheme == endpointUrl.Scheme)
                 {
                     accessibleAddresses.Add(baseAddress);
-
-                    if (baseAddress.AlternateUrls != null)
-                    {
-                        foreach (Uri alternateUrl in baseAddress.AlternateUrls)
-                        {
-                            accessibleAddresses.Add(new BaseAddress() { Url = alternateUrl, ProfileUri = baseAddress.ProfileUri, DiscoveryUrl = alternateUrl });
-                        }
-                    }
                     continue;
                 }
             }
