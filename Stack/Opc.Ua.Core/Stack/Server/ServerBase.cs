@@ -1186,6 +1186,9 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(StatusCodes.BadRequestHeaderInvalid);
             }
+
+            // mask valid diagnostic masks
+            requestHeader.ReturnDiagnostics &= (uint)DiagnosticsMasks.All;
         }
 
         /// <summary>
