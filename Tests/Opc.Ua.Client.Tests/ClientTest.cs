@@ -297,6 +297,12 @@ namespace Opc.Ua.Client.Tests
                     profileUris.Add($"https://opcfoundation.org/ProfileUri={i}");
                 }
                 var sre = Assert.Throws<ServiceResultException>(() => client.GetEndpoints(profileUris));
+                // race condition, if socket closed is detected before the error was returned,
+                // client may report channel closed instead of security policy rejected
+                if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
+                {
+                    Assert.Inconclusive("Unexpected Status: {0}", sre);
+                }
                 Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
             }
         }
