@@ -146,7 +146,7 @@ namespace Opc.Ua
         All = 1023,
 
         /// <summary>
-        /// UserPermissionValidated = 0x80000000,
+        /// UserPermissionAdditionalInfo = 0x80000000,
         /// </summary>
         /// <remarks>
         /// Mask for internal use only.
