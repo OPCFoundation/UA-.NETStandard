@@ -104,7 +104,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var dname = new X500DistinguishedName("CN=Test, O=OPC Foundation");
             var hash = HashAlgorithmName.SHA256;
             var crlBuilder = CrlBuilder.Create(dname, hash)
-                .SetNextUpdate(DateTime.Today.AddDays(30));
+                .SetNextUpdate(DateTime.Today.AddDays(30).ToUniversalTime());
             byte[] serial = new byte[] { 4, 5, 6, 7 };
             var revokedarray = new RevokedCertificate(serial);
             crlBuilder.RevokedCertificates.Add(revokedarray);

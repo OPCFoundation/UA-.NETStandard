@@ -29,11 +29,15 @@
 
 using System;
 using System.Formats.Asn1;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Opc.Ua.Security.Certificates
 {
-    internal static class AsnUtils
+    /// <summary>
+    /// Utils for ASN.1 encoding and decoding.
+    /// </summary>
+    public static class AsnUtils
     {
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
@@ -159,5 +163,44 @@ namespace Opc.Ua.Security.Certificates
             writer.WriteIntegerUnsigned(integer);
         }
 
+        /// <summary>
+        /// Parse a X509 Tbs and signature from a byte blob with validation,
+        /// return the byte array which contains the X509 blob.
+        /// </summary>
+        /// <param name="blob">The encoded CRL or certificate sequence.</param>
+        public static byte[] ParseX509Blob(byte[] blob)
+        {
+            try
+            {
+                AsnReader x509Reader = new AsnReader(blob, AsnEncodingRules.DER);
+                var peekBlob = blob.AsSpan(0, x509Reader.PeekContentBytes().Length + 4).ToArray();
+                var seqReader = x509Reader.ReadSequence(Asn1Tag.Sequence);
+                if (seqReader != null)
+                {
+                    // Tbs encoded data
+                    var tbs = seqReader.ReadEncodedValue();
+
+                    // Signature Algorithm Identifier
+                    var sigOid = seqReader.ReadSequence();
+                    var signatureAlgorithm = sigOid.ReadObjectIdentifier();
+                    var name = Oids.GetHashAlgorithmName(signatureAlgorithm);
+
+                    // Signature
+                    int unusedBitCount;
+                    var signature = seqReader.ReadBitString(out unusedBitCount);
+                    if (unusedBitCount != 0)
+                    {
+                        throw new AsnContentException("Unexpected data in signature.");
+                    }
+                    seqReader.ThrowIfNotEmpty();
+                    return peekBlob;
+                }
+            }
+            catch (AsnContentException ace)
+            {
+                throw new CryptographicException("Failed to decode the X509 sequence.", ace);
+            }
+            throw new CryptographicException("Invalid ASN encoding for the X509 sequence.");
+        }
     }
 }

@@ -42,18 +42,31 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 
-namespace Quickstarts.ConsoleReferenceClient
+namespace Quickstarts
 {
+    /// <summary>
+    /// A client interface which holds an active session.
+    /// The client handler may reconnect and the Session
+    /// property may be updated during operation.
+    /// </summary>
+    public interface IUAClient
+    {
+        /// <summary>
+        /// The session to use.
+        /// </summary>
+        ISession Session { get; }
+    };
+
     /// <summary>
     /// Sample Session calls based on the reference server node model.
     /// </summary>
     public class ClientSamples
     {
         const int kMaxSearchDepth = 128;
-        public ClientSamples(TextWriter output, Action<IList, IList> validateResponse, ManualResetEvent quitEvent, bool verbose = false)
+        public ClientSamples(TextWriter output, Action<IList, IList> validateResponse, ManualResetEvent quitEvent = null, bool verbose = false)
         {
             m_output = output;
-            m_validateResponse = validateResponse;
+            m_validateResponse = validateResponse ?? ClientBase.ValidateResponse;
             m_quitEvent = quitEvent;
             m_verbose = verbose;
         }
@@ -62,7 +75,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Read a list of nodes from Server
         /// </summary>
-        public void ReadNodes(Session session)
+        public void ReadNodes(ISession session)
         {
             if (session == null || session.Connected == false)
             {
@@ -125,7 +138,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Write a list of nodes to the Server.
         /// </summary>
-        public void WriteNodes(Session session)
+        public void WriteNodes(ISession session)
         {
             if (session == null || session.Connected == false)
             {
@@ -194,7 +207,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Browse Server nodes
         /// </summary>
-        public void Browse(Session session)
+        public void Browse(ISession session)
         {
             if (session == null || session.Connected == false)
             {
@@ -236,7 +249,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Call UA method
         /// </summary>
-        public void CallMethod(Session session)
+        public void CallMethod(ISession session)
         {
             if (session == null || session.Connected == false)
             {
@@ -278,7 +291,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Create Subscription and MonitoredItems for DataChanges
         /// </summary>
-        public void SubscribeToDataChanges(Session session, uint minLifeTime)
+        public void SubscribeToDataChanges(ISession session, uint minLifeTime)
         {
             if (session == null || session.Connected == false)
             {
@@ -363,7 +376,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <param name="filterUATypes">Filters nodes from namespace 0 from the result.</param>
         /// <returns>The list of nodes on the server.</returns>
         public IList<INode> FetchAllNodesNodeCache(
-            UAClient uaClient,
+            IUAClient uaClient,
             NodeId startingNode,
             bool fetchTree = false,
             bool addRootNode = false,
@@ -400,7 +413,7 @@ namespace Quickstarts.ConsoleReferenceClient
             int searchDepth = 0;
             while (nodesToBrowse.Count > 0 && searchDepth < kMaxSearchDepth)
             {
-                if (m_quitEvent.WaitOne(0))
+                if (m_quitEvent?.WaitOne(0) == true)
                 {
                     m_output.WriteLine("Browse aborted.");
                     break;
@@ -477,7 +490,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <param name="startingNode">The node where the browse operation starts.</param>
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
         public ReferenceDescriptionCollection BrowseFullAddressSpace(
-            UAClient uaClient,
+            IUAClient uaClient,
             NodeId startingNode = null,
             BrowseDescription browseDescription = null)
         {
@@ -516,7 +529,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 DiagnosticInfoCollection diagnosticsInfoCollection;
                 do
                 {
-                    if (m_quitEvent.WaitOne(0))
+                    if (m_quitEvent?.WaitOne(0) == true)
                     {
                         m_output.WriteLine("Browse aborted.");
                         break;
@@ -588,7 +601,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 var continuationPoints = PrepareBrowseNext(browseResultCollection);
                 while (continuationPoints.Any())
                 {
-                    if (m_quitEvent.WaitOne(0))
+                    if (m_quitEvent?.WaitOne(0) == true)
                     {
                         m_output.WriteLine("Browse aborted.");
                     }
@@ -658,7 +671,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// Outputs elapsed time information for perf testing and lists all
         /// types that were successfully added to the session encodeable type factory.
         /// </remarks>
-        public async Task LoadTypeSystem(Session session)
+        public async Task LoadTypeSystem(ISession session)
         {
             m_output.WriteLine("Load the server type system.");
 
@@ -698,17 +711,18 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Output all values as JSON.
         /// </summary>
-        /// <param name="uaClient">The UAClient with a session to use.</param>
+        /// <param name="session">The session to use.</param>
         /// <param name="variableIds">The variables to output.</param>
-        public async Task ReadAllValuesAsync(
-            UAClient uaClient,
+        public async Task<(DataValueCollection, IList<ServiceResult>)> ReadAllValuesAsync(
+            IUAClient uaClient,
             NodeIdCollection variableIds)
         {
             bool retrySingleRead = false;
+            DataValueCollection values = null;
+            IList<ServiceResult> errors = null;
+
             do
             {
-                DataValueCollection values;
-                IList<ServiceResult> errors;
                 try
                 {
                     if (retrySingleRead)
@@ -771,6 +785,8 @@ namespace Quickstarts.ConsoleReferenceClient
                     retrySingleRead = !retrySingleRead;
                 }
             } while (retrySingleRead);
+
+            return (values, errors);
         }
         #endregion
 
