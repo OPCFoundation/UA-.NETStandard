@@ -1324,7 +1324,10 @@ namespace Opc.Ua
                 // only list warning for errors to avoid that the server can not start
                 foreach (var error in validationErrors)
                 {
-                    Utils.LogCertificate(LogLevel.Warning, "- " + error.Value.Message, error.Key);
+                    if (error.Value != null)
+                    {
+                        Utils.LogCertificate(LogLevel.Warning, "- " + error.Value.Message, error.Key);
+                    }
                 }
             }
 
