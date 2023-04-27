@@ -1482,7 +1482,7 @@ namespace Opc.Ua.Client
             ResponseHeader responseHeader = this.Read(
                 null,
                 0,
-                TimestampsToReturn.Both,
+                TimestampsToReturn.Neither,
                 nodesToRead,
                 out DataValueCollection values,
                 out DiagnosticInfoCollection diagnosticInfos);

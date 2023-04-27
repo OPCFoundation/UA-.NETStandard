@@ -234,7 +234,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.NotNull(collection);
             collection = new ExtensionObjectCollection(collection);
             Assert.NotNull(collection);
-            collection = (ExtensionObjectCollection)collection.MemberwiseClone();
+            collection = (ExtensionObjectCollection)Utils.Clone(collection);
             // default value is null
             Assert.Null(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject));
         }
