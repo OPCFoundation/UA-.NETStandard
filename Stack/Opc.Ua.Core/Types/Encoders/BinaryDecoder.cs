@@ -2120,8 +2120,17 @@ namespace Opc.Ua
                 {
                     // decode body.
                     encodeable.Decode(this);
-
                     m_nestingLevel--;
+
+                    // verify the decoder did not exceeded the length of the encodeable object
+                    int used = Position - start;
+                    if (length < used)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "The encodeable.Decoder operation exceeded the length of the extension object. {0} > {1}",
+                            used, length);
+                    }
                 }
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
                 {

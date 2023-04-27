@@ -52,6 +52,10 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </remarks>
     public class ComplexTypeSystem
     {
+        // an internal limit to prevent the retry
+        // datatype loader mechanism to loop forever
+        private const int MaxLoopCount = 100;
+
         #region Constructors
         /// <summary>
         /// Initializes the type system with a session to load the custom types.
@@ -387,10 +391,13 @@ namespace Opc.Ua.Client.ComplexTypes
                     AddEnumTypes(complexTypeBuilder, typeDictionary, enumList, allEnumTypes, serverEnumTypes);
 
                     // handle structures
+                    int loopCounter = 0;
                     int lastStructureCount = 0;
                     while (structureList.Count > 0 &&
-                        structureList.Count != lastStructureCount)
+                        structureList.Count != lastStructureCount &&
+                        loopCounter < MaxLoopCount)
                     {
+                        loopCounter++;
                         lastStructureCount = structureList.Count;
                         var retryStructureList = new List<Schema.Binary.TypeDescription>();
                         // build structured types
@@ -639,8 +646,10 @@ namespace Opc.Ua.Client.ComplexTypes
             m_complexTypeResolver.BrowseForEncodings(nodeIds, m_supportedEncodings);
 
             // create structured types for all namespaces
+            int loopCounter = 0;
             do
             {
+                loopCounter++;
                 retryAddStructType = false;
                 for (uint i = 0; i < namespaceCount; i++)
                 {
@@ -736,7 +745,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 // due to type dependencies, retry missing types until there is no more progress
                 if (retryAddStructType &&
-                    structTypesWorkList.Count != structTypesToDoList.Count)
+                    structTypesWorkList.Count != structTypesToDoList.Count &&
+                    loopCounter < MaxLoopCount)
                 {
                     structTypesWorkList = structTypesToDoList;
                     structTypesToDoList = new List<INode>();
@@ -745,6 +755,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     break;
                 }
+
             } while (retryAddStructType);
 
             // all types loaded
@@ -991,12 +1002,13 @@ namespace Opc.Ua.Client.ComplexTypes
             missingTypes = null;
 
             var localDataTypeId = ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris);
+            bool allowSubTypes = IsAllowSubTypes(structureDefinition);
 
             // check all types
             var typeList = new List<Type>();
             foreach (StructureField field in structureDefinition.Fields)
             {
-                Type newType = GetFieldType(field);
+                Type newType = GetFieldType(field, allowSubTypes);
                 if (newType == null &&
                     !IsRecursiveDataType(localDataTypeId, field.DataType))
                 {
@@ -1004,7 +1016,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         missingTypes = new ExpandedNodeIdCollection() { field.DataType };
                     }
-                    else
+                    else if (!missingTypes.Contains(field.DataType))
                     {
                         missingTypes.Add(field.DataType);
                     }
@@ -1038,7 +1050,8 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 // check for recursive data type:
                 //    field has the same data type as the parent structure
-                var isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris), field.DataType);
+                var nodeId = ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris);
+                var isRecursiveDataType = IsRecursiveDataType(nodeId, field.DataType);
                 if (isRecursiveDataType)
                 {
                     fieldBuilder.AddField(field, fieldBuilder.GetStructureType(field.ValueRank), order);
@@ -1053,13 +1066,30 @@ namespace Opc.Ua.Client.ComplexTypes
             return fieldBuilder.CreateType();
         }
 
+        bool IsAllowSubTypes(StructureDefinition structureDefinition)
+        {
+            switch (structureDefinition.StructureType)
+            {
+                case StructureType.UnionWithSubtypedValues:
+                case StructureType.StructureWithSubtypedValues:
+                    return true;
+            }
+            return false;
+        }
+
+        private bool IsAbstractType(NodeId fieldDataType)
+        {
+            var dataTypeNode = m_complexTypeResolver.Find(fieldDataType) as DataTypeNode;
+            return dataTypeNode?.IsAbstract == true;
+        }
+
         private bool IsRecursiveDataType(NodeId structureDataType, NodeId fieldDataType)
             => fieldDataType.Equals(structureDataType);
 
         /// <summary>
         /// Determine the type of a field in a StructureField definition.
         /// </summary>
-        private Type GetFieldType(StructureField field)
+        private Type GetFieldType(StructureField field, bool allowSubTypes)
         {
             if (field.ValueRank != ValueRanks.Scalar &&
                 field.ValueRank < ValueRanks.OneDimension)
@@ -1073,11 +1103,11 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (fieldType == null)
             {
-                var superType = GetBuiltInSuperType(field.DataType);
+                var superType = GetBuiltInSuperType(field.DataType, allowSubTypes, field.IsOptional);
                 if (superType?.IsNullNodeId == false)
                 {
                     field.DataType = superType;
-                    return GetFieldType(field);
+                    return GetFieldType(field, allowSubTypes);
                 }
                 return null;
             }
@@ -1097,7 +1127,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Find superType for a datatype.
         /// </summary>
-        private NodeId GetBuiltInSuperType(NodeId dataType)
+        private NodeId GetBuiltInSuperType(NodeId dataType, bool allowSubTypes, bool isOptional)
         {
             NodeId superType = dataType;
             while (true)
@@ -1116,9 +1146,25 @@ namespace Opc.Ua.Client.ComplexTypes
                         // which are not in the type system are encoded as UInt32
                         return new NodeId((uint)BuiltInType.UInt32);
                     }
-                    if (superType == DataTypeIds.Enumeration ||
-                        superType == DataTypeIds.Structure)
+                    if (superType == DataTypeIds.Enumeration)
                     {
+                        return null;
+                    }
+                    else if (superType == DataTypeIds.Structure)
+                    {
+                        // throw on invalid combinations of allowSubTypes, isOptional and abstract types
+                        // in such case the encoding as ExtensionObject is undetermined and not specified
+                        if ((dataType != DataTypeIds.Structure) &&
+                            ((allowSubTypes && !isOptional) || !allowSubTypes) &&
+                            IsAbstractType(dataType))
+                        {
+                            throw new DataTypeNotSupportedException("Invalid definition of a abstract subtype of a structure.");
+                        }
+
+                        if (allowSubTypes && isOptional)
+                        {
+                            return superType;
+                        }
                         return null;
                     }
                     break;

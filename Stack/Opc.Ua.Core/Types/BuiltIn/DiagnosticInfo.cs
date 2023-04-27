@@ -258,7 +258,8 @@ namespace Opc.Ua
                 }
             }
 
-            if ((DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0)
+            if ((DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0 &&
+                (DiagnosticsMasks.UserPermissionAdditionalInfo & diagnosticsMask) != 0)
             {
                 m_additionalInfo = result.AdditionalInfo;
             }

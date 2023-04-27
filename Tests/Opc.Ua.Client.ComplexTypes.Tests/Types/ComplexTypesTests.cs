@@ -115,7 +115,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             for (int i = 0; i < baseType.GetPropertyCount(); i++)
             {
                 var obj = baseType[i];
-                if (structureType == StructureType.Union)
+                if (structureType == StructureType.Union ||
+                    structureType == StructureType.UnionWithSubtypedValues)
                 {
                     if (((UnionComplexType)baseType).SwitchField == i + 1)
                     {

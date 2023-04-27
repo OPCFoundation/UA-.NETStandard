@@ -102,7 +102,7 @@ namespace Quickstarts.ConsoleReferenceClient
             try
             {
                 // parse command line and set options
-                var extraArg = ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp, false);
+                var extraArg = ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp, "REFCLIENT", false);
 
                 // connect Url?
                 Uri serverUrl = new Uri("opc.tcp://localhost:62541/Quickstarts/ReferenceServer");

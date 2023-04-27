@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         protected void SetRepeatedRandomSeed()
         {
-            int randomSeed = TestContext.CurrentContext.Random.Next() + kRandomStart;
+            int randomSeed = TestContext.CurrentContext.CurrentRepeatCount + kRandomStart;
             RandomSource = new RandomSource(randomSeed);
             DataGenerator = new DataGenerator(RandomSource);
         }
