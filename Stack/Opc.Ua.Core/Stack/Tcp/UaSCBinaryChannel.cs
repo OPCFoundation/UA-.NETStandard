@@ -258,10 +258,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Saves an intermediate chunk for an incoming message.
         /// </summary>
-        protected void SaveIntermediateChunk(uint requestId, ArraySegment<byte> chunk, bool isServerContext)
+        protected bool SaveIntermediateChunk(uint requestId, ArraySegment<byte> chunk, bool isServerContext)
         {
+            bool firstChunk = false;
             if (m_partialMessageChunks == null)
             {
+                firstChunk = true;
                 m_partialMessageChunks = new BufferCollection();
             }
 
@@ -280,7 +282,7 @@ namespace Opc.Ua.Bindings
             if (chunkOrSizeLimitsExceeded)
             {
                 DoMessageLimitsExceeded();
-                return;
+                return firstChunk;
             }
 
             if (requestId != 0)
@@ -288,6 +290,8 @@ namespace Opc.Ua.Bindings
                 m_partialRequestId = requestId;
                 m_partialMessageChunks.Add(chunk);
             }
+
+            return firstChunk;
         }
 
         /// <summary>
@@ -302,11 +306,23 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Returns total length of the chunks saved for message.
+        /// </summary>
+        protected int GetSavedChunksTotalSize()
+        {
+            if (m_partialMessageChunks != null)
+            {
+                return m_partialMessageChunks.TotalSize;
+            }
+            return 0;
+        }
+
+        /// <summary>
         /// Code executed when the message limits are exceeded.
         /// </summary>
         protected virtual void DoMessageLimitsExceeded()
         {
-            Utils.LogError("ChannelId {0}: - Message limits exceeded while building up message. Channel will be closed", ChannelId);
+            Utils.LogError("ChannelId {0}: - Message limits exceeded while building up message. Channel will be closed.", ChannelId);
         }
         #endregion
 

@@ -105,8 +105,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             m_clientFixture = new ClientFixture();
             await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
-            m_clientFixture.Config.TransportQuotas.MaxMessageSize =
-            m_clientFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
+            m_clientFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;
             m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
             try
             {

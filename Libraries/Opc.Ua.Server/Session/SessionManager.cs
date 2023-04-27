@@ -130,7 +130,7 @@ namespace Opc.Ua.Server
             {
                 // stop the monitoring thread.
                 m_shutdownEvent.Set();
-                
+
                 // dispose of session objects.
                 foreach (Session session in m_sessions.Values)
                 {
@@ -472,6 +472,9 @@ namespace Opc.Ua.Server
 
                     // validate request header.
                     session.ValidateRequest(requestHeader, requestType);
+
+                    // validate user has permissions for additional info
+                    session.ValidateDiagnosticInfo(requestHeader);
 
                     // return context.
                     return new OperationContext(requestHeader, requestType, session);
