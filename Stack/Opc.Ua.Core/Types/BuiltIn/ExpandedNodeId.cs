@@ -25,7 +25,7 @@ namespace Opc.Ua
     /// Extends a node id by adding a complete namespace URI.
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class ExpandedNodeId : IComparable, IFormattable
+    public class ExpandedNodeId : ICloneable, IComparable, IFormattable
     {
         #region Constructors
         /// <summary>
@@ -890,12 +890,32 @@ namespace Opc.Ua
         /// </remarks>
         public override int GetHashCode()
         {
-            if (m_nodeId == null)
+            if (m_nodeId == null || m_nodeId.IsNullNodeId)
             {
                 return 0;
             }
 
-            return m_nodeId.GetHashCode();
+            // just compare node ids.
+            if (!this.IsAbsolute)
+            {
+                return m_nodeId.GetHashCode();
+            }
+
+            var hash = new HashCode();
+
+            if (this.ServerIndex != 0)
+            {
+                hash.Add(this.ServerIndex);
+            }
+
+            if (this.NamespaceUri != null)
+            {
+                hash.Add(NamespaceUri);
+            }
+
+            hash.Add(this.m_nodeId);
+
+            return hash.ToHashCode();
         }
 
         /// <summary>
@@ -954,6 +974,12 @@ namespace Opc.Ua
         #endregion
 
         #region ICloneable Members
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
@@ -1175,7 +1201,7 @@ namespace Opc.Ua
     /// A collection of ExpandedNodeId objects.
     /// </summary>
     [CollectionDataContract(Name = "ListOfExpandedNodeId", Namespace = Namespaces.OpcUaXsd, ItemName = "ExpandedNodeId")]
-    public partial class ExpandedNodeIdCollection : List<ExpandedNodeId>
+    public partial class ExpandedNodeIdCollection : List<ExpandedNodeId>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -1231,6 +1257,13 @@ namespace Opc.Ua
             return ToExpandedNodeIdCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -1248,6 +1281,7 @@ namespace Opc.Ua
 
             return clone;
         }
+        #endregion
 
     }//class
     #endregion

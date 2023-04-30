@@ -1067,6 +1067,53 @@ namespace Opc.Ua.Test
         }
         #endregion
 
+        #region Number
+        /// <summary cref="GetRandom(Type)" />
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
+        public object GetRandomNumber()
+        {
+            switch (m_random.NextInt32(5))
+            {
+                case 0:
+                case 1: return GetRandomInteger();
+                case 2:
+                case 3: return GetRandomUInteger();
+                case 4: return GetRandomFloat();
+                //case 6: return GetRandomDecimal();
+                default: return GetRandomDouble();
+            }
+        }
+        #endregion
+
+        #region Integer
+        /// <summary cref="GetRandom(Type)" />
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
+        public object GetRandomInteger()
+        {
+            switch (m_random.NextInt32(3))
+            {
+                case 0: return GetRandomSByte();
+                case 1: return GetRandomInt16();
+                case 2: return GetRandomInt32();
+                default: return GetRandomInt64();
+            }
+        }
+        #endregion
+
+        #region UInteger
+        /// <summary cref="GetRandom(Type)" />
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
+        public object GetRandomUInteger()
+        {
+            switch (m_random.NextInt32(3))
+            {
+                case 0: return GetRandomByte();
+                case 1: return GetRandomUInt16();
+                case 2: return GetRandomUInt32();
+                default: return GetRandomUInt64();
+            }
+        }
+        #endregion
         #endregion
 
         #region BoundaryValues Class

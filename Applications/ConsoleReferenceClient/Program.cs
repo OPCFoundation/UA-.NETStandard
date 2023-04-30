@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -103,7 +102,7 @@ namespace Quickstarts.ConsoleReferenceClient
             try
             {
                 // parse command line and set options
-                var extraArg = ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp, false);
+                var extraArg = ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp, "REFCLIENT", false);
 
                 // connect Url?
                 Uri serverUrl = new Uri("opc.tcp://localhost:62541/Quickstarts/ReferenceServer");

@@ -128,7 +128,7 @@ namespace Opc.Ua.Client.Tests
                 // start Ref server
                 ServerFixture = new ServerFixture<ReferenceServer> {
                     UriScheme = UriScheme,
-                    SecurityNone = true,
+                    SecurityNone = false,
                     AutoAccept = true,
                     AllNodeManagers = true,
                     OperationLimits = true
@@ -140,8 +140,7 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 await ServerFixture.LoadConfiguration(PkiRoot).ConfigureAwait(false);
-                ServerFixture.Config.TransportQuotas.MaxMessageSize =
-                ServerFixture.Config.TransportQuotas.MaxBufferSize = TransportQuotaMaxMessageSize;
+                ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
                 ServerFixture.Config.TransportQuotas.MaxByteStringLength =
                 ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
                 ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
@@ -153,8 +152,7 @@ namespace Opc.Ua.Client.Tests
 
             ClientFixture = new ClientFixture();
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
-            ClientFixture.Config.TransportQuotas.MaxMessageSize =
-            ClientFixture.Config.TransportQuotas.MaxBufferSize = TransportQuotaMaxMessageSize;
+            ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength =
             ClientFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
 
@@ -172,6 +170,7 @@ namespace Opc.Ua.Client.Tests
                 try
                 {
                     Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                    Session.ReturnDiagnostics = DiagnosticsMasks.All;
                 }
                 catch (Exception e)
                 {

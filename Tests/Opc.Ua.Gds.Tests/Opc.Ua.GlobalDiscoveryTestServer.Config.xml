@@ -39,6 +39,8 @@
     <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
     <MinimumCertificateKeySize>1024</MinimumCertificateKeySize>
     <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
+    <SendCertificateChain>true</SendCertificateChain>
+      
   </SecurityConfiguration>
 
   <TransportConfigurations></TransportConfigurations>

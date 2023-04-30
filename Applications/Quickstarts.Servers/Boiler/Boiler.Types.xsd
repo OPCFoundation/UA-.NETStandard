@@ -5,6 +5,12 @@
   targetNamespace="http://opcfoundation.org/UA/Boiler/"
   elementFormDefault="qualified"
 >
+  <xs:annotation>
+    <xs:appinfo>
+      <ua:Model ModelUri="http://opcfoundation.org/UA/Boiler/" Version="1.0.0" PublicationDate="2021-11-02T21:05:19.9801965Z" />
+    </xs:appinfo>
+  </xs:annotation>
+  
   <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" />
 
 </xs:schema>

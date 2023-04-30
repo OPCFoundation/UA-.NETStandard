@@ -30,7 +30,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class DiagnosticInfo : IFormattable
+    public class DiagnosticInfo : ICloneable, IFormattable
     {
         #region Constructors
         /// <summary>
@@ -258,7 +258,8 @@ namespace Opc.Ua
                 }
             }
 
-            if ((DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0)
+            if ((DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0 &&
+                (DiagnosticsMasks.UserPermissionAdditionalInfo & diagnosticsMask) != 0)
             {
                 m_additionalInfo = result.AdditionalInfo;
             }
@@ -432,31 +433,27 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a unique hashcode for the object.
         /// </summary>
-        /// <remarks>
-        /// Returns a unique hashcode for the object.
-        /// </remarks>
         public override int GetHashCode()
         {
-            int hash = 0;
-
-            hash ^= this.m_symbolicId.GetHashCode();
-            hash ^= this.m_namespaceUri.GetHashCode();
-            hash ^= this.m_locale.GetHashCode();
-            hash ^= this.m_localizedText.GetHashCode();
+            var hash = new HashCode();
+            hash.Add(this.m_symbolicId);
+            hash.Add(this.m_namespaceUri);
+            hash.Add(this.m_locale);
+            hash.Add(this.m_localizedText);
 
             if (this.m_additionalInfo != null)
             {
-                hash ^= this.m_additionalInfo.GetHashCode();
+                hash.Add(this.m_additionalInfo);
             }
 
-            hash ^= this.m_innerStatusCode.GetHashCode();
+            hash.Add(this.m_innerStatusCode);
 
             if (this.m_innerDiagnosticInfo != null)
             {
-                hash ^= this.m_innerDiagnosticInfo.GetHashCode();
+                hash.Add(this.m_innerDiagnosticInfo);
             }
 
-            return 0;
+            return hash.ToHashCode();
         }
 
         /// <summary>
@@ -493,6 +490,12 @@ namespace Opc.Ua
         #endregion
 
         #region ICloneable Members
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
@@ -524,7 +527,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of DiagnosticInfo objects.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfDiagnosticInfo", Namespace = Namespaces.OpcUaXsd, ItemName = "DiagnosticInfo")]
-    public partial class DiagnosticInfoCollection : List<DiagnosticInfo>
+    public partial class DiagnosticInfoCollection : List<DiagnosticInfo>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -581,6 +584,13 @@ namespace Opc.Ua
             return ToDiagnosticInfoCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -598,6 +608,7 @@ namespace Opc.Ua
 
             return clone;
         }
+        #endregion
     }//class
     #endregion
 

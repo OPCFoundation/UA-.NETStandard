@@ -50,7 +50,6 @@ namespace Opc.Ua.Bindings
             int bufferSize,
             int start,
             int count)
-
         {
             m_buffers = new BufferCollection();
 

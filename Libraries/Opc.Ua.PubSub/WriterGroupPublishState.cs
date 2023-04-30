@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub
                 if (version == null)
                 {
                     // keep a copy of ConfigurationVersion
-                    state.ConfigurationVersion = metadata.ConfigurationVersion.MemberwiseClone() as ConfigurationVersionDataType;
+                    state.ConfigurationVersion = metadata.ConfigurationVersion.Clone() as ConfigurationVersionDataType;
                     state.LastMetaDataUpdate = DateTime.UtcNow;
                     return true;
                 }
@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub
                     version.MinorVersion != metadata.ConfigurationVersion.MinorVersion)
                 {
                     // keep a copy of ConfigurationVersion
-                    state.ConfigurationVersion = metadata.ConfigurationVersion.MemberwiseClone() as ConfigurationVersionDataType;
+                    state.ConfigurationVersion = metadata.ConfigurationVersion.Clone() as ConfigurationVersionDataType;
                     state.LastMetaDataUpdate = DateTime.UtcNow;
                     return true;
                 }
@@ -121,7 +121,7 @@ namespace Opc.Ua.PubSub
 
             return false;
         }
-             
+
         /// <summary>
         /// Checks if the DataSet has changed and null
         /// </summary>
@@ -135,7 +135,7 @@ namespace Opc.Ua.PubSub
 
                 if (lastDataSet == null)
                 {
-                    state.LastDataSet = dataset.MemberwiseClone() as DataSet;
+                    state.LastDataSet = Utils.Clone(dataset) as DataSet;
                     return dataset;
                 }
 
@@ -190,11 +190,11 @@ namespace Opc.Ua.PubSub
                 {
 
                     state.ConfigurationVersion =
-                        dataset.DataSetMetaData.ConfigurationVersion.MemberwiseClone() as ConfigurationVersionDataType;
+                        dataset.DataSetMetaData.ConfigurationVersion.Clone() as ConfigurationVersionDataType;
 
                     if (state.LastDataSet == null)
                     {
-                        state.LastDataSet = dataset.MemberwiseClone() as DataSet;
+                        state.LastDataSet = Utils.Clone(dataset) as DataSet;
                         return;
                     }
 
@@ -204,14 +204,13 @@ namespace Opc.Ua.PubSub
 
                         if (field != null)
                         {
-                            state.LastDataSet.Fields[ii] = field.MemberwiseClone() as Field;
+                            state.LastDataSet.Fields[ii] = Utils.Clone(field) as Field;
                         }
                     }
 
                 }
             }
         }
-
         #endregion
 
         #region Private Methods

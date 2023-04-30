@@ -58,15 +58,12 @@ namespace Opc.Ua.Client.ComplexTypes
         }
         #endregion Constructors
 
-        #region Public Properties
-
+        #region ICloneable
         /// <inheritdoc/>
-        public override StructureType StructureType => StructureType.StructureWithOptionalFields;
-
-        /// <summary>
-        /// The encoding mask for the optional fields.
-        /// </summary>
-        public UInt32 EncodingMask => m_encodingMask;
+        public override object Clone()
+        {
+            return this.MemberwiseClone();
+        }
 
         /// <summary>
         /// Makes a deep copy of the object.
@@ -74,12 +71,22 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
-        public override object MemberwiseClone()
+        public new object MemberwiseClone()
         {
             OptionalFieldsComplexType clone = (OptionalFieldsComplexType)base.MemberwiseClone();
             clone.m_encodingMask = m_encodingMask;
             return clone;
         }
+        #endregion
+
+        #region Public Properties
+        /// <inheritdoc/>
+        public override StructureType StructureType => StructureType.StructureWithOptionalFields;
+
+        /// <summary>
+        /// The encoding mask for the optional fields.
+        /// </summary>
+        public UInt32 EncodingMask => m_encodingMask;
 
         /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
