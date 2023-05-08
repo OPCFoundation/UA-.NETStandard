@@ -83,7 +83,7 @@ namespace Quickstarts.ReferenceServer
             try
             {
                 // parse command line and set options
-                ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp);
+                ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp, "REFSERVER");
 
                 if (logConsole && appLog)
                 {

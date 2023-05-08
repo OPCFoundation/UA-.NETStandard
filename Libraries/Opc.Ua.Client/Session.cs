@@ -1412,8 +1412,9 @@ namespace Opc.Ua.Client
         /// Load the list of subscriptions saved in a stream.
         /// </summary>
         /// <param name="stream">The stream.</param>
+        /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
         /// <returns>The list of loaded subscriptions</returns>
-        public IEnumerable<Subscription> Load(Stream stream)
+        public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false)
         {
             // secure settings
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
@@ -1425,6 +1426,15 @@ namespace Opc.Ua.Client
                 SubscriptionCollection subscriptions = (SubscriptionCollection)serializer.ReadObject(reader);
                 foreach (Subscription subscription in subscriptions)
                 {
+                    if (!transferSubscriptions)
+                    {
+                        // ServerId must be reset if the saved list of subscriptions
+                        // is not used to transfer a subscription
+                        foreach (var monitoredItem in subscription.MonitoredItems)
+                        {
+                            monitoredItem.ServerId = 0;
+                        }
+                    }
                     AddSubscription(subscription);
                 }
                 return subscriptions;
@@ -1435,12 +1445,13 @@ namespace Opc.Ua.Client
         /// Load the list of subscriptions saved in a file.
         /// </summary>
         /// <param name="filePath">The file path.</param>
+        /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
         /// <returns>The list of loaded subscriptions</returns>
-        public IEnumerable<Subscription> Load(string filePath)
+        public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false)
         {
             using (FileStream stream = File.OpenRead(filePath))
             {
-                return Load(stream);
+                return Load(stream, transferSubscriptions);
             }
         }
 
