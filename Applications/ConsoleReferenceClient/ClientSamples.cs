@@ -502,7 +502,7 @@ namespace Quickstarts.ConsoleReferenceClient
             var referenceDescriptions = new Dictionary<ExpandedNodeId, ReferenceDescription>();
 
             int searchDepth = 0;
-            uint maxNodesPerBrowse = 0;
+            uint maxNodesPerBrowse = uaClient.Session.OperationLimits.MaxNodesPerBrowse;
             while (browseDescriptionCollection.Any() && searchDepth < kMaxSearchDepth)
             {
                 searchDepth++;
@@ -563,6 +563,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             sre.StatusCode == StatusCodes.BadResponseTooLarge)
                         {
                             // try to address by overriding operation limit
+                            m_output.WriteLine("Response too large: {0}, retry with half number of nodes.", maxNodesPerBrowse);
                             maxNodesPerBrowse = maxNodesPerBrowse == 0 ?
                                 (uint)browseCollection.Count / 2 : maxNodesPerBrowse / 2;
                             repeatBrowse = true;
