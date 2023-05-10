@@ -1,4 +1,4 @@
-﻿/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
@@ -9,6 +9,8 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
+
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -25,4 +27,29 @@ namespace Opc.Ua
         /// </value>
         ExpandedNodeId TypeId { get; set; }
     }
+
+    /// <summary>
+    /// Interface implemented by complex data type instances that discover and provide type information dynamically
+    /// </summary>
+    public interface IDynamicComplexTypeInstance : IComplexTypeInstance
+    {
+        /// <summary>
+        /// Returns the xml qualified name for the type instance
+        /// </summary>
+        /// <returns>The xml qualified name for the type instance</returns>
+        XmlQualifiedName GetXmlName(IServiceMessageContext context);
+
+        /// <summary>
+        /// Returns the NodeId for the default binary encoding for the type.
+        /// </summary>
+        /// <value>The NodeId for binary encoding.</value>
+        ExpandedNodeId BinaryEncodingId { get; set; }
+
+        /// <summary>
+        /// Returns the NodeId for the default XML encoding for the type.
+        /// </summary>
+        /// <value>The NodeId for the  XML encoding id.</value>
+        ExpandedNodeId XmlEncodingId { get; set; }
+    }
+
 }
