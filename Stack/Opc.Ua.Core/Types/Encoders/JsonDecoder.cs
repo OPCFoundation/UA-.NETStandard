@@ -1450,8 +1450,9 @@ namespace Opc.Ua
                 using (JsonTextWriter writer = new JsonTextWriter(stream))
                 {
                     EncodeAsJson(writer, token);
-                    return new ExtensionObject(typeId, ostrm.ToArray());
                 }
+                // Close the writer before retrieving the data
+                return new ExtensionObject(typeId, ostrm.ToArray());
             }
             finally
             {
@@ -1463,7 +1464,7 @@ namespace Opc.Ua
         /// Reads an encodeable object from the stream.
         /// </summary>
         /// <param name="fieldName">The encodeable object field name</param>
-        /// <param name="systemType">The system type of the encopdeable object to be read</param>
+        /// <param name="systemType">The system type of the encodeable object to be read</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
         public IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
