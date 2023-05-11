@@ -20,9 +20,8 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -839,7 +838,7 @@ namespace Opc.Ua
 
             foreach (UserTokenPolicy policy in configuration.ServerConfiguration.UserTokenPolicies)
             {
-                UserTokenPolicy clone = (UserTokenPolicy)policy.MemberwiseClone();
+                UserTokenPolicy clone = (UserTokenPolicy)policy.Clone();
 
                 if (String.IsNullOrEmpty(policy.SecurityPolicyUri))
                 {
@@ -860,7 +859,7 @@ namespace Opc.Ua
 
                 // ensure each policy has a unique id within the context of the Server
                 clone.PolicyId = Utils.Format("{0}", ++m_userTokenPolicyId);
-                
+
                 policies.Add(clone);
             }
 
@@ -966,15 +965,8 @@ namespace Opc.Ua
         /// </summary>
         protected IList<BaseAddress> FilterByEndpointUrl(Uri endpointUrl, IList<BaseAddress> baseAddresses)
         {
-            // client gets all of the endpoints if it using a known variant of the hostname.
-            if (NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
-            {
-                return baseAddresses;
-            }
-
             // client only gets alternate addresses that match the DNS name that it used.
             List<BaseAddress> accessibleAddresses = new List<BaseAddress>();
-
             foreach (BaseAddress baseAddress in baseAddresses)
             {
                 if (baseAddress.Url.DnsSafeHost == endpointUrl.DnsSafeHost)
@@ -996,16 +988,24 @@ namespace Opc.Ua
                 }
             }
 
-            // no match on client DNS name. client gets only addresses that match the scheme.
-            if (accessibleAddresses.Count == 0)
+            if (accessibleAddresses.Count != 0)
             {
-                foreach (BaseAddress baseAddress in baseAddresses)
+                return accessibleAddresses;
+            }
+
+            // client gets all of the endpoints if it using a known variant of the hostname.
+            if (NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
+            {
+                return baseAddresses;
+            }
+
+            // no match on client DNS name. client gets only addresses that match the scheme.
+            foreach (BaseAddress baseAddress in baseAddresses)
+            {
+                if (baseAddress.Url.Scheme == endpointUrl.Scheme)
                 {
-                    if (baseAddress.Url.Scheme == endpointUrl.Scheme)
-                    {
-                        accessibleAddresses.Add(baseAddress);
-                        continue;
-                    }
+                    accessibleAddresses.Add(baseAddress);
+                    continue;
                 }
             }
 
@@ -1150,6 +1150,9 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(StatusCodes.BadRequestHeaderInvalid);
             }
+
+            // mask valid diagnostic masks
+            requestHeader.ReturnDiagnostics &= (uint)DiagnosticsMasks.All;
         }
 
         /// <summary>
@@ -1404,7 +1407,7 @@ namespace Opc.Ua
                 m_activeThreadCount = 0;
 
 #if THREAD_SCHEDULER
-                m_queue = new Queue<IEndpointIncomingRequest>();
+                m_queue = new Queue<IEndpointIncomingRequest>(maxRequestCount);
                 m_totalThreadCount = 0;
 #endif
 
@@ -1567,7 +1570,7 @@ namespace Opc.Ua
                             m_activeThreadCount--;
 
                             // wait for a request. end the thread if no activity.
-                            if (m_stopped || (!Monitor.Wait(m_lock, 30000) && m_totalThreadCount > m_minThreadCount))
+                            if (m_stopped || (!Monitor.Wait(m_lock, 15_000) && m_totalThreadCount > m_minThreadCount))
                             {
                                 m_totalThreadCount--;
                                 Utils.LogTrace("Thread ended: {0:X8}. Total: {1} Active: {2}",

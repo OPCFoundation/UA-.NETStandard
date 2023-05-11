@@ -416,7 +416,7 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
             // create the buffer manager.
-            m_bufferManager = new BufferManager("Client", (int)Int32.MaxValue, settings.Configuration.MaxBufferSize);
+            m_bufferManager = new BufferManager("Client", settings.Configuration.MaxBufferSize);
         }
 
         /// <summary>

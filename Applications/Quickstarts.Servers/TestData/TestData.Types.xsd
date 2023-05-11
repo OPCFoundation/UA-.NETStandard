@@ -5,6 +5,12 @@
   targetNamespace="http://test.org/UA/Data/"
   elementFormDefault="qualified"
 >
+  <xs:annotation>
+    <xs:appinfo>
+      <ua:Model ModelUri="http://test.org/UA/Data/" Version="1.0.0" PublicationDate="2023-03-13T21:07:11.6110072Z" />
+    </xs:appinfo>
+  </xs:annotation>
+  
   <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" />
 
   <xs:complexType name="ScalarValueDataType">
@@ -39,9 +45,9 @@
       <xs:element name="VariantValue" type="ua:Variant" minOccurs="0" />
       <xs:element name="EnumerationValue" type="xs:int" minOccurs="0" />
       <xs:element name="StructureValue" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
-      <xs:element name="Number" type="ua:Variant" minOccurs="0" />
-      <xs:element name="Integer" type="ua:Variant" minOccurs="0" />
-      <xs:element name="UInteger" type="ua:Variant" minOccurs="0" />
+      <xs:element name="NumberValue" type="ua:Variant" minOccurs="0" />
+      <xs:element name="IntegerValue" type="ua:Variant" minOccurs="0" />
+      <xs:element name="UIntegerValue" type="ua:Variant" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ScalarValueDataType" type="tns:ScalarValueDataType" />
@@ -79,9 +85,9 @@
       <xs:element name="VariantValue" type="ua:ListOfVariant" minOccurs="0" nillable="true" />
       <xs:element name="EnumerationValue" type="ua:ListOfInt32" minOccurs="0" nillable="true" />
       <xs:element name="StructureValue" type="ua:ListOfExtensionObject" minOccurs="0" nillable="true" />
-      <xs:element name="Number" type="ua:ListOfVariant" minOccurs="0" nillable="true" />
-      <xs:element name="Integer" type="ua:ListOfVariant" minOccurs="0" nillable="true" />
-      <xs:element name="UInteger" type="ua:ListOfVariant" minOccurs="0" nillable="true" />
+      <xs:element name="NumberValue" type="ua:ListOfVariant" minOccurs="0" nillable="true" />
+      <xs:element name="IntegerValue" type="ua:ListOfVariant" minOccurs="0" nillable="true" />
+      <xs:element name="UIntegerValue" type="ua:ListOfVariant" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ArrayValueDataType" type="tns:ArrayValueDataType" />

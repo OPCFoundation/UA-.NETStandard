@@ -420,6 +420,23 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Validate the diagnostic info.
+        /// </summary>
+        public virtual void ValidateDiagnosticInfo(RequestHeader requestHeader)
+        {
+            const uint additionalInfoDiagnosticsMask = (uint)(DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo);
+            if ((requestHeader.ReturnDiagnostics & additionalInfoDiagnosticsMask) != 0)
+            {
+                var currentRoleIds = m_effectiveIdentity?.GrantedRoleIds;
+                if ((currentRoleIds?.Contains(ObjectIds.WellKnownRole_SecurityAdmin)) == true ||
+                    (currentRoleIds?.Contains(ObjectIds.WellKnownRole_ConfigureAdmin)) == true)
+                {
+                    requestHeader.ReturnDiagnostics |= (uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
+                }
+            }
+        }
+
+        /// <summary>
         /// Checks if the secure channel is currently valid.
         /// </summary>
         public virtual bool IsSecureChannelValid(string secureChannelId)

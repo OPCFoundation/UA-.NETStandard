@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public partial struct Variant : IFormattable
+    public partial struct Variant : ICloneable, IFormattable, IEquatable<Variant>
     {
         #region Constructors
         /// <summary>
@@ -953,6 +953,12 @@ namespace Opc.Ua
         #endregion
 
         #region ICloneable Members
+        /// <inheritdoc/>
+        public object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
@@ -1525,6 +1531,22 @@ namespace Opc.Ua
         public static implicit operator Variant(object[] value)
         {
             return new Variant(value);
+        }
+
+        /// <summary>
+        /// Determines if the specified object is equal to the object.
+        /// Implements <see cref="IEquatable{Variant}.Equals(Variant)"/>.
+        /// </summary>
+        public bool Equals(Variant other)
+        {
+            Variant? variant = other as Variant?;
+
+            if (variant != null)
+            {
+                return Utils.IsEqual(m_value, variant.Value.m_value);
+            }
+
+            return false;
         }
         #endregion
 
@@ -2532,7 +2554,7 @@ namespace Opc.Ua
     /// A collection of Variant objects.
     /// </summary>
     [CollectionDataContract(Name = "ListOfVariant", Namespace = Namespaces.OpcUaXsd, ItemName = "Variant")]
-    public partial class VariantCollection : List<Variant>
+    public partial class VariantCollection : List<Variant>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -2585,6 +2607,13 @@ namespace Opc.Ua
             return ToVariantCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -2602,6 +2631,7 @@ namespace Opc.Ua
 
             return clone;
         }
+        #endregion
     }//class
     #endregion
 

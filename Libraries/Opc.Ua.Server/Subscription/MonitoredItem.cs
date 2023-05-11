@@ -394,7 +394,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
-                    return m_subscription.Session;
+                    return m_subscription?.Session;
                 }
             }
         }

@@ -21,6 +21,7 @@
   </ItemGroup>
   
   <ItemGroup>
+    <Compile Include="..\..\Applications\ConsoleReferenceClient\ClientSamples.cs" Link="Links\ClientSamples.cs" />
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
 
@@ -30,6 +31,10 @@
     <ProjectReference Include="..\Opc.Ua.Core.Tests\Opc.Ua.Core.Tests.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Links\" />
   </ItemGroup>
 
 </Project>

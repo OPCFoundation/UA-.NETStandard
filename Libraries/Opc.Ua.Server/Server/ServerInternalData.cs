@@ -806,7 +806,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Updates the Server.Auditing flag.
+        /// Reads the Server.Auditing flag.
         /// </summary>
         private ServiceResult OnReadAuditing(
             ISystemContext context,

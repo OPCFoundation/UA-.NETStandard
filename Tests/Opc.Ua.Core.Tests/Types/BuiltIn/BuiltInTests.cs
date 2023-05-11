@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         protected void SetRepeatedRandomSeed()
         {
-            int randomSeed = TestContext.CurrentContext.Random.Next() + kRandomStart;
+            int randomSeed = TestContext.CurrentContext.CurrentRepeatCount + kRandomStart;
             RandomSource = new RandomSource(randomSeed);
             DataGenerator = new DataGenerator(RandomSource);
         }
@@ -234,7 +234,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.NotNull(collection);
             collection = new ExtensionObjectCollection(collection);
             Assert.NotNull(collection);
-            collection = (ExtensionObjectCollection)collection.MemberwiseClone();
+            collection = (ExtensionObjectCollection)Utils.Clone(collection);
             // default value is null
             Assert.Null(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject));
         }
