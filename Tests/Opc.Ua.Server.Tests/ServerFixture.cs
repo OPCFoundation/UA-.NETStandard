@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 
@@ -88,7 +89,9 @@ namespace Opc.Ua.Server.Tests
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
                     .AddSignPolicies()
-                    .AddSignAndEncryptPolicies();
+                    .AddSignAndEncryptPolicies()
+                    .AddEccSignPolicies()
+                    .AddEccSignAndEncryptPolicies();
             }
 
             if (OperationLimits)
@@ -115,9 +118,16 @@ namespace Opc.Ua.Server.Tests
                 });
             }
 
+            string eccCertTypes = "RSA,nistP256,nistP384";
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                eccCertTypes += ",brainpoolP256r1,brainpoolP384r1";
+            }
+
             Config = await serverConfig.AddSecurityConfiguration(
                     "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                     pkiRoot)
+                .SetApplicationCertificateTypes(eccCertTypes)
                 .SetAutoAcceptUntrustedCertificates(AutoAccept)
                 .Create().ConfigureAwait(false);
         }

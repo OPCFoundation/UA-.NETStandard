@@ -172,8 +172,7 @@ namespace Opc.Ua.Bindings
             // save the callback to the server.
             m_callback = callback;
 
-            m_serverCertificate = settings.ServerCertificate;
-            m_serverCertificateChain = settings.ServerCertificateChain;
+            m_serverCertProvider = settings.ServerCertificateTypesProvider;
 
             // start the listener
             Start();
@@ -227,12 +226,11 @@ namespace Opc.Ua.Bindings
         {
             Startup.Listener = this;
             m_hostBuilder = new WebHostBuilder();
-            var httpsOptions = new HttpsConnectionAdapterOptions() {
-                CheckCertificateRevocation = false,
-                ClientCertificateMode = ClientCertificateMode.NoCertificate,
-                // note: this is the TLS certificate!
-                ServerCertificate = m_serverCertificate
-            };
+            HttpsConnectionAdapterOptions httpsOptions = new HttpsConnectionAdapterOptions();
+            httpsOptions.CheckCertificateRevocation = false;
+            httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
+            // note: if there is not a specific Https cert defined, the first App cert is used
+            httpsOptions.ServerCertificate = m_serverCertProvider.GetInstanceCertificate(SecurityPolicies.Https);
 
 #if NET462
             // note: although security tools recommend 'None' here,
@@ -411,32 +409,26 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void CertificateUpdate(
             ICertificateValidator validator,
-            X509Certificate2 serverCertificate,
-            X509Certificate2Collection serverCertificateChain)
+            CertificateTypesProvider certificateTypeProvider)
         {
             Stop();
 
             m_quotas.CertificateValidator = validator;
-            m_serverCertificate = serverCertificate;
-            m_serverCertificateChain = serverCertificateChain;
+            m_serverCertProvider = certificateTypeProvider;
             foreach (var description in m_descriptions)
             {
-                // check if complete chain should be sent.
-                if (m_serverCertificateChain != null &&
-                    m_serverCertificateChain.Count > 1)
+                if (description.ServerCertificate != null)
                 {
-                    var byteServerCertificateChain = new List<byte>();
-
-                    for (int i = 0; i < m_serverCertificateChain.Count; i++)
+                    X509Certificate2 serverCertificate = m_serverCertProvider.GetInstanceCertificate(description.SecurityPolicyUri);
+                    if (m_serverCertProvider.SendCertificateChain)
                     {
-                        byteServerCertificateChain.AddRange(m_serverCertificateChain[i].RawData);
+                        byte[] serverCertificateChainRaw = m_serverCertProvider.LoadCertificateChainRawAsync(serverCertificate).Result;
+                        description.ServerCertificate = serverCertificateChainRaw;
                     }
-
-                    description.ServerCertificate = byteServerCertificateChain.ToArray();
-                }
-                else if (description.ServerCertificate != null)
-                {
-                    description.ServerCertificate = serverCertificate.RawData;
+                    else
+                    {
+                        description.ServerCertificate = serverCertificate.RawData;
+                    }
                 }
             }
 
@@ -486,8 +478,7 @@ namespace Opc.Ua.Bindings
         private ITransportListenerCallback m_callback;
         private IWebHostBuilder m_hostBuilder;
         private IWebHost m_host;
-        private X509Certificate2 m_serverCertificate;
-        private X509Certificate2Collection m_serverCertificateChain;
+        private CertificateTypesProvider m_serverCertProvider;
         #endregion
     }
 }

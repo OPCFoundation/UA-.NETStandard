@@ -158,7 +158,16 @@ namespace Quickstarts
                 ExitCode = ExitCode.ErrorRunning;
 
                 // print endpoint info
+                m_output.WriteLine("Endpoints:");
                 var endpoints = m_application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
+                foreach (var endpoint in endpoints)
+                {
+                    m_output.WriteLine(endpoint);
+                }
+
+                // print security profiles
+                m_output.WriteLine("Security profiles:");
+                endpoints = m_application.Server.GetEndpoints().Select(e => e.SecurityPolicyUri).Distinct();
                 foreach (var endpoint in endpoints)
                 {
                     m_output.WriteLine(endpoint);

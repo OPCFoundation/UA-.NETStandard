@@ -148,7 +148,9 @@ namespace Opc.Ua.Security
             // copy the security settings.
             if (applicationConfiguration.SecurityConfiguration != null)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 application.ApplicationCertificate = SecuredApplication.ToCertificateIdentifier(applicationConfiguration.SecurityConfiguration.ApplicationCertificate);
+#pragma warning restore CS0618 // Type or member is obsolete
 
                 if (applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates != null)
                 {
@@ -318,7 +320,9 @@ namespace Opc.Ua.Security
 
                     if (application.ApplicationCertificate != null)
                     {
+#pragma warning disable CS0618 // Type or member is obsolete
                         security.ApplicationCertificate = SecuredApplication.FromCertificateIdentifier(application.ApplicationCertificate);
+#pragma warning restore CS0618 // Type or member is obsolete
                     }
 
                     security.TrustedIssuerCertificates = SecuredApplication.FromCertificateStoreIdentifierToTrustList(application.IssuerCertificateStore);

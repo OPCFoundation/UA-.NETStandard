@@ -17,8 +17,10 @@
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
       <SubjectName>CN=Console Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
+    
+    <ApplicationCertificateTypes>Rsa,NistP256,NistP384,BrainpoolP256r1,BrainpoolP384r1</ApplicationCertificateTypes>
 
-   <!-- Where the issuer certificate are stored (certificate authorities) -->
+    <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/issuer</StorePath>

@@ -2,12 +2,13 @@
   <PropertyGroup>
     <Product>OPC UA .NET Standard Library</Product>
     <RepositoryUrl>https://github.com/OPCFoundation/UA-.NETStandard</RepositoryUrl>
-    <VersionPrefix>1.04.368</VersionPrefix>
+    <VersionPrefix>1.04.373</VersionPrefix>
     <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
     <Copyright>Copyright © 2004-2023 OPC Foundation, Inc</Copyright>
     <Company>OPC Foundation</Company>
     <Authors>OPC Foundation</Authors>
-    <NoWarn>NU5125;CA2254;CA1307</NoWarn>
+    <!-- TODO reduce noWarn -->
+    <NoWarn>NU5125;CS1594;CS1591;NETSDK1138;CA2254</NoWarn>
     <NeutralLanguage>en-US</NeutralLanguage>
     <HighEntropyVA>true</HighEntropyVA>
     <IsPackable>false</IsPackable>

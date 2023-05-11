@@ -11,7 +11,7 @@
 */
 
 namespace Opc.Ua
-{    
+{
     /// <summary>
     /// Defines constants for key security policies.
     /// </summary>
@@ -39,47 +39,47 @@ namespace Opc.Ua
 
         /// <summary>
         /// The RSA-PSS-SHA256 algorithm used to create asymmetric key signatures.
-        /// </summary>        
+        /// </summary>
         public const string RsaPssSha256 = "http://opcfoundation.org/UA/security/rsa-pss-sha2-256";
 
         /// <summary>
         /// The AES128 algorithm used to encrypt data.
         /// </summary>
         public const string Aes128 = "http://www.w3.org/2001/04/xmlenc#aes128-cbc";
-        
+
         /// <summary>
         /// The AES256 algorithm used to encrypt data.
         /// </summary>
         public const string Aes256 = "http://www.w3.org/2001/04/xmlenc#aes256-cbc";
-        
+
         /// <summary>
         /// The RSA-OAEP algorithm used to encrypt data.
-        /// </summary>        
+        /// </summary>
         public const string RsaOaep = "http://www.w3.org/2001/04/xmlenc#rsa-oaep";
 
         /// <summary>
         /// The RSA-OAEP-SHA256 algorithm used to encrypt data.
-        /// </summary>        
+        /// </summary>
         public const string RsaOaepSha256 = "http://opcfoundation.org/UA/security/rsa-oaep-sha2-256";
 
         /// <summary>
         /// The RSA-PKCSv1.5 algorithm used to encrypt data.
-        /// </summary>        
+        /// </summary>
         public const string Rsa15 = "http://www.w3.org/2001/04/xmlenc#rsa-1_5";
 
         /// <summary>
         /// The RSA-PKCSv1.5 SHA256 algorithm used to encrypt data.
-        /// </summary>        
+        /// </summary>
         public const string Rsa15Sha256 = "http://www.w3.org/2001/04/xmlenc#rsa-1_5-sha2-256";
 
         /// <summary>
         /// The RSA-OAEP algorithm used to encrypt keys.
-        /// </summary>        
+        /// </summary>
         public const string KwRsaOaep = "http://www.w3.org/2001/04/xmlenc#rsa-oaep-mgf1p";
-        
+
         /// <summary>
         /// The RSA-PKCSv1.5 algorithm used to encrypt keys.
-        /// </summary>        
+        /// </summary>
         public const string KwRsa15 = "http://www.w3.org/2001/04/xmlenc#rsa-1_5";
 
         /// <summary>
