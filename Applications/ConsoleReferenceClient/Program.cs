@@ -179,7 +179,8 @@ namespace Quickstarts.ConsoleReferenceClient
                     // create the UA Client object and connect to configured server.
                     using (UAClient uaClient = new UAClient(
                         application.ApplicationConfiguration, output, ClientBase.ValidateResponse) {
-                        AutoAccept = autoAccept
+                            AutoAccept = autoAccept,
+                            SessionLifeTime = 60000,
                     })
                     {
                         // set user identity
@@ -222,7 +223,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                     allNodes = samples.FetchAllNodesNodeCache(
                                         uaClient, Objects.RootFolder, true, true, false);
                                     variableIds = new NodeIdCollection(allNodes
-                                        .Where(r => r.NodeClass == NodeClass.Variable && ((VariableNode)r).DataType.NamespaceIndex != 0)
+                                            .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode && ((VariableNode)r).DataType.NamespaceIndex != 0)
                                         .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
                                 }
 
@@ -234,18 +235,20 @@ namespace Quickstarts.ConsoleReferenceClient
                                 if (subscribe && fetchall)
                                 {
                                     var variables = new NodeCollection(allNodes
-                                        .Where(r => r.NodeClass == NodeClass.Variable && ((VariableNode)r).DataType.NamespaceIndex != 0)
+                                            .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode && ((VariableNode)r).DataType.NamespaceIndex != 0)
                                         .Select(r => ((VariableNode)r)));
 
                                     await samples.SubscribeAllValuesAsync(uaClient, variables, 1000, 60, 2);
 
-                                    for (int i = 0; i < 1000; i++)
+                                        for (int ii = 0; ii < 10; ii++)
                                     {
-                                        await Task.Delay(10000);
+                                            await Task.Delay(1000);
                                     }
                                 }
 
-                                quit = true;
+                                // Wait for some DataChange notifications from MonitoredItems
+                                quit = quitEvent.WaitOne(timeout > 0 ? waitTime : 3600_000);
+
                             }
                             else
                             {
