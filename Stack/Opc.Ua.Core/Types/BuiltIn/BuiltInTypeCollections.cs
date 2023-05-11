@@ -34,7 +34,7 @@ namespace Opc.Ua
     /// </code>
     /// </example>
     [CollectionDataContract(Name = "ListOfBoolean", Namespace = Namespaces.OpcUaXsd, ItemName = "Boolean")]
-    public partial class BooleanCollection : List<bool>
+    public partial class BooleanCollection : List<bool>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -91,6 +91,13 @@ namespace Opc.Ua
             return ToBooleanCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -101,6 +108,7 @@ namespace Opc.Ua
         {
             return new BooleanCollection(this);
         }
+        #endregion
     }
 
     /// <summary>
@@ -110,7 +118,7 @@ namespace Opc.Ua
     /// Provides a strongly-typed list of <see cref="SByte"/> values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfSByte", Namespace = Namespaces.OpcUaXsd, ItemName = "SByte")]
-    public partial class SByteCollection : List<sbyte>
+    public partial class SByteCollection : List<sbyte>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -167,6 +175,13 @@ namespace Opc.Ua
             return ToSByteCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -177,6 +192,7 @@ namespace Opc.Ua
         {
             return new SByteCollection(this);
         }
+        #endregion
     }
 
     /// <summary>
@@ -186,7 +202,7 @@ namespace Opc.Ua
     /// Provides a strongly-typed list of <see cref="Byte"/> values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfByte", Namespace = Namespaces.OpcUaXsd, ItemName = "Byte")]
-    public partial class ByteCollection : List<byte>
+    public partial class ByteCollection : List<byte>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -243,6 +259,13 @@ namespace Opc.Ua
             return ToByteCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -253,6 +276,7 @@ namespace Opc.Ua
         {
             return new ByteCollection(this);
         }
+        #endregion
     }
 
     /// <summary>
@@ -262,7 +286,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of Int16 values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfInt16", Namespace = Namespaces.OpcUaXsd, ItemName = "Int16")]
-    public partial class Int16Collection : List<short>
+    public partial class Int16Collection : List<short>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -319,6 +343,13 @@ namespace Opc.Ua
             return ToInt16Collection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -329,6 +360,7 @@ namespace Opc.Ua
         {
             return new Int16Collection(this);
         }
+        #endregion
     }
 
     /// <summary>
@@ -338,7 +370,7 @@ namespace Opc.Ua
     /// A collection of UInt16 values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfUInt16", Namespace = Namespaces.OpcUaXsd, ItemName = "UInt16")]
-    public partial class UInt16Collection : List<ushort>
+    public partial class UInt16Collection : List<ushort>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -395,6 +427,13 @@ namespace Opc.Ua
             return ToUInt16Collection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -405,13 +444,14 @@ namespace Opc.Ua
         {
             return new UInt16Collection(this);
         }
+        #endregion
     }
 
     /// <summary>
     /// A collection of Int32 values.
     /// </summary>
     [CollectionDataContract(Name = "ListOfInt32", Namespace = Namespaces.OpcUaXsd, ItemName = "Int32")]
-    public partial class Int32Collection : List<int>
+    public partial class Int32Collection : List<int>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -468,6 +508,13 @@ namespace Opc.Ua
             return ToInt32Collection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -478,6 +525,7 @@ namespace Opc.Ua
         {
             return new Int32Collection(this);
         }
+        #endregion
     }
 
     /// <summary>
@@ -487,7 +535,7 @@ namespace Opc.Ua
     /// A collection of UInt32 values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfUInt32", Namespace = Namespaces.OpcUaXsd, ItemName = "UInt32")]
-    public partial class UInt32Collection : List<uint>
+    public partial class UInt32Collection : List<uint>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -548,6 +596,13 @@ namespace Opc.Ua
             return ToUInt32Collection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -558,6 +613,7 @@ namespace Opc.Ua
         {
             return new UInt32Collection(this);
         }
+        #endregion
     }
 
     /// <summary>
@@ -567,7 +623,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of Int64 values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfInt64", Namespace = Namespaces.OpcUaXsd, ItemName = "Int64")]
-    public class Int64Collection : List<long>
+    public class Int64Collection : List<long>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -624,6 +680,13 @@ namespace Opc.Ua
             return ToInt64Collection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -634,6 +697,7 @@ namespace Opc.Ua
         {
             return new Int64Collection(this);
         }
+        #endregion
     }
 
     /// <summary>
@@ -643,7 +707,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of UInt64 values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfUInt64", Namespace = Namespaces.OpcUaXsd, ItemName = "UInt64")]
-    public partial class UInt64Collection : List<ulong>
+    public partial class UInt64Collection : List<ulong>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -700,6 +764,13 @@ namespace Opc.Ua
             return ToUInt64Collection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -710,6 +781,7 @@ namespace Opc.Ua
         {
             return new UInt64Collection(this);
         }
+        #endregion
     }
 
     /// <summary>
@@ -719,7 +791,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of Float values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfFloat", Namespace = Namespaces.OpcUaXsd, ItemName = "Float")]
-    public partial class FloatCollection : List<float>
+    public partial class FloatCollection : List<float>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -776,6 +848,13 @@ namespace Opc.Ua
             return ToFloatCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -786,6 +865,7 @@ namespace Opc.Ua
         {
             return new FloatCollection(this);
         }
+        #endregion
     }
 
     /// <summary>
@@ -795,7 +875,7 @@ namespace Opc.Ua
     /// A collection of Double values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfDouble", Namespace = Namespaces.OpcUaXsd, ItemName = "Double")]
-    public partial class DoubleCollection : List<double>
+    public partial class DoubleCollection : List<double>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -852,6 +932,13 @@ namespace Opc.Ua
             return ToDoubleCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -862,6 +949,7 @@ namespace Opc.Ua
         {
             return new DoubleCollection(this);
         }
+        #endregion
     }
 
     /// <summary>
@@ -871,7 +959,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of String values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfString", Namespace = Namespaces.OpcUaXsd, ItemName = "String")]
-    public partial class StringCollection : List<string>
+    public partial class StringCollection : List<string>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -928,6 +1016,13 @@ namespace Opc.Ua
             return ToStringCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -938,6 +1033,7 @@ namespace Opc.Ua
         {
             return new StringCollection(this);
         }
+        #endregion
     }
 
     /// <summary>
@@ -947,7 +1043,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of DateTime values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfDateTime", Namespace = Namespaces.OpcUaXsd, ItemName = "DateTime")]
-    public partial class DateTimeCollection : List<DateTime>
+    public partial class DateTimeCollection : List<DateTime>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -1004,6 +1100,13 @@ namespace Opc.Ua
             return ToDateTimeCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -1014,6 +1117,7 @@ namespace Opc.Ua
         {
             return new DateTimeCollection(this);
         }
+        #endregion
     }
 
     /// <summary>
@@ -1023,7 +1127,7 @@ namespace Opc.Ua
     /// A collection of ByteString values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfByteString", Namespace = Namespaces.OpcUaXsd, ItemName = "ByteString")]
-    public partial class ByteStringCollection : List<byte[]>
+    public partial class ByteStringCollection : List<byte[]>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -1080,6 +1184,13 @@ namespace Opc.Ua
             return ToByteStringCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -1097,6 +1208,7 @@ namespace Opc.Ua
 
             return clone;
         }
+        #endregion
     }
 
     /// <summary>
@@ -1106,7 +1218,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of XmlElement values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfXmlElement", Namespace = Namespaces.OpcUaXsd, ItemName = "XmlElement")]
-    public partial class XmlElementCollection : List<XmlElement>
+    public partial class XmlElementCollection : List<XmlElement>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -1163,6 +1275,13 @@ namespace Opc.Ua
             return ToXmlElementCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -1180,5 +1299,6 @@ namespace Opc.Ua
 
             return clone;
         }
+        #endregion
     }//class
 }//namespace

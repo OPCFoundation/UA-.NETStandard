@@ -194,6 +194,119 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+        [Test, Order(100)]
+        public async Task FindServersOnNetworkAsync()
+        {
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = 10000;
+
+            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
+            {
+                try
+                {
+                    var response = await client.FindServersOnNetworkAsync(null, 0, 100, null, CancellationToken.None).ConfigureAwait(false);
+                    foreach (ServerOnNetwork server in response.Servers)
+                    {
+                        TestContext.Out.WriteLine("{0}", server.ServerName);
+                        TestContext.Out.WriteLine("  {0}", server.RecordId);
+                        TestContext.Out.WriteLine("  {0}", server.ServerCapabilities);
+                        TestContext.Out.WriteLine("  {0}", server.DiscoveryUrl);
+                    }
+                }
+                catch (ServiceResultException sre)
+                    when (sre.StatusCode == StatusCodes.BadServiceUnsupported)
+                {
+                    Assert.Ignore("FindServersOnNetwork not supported on server.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Try to use the discovery channel to read a node.
+        /// </summary>
+        [Test, Order(105)]
+        [TestCase(1000)]
+        [TestCase(10000)]
+        public void ReadOnDiscoveryChannel(int readCount)
+        {
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = 10000;
+
+            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
+            {
+                var endpoints = client.GetEndpoints(null);
+                Assert.NotNull(endpoints);
+
+                // cast Innerchannel to ISessionChannel
+                ITransportChannel channel = client.TransportChannel;
+
+                var sessionClient = new SessionClient(channel) {
+                    ReturnDiagnostics = DiagnosticsMasks.All
+                };
+
+                var request = new ReadRequest {
+                    RequestHeader = null
+                };
+
+                var readMessage = new ReadMessage() {
+                    ReadRequest = request,
+                };
+
+                var readValueId = new ReadValueId() {
+                    NodeId = new NodeId(Guid.NewGuid().ToString()),
+                    AttributeId = Attributes.Value
+                };
+
+                var readValues = new ReadValueIdCollection();
+                for (int i = 0; i < readCount; i++)
+                {
+                    readValues.Add(readValueId);
+                }
+
+                // try to read nodes using discovery channel
+                var sre = Assert.Throws<ServiceResultException>(() =>
+                    sessionClient.Read(null, 0, TimestampsToReturn.Neither,
+                        readValues, out var results, out var diagnosticInfos));
+                StatusCode statusCode = StatusCodes.BadSecurityPolicyRejected;
+                // race condition, if socket closed is detected before the error was returned,
+                // client may report channel clo sed instead of security policy rejected
+                if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
+                {
+                    Assert.Inconclusive("Unexpected Status: {0}", sre);
+                }
+                Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
+            }
+        }
+
+        /// <summary>
+        /// GetEndpoints on the discovery channel,
+        /// but an oversized message should return an error.
+        /// </summary>
+        [Test, Order(105)]
+        public void GetEndpointsOnDiscoveryChannel()
+        {
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = 10000;
+
+            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
+            {
+                var profileUris = new StringCollection();
+                for (int i = 0; i < 10000; i++)
+                {
+                    // dummy uri to create a bigger message
+                    profileUris.Add($"https://opcfoundation.org/ProfileUri={i}");
+                }
+                var sre = Assert.Throws<ServiceResultException>(() => client.GetEndpoints(profileUris));
+                // race condition, if socket closed is detected before the error was returned,
+                // client may report channel closed instead of security policy rejected
+                if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
+                {
+                    Assert.Inconclusive("Unexpected Status: {0}", sre);
+                }
+                Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
+            }
+        }
+
         [Test, Order(110)]
         public async Task InvalidConfiguration()
         {
