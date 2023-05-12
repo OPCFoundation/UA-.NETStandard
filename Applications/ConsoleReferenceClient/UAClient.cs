@@ -62,6 +62,7 @@ namespace Quickstarts
         {
             Utils.SilentDispose(m_session);
             m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
+            GC.SuppressFinalize(this);
         }
         #endregion
 
@@ -89,7 +90,7 @@ namespace Quickstarts
         /// <summary>
         /// The session lifetime.
         /// </summary>
-        public uint SessionLifeTime { get; set; } = 30 * 1000;
+        public uint SessionLifeTime { get; set; } = 60 * 1000;
 
         /// <summary>
         /// The user identity to use to connect to the server.
@@ -135,7 +136,7 @@ namespace Quickstarts
                     var session = await Opc.Ua.Client.Session.Create(
                         m_configuration,
                         endpoint,
-                        false,
+                        true,
                         false,
                         m_configuration.ApplicationName,
                         SessionLifeTime,
@@ -150,6 +151,10 @@ namespace Quickstarts
 
                         // override keep alive interval
                         m_session.KeepAliveInterval = KeepAliveInterval;
+
+                        // support transfer
+                        m_session.DeleteSubscriptionsOnClose = false;
+                        m_session.TransferSubscriptionsOnReconnect = true;
 
                         // set up keep alive callback.
                         m_session.KeepAlive += Session_KeepAlive;

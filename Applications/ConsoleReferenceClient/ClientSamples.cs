@@ -224,6 +224,7 @@ namespace Quickstarts
                 browser.BrowseDirection = BrowseDirection.Forward;
                 browser.NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable;
                 browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
+                browser.IncludeSubtypes = true;
 
                 NodeId nodeToBrowse = ObjectIds.Server;
 
@@ -380,7 +381,8 @@ namespace Quickstarts
             NodeId startingNode,
             bool fetchTree = false,
             bool addRootNode = false,
-            bool filterUATypes = true)
+            bool filterUATypes = true,
+            bool clearNodeCache = true)
         {
             var stopwatch = new Stopwatch();
             var nodeDictionary = new Dictionary<ExpandedNodeId, INode>();
@@ -389,19 +391,15 @@ namespace Quickstarts
                     startingNode
                 };
 
-            // clear NodeCache to fetch all nodes from server
-            uaClient.Session.NodeCache.Clear();
-
             // start
             stopwatch.Start();
 
-            // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
-            var bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
-            var namespaceUris = uaClient.Session.NamespaceUris;
-            var referenceTypes = typeof(ReferenceTypeIds)
-                     .GetFields(bindingFlags)
-                     .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
-            uaClient.Session.FetchTypeTree(new ExpandedNodeIdCollection(referenceTypes));
+            if (clearNodeCache)
+            {
+                // clear NodeCache to fetch all nodes from server
+                uaClient.Session.NodeCache.Clear();
+                FetchReferenceIdTypes(uaClient.Session);
+            }
 
             // add root node
             if (addRootNode)
@@ -421,7 +419,7 @@ namespace Quickstarts
 
                 searchDepth++;
                 Utils.LogInfo("{0}: Find {1} references after {2}ms", searchDepth, nodesToBrowse.Count, stopwatch.ElapsedMilliseconds);
-                var response = uaClient.Session.NodeCache.FindReferences(
+                IList<INode> response = uaClient.Session.NodeCache.FindReferences(
                     nodesToBrowse,
                     references,
                     false,
@@ -429,13 +427,33 @@ namespace Quickstarts
 
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 int duplicates = 0;
-                foreach (var node in response)
+                int leafNodes = 0;
+                foreach (INode node in response)
                 {
                     if (!nodeDictionary.ContainsKey(node.NodeId))
                     {
                         if (fetchTree)
                         {
-                            nextNodesToBrowse.Add(node.NodeId);
+                            bool leafNode = false;
+
+                            // no need to browse property types
+                            if (node is VariableNode variableNode)
+                            {
+                                var hasTypeDefinition = variableNode.ReferenceTable.FirstOrDefault(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasTypeDefinition));
+                                if (hasTypeDefinition != null)
+                                {
+                                    leafNode = (hasTypeDefinition.TargetId == VariableTypeIds.PropertyType);
+                                }
+                            }
+
+                            if (!leafNode)
+                            {
+                                nextNodesToBrowse.Add(node.NodeId);
+                            }
+                            else
+                            {
+                                leafNodes++;
+                            }
                         }
 
                         if (filterUATypes)
@@ -459,6 +477,10 @@ namespace Quickstarts
                 if (duplicates > 0)
                 {
                     Utils.LogInfo("Find References {0} duplicate nodes were ignored", duplicates);
+                }
+                if (leafNodes > 0)
+                {
+                    Utils.LogInfo("Find References {0} leaf nodes were ignored", leafNodes);
                 }
                 nodesToBrowse = nextNodesToBrowse;
             }
@@ -576,7 +598,6 @@ namespace Quickstarts
                             sre.StatusCode == StatusCodes.BadResponseTooLarge)
                         {
                             // try to address by overriding operation limit
-                            m_output.WriteLine("Response too large: {0}, retry with half number of nodes.", maxNodesPerBrowse);
                             maxNodesPerBrowse = maxNodesPerBrowse == 0 ?
                                 (uint)browseCollection.Count / 2 : maxNodesPerBrowse / 2;
                             repeatBrowse = true;
@@ -626,7 +647,10 @@ namespace Quickstarts
                         if (!referenceDescriptions.ContainsKey(reference.NodeId))
                         {
                             referenceDescriptions[reference.NodeId] = reference;
-                            browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, uaClient.Session.NamespaceUris));
+                            if (reference.ReferenceTypeId != ReferenceTypeIds.HasProperty)
+                            {
+                                browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, uaClient.Session.NamespaceUris));
+                            }
                         }
                         else
                         {
@@ -705,6 +729,28 @@ namespace Quickstarts
                     }
                 }
             }
+        }
+        #endregion
+
+        #region Fetch ReferenceId Types
+        /// <summary>
+        /// Read all ReferenceTypeIds from the server that are not known by the client.
+        /// To reduce the number of calls due to traversal call pyramid, start with all
+        /// known reference types to reduce the number of FetchReferences/FetchNodes calls.
+        /// </summary>
+        /// <remarks>
+        /// The NodeCache needs this information to function properly with subtypes of hierarchical calls.
+        /// </remarks>
+        /// <param name="session">The session to use</param>
+        void FetchReferenceIdTypes(ISession session)
+        {
+            // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
+            var bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+            var namespaceUris = session.NamespaceUris;
+            var referenceTypes = typeof(ReferenceTypeIds)
+                     .GetFields(bindingFlags)
+                     .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
+            session.FetchTypeTree(new ExpandedNodeIdCollection(referenceTypes));
         }
         #endregion
 
@@ -798,7 +844,7 @@ namespace Quickstarts
         /// <param name="uaClient">The UAClient with a session to use.</param>
         /// <param name="variableIds">The variables to subscribe.</param>
         public async Task SubscribeAllValuesAsync(
-            UAClient uaClient,
+            IUAClient uaClient,
             NodeCollection variableIds,
             int samplingInterval,
             int publishingInterval,
@@ -839,13 +885,11 @@ namespace Quickstarts
                 // Create MonitoredItems for data changes
                 foreach (Node item in variableIds)
                 {
-                    Type type = Opc.Ua.TypeInfo.GetSystemType(item.TypeId, session.Factory);
-                    string displayName = type?.FullName ?? "(unknown type)";
                     MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem) {
                         StartNodeId = item.NodeId,
                         AttributeId = Attributes.Value,
-                        DisplayName = displayName,
                         SamplingInterval = samplingInterval,
+                        DisplayName = item.DisplayName.Text ?? item.BrowseName.Name,
                         QueueSize = queueSize,
                         DiscardOldest = true,
                         MonitoringMode = MonitoringMode.Reporting,
