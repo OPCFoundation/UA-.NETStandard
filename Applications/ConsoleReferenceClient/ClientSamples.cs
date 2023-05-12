@@ -884,20 +884,17 @@ namespace Quickstarts
                 // Create MonitoredItems for data changes
                 foreach (var item in variableIds)
                 {
-                    Type type = Opc.Ua.TypeInfo.GetSystemType(item.TypeId, session.Factory);
-                    string displayName = type?.FullName ?? "(unknown type)";
                     MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem) {
                         StartNodeId = item.NodeId,
                         AttributeId = Attributes.Value,
-                        DisplayName = displayName,
+                        DisplayName = item.DisplayName.Text ?? item.BrowseName.Name,
                         SamplingInterval = 1000,
                         QueueSize = queueSize,
                         DiscardOldest = true,
-                        MonitoringMode = MonitoringMode.Sampling,
+                        MonitoringMode = MonitoringMode.Reporting,
                     };
                     monitoredItem.Notification += OnMonitoredItemNotification;
                     subscription.AddItem(monitoredItem);
-                    if (queueSize > 0) { queueSize--; }
                     if (subscription.CurrentKeepAliveCount > 1000) break;
                 }
 

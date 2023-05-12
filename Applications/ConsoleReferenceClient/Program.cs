@@ -179,8 +179,8 @@ namespace Quickstarts.ConsoleReferenceClient
                     // create the UA Client object and connect to configured server.
                     using (UAClient uaClient = new UAClient(
                         application.ApplicationConfiguration, output, ClientBase.ValidateResponse) {
-                            AutoAccept = autoAccept,
-                            SessionLifeTime = 60000,
+                        AutoAccept = autoAccept,
+                        SessionLifeTime = 60000,
                     })
                     {
                         // set user identity
@@ -223,7 +223,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                     allNodes = samples.FetchAllNodesNodeCache(
                                         uaClient, Objects.RootFolder, true, true, false);
                                     variableIds = new NodeIdCollection(allNodes
-                                            .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode && ((VariableNode)r).DataType.NamespaceIndex != 0)
+                                        .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode && ((VariableNode)r).DataType.NamespaceIndex != 0)
                                         .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
                                 }
 
@@ -232,17 +232,35 @@ namespace Quickstarts.ConsoleReferenceClient
                                     await samples.ReadAllValuesAsync(uaClient, variableIds);
                                 }
 
-                                if (subscribe && fetchall)
+                                if (subscribe)
                                 {
-                                    var variables = new NodeCollection(allNodes
-                                            .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode && ((VariableNode)r).DataType.NamespaceIndex != 0)
-                                        .Select(r => ((VariableNode)r)));
-
-                                    await samples.SubscribeAllValuesAsync(uaClient, variables, 1000, 60, 2);
-
-                                        for (int ii = 0; ii < 10; ii++)
+                                    const int MaxVariables = 100;
+                                    NodeCollection variables = new NodeCollection();
+                                    Random random = new Random(62541);
+                                    if (fetchall)
                                     {
-                                            await Task.Delay(1000);
+                                        variables.AddRange(allNodes
+                                            .Where(r => r.NodeClass == NodeClass.Variable && r.NodeId.NamespaceIndex > 1)
+                                            .Select(r => ((VariableNode)r))
+                                            .OrderBy(o => random.Next())
+                                            .Take(MaxVariables));
+                                    }
+                                    else if (browseall)
+                                    {
+                                        var variableReferences = referenceDescriptions
+                                            .Where(r => r.NodeClass == NodeClass.Variable && r.NodeId.NamespaceIndex > 1)
+                                            .Select(r => r.NodeId)
+                                            .OrderBy(o => random.Next())
+                                            .Take(MaxVariables)
+                                            .ToList();
+                                        variables.AddRange(uaClient.Session.NodeCache.Find(variableReferences).Cast<Node>());
+                                    }
+
+                                    await samples.SubscribeAllValuesAsync(uaClient, new NodeCollection(variables.Take(100)), 1000, 60, 2);
+
+                                    for (int ii = 0; ii < 10; ii++)
+                                    {
+                                        await Task.Delay(1000);
                                     }
                                 }
 
