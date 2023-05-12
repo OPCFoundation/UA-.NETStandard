@@ -237,7 +237,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                         .Where(r => r.NodeClass == NodeClass.Variable && ((VariableNode)r).DataType.NamespaceIndex != 0)
                                         .Select(r => ((VariableNode)r)));
 
-                                    await samples.SubscribeAllValuesAsync(uaClient, variables, 1000, 60, 2);
+                                    await samples.SubscribeAllValuesAsync(uaClient, variables, 1000, 1000, 5, 12, 2);
 
                                     for (int i = 0; i < 1000; i++)
                                     {

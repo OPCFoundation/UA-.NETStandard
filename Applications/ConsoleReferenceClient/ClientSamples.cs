@@ -800,7 +800,9 @@ namespace Quickstarts
         public async Task SubscribeAllValuesAsync(
             UAClient uaClient,
             NodeCollection variableIds,
+            int samplingInterval,
             int publishingInterval,
+            uint queueSize,
             uint lifetimeCount,
             uint keepAliveCount)
         {
@@ -826,6 +828,7 @@ namespace Quickstarts
                     RepublishAfterTransfer = true,
                     MaxNotificationsPerPublish = 1000,
                     MinLifetimeInterval = (uint)session.SessionTimeout,
+                    FastDataChangeCallback = FastDataChangeNotification,
                 };
                 session.AddSubscription(subscription);
 
@@ -833,10 +836,8 @@ namespace Quickstarts
                 await subscription.CreateAsync().ConfigureAwait(false);
                 m_output.WriteLine("New Subscription created with SubscriptionId = {0}.", subscription.Id);
 
-                uint queueSize = 10;
-
                 // Create MonitoredItems for data changes
-                foreach (var item in variableIds)
+                foreach (Node item in variableIds)
                 {
                     Type type = Opc.Ua.TypeInfo.GetSystemType(item.TypeId, session.Factory);
                     string displayName = type?.FullName ?? "(unknown type)";
@@ -844,20 +845,19 @@ namespace Quickstarts
                         StartNodeId = item.NodeId,
                         AttributeId = Attributes.Value,
                         DisplayName = displayName,
-                        SamplingInterval = 1000,
+                        SamplingInterval = samplingInterval,
                         QueueSize = queueSize,
                         DiscardOldest = true,
-                        MonitoringMode = MonitoringMode.Sampling,
+                        MonitoringMode = MonitoringMode.Reporting,
                     };
                     monitoredItem.Notification += OnMonitoredItemNotification;
                     subscription.AddItem(monitoredItem);
-                    if (queueSize > 0) { queueSize--; }
                     if (subscription.CurrentKeepAliveCount > 1000) break;
                 }
 
                 // Create the monitored items on Server side
                 subscription.ApplyChanges();
-                m_output.WriteLine("MonitoredItems created for SubscriptionId = {0}.", subscription.Id);
+                m_output.WriteLine("MonitoredItems {0} created for SubscriptionId = {1}.", subscription.MonitoredItemCount, subscription.Id);
             }
             catch (Exception ex)
             {
@@ -911,6 +911,20 @@ namespace Quickstarts
 
         #region Private Methods
         /// <summary>
+        /// The fast data change notification callback.
+        /// </summary>
+        private void FastDataChangeNotification(Subscription subscription, DataChangeNotification notification, IList<string> stringTable)
+        {
+            try
+            {
+                m_output.WriteLine("Notification: Id={0} Items={1}.", subscription.Id, notification.MonitoredItems.Count);
+            }
+            catch (Exception ex)
+            {
+                m_output.WriteLine("FastDataChangeNotification error: {0}", ex.Message);
+            }
+        }
+        /// <summary>
         /// Handle DataChange notifications from Server
         /// </summary>
         private void OnMonitoredItemNotification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
@@ -919,7 +933,7 @@ namespace Quickstarts
             {
                 // Log MonitoredItem Notification event
                 MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
-                m_output.WriteLine("Notification: {0} \"{1}\" and Value = {2}.", notification.Message.SequenceNumber, monitoredItem.DisplayName, notification.Value);
+                m_output.WriteLine("Notification: {0} \"{1}\" and Value = {2}.", notification.Message.SequenceNumber, monitoredItem.ResolvedNodeId, notification.Value);
             }
             catch (Exception ex)
             {
