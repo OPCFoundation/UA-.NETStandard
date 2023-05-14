@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -44,9 +44,14 @@ namespace Opc.Ua.Client
         public const int MinReconnectPeriod = 500;
 
         /// <summary>
+        /// The maximum reconnect period in ms.
+        /// </summary>
+        public const int MaxReconnectPeriod = 30000;
+
+        /// <summary>
         /// The default reconnect period in ms.
         /// </summary>
-        public const int DefaultReconnectPeriod = 5000;
+        public const int DefaultReconnectPeriod = 1000;
 
         /// <summary>
         /// The internal state of the reconnect handler.
@@ -57,14 +62,17 @@ namespace Opc.Ua.Client
             /// The reconnect handler is ready to start the reconnect timer.
             /// </summary>
             Ready = 0,
+
             /// <summary>
             /// The reconnect timer is triggered and waiting to reconnect.
             /// </summary>
             Triggered = 1,
+
             /// <summary>
             /// The reconnection is in progress.
             /// </summary>
             Reconnecting = 2,
+
             /// <summary>
             /// The reconnect handler is disposed and can not be used for further reconnect attempts.
             /// </summary>
@@ -75,12 +83,15 @@ namespace Opc.Ua.Client
         /// Create a reconnect handler.
         /// </summary>
         /// <param name="reconnectAbort">Set to <c>true</c> to allow reconnect abort if keep alive recovered.</param>
-        public SessionReconnectHandler(bool reconnectAbort = false)
+        /// <param name="maxReconnectPeriod">The upper limit for the reconnect period after exponential backoff.</param>
+        public SessionReconnectHandler(bool reconnectAbort = false, int maxReconnectPeriod = MaxReconnectPeriod)
         {
             m_reconnectAbort = reconnectAbort;
             m_reconnectTimer = new Timer(OnReconnect, this, Timeout.Infinite, Timeout.Infinite);
             m_state = ReconnectState.Ready;
             m_cancelReconnect = false;
+            m_maxReconnectPeriod = Math.Min(maxReconnectPeriod, MaxReconnectPeriod);
+            m_random = new Random();
         }
 
         #region IDisposable Members
@@ -195,29 +206,56 @@ namespace Opc.Ua.Client
                     return m_state;
                 }
 
+                // set reconnect period within boundaries
+                reconnectPeriod = CheckedReconnectPeriod(reconnectPeriod);
+
                 // ignore subsequent trigger requests
                 if (m_state == ReconnectState.Ready)
                 {
                     m_session = session;
                     m_reconnectFailed = false;
                     m_cancelReconnect = false;
-                    m_reconnectPeriod = reconnectPeriod;
                     m_callback = callback;
                     m_reverseConnectManager = reverseConnectManager;
-                    if (reconnectPeriod < MinReconnectPeriod)
-                    {
-                        m_reconnectPeriod = MinReconnectPeriod;
-                    }
-                    m_reconnectTimer.Change(reconnectPeriod, Timeout.Infinite);
+                    m_reconnectTimer.Change(JitteredReconnectPeriod(reconnectPeriod), Timeout.Infinite);
+                    m_reconnectPeriod = CheckedReconnectPeriod(reconnectPeriod, true);
                     m_state = ReconnectState.Triggered;
                     return m_state;
                 }
 
-                // override reconnect period
-                m_reconnectPeriod = reconnectPeriod;
+                // if triggered, reset timer if requested reconnect period is smaller
+                if (m_state == ReconnectState.Triggered && reconnectPeriod < m_reconnectPeriod)
+                {
+                    m_reconnectTimer.Change(JitteredReconnectPeriod(reconnectPeriod), Timeout.Infinite);
+                    m_reconnectPeriod = CheckedReconnectPeriod(reconnectPeriod, true);
+                }
 
                 return m_state;
             }
+        }
+
+        /// <summary>
+        /// Returns the reconnect period with a random jitter.
+        /// </summary>
+        public virtual int JitteredReconnectPeriod(int reconnectPeriod)
+        {
+            const int JitterResolution = 1000;
+            const int JitterFactor = 10;
+            int jitter = (reconnectPeriod * m_random.Next(-JitterResolution, JitterResolution)) /
+                (JitterResolution * JitterFactor);
+            return reconnectPeriod + jitter;
+        }
+
+        /// <summary>
+        /// Returns the reconnect period within the min and max boundaries.
+        /// </summary>
+        public virtual int CheckedReconnectPeriod(int reconnectPeriod, bool exponentialBackoff = false)
+        {
+            if (exponentialBackoff)
+            {
+                reconnectPeriod *= 2;
+            }
+            return Math.Min(Math.Max(reconnectPeriod, MinReconnectPeriod), m_maxReconnectPeriod);
         }
         #endregion
 
@@ -289,12 +327,10 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        int adjustedReconnectPeriod = m_reconnectPeriod - (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
-                        if (adjustedReconnectPeriod <= MinReconnectPeriod)
-                        {
-                            adjustedReconnectPeriod = MinReconnectPeriod;
-                        }
-                        m_reconnectTimer.Change(adjustedReconnectPeriod, Timeout.Infinite);
+                        int adjustedReconnectPeriod = JitteredReconnectPeriod(m_reconnectPeriod) -
+                            (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
+                        m_reconnectTimer.Change(CheckedReconnectPeriod(adjustedReconnectPeriod), Timeout.Infinite);
+                        m_reconnectPeriod = CheckedReconnectPeriod(m_reconnectPeriod, true);
                         m_state = ReconnectState.Triggered;
                     }
                 }
@@ -417,10 +453,12 @@ namespace Opc.Ua.Client
         private object m_lock = new object();
         private ISession m_session;
         private ReconnectState m_state;
+        private Random m_random;
         private bool m_reconnectFailed;
         private bool m_reconnectAbort;
         private bool m_cancelReconnect;
         private int m_reconnectPeriod;
+        private int m_maxReconnectPeriod;
         private Timer m_reconnectTimer;
         private EventHandler m_callback;
         private ReverseConnectManager m_reverseConnectManager;
