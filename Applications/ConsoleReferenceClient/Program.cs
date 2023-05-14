@@ -264,14 +264,13 @@ namespace Quickstarts.ConsoleReferenceClient
                                         lifetimeCount: 12,
                                         keepAliveCount: 2);
 
-                                    for (int ii = 0; ii < 10; ii++)
-                                    {
-                                        await Task.Delay(1000);
-                                    }
+                                    // Wait for DataChange notifications from MonitoredItems
+                                    quit = quitEvent.WaitOne(timeout > 0 ? waitTime : Timeout.Infinite);
                                 }
-
-                                // Wait for some DataChange notifications from MonitoredItems
-                                quit = quitEvent.WaitOne(timeout > 0 ? waitTime : 3600_000);
+                                else
+                                {
+                                    quit = true;
+                                }
 
                             }
                             else
