@@ -894,7 +894,6 @@ namespace Quickstarts
                         DiscardOldest = true,
                         MonitoringMode = MonitoringMode.Reporting,
                     };
-                    monitoredItem.Notification += OnMonitoredItemNotification;
                     subscription.AddItem(monitoredItem);
                     if (subscription.CurrentKeepAliveCount > 1000) break;
                 }

@@ -256,7 +256,13 @@ namespace Quickstarts.ConsoleReferenceClient
                                         variables.AddRange(uaClient.Session.NodeCache.Find(variableReferences).Cast<Node>());
                                     }
 
-                                    await samples.SubscribeAllValuesAsync(uaClient, new NodeCollection(variables.Take(100)), 1000, 1000, 60, 12, 2);
+                                    await samples.SubscribeAllValuesAsync(uaClient,
+                                        variableIds: new NodeCollection(variables.Take(100)),
+                                        samplingInterval: 1000,
+                                        publishingInterval: 5000,
+                                        queueSize: 10,
+                                        lifetimeCount: 12,
+                                        keepAliveCount: 2);
 
                                     for (int ii = 0; ii < 10; ii++)
                                     {

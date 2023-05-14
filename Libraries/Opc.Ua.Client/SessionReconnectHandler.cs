@@ -90,6 +90,8 @@ namespace Opc.Ua.Client
             m_reconnectTimer = new Timer(OnReconnect, this, Timeout.Infinite, Timeout.Infinite);
             m_state = ReconnectState.Ready;
             m_cancelReconnect = false;
+            m_updateFromServer = false;
+            m_baseReconnectPeriod = DefaultReconnectPeriod;
             m_maxReconnectPeriod = Math.Min(maxReconnectPeriod, MaxReconnectPeriod);
             m_random = new Random();
         }
@@ -207,7 +209,7 @@ namespace Opc.Ua.Client
                 }
 
                 // set reconnect period within boundaries
-                reconnectPeriod = CheckedReconnectPeriod(reconnectPeriod);
+                m_baseReconnectPeriod = reconnectPeriod = CheckedReconnectPeriod(reconnectPeriod);
 
                 // ignore subsequent trigger requests
                 if (m_state == ReconnectState.Ready)
@@ -391,6 +393,13 @@ namespace Opc.Ua.Client
                                 return false;
                             }
                         }
+
+                        // check if the security configuration may have changed
+                        if (sre.StatusCode == StatusCodes.BadSecurityChecksFailed)
+                        {
+                            m_updateFromServer = true;
+                            Utils.LogInfo("Reconnect failed due to security check. Request endpoint update from server. {0}", sre.Message);
+                        }
                     }
                     else
                     {
@@ -412,20 +421,63 @@ namespace Opc.Ua.Client
                 m_session.OperationTimeout = reconnectOperationTimeout;
                 if (m_reverseConnectManager != null)
                 {
-                    var connection = await m_reverseConnectManager.WaitForConnection(
-                            new Uri(m_session.Endpoint.EndpointUrl),
-                            m_session.Endpoint.Server.ApplicationUri
-                        ).ConfigureAwait(false);
+                    ITransportWaitingConnection connection;
+                    do
+                    {
+                        connection = await m_reverseConnectManager.WaitForConnection(
+                                new Uri(m_session.Endpoint.EndpointUrl),
+                                m_session.Endpoint.Server.ApplicationUri
+                            ).ConfigureAwait(false);
+
+                        if (m_updateFromServer)
+                        {
+                            var endpoint = m_session.ConfiguredEndpoint;
+                            await endpoint.UpdateFromServerAsync(
+                                endpoint.EndpointUrl, connection,
+                                endpoint.Description.SecurityMode,
+                                endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
+                            m_updateFromServer = false;
+                            connection = null;
+                        }
+                    } while (connection == null);
 
                     session = await m_session.SessionFactory.RecreateAsync(m_session, connection).ConfigureAwait(false);
                 }
                 else
                 {
+                    if (m_updateFromServer)
+                    {
+                        var endpoint = m_session.ConfiguredEndpoint;
+                        await endpoint.UpdateFromServerAsync(
+                            endpoint.EndpointUrl,
+                            endpoint.Description.SecurityMode,
+                            endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
+                        m_updateFromServer = false;
+                    }
+
                     session = await m_session.SessionFactory.RecreateAsync(m_session).ConfigureAwait(false);
                 }
                 m_session.Close();
                 m_session = session;
                 return true;
+            }
+            catch (ServiceResultException sre)
+            {
+                if (sre.InnerResult?.StatusCode == StatusCodes.BadSecurityChecksFailed)
+                {
+                    // schedule endpoint update and retry
+                    m_updateFromServer = true;
+                    if (m_reconnectPeriod >= m_maxReconnectPeriod)
+                    {
+                        m_reconnectPeriod = m_baseReconnectPeriod;
+                    }
+                    Utils.LogError("Could not reconnect due to failed security check. Request endpoint update from server. {0}", sre.Message);
+                }
+                else
+                {
+                    Utils.LogError("Could not reconnect the Session. {0}", sre.Message);
+                }
+                return false;
             }
             catch (Exception exception)
             {
@@ -446,6 +498,7 @@ namespace Opc.Ua.Client
             m_reconnectTimer.Change(Timeout.Infinite, Timeout.Infinite);
             m_state = ReconnectState.Ready;
             m_cancelReconnect = false;
+            m_updateFromServer = false;
         }
         #endregion
 
@@ -457,7 +510,9 @@ namespace Opc.Ua.Client
         private bool m_reconnectFailed;
         private bool m_reconnectAbort;
         private bool m_cancelReconnect;
+        private bool m_updateFromServer;
         private int m_reconnectPeriod;
+        private int m_baseReconnectPeriod;
         private int m_maxReconnectPeriod;
         private Timer m_reconnectTimer;
         private EventHandler m_callback;
