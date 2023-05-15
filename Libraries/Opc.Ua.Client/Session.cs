@@ -267,6 +267,7 @@ namespace Opc.Ua.Client
             m_outstandingRequests = new LinkedList<AsyncRequestState>();
             m_keepAliveInterval = 5000;
             m_tooManyPublishRequests = 0;
+            m_minPublishRequestCount = 1;
             m_sessionName = "";
             m_deleteSubscriptionsOnClose = true;
             m_transferSubscriptionsOnReconnect = false;
@@ -764,6 +765,28 @@ namespace Opc.Ua.Client
                     }
 
                     return count;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets and sets the minimum number of publish requests to be used in the session.
+        /// </summary>
+        public int MinPublishRequestCount
+        {
+            get => m_minPublishRequestCount;
+            set
+            {
+                lock (SyncRoot)
+                {
+                    if (value >= 1 && value <= kMaxPublishRequestCount)
+                    {
+                        m_minPublishRequestCount = value;
+                    }
+                    else
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(MinPublishRequestCount), $"Minimum publish request must be between 1 and {kMaxPublishRequestCount}.");
+                    }
                 }
             }
         }
@@ -1356,7 +1379,7 @@ namespace Opc.Ua.Client
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
                     m_reconnecting = false;
-                    publishCount = m_subscriptions.Count;
+                    publishCount = GetMinPublishRequestCount();
                 }
 
                 // refill pipeline.
@@ -1369,7 +1392,10 @@ namespace Opc.Ua.Client
             }
             finally
             {
-                m_reconnecting = false;
+                lock (SyncRoot)
+                {
+                    m_reconnecting = false;
+                }
             }
         }
 
@@ -4223,11 +4249,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                lock (SyncRoot)
-                {
-                    count = m_subscriptions.Count;
-                }
-
+                count = GetMinPublishRequestCount();
                 while (count-- > 0)
                 {
                     BeginPublish(OperationTimeout);
@@ -5245,14 +5267,14 @@ namespace Opc.Ua.Client
             }
 
             int requestCount = GoodPublishRequestCount;
-            var subscriptionsCount = m_subscriptions.Count;
-            if (requestCount < subscriptionsCount)
+            var minPublishRequestCount = GetMinPublishRequestCount();
+            if (requestCount < minPublishRequestCount)
             {
                 BeginPublish(OperationTimeout);
             }
             else
             {
-                Utils.LogInfo("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, Subscriptions={1}", requestCount, subscriptionsCount);
+                Utils.LogInfo("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, MinPublishRequestCount={1}", requestCount, minPublishRequestCount);
             }
         }
 
@@ -5690,6 +5712,17 @@ namespace Opc.Ua.Client
             return (m_tooManyPublishRequests == 0) ||
                 (requestCount < m_tooManyPublishRequests);
         }
+
+        /// <summary>
+        /// Returns the minimum number of active publish request that should be used.
+        /// </summary>
+        private int GetMinPublishRequestCount()
+        {
+            lock (SyncRoot)
+            {
+                return Math.Max(m_subscriptions.Count, m_minPublishRequestCount);
+            }
+        }
         #endregion
 
         #region Protected Fields
@@ -5768,6 +5801,8 @@ namespace Opc.Ua.Client
         private long m_keepAliveCounter;
         private bool m_reconnecting;
         private const int kReconnectTimeout = 15000;
+        private const int kMaxPublishRequestCount = 100;
+        private int m_minPublishRequestCount;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;

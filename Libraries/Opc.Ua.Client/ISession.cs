@@ -244,6 +244,11 @@ namespace Opc.Ua.Client
         int GoodPublishRequestCount { get; }
 
         /// <summary>
+        /// Gets and sets the minimum number of publish requests to be used in the session.
+        /// </summary>
+        int MinPublishRequestCount { get; set; }
+
+        /// <summary>
         /// Stores the operation limits of a OPC UA Server.
         /// </summary>
         OperationLimits OperationLimits { get; }
