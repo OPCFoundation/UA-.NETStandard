@@ -83,8 +83,11 @@ namespace Opc.Ua.Client
         /// Create a reconnect handler.
         /// </summary>
         /// <param name="reconnectAbort">Set to <c>true</c> to allow reconnect abort if keep alive recovered.</param>
-        /// <param name="maxReconnectPeriod">The upper limit for the reconnect period after exponential backoff.</param>
-        public SessionReconnectHandler(bool reconnectAbort = false, int maxReconnectPeriod = MaxReconnectPeriod)
+        /// <param name="maxReconnectPeriod">
+        ///     The upper limit for the reconnect period after exponential backoff.
+        ///     -1 (default) indicates that no exponential backoff should be used.
+        /// </param>
+        public SessionReconnectHandler(bool reconnectAbort = false, int maxReconnectPeriod = -1)
         {
             m_reconnectAbort = reconnectAbort;
             m_reconnectTimer = new Timer(OnReconnect, this, Timeout.Infinite, Timeout.Infinite);
@@ -92,7 +95,8 @@ namespace Opc.Ua.Client
             m_cancelReconnect = false;
             m_updateFromServer = false;
             m_baseReconnectPeriod = DefaultReconnectPeriod;
-            m_maxReconnectPeriod = Math.Min(maxReconnectPeriod, MaxReconnectPeriod);
+            m_maxReconnectPeriod = maxReconnectPeriod < 0 ? -1 :
+                Math.Max(MinReconnectPeriod, Math.Min(maxReconnectPeriod, MaxReconnectPeriod));
             m_random = new Random();
         }
 
@@ -253,11 +257,19 @@ namespace Opc.Ua.Client
         /// </summary>
         public virtual int CheckedReconnectPeriod(int reconnectPeriod, bool exponentialBackoff = false)
         {
-            if (exponentialBackoff)
+            // exponential backoff is controlled by m_maxReconnectPeriod
+            if (m_maxReconnectPeriod > MinReconnectPeriod)
             {
-                reconnectPeriod *= 2;
+                if (exponentialBackoff)
+                {
+                    reconnectPeriod *= 2;
+                }
+                return Math.Min(Math.Max(reconnectPeriod, MinReconnectPeriod), m_maxReconnectPeriod);
             }
-            return Math.Min(Math.Max(reconnectPeriod, MinReconnectPeriod), m_maxReconnectPeriod);
+            else
+            {
+                return Math.Max(reconnectPeriod, MinReconnectPeriod);
+            }
         }
         #endregion
 
@@ -467,7 +479,8 @@ namespace Opc.Ua.Client
                 {
                     // schedule endpoint update and retry
                     m_updateFromServer = true;
-                    if (m_reconnectPeriod >= m_maxReconnectPeriod)
+                    if (m_maxReconnectPeriod > MinReconnectPeriod &&
+                        m_reconnectPeriod >= m_maxReconnectPeriod)
                     {
                         m_reconnectPeriod = m_baseReconnectPeriod;
                     }
