@@ -114,6 +114,7 @@ namespace Opc.Ua.Client
             m_transferSubscriptionsOnReconnect = template.m_transferSubscriptionsOnReconnect;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
+            m_minPublishRequestCount = template.m_minPublishRequestCount;
             m_preferredLocales = template.PreferredLocales;
             m_sessionName = template.SessionName;
             m_handle = template.Handle;
