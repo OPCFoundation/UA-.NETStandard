@@ -2745,7 +2745,7 @@ namespace Opc.Ua
 
 
             // skip whitespace.
-            while (m_reader.NodeType != XmlNodeType.Element)
+            while (m_reader.NodeType != XmlNodeType.Element && m_reader.NodeType != XmlNodeType.EndElement)
             {
                 m_reader.Read();
             }
