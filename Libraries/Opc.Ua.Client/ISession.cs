@@ -56,6 +56,11 @@ namespace Opc.Ua.Client
     public delegate void PublishErrorEventHandler(ISession session, PublishErrorEventArgs e);
 
     /// <summary>
+    /// The delegate used to modify publish response sequence numbers to acknoledge.
+    /// </summary>
+    public delegate void PublishSequenceNumbersToAcknoledgeEventHandler(ISession session, PublishSequenceNumbersToAcknoledgeEventArgs e);
+
+    /// <summary>
     /// Manages a session with a server.
     /// </summary>
     public interface ISession : ISessionClient, IDisposable
@@ -92,6 +97,15 @@ namespace Opc.Ua.Client
         /// PublishingInterval*KeepAliveCount.
         /// </remarks>
         event PublishErrorEventHandler PublishError;
+
+        /// <summary>
+        /// Raised when a publish request is about to acknolegde sequence numbers. 
+        /// </summary>
+        /// <remarks>
+        /// If the client chose to defer acknoledge of sequenece numbers, it is responsible
+        /// to transfer these <see cref="SubscriptionAcknowledgement"/> to the deferred list.
+        /// </remarks>
+        event PublishSequenceNumbersToAcknoledgeEventHandler PublishSequenceNumbersToAcknoledge;
 
         /// <summary>
         /// Raised when a subscription is added or removed

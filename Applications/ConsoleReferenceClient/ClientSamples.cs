@@ -863,6 +863,12 @@ namespace Quickstarts
                 // Create a subscription for receiving data change notifications
                 var session = uaClient.Session;
 
+                // test for deferred ack of sequence numbers
+                session.PublishSequenceNumbersToAcknoledge += DeferSubscriptionAcknoledge;
+
+                // set a minimum amount of three publish requests per session
+                session.MinPublishRequestCount = 3;
+
                 // Define Subscription parameters
                 Subscription subscription = new Subscription(session.DefaultSubscription) {
                     DisplayName = "Console ReferenceClient Subscription",
@@ -967,6 +973,7 @@ namespace Quickstarts
                 m_output.WriteLine("FastDataChangeNotification error: {0}", ex.Message);
             }
         }
+
         /// <summary>
         /// Handle DataChange notifications from Server
         /// </summary>
@@ -981,6 +988,24 @@ namespace Quickstarts
             catch (Exception ex)
             {
                 m_output.WriteLine("OnMonitoredItemNotification error: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Event handler to defer publish response sequence number acknoledge.
+        /// </summary>
+        private void DeferSubscriptionAcknoledge(ISession session, PublishSequenceNumbersToAcknoledgeEventArgs e)
+        {
+            const int AckDelay = 5;
+            if (e.AcknowledgementsToSend.Count > 0)
+            {
+                // defer latest sequence numbers
+                var deferredItems = e.AcknowledgementsToSend.OrderByDescending(s => s.SequenceNumber).Take(AckDelay).ToList();
+                e.DeferredAcknowledgementsToSend.AddRange(deferredItems);
+                foreach (var deferredItem in deferredItems)
+                {
+                    e.AcknowledgementsToSend.Remove(deferredItem);
+                }
             }
         }
 

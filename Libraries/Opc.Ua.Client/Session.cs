@@ -130,6 +130,7 @@ namespace Opc.Ua.Client
                 m_KeepAlive = template.m_KeepAlive;
                 m_Publish = template.m_Publish;
                 m_PublishError = template.m_PublishError;
+                m_PublishSequenceNumbersToAcknoledge = template.m_PublishSequenceNumbersToAcknoledge;
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
             }
@@ -471,6 +472,27 @@ namespace Opc.Ua.Client
                 lock (m_eventLock)
                 {
                     m_PublishError -= value;
+                }
+            }
+        }
+
+
+        /// <inheritdoc/>
+        public event PublishSequenceNumbersToAcknoledgeEventHandler PublishSequenceNumbersToAcknoledge
+        {
+            add
+            {
+                lock (m_eventLock)
+                {
+                    m_PublishSequenceNumbersToAcknoledge += value;
+                }
+            }
+
+            remove
+            {
+                lock (m_eventLock)
+                {
+                    m_PublishSequenceNumbersToAcknoledge -= value;
                 }
             }
         }
@@ -5066,13 +5088,39 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            SubscriptionAcknowledgementCollection acknowledgementsToSend = null;
+            // get event handler to modify ack list
+            PublishSequenceNumbersToAcknoledgeEventHandler callback = null;
+            lock (m_eventLock)
+            {
+                callback = m_PublishSequenceNumbersToAcknoledge;
+            }
 
             // collect the current set if acknowledgements.
+            SubscriptionAcknowledgementCollection acknowledgementsToSend = null;
             lock (SyncRoot)
             {
-                acknowledgementsToSend = m_acknowledgementsToSend;
-                m_acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+                if (callback != null)
+                {
+                    try
+                    {
+                        var deferredAcknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+                        callback(this, new PublishSequenceNumbersToAcknoledgeEventArgs(m_acknowledgementsToSend, deferredAcknowledgementsToSend));
+                        acknowledgementsToSend = m_acknowledgementsToSend;
+                        m_acknowledgementsToSend = deferredAcknowledgementsToSend;
+                    }
+                    catch (Exception e2)
+                    {
+                        Utils.LogError(e2, "Session: Unexpected error invoking PublishSequenceNumbersToAcknoledgeEventArgs.");
+                    }
+                }
+
+                if (acknowledgementsToSend == null)
+                {
+                    // send all ack values, clear list
+                    acknowledgementsToSend = m_acknowledgementsToSend;
+                    m_acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+                }
+
                 foreach (var toSend in acknowledgementsToSend)
                 {
                     m_latestAcknowledgementsSent[toSend.SubscriptionId] = toSend.SequenceNumber;
@@ -5820,6 +5868,7 @@ namespace Opc.Ua.Client
         private event KeepAliveEventHandler m_KeepAlive;
         private event NotificationEventHandler m_Publish;
         private event PublishErrorEventHandler m_PublishError;
+        private event PublishSequenceNumbersToAcknoledgeEventHandler m_PublishSequenceNumbersToAcknoledge;
         private event EventHandler m_SubscriptionsChanged;
         private event EventHandler m_SessionClosing;
         #endregion
@@ -5974,6 +6023,51 @@ namespace Opc.Ua.Client
         private readonly uint m_subscriptionId;
         private readonly uint m_sequenceNumber;
         private readonly ServiceResult m_status;
+        #endregion
+    }
+    #endregion
+
+    #region PublishSequenceNumbersToAcknoledgeEventArgs Class
+    /// <summary>
+    /// Represents the event arguments provided when publish response
+    /// sequence numbers are about to be achknoledged with a publish request.
+    /// A callee can defer an acknoledge to the next publish request by
+    /// moving 
+    /// </summary>
+    public class PublishSequenceNumbersToAcknoledgeEventArgs : EventArgs
+    {
+        #region Constructors
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
+        internal PublishSequenceNumbersToAcknoledgeEventArgs(
+            SubscriptionAcknowledgementCollection acknowledgementsToSend,
+            SubscriptionAcknowledgementCollection deferredAcknowledgementsToSend)
+        {
+            m_acknowledgementsToSend = acknowledgementsToSend;
+            m_deferredAcknowledgementsToSend = deferredAcknowledgementsToSend;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// The acknoledgements which are sent with the next publish request.
+        /// </summary>
+        public SubscriptionAcknowledgementCollection AcknowledgementsToSend => m_acknowledgementsToSend;
+
+        /// <summary>
+        /// The deferred list of acknoledgements.
+        /// </summary>
+        /// <remarks>
+        /// The callee can transfer an outstanding <see cref="SubscriptionAcknowledgement"/>
+        /// to this list to defer the acknoledge of a sequence number to the next publish request.
+        /// </remarks>
+        public SubscriptionAcknowledgementCollection DeferredAcknowledgementsToSend => m_deferredAcknowledgementsToSend;
+        #endregion
+
+        #region Private Fields
+        private readonly SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
+        private readonly SubscriptionAcknowledgementCollection m_deferredAcknowledgementsToSend;
         #endregion
     }
     #endregion
