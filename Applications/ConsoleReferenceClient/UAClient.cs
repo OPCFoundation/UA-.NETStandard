@@ -160,7 +160,7 @@ namespace Quickstarts
                         m_session.KeepAlive += Session_KeepAlive;
 
                         // prepare a reconnect handler
-                        m_reconnectHandler = new SessionReconnectHandler(true);
+                        m_reconnectHandler = new SessionReconnectHandler(true, 30_000);
                     }
 
                     // Session created successfully.
