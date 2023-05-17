@@ -1674,6 +1674,10 @@ namespace Opc.Ua.Client
                     Utils.LogError(e, "Error while raising PublishStateChanged event.");
                 }
             }
+
+            // try to send a publish to recover stopped publishing.
+            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue));
+            m_session?.BeginPublish(Math.Min(keepAliveInterval, Int32.MaxValue / 3) * 3);
         }
 
         /// <summary>

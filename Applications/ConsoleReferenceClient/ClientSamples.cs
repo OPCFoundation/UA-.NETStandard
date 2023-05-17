@@ -996,6 +996,7 @@ namespace Quickstarts
         /// </summary>
         private void DeferSubscriptionAcknoledge(ISession session, PublishSequenceNumbersToAcknoledgeEventArgs e)
         {
+            // for testing keep the latest sequence numbers for a while
             const int AckDelay = 5;
             if (e.AcknowledgementsToSend.Count > 0)
             {
