@@ -56,6 +56,11 @@ namespace Opc.Ua.Client
     public delegate void PublishErrorEventHandler(ISession session, PublishErrorEventArgs e);
 
     /// <summary>
+    /// The delegate used to modify publish response sequence numbers to acknowledge.
+    /// </summary>
+    public delegate void PublishSequenceNumbersToAcknowledgeEventHandler(ISession session, PublishSequenceNumbersToAcknowledgeEventArgs e);
+
+    /// <summary>
     /// Manages a session with a server.
     /// </summary>
     public interface ISession : ISessionClient, IDisposable
@@ -92,6 +97,15 @@ namespace Opc.Ua.Client
         /// PublishingInterval*KeepAliveCount.
         /// </remarks>
         event PublishErrorEventHandler PublishError;
+
+        /// <summary>
+        /// Raised when a publish request is about to acknolegde sequence numbers. 
+        /// </summary>
+        /// <remarks>
+        /// If the client chose to defer acknowledge of sequenece numbers, it is responsible
+        /// to transfer these <see cref="SubscriptionAcknowledgement"/> to the deferred list.
+        /// </remarks>
+        event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge;
 
         /// <summary>
         /// Raised when a subscription is added or removed
@@ -242,6 +256,11 @@ namespace Opc.Ua.Client
         /// Gets the number of good outstanding publish requests.
         /// </summary>
         int GoodPublishRequestCount { get; }
+
+        /// <summary>
+        /// Gets and sets the minimum number of publish requests to be used in the session.
+        /// </summary>
+        int MinPublishRequestCount { get; set; }
 
         /// <summary>
         /// Stores the operation limits of a OPC UA Server.
