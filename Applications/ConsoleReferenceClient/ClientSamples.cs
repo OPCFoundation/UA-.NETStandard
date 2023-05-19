@@ -864,7 +864,7 @@ namespace Quickstarts
                 var session = uaClient.Session;
 
                 // test for deferred ack of sequence numbers
-                session.PublishSequenceNumbersToAcknoledge += DeferSubscriptionAcknoledge;
+                session.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
 
                 // set a minimum amount of three publish requests per session
                 session.MinPublishRequestCount = 3;
@@ -992,9 +992,9 @@ namespace Quickstarts
         }
 
         /// <summary>
-        /// Event handler to defer publish response sequence number acknoledge.
+        /// Event handler to defer publish response sequence number acknowledge.
         /// </summary>
-        private void DeferSubscriptionAcknoledge(ISession session, PublishSequenceNumbersToAcknoledgeEventArgs e)
+        private void DeferSubscriptionAcknowledge(ISession session, PublishSequenceNumbersToAcknowledgeEventArgs e)
         {
             // for testing keep the latest sequence numbers for a while
             const int AckDelay = 5;

@@ -404,11 +404,11 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// If the available sequence numbers of a subscription
-        /// are republished or acknoledged after a transfer. 
+        /// are republished or acknowledged after a transfer. 
         /// </summary>
         /// <remarks>
         /// Default <c>false</c>, set to <c>true</c> if no data loss is important
-        /// and available publish requests (sequence numbers) that were never acknoledged should be
+        /// and available publish requests (sequence numbers) that were never acknowledged should be
         /// recovered with a republish. The setting is used after a subscription transfer.
         /// </remarks>   
         [DataMember(Name = "RepublishAfterTransfer", Order = 15)]

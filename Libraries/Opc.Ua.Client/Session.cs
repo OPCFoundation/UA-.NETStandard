@@ -131,7 +131,7 @@ namespace Opc.Ua.Client
                 m_KeepAlive = template.m_KeepAlive;
                 m_Publish = template.m_Publish;
                 m_PublishError = template.m_PublishError;
-                m_PublishSequenceNumbersToAcknoledge = template.m_PublishSequenceNumbersToAcknoledge;
+                m_PublishSequenceNumbersToAcknowledge = template.m_PublishSequenceNumbersToAcknowledge;
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
             }
@@ -479,13 +479,13 @@ namespace Opc.Ua.Client
 
 
         /// <inheritdoc/>
-        public event PublishSequenceNumbersToAcknoledgeEventHandler PublishSequenceNumbersToAcknoledge
+        public event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge
         {
             add
             {
                 lock (m_eventLock)
                 {
-                    m_PublishSequenceNumbersToAcknoledge += value;
+                    m_PublishSequenceNumbersToAcknowledge += value;
                 }
             }
 
@@ -493,7 +493,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_eventLock)
                 {
-                    m_PublishSequenceNumbersToAcknoledge -= value;
+                    m_PublishSequenceNumbersToAcknowledge -= value;
                 }
             }
         }
@@ -5090,10 +5090,10 @@ namespace Opc.Ua.Client
             }
 
             // get event handler to modify ack list
-            PublishSequenceNumbersToAcknoledgeEventHandler callback = null;
+            PublishSequenceNumbersToAcknowledgeEventHandler callback = null;
             lock (m_eventLock)
             {
-                callback = m_PublishSequenceNumbersToAcknoledge;
+                callback = m_PublishSequenceNumbersToAcknowledge;
             }
 
             // collect the current set if acknowledgements.
@@ -5105,13 +5105,13 @@ namespace Opc.Ua.Client
                     try
                     {
                         var deferredAcknowledgementsToSend = new SubscriptionAcknowledgementCollection();
-                        callback(this, new PublishSequenceNumbersToAcknoledgeEventArgs(m_acknowledgementsToSend, deferredAcknowledgementsToSend));
+                        callback(this, new PublishSequenceNumbersToAcknowledgeEventArgs(m_acknowledgementsToSend, deferredAcknowledgementsToSend));
                         acknowledgementsToSend = m_acknowledgementsToSend;
                         m_acknowledgementsToSend = deferredAcknowledgementsToSend;
                     }
                     catch (Exception e2)
                     {
-                        Utils.LogError(e2, "Session: Unexpected error invoking PublishSequenceNumbersToAcknoledgeEventArgs.");
+                        Utils.LogError(e2, "Session: Unexpected error invoking PublishSequenceNumbersToAcknowledgeEventArgs.");
                     }
                 }
 
@@ -5375,7 +5375,7 @@ namespace Opc.Ua.Client
                         Utils.LogWarning("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
                         break;
                     // if encoding limits are exceeded, the issue is logged and
-                    // the published data is acknoledged to prevent the endless republish loop.
+                    // the published data is acknowledged to prevent the endless republish loop.
                     case StatusCodes.BadEncodingLimitsExceeded:
                         Utils.LogError(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
                         var ack = new SubscriptionAcknowledgement {
@@ -5869,7 +5869,7 @@ namespace Opc.Ua.Client
         private event KeepAliveEventHandler m_KeepAlive;
         private event NotificationEventHandler m_Publish;
         private event PublishErrorEventHandler m_PublishError;
-        private event PublishSequenceNumbersToAcknoledgeEventHandler m_PublishSequenceNumbersToAcknoledge;
+        private event PublishSequenceNumbersToAcknowledgeEventHandler m_PublishSequenceNumbersToAcknowledge;
         private event EventHandler m_SubscriptionsChanged;
         private event EventHandler m_SessionClosing;
         #endregion
@@ -6028,20 +6028,20 @@ namespace Opc.Ua.Client
     }
     #endregion
 
-    #region PublishSequenceNumbersToAcknoledgeEventArgs Class
+    #region PublishSequenceNumbersToAcknowledgeEventArgs Class
     /// <summary>
     /// Represents the event arguments provided when publish response
     /// sequence numbers are about to be achknoledged with a publish request.
-    /// A callee can defer an acknoledge to the next publish request by
+    /// A callee can defer an acknowledge to the next publish request by
     /// moving 
     /// </summary>
-    public class PublishSequenceNumbersToAcknoledgeEventArgs : EventArgs
+    public class PublishSequenceNumbersToAcknowledgeEventArgs : EventArgs
     {
         #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal PublishSequenceNumbersToAcknoledgeEventArgs(
+        internal PublishSequenceNumbersToAcknowledgeEventArgs(
             SubscriptionAcknowledgementCollection acknowledgementsToSend,
             SubscriptionAcknowledgementCollection deferredAcknowledgementsToSend)
         {
@@ -6052,16 +6052,16 @@ namespace Opc.Ua.Client
 
         #region Public Properties
         /// <summary>
-        /// The acknoledgements which are sent with the next publish request.
+        /// The acknowledgements which are sent with the next publish request.
         /// </summary>
         public SubscriptionAcknowledgementCollection AcknowledgementsToSend => m_acknowledgementsToSend;
 
         /// <summary>
-        /// The deferred list of acknoledgements.
+        /// The deferred list of acknowledgements.
         /// </summary>
         /// <remarks>
         /// The callee can transfer an outstanding <see cref="SubscriptionAcknowledgement"/>
-        /// to this list to defer the acknoledge of a sequence number to the next publish request.
+        /// to this list to defer the acknowledge of a sequence number to the next publish request.
         /// </remarks>
         public SubscriptionAcknowledgementCollection DeferredAcknowledgementsToSend => m_deferredAcknowledgementsToSend;
         #endregion
