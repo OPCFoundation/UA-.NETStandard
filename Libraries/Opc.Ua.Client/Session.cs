@@ -269,7 +269,7 @@ namespace Opc.Ua.Client
             m_outstandingRequests = new LinkedList<AsyncRequestState>();
             m_keepAliveInterval = 5000;
             m_tooManyPublishRequests = 0;
-            m_minPublishRequestCount = 1;
+            m_minPublishRequestCount = kDefaultPublishRequestCount;
             m_sessionName = "";
             m_deleteSubscriptionsOnClose = true;
             m_transferSubscriptionsOnReconnect = false;
@@ -802,13 +802,14 @@ namespace Opc.Ua.Client
             {
                 lock (SyncRoot)
                 {
-                    if (value >= 1 && value <= kMaxPublishRequestCount)
+                    if (value >= kDefaultPublishRequestCount && value <= kMinPublishRequestCountMax)
                     {
                         m_minPublishRequestCount = value;
                     }
                     else
                     {
-                        throw new ArgumentOutOfRangeException(nameof(MinPublishRequestCount), $"Minimum publish request must be between 1 and {kMaxPublishRequestCount}.");
+                        throw new ArgumentOutOfRangeException(nameof(MinPublishRequestCount),
+                            $"Minimum publish request count must be between {kDefaultPublishRequestCount} and {kMinPublishRequestCountMax}.");
                     }
                 }
             }
@@ -5850,7 +5851,8 @@ namespace Opc.Ua.Client
         private long m_keepAliveCounter;
         private bool m_reconnecting;
         private const int kReconnectTimeout = 15000;
-        private const int kMaxPublishRequestCount = 100;
+        private const int kMinPublishRequestCountMax = 100;
+        private const int kDefaultPublishRequestCount = 1;
         private int m_minPublishRequestCount;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
