@@ -245,6 +245,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public virtual int JitteredReconnectPeriod(int reconnectPeriod)
         {
+            // The factors result in a jitter of 10%.
             const int JitterResolution = 1000;
             const int JitterFactor = 10;
             int jitter = (reconnectPeriod * m_random.Next(-JitterResolution, JitterResolution)) /

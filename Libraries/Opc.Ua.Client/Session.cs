@@ -6032,9 +6032,13 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Represents the event arguments provided when publish response
     /// sequence numbers are about to be achknoledged with a publish request.
-    /// A callee can defer an acknowledge to the next publish request by
-    /// moving 
     /// </summary>
+    /// <remarks>
+    /// A callee can defer an acknowledge to the next publish request by
+    /// moving the <see cref="SubscriptionAcknowledgement"/> to the deferred list.
+    /// The callee can modify the list of acknowledgements to send, it is the
+    /// responsibility of the caller to protect the lists for modifications.
+    /// </remarks>
     public class PublishSequenceNumbersToAcknowledgeEventArgs : EventArgs
     {
         #region Constructors
@@ -6054,6 +6058,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The acknowledgements which are sent with the next publish request.
         /// </summary>
+        /// <remarks>
+        /// A client may also chose to remove an acknowledgement from this list to add it back
+        /// to the list in a subsequent callback when the request is fully processed.
+        /// </remarks>
         public SubscriptionAcknowledgementCollection AcknowledgementsToSend => m_acknowledgementsToSend;
 
         /// <summary>
