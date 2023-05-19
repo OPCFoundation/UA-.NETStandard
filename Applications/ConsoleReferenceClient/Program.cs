@@ -76,6 +76,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool fetchall = false;
             bool jsonvalues = false;
             bool verbose = false;
+            bool subscribe = false;
             string password = null;
             int timeout = Timeout.Infinite;
             string logFile = null;
@@ -97,6 +98,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "f|fetchall", "Fetch all nodes", f => { if (f != null) fetchall = true; } },
                 { "j|json", "Output all Values as JSON", j => { if (j != null) jsonvalues = true; } },
                 { "v|verbose", "Verbose output", v => { if (v != null) verbose = true; } },
+                { "s|subscribe", "Subscribe", s => { if (s != null) subscribe = true; } },
             };
 
             try
@@ -177,7 +179,8 @@ namespace Quickstarts.ConsoleReferenceClient
                     // create the UA Client object and connect to configured server.
                     using (UAClient uaClient = new UAClient(
                         application.ApplicationConfiguration, output, ClientBase.ValidateResponse) {
-                        AutoAccept = autoAccept
+                        AutoAccept = autoAccept,
+                        SessionLifeTime = 60000,
                     })
                     {
                         // set user identity
@@ -192,6 +195,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             output.WriteLine("Connected! Ctrl-C to quit.");
 
                             // enable subscription transfer
+                            uaClient.ReconnectPeriod = 1000;
                             uaClient.Session.TransferSubscriptionsOnReconnect = true;
 
                             var samples = new ClientSamples(output, ClientBase.ValidateResponse, quitEvent, verbose);
@@ -219,7 +223,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                     allNodes = samples.FetchAllNodesNodeCache(
                                         uaClient, Objects.RootFolder, true, true, false);
                                     variableIds = new NodeIdCollection(allNodes
-                                        .Where(r => r.NodeClass == NodeClass.Variable && ((VariableNode)r).DataType.NamespaceIndex != 0)
+                                        .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode && ((VariableNode)r).DataType.NamespaceIndex != 0)
                                         .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
                                 }
 
@@ -228,7 +232,46 @@ namespace Quickstarts.ConsoleReferenceClient
                                     await samples.ReadAllValuesAsync(uaClient, variableIds);
                                 }
 
-                                quit = true;
+                                if (subscribe)
+                                {
+                                    const int MaxVariables = 100;
+                                    NodeCollection variables = new NodeCollection();
+                                    Random random = new Random(62541);
+                                    if (fetchall)
+                                    {
+                                        variables.AddRange(allNodes
+                                            .Where(r => r.NodeClass == NodeClass.Variable && r.NodeId.NamespaceIndex > 1)
+                                            .Select(r => ((VariableNode)r))
+                                            .OrderBy(o => random.Next())
+                                            .Take(MaxVariables));
+                                    }
+                                    else if (browseall)
+                                    {
+                                        var variableReferences = referenceDescriptions
+                                            .Where(r => r.NodeClass == NodeClass.Variable && r.NodeId.NamespaceIndex > 1)
+                                            .Select(r => r.NodeId)
+                                            .OrderBy(o => random.Next())
+                                            .Take(MaxVariables)
+                                            .ToList();
+                                        variables.AddRange(uaClient.Session.NodeCache.Find(variableReferences).Cast<Node>());
+                                    }
+
+                                    await samples.SubscribeAllValuesAsync(uaClient,
+                                        variableIds: new NodeCollection(variables.Take(100)),
+                                        samplingInterval: 1000,
+                                        publishingInterval: 5000,
+                                        queueSize: 10,
+                                        lifetimeCount: 12,
+                                        keepAliveCount: 2);
+
+                                    // Wait for DataChange notifications from MonitoredItems
+                                    quit = quitEvent.WaitOne(timeout > 0 ? waitTime : Timeout.Infinite);
+                                }
+                                else
+                                {
+                                    quit = true;
+                                }
+
                             }
                             else
                             {
