@@ -923,10 +923,10 @@ namespace Quickstarts
         /// <param name="value">The DataValue.</param>
         /// <param name="jsonReversible">Use reversible encoding.</param>
         public static string FormatValueAsJson(
-        IServiceMessageContext messageContext,
-        string name,
-        DataValue value,
-        bool jsonReversible)
+            IServiceMessageContext messageContext,
+            string name,
+            DataValue value,
+            bool jsonReversible)
         {
             var jsonEncoder = new JsonEncoder(messageContext, jsonReversible);
             jsonEncoder.WriteDataValue(name, value);
