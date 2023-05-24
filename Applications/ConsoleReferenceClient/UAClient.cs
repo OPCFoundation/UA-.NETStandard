@@ -270,11 +270,27 @@ namespace Quickstarts
                 // if session recovered, Session property is null
                 if (m_reconnectHandler.Session != null)
                 {
-                    m_session = m_reconnectHandler.Session as Session;
+                    // ensure only a new instance is disposed
+                    // after reactivate, the same session instance may be returned
+                    if (!Object.ReferenceEquals(m_session, m_reconnectHandler.Session))
+                    {
+                        m_output.WriteLine("--- RECONNECTED TO NEW SESSION --- {0}", m_reconnectHandler.Session.SessionId);
+                        var session = m_session;
+                        session.KeepAlive -= Session_KeepAlive;
+                        m_session = m_reconnectHandler.Session as Session;
+                        m_session.KeepAlive += Session_KeepAlive;
+                        Utils.SilentDispose(session);
+                    }
+                    else
+                    {
+                        m_output.WriteLine("--- REACTIVATED SESSION --- {0}", m_reconnectHandler.Session.SessionId);
+                    }
+                }
+                else
+                {
+                    m_output.WriteLine("--- RECONNECT KeepAlive recovered ---");
                 }
             }
-
-            m_output.WriteLine("--- RECONNECTED ---");
         }
         #endregion
 

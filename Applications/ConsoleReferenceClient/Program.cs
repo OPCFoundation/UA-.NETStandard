@@ -130,7 +130,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 };
 
                 // load the application configuration.
-                var config = await application.LoadApplicationConfiguration(silent: false);
+                var config = await application.LoadApplicationConfiguration(silent: false).ConfigureAwait(false);
 
                 // override logfile
                 if (logFile != null)
@@ -189,7 +189,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             uaClient.UserIdentity = new UserIdentity(username, userpassword ?? string.Empty);
                         }
 
-                        bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), false);
+                        bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), false).ConfigureAwait(false);
                         if (connected)
                         {
                             output.WriteLine("Connected! Ctrl-C to quit.");
@@ -229,7 +229,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                                 if (jsonvalues && variableIds != null)
                                 {
-                                    await samples.ReadAllValuesAsync(uaClient, variableIds);
+                                    await samples.ReadAllValuesAsync(uaClient, variableIds).ConfigureAwait(false);
                                 }
 
                                 if (subscribe)
@@ -262,7 +262,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                         publishingInterval: 5000,
                                         queueSize: 10,
                                         lifetimeCount: 12,
-                                        keepAliveCount: 2);
+                                        keepAliveCount: 2).ConfigureAwait(false);
 
                                     // Wait for DataChange notifications from MonitoredItems
                                     quit = quitEvent.WaitOne(timeout > 0 ? waitTime : Timeout.Infinite);
