@@ -5766,10 +5766,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Returns the minimum number of active publish request that should be used.
         /// </summary>
+        /// <remarks>
+        /// Returns 0 if there are no subscriptions.
+        /// </remarks>
         private int GetMinPublishRequestCount()
         {
             lock (SyncRoot)
             {
+                if (m_subscriptions.Count == 0)
+                {
+                    return 0;
+                }
                 return Math.Max(m_subscriptions.Count, m_minPublishRequestCount);
             }
         }
