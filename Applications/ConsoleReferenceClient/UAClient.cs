@@ -62,6 +62,7 @@ namespace Quickstarts
         {
             Utils.SilentDispose(m_session);
             m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
+            GC.SuppressFinalize(this);
         }
         #endregion
 
@@ -89,7 +90,7 @@ namespace Quickstarts
         /// <summary>
         /// The session lifetime.
         /// </summary>
-        public uint SessionLifeTime { get; set; } = 30 * 1000;
+        public uint SessionLifeTime { get; set; } = 60 * 1000;
 
         /// <summary>
         /// The user identity to use to connect to the server.
@@ -135,7 +136,7 @@ namespace Quickstarts
                     var session = await Opc.Ua.Client.Session.Create(
                         m_configuration,
                         endpoint,
-                        false,
+                        true,
                         false,
                         m_configuration.ApplicationName,
                         SessionLifeTime,
@@ -151,8 +152,15 @@ namespace Quickstarts
                         // override keep alive interval
                         m_session.KeepAliveInterval = KeepAliveInterval;
 
+                        // support transfer
+                        m_session.DeleteSubscriptionsOnClose = false;
+                        m_session.TransferSubscriptionsOnReconnect = true;
+
                         // set up keep alive callback.
                         m_session.KeepAlive += Session_KeepAlive;
+
+                        // prepare a reconnect handler
+                        m_reconnectHandler = new SessionReconnectHandler(true, 30_000);
                     }
 
                     // Session created successfully.
@@ -227,19 +235,14 @@ namespace Quickstarts
                         return;
                     }
 
-                    lock (m_lock)
+                    var state = m_reconnectHandler.BeginReconnect(m_session, ReconnectPeriod, Client_ReconnectComplete);
+                    if (state == SessionReconnectHandler.ReconnectState.Triggered)
                     {
-                        if (m_reconnectHandler == null)
-                        {
-                            Utils.LogInfo("KeepAlive status {0}, reconnecting in {1}ms.", e.Status, ReconnectPeriod);
-                            m_output.WriteLine("--- RECONNECTING {0} ---", e.Status);
-                            m_reconnectHandler = new SessionReconnectHandler(true);
-                            m_reconnectHandler.BeginReconnect(m_session, ReconnectPeriod, Client_ReconnectComplete);
-                        }
-                        else
-                        {
-                            Utils.LogInfo("KeepAlive status {0}, reconnect in progress.", e.Status);
-                        }
+                        Utils.LogInfo("KeepAlive status {0}, reconnect status {1}, reconnect period {2}ms.", e.Status, state, ReconnectPeriod);
+                    }
+                    else
+                    {
+                        Utils.LogInfo("KeepAlive status {0}, reconnect status {1}.", e.Status, state);
                     }
 
                     return;
@@ -267,14 +270,27 @@ namespace Quickstarts
                 // if session recovered, Session property is null
                 if (m_reconnectHandler.Session != null)
                 {
-                    m_session = m_reconnectHandler.Session as Session;
+                    // ensure only a new instance is disposed
+                    // after reactivate, the same session instance may be returned
+                    if (!Object.ReferenceEquals(m_session, m_reconnectHandler.Session))
+                    {
+                        m_output.WriteLine("--- RECONNECTED TO NEW SESSION --- {0}", m_reconnectHandler.Session.SessionId);
+                        var session = m_session;
+                        session.KeepAlive -= Session_KeepAlive;
+                        m_session = m_reconnectHandler.Session as Session;
+                        m_session.KeepAlive += Session_KeepAlive;
+                        Utils.SilentDispose(session);
+                    }
+                    else
+                    {
+                        m_output.WriteLine("--- REACTIVATED SESSION --- {0}", m_reconnectHandler.Session.SessionId);
+                    }
                 }
-
-                m_reconnectHandler.Dispose();
-                m_reconnectHandler = null;
+                else
+                {
+                    m_output.WriteLine("--- RECONNECT KeepAlive recovered ---");
+                }
             }
-
-            m_output.WriteLine("--- RECONNECTED ---");
         }
         #endregion
 

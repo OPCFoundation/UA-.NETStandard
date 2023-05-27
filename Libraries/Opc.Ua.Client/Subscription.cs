@@ -404,11 +404,11 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// If the available sequence numbers of a subscription
-        /// are republished or acknoledged after a transfer. 
+        /// are republished or acknowledged after a transfer. 
         /// </summary>
         /// <remarks>
         /// Default <c>false</c>, set to <c>true</c> if no data loss is important
-        /// and available publish requests (sequence numbers) that were never acknoledged should be
+        /// and available publish requests (sequence numbers) that were never acknowledged should be
         /// recovered with a republish. The setting is used after a subscription transfer.
         /// </remarks>   
         [DataMember(Name = "RepublishAfterTransfer", Order = 15)]
@@ -1674,6 +1674,10 @@ namespace Opc.Ua.Client
                     Utils.LogError(e, "Error while raising PublishStateChanged event.");
                 }
             }
+
+            // try to send a publish to recover stopped publishing.
+            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue));
+            m_session?.BeginPublish(Math.Min(keepAliveInterval, Int32.MaxValue / 3) * 3);
         }
 
         /// <summary>
@@ -1817,7 +1821,7 @@ namespace Opc.Ua.Client
             {
                 if (m_minLifetimeInterval > 0 && m_minLifetimeInterval < m_session.SessionTimeout)
                 {
-                    Utils.LogWarning("A smaller lifeTime {0}ms than session timeout {1}ms configured for subscription {2}.",
+                    Utils.LogWarning("A smaller minLifetimeInterval {0}ms than session timeout {1}ms configured for subscription {2}.",
                         m_minLifetimeInterval, m_session.SessionTimeout, Id);
                 }
 

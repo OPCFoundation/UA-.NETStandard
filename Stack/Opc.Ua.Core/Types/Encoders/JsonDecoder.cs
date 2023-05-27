@@ -1445,11 +1445,15 @@ namespace Opc.Ua
                     return new ExtensionObject(typeId, encodeable);
                 }
 
-                var ostrm = new MemoryStream();
-                using (var stream = new StreamWriter(ostrm))
-                using (JsonTextWriter writer = new JsonTextWriter(stream))
+                using (var ostrm = new MemoryStream())
                 {
-                    EncodeAsJson(writer, token);
+                    using (var stream = new StreamWriter(ostrm))
+                    using (JsonTextWriter writer = new JsonTextWriter(stream))
+                    {
+                        EncodeAsJson(writer, token);
+                    }
+                    // Close the writer before retrieving the data
+                    return new ExtensionObject(typeId, ostrm.ToArray());
                 }
                 // Close the writer before retrieving the data
                 return new ExtensionObject(typeId, ostrm.ToArray());
