@@ -155,13 +155,15 @@ namespace Opc.Ua.Bindings
                 else
                 {
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
-                    task = Task.Run(async () =>
-                        await (Socket?.BeginConnect(
-                            m_via, m_ConnectCallback, operation,
-                            new CancellationTokenSource(timeout).Token) ?? Task.FromResult(false)).ConfigureAwait(false));
+                    task = Task.Run(async () => {
+                        using (var cts = new CancellationTokenSource(timeout))
+                        {
+                            await (Socket?.BeginConnect(m_via, m_ConnectCallback, operation, cts.Token) ?? Task.FromResult(false)).ConfigureAwait(false);
+
+                        }
+                    });
                 }
             }
-
             return m_handshakeOperation;
         }
 
@@ -1272,7 +1274,7 @@ namespace Opc.Ua.Bindings
                 m_queuedOperations = null;
             }
         }
-        #endregion 
+        #endregion
 
         #region Message Processing
         /// <summary>
