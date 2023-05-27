@@ -1455,8 +1455,6 @@ namespace Opc.Ua
                     // Close the writer before retrieving the data
                     return new ExtensionObject(typeId, ostrm.ToArray());
                 }
-                // Close the writer before retrieving the data
-                return new ExtensionObject(typeId, ostrm.ToArray());
             }
             finally
             {
