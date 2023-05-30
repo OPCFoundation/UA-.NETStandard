@@ -735,8 +735,10 @@ namespace Opc.Ua.Client.Controls
                     if (!ReferenceEquals(m_session, m_reconnectHandler.Session))
                     {
                         var session = m_session;
+                        session.KeepAlive -= Session_KeepAlive;
                         m_session = m_reconnectHandler.Session as Session;
-                        session.Dispose();
+                        m_session.KeepAlive += Session_KeepAlive;
+                        Utils.SilentDispose(session);
                     }
                 }
 
