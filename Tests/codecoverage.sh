@@ -7,7 +7,7 @@ cd $BUILDROOT
 
 rm -r ./CodeCoverage
 rm -r ./TestResults
-dotnet test "UA Core Library.sln" -v n --configuration Release --framework netcoreapp3.1 --collect:"XPlat Code Coverage"  --settings ./Tests/coverlet.runsettings.xml --results-directory ./TestResults
+dotnet test "UA Core Library.sln" -v n --configuration Release --framework net6.0 --collect:"XPlat Code Coverage"  --settings ./Tests/coverlet.runsettings.xml --results-directory ./TestResults
 
 # ensure latest report tool is installed
 dotnet tool uninstall -g dotnet-reportgenerator-globaltool
