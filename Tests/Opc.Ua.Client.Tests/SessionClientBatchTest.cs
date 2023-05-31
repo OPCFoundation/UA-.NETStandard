@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Tests
         public new async Task OneTimeSetUp()
         {
             SupportsExternalServerUrl = true;
-            await base.OneTimeSetUp();
+            await base.OneTimeSetUp().ConfigureAwait(false);
             if(Session is Session session)
             {
                 session.OperationLimits = null;
@@ -469,7 +469,7 @@ namespace Opc.Ua.Client.Tests
                 while (continuationPoints.Any())
                 {
                     TestContext.Out.WriteLine("BrowseNext {0} Nodes...", continuationPoints.Count);
-                    var nextResponse = await Session.BrowseNextAsync(requestHeader, false, continuationPoints, CancellationToken.None);
+                    var nextResponse = await Session.BrowseNextAsync(requestHeader, false, continuationPoints, CancellationToken.None).ConfigureAwait(false);
                     BrowseResultCollection browseNextResultCollection = nextResponse.Results;
                     diagnosticInfos = nextResponse.DiagnosticInfos;
                     ServerFixtureUtils.ValidateResponse(response.ResponseHeader);

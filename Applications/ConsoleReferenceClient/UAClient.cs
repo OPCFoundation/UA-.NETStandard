@@ -85,7 +85,12 @@ namespace Quickstarts
         /// <summary>
         /// The reconnect period to be used in ms.
         /// </summary>
-        public int ReconnectPeriod { get; set; } = 10000;
+        public int ReconnectPeriod { get; set; } = 5000;
+
+        /// <summary>
+        /// The reconnect period exponential backoff to be used in ms.
+        /// </summary>
+        public int ReconnectPeriodExponentialBackoff { get; set; } = 15000;
 
         /// <summary>
         /// The session lifetime.
@@ -160,7 +165,7 @@ namespace Quickstarts
                         m_session.KeepAlive += Session_KeepAlive;
 
                         // prepare a reconnect handler
-                        m_reconnectHandler = new SessionReconnectHandler(true, 30_000);
+                        m_reconnectHandler = new SessionReconnectHandler(true, ReconnectPeriodExponentialBackoff);
                     }
 
                     // Session created successfully.

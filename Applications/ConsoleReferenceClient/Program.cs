@@ -198,6 +198,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                             // enable subscription transfer
                             uaClient.ReconnectPeriod = 1000;
+                            uaClient.ReconnectPeriodExponentialBackoff = 10000;
                             uaClient.Session.MinPublishRequestCount = 3;
                             uaClient.Session.TransferSubscriptionsOnReconnect = true;
                             var samples = new ClientSamples(output, ClientBase.ValidateResponse, quitEvent, verbose);

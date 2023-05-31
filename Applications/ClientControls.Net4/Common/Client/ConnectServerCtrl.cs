@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Controls
         public static readonly uint DefaultSessionTimeout = 60000;
         public static readonly int DefaultDiscoverTimeout = 15000;
         public static readonly int DefaultReconnectPeriod = 1;
-        public static readonly int DefaultReconnectPeriodExponentialBackOff = 30;
+        public static readonly int DefaultReconnectPeriodExponentialBackOff = 10;
 
         /// <summary>
         /// A strip used to display session status information.
@@ -212,12 +212,12 @@ namespace Opc.Ua.Client.Controls
         public int ReconnectPeriod { get; set; } = DefaultReconnectPeriod;
 
         /// <summary>
-        /// The discover timeout.
+        /// The discover timeout in ms.
         /// </summary>
         public int DiscoverTimeout { get; set; } = DefaultDiscoverTimeout;
 
         /// <summary>
-        /// The session timeout.
+        /// The session timeout in ms.
         /// </summary>
         public uint SessionTimeout { get; set; } = DefaultSessionTimeout;
 

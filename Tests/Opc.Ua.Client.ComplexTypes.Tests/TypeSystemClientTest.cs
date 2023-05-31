@@ -250,11 +250,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.NotNull(structureVariable);
             NodeId nodeId = ExpandedNodeId.ToNodeId(structureVariable, m_session.NamespaceUris);
             Assert.NotNull(nodeId);
-            Node node = await m_session.ReadNodeAsync(nodeId);
+            Node node = await m_session.ReadNodeAsync(nodeId).ConfigureAwait(false);
             Assert.NotNull(node);
             Assert.True(node is VariableNode);
             VariableNode variableNode = (VariableNode)node;
-            DataValue dataValue = await m_session.ReadValueAsync(nodeId);
+            DataValue dataValue = await m_session.ReadValueAsync(nodeId).ConfigureAwait(false);
             Assert.NotNull(dataValue);
 
             // test the accessor to the complex types
@@ -292,7 +292,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     Value = dataWriteValue
                     }
                 };
-            WriteResponse response = await m_session.WriteAsync(null, writeValues, CancellationToken.None);
+            WriteResponse response = await m_session.WriteAsync(null, writeValues, CancellationToken.None).ConfigureAwait(false);
             Assert.NotNull(response);
             Assert.NotNull(response.Results);
             TestContext.Out.WriteLine(new ServiceResult(response.Results[0]).StatusCode);
@@ -300,7 +300,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.True(StatusCode.IsGood(response.Results[0]));
 
             // read back written values
-            dataValue = await m_session.ReadValueAsync(nodeId);
+            dataValue = await m_session.ReadValueAsync(nodeId).ConfigureAwait(false);
             Assert.NotNull(dataValue);
 
             Assert.True(dataValue.Value is ExtensionObject);

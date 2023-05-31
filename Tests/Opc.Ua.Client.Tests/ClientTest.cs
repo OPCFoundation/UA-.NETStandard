@@ -428,7 +428,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(240)]
         public async Task ConnectMultipleSessionsAsync()
         {
-            var endpoint = await ClientFixture.GetEndpointAsync(this.ServerUrl, SecurityPolicies.Basic256Sha256, this.Endpoints);
+            var endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
             var channel = await ClientFixture.CreateChannelAsync(endpoint).ConfigureAwait(false);

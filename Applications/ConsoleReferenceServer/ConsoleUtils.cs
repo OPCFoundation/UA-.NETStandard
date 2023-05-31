@@ -127,6 +127,7 @@ namespace Quickstarts
     /// <summary>
     /// An exception that occured and caused an exit of the application.
     /// </summary>
+    [Serializable]
     public class ErrorExitException : Exception
     {
         public ExitCode ExitCode { get; }
