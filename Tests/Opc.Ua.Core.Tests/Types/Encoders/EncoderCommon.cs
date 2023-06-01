@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -812,9 +813,185 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     Count = this.Count
                 };
             }
-
             private bool m_resetCounter;
         }
+
+        /// <summary>
+        /// A simple dynamic encodeable that can handle arbitrary fields of type string
+        /// </summary>
+        protected class DynamicEncodeable : IEncodeable, IJsonEncodeable, IDisposable, IDynamicComplexTypeInstance
+        {
+            private static int s_count = 0;
+            public DynamicEncodeable()
+            {
+            }
+
+            public DynamicEncodeable(string xmlName, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, ExpandedNodeId jsonEncodingId)
+            {
+                m_xmlName = xmlName;
+                TypeId = typeId;
+                BinaryEncodingId = binaryEncodingId;
+                XmlEncodingId = xmlEncodingId;
+                JsonEncodingId = jsonEncodingId;
+                m_resetCounter = true;
+                Count = Interlocked.Increment(ref s_count);
+
+                m_fields = new Dictionary<string, string> { { "Foo", $"bar_{Count}" } };
+            }
+
+            public DynamicEncodeable(string xmlName, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, ExpandedNodeId jsonEncodingId, int count)
+            {
+                m_xmlName = xmlName;
+                TypeId = typeId;
+                BinaryEncodingId = binaryEncodingId;
+                XmlEncodingId = xmlEncodingId;
+                JsonEncodingId = jsonEncodingId;
+
+                Count = count;
+                m_fields = new Dictionary<string, string> { { "Foo", $"bar_{Count}" } };
+            }
+
+            public DynamicEncodeable(string xmlName, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, ExpandedNodeId jsonEncodingId, string foo)
+            {
+                m_xmlName = xmlName;
+                TypeId = typeId;
+                BinaryEncodingId = binaryEncodingId;
+                XmlEncodingId = xmlEncodingId;
+                JsonEncodingId = jsonEncodingId;
+
+                m_fields = new Dictionary<string, string> { { "Foo" , foo } };
+            }
+
+            public DynamicEncodeable(string xmlName, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, ExpandedNodeId jsonEncodingId, Dictionary<string, string> fields)
+            {
+                m_xmlName = xmlName;
+                TypeId = typeId;
+                BinaryEncodingId = binaryEncodingId;
+                XmlEncodingId = xmlEncodingId;
+                JsonEncodingId = jsonEncodingId;
+
+                m_fields = fields;
+            }
+
+            public int Count { get; set; }
+
+            public ExpandedNodeId TypeId { get; set; }
+            public ExpandedNodeId BinaryEncodingId { get; set; }
+            public ExpandedNodeId XmlEncodingId { get; set; }
+            public ExpandedNodeId JsonEncodingId { get; set; }
+            //ExpandedNodeId IComplexTypeInstance.TypeId { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
+            public void Encode(IEncoder encoder)
+            {
+                InitializeFromFactory(encoder.Context?.Factory);
+                foreach (var field in m_fields)
+                {
+                    encoder.WriteString(field.Key, field.Value);
+                }
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                InitializeFromFactory(decoder.Context?.Factory);
+                foreach (var fieldName in m_fields.Keys)
+                {
+                    m_fields[fieldName] = decoder.ReadString(fieldName);
+                }
+            }
+
+            private void InitializeFromFactory(IEncodeableFactory factory)
+            {
+                if (m_fields == null)
+                {
+                    // When the dynamic encodeabl is instantiated by a encoder/decoder, it needs to find it's type information
+
+                    // Obtain a previously registered instance from the Factory
+                    // Other systems will want to put just type information into the factory, or have other means of finding type information given an encoding id
+                    var encodeable = (factory as DynamicEncodeableFactory)?.GetDynamicEncodeableForEncoding(TypeId);
+                    // Read the type information
+                    TypeId = encodeable?.TypeId;
+                    XmlEncodingId = encodeable?.XmlEncodingId;
+                    JsonEncodingId = encodeable?.JsonEncodingId;
+                    BinaryEncodingId = encodeable?.BinaryEncodingId;
+                    Count = encodeable?.Count ?? 0;
+                    m_fields = encodeable?.m_fields.ToDictionary(kv => kv.Key, kv => (string) null);
+                    m_xmlName = encodeable?.m_xmlName;
+                }
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                if (encodeable is DynamicEncodeable de)
+                {
+                    return (m_fields.OrderBy(kv => kv.Key).SequenceEqual(de.m_fields.OrderBy(kv => kv.Key)));
+                }
+
+                return false;
+            }
+
+            public void Dispose()
+            {
+                if (m_resetCounter)
+                {
+                    s_count = 0;
+                }
+            }
+
+            public virtual object Clone()
+            {
+                return this.MemberwiseClone();
+            }
+
+            public new object MemberwiseClone()
+            {
+                return new DynamicEncodeable(m_xmlName, TypeId, BinaryEncodingId, XmlEncodingId, JsonEncodingId, m_fields.ToDictionary(kv => kv.Key, kv => kv.Value)) {
+                    Count = this.Count
+                };
+            }
+
+            public XmlQualifiedName GetXmlName(IServiceMessageContext context)
+            {
+                return new XmlQualifiedName(m_xmlName);
+            }
+
+            private Dictionary<string, string> m_fields;
+            private string m_xmlName;
+            private bool m_resetCounter;
+        }
+
+        protected class DynamicEncodeableFactory : EncodeableFactory
+        {
+            Dictionary<ExpandedNodeId, DynamicEncodeable> _dynamicEncodeables = new Dictionary<ExpandedNodeId, DynamicEncodeable>();
+
+            public DynamicEncodeableFactory(IEncodeableFactory factory) : base(factory)
+            {
+            }
+
+            public DynamicEncodeable GetDynamicEncodeableForEncoding(ExpandedNodeId typeId)
+            {
+                if (typeId != null)
+                {
+                    if (_dynamicEncodeables.TryGetValue(typeId, out var dynamicEncodeable))
+                    {
+                        return dynamicEncodeable;
+                    }
+                }
+                return null;
+            }
+
+            public void AddDynamicEncodeable(DynamicEncodeable encodeable)
+            {
+                _dynamicEncodeables[encodeable.XmlEncodingId] = encodeable;
+                _dynamicEncodeables[encodeable.JsonEncodingId] = encodeable;
+                _dynamicEncodeables[encodeable.BinaryEncodingId] = encodeable;
+                _dynamicEncodeables[encodeable.TypeId] = encodeable;
+                AddEncodeableType(encodeable.XmlEncodingId, typeof(DynamicEncodeable));
+                AddEncodeableType(encodeable.JsonEncodingId, typeof(DynamicEncodeable));
+                AddEncodeableType(encodeable.BinaryEncodingId, typeof(DynamicEncodeable));
+                AddEncodeableType(encodeable.TypeId, typeof(DynamicEncodeable));
+            }
+        }
+
         #endregion
     }
 
