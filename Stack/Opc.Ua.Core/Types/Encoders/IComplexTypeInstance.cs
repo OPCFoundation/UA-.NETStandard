@@ -38,18 +38,6 @@ namespace Opc.Ua
         /// </summary>
         /// <returns>The xml qualified name for the type instance</returns>
         XmlQualifiedName GetXmlName(IServiceMessageContext context);
-
-        /// <summary>
-        /// Returns the NodeId for the default binary encoding for the type.
-        /// </summary>
-        /// <value>The NodeId for binary encoding.</value>
-        ExpandedNodeId BinaryEncodingId { get; set; }
-
-        /// <summary>
-        /// Returns the NodeId for the default XML encoding for the type.
-        /// </summary>
-        /// <value>The NodeId for the  XML encoding id.</value>
-        ExpandedNodeId XmlEncodingId { get; set; }
     }
 
 }
