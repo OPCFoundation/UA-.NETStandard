@@ -10,7 +10,7 @@
 try {
     # Try install tool
     # Note: Keep Version 3.6.133, it is known working for 4 digit versioning 
-    & dotnet @("tool", "install", "--tool-path", "./tools", "--version", "3.6.133", "--framework", "netcoreapp3.1", "nbgv") 2>&1 
+    & dotnet @("tool", "install", "--tool-path", "./tools", "--version", "3.6.133", "--framework", "net60", "nbgv") 2>&1 
 
     $props = (& ./tools/nbgv  @("get-version", "-f", "json")) | ConvertFrom-Json
     if ($LastExitCode -ne 0) {
