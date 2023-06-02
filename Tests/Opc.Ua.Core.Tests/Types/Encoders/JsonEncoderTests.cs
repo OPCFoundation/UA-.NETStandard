@@ -498,7 +498,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
-            using (var encodeable = new DynamicEncodeable("FooXml", "nsu=x;i=1", "nsu=x;i=2", "nsu=x;i=3", "nsu=x;i=4", new Dictionary<string, string> { { "Foo", "bar_1" } }))
+            using (var encodeable = new DynamicEncodeable("FooXml", "test_dyn_typeid", "test_dyn_binaryencodingid", "test_dyn_xmlencodingid", "test_dyn_jsonencodingid", new Dictionary<string, string> { { "Foo", "bar_1" } }))
             {
                 using (var encoder = new JsonEncoder(Context, true, false))
                 {
@@ -523,15 +523,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void Test_ExtensionObjectWithDynamicEncodeable()
         {
-            var expectedJson = "{\"TypeId\":{\"IdType\":1,\"Id\":\"nsu=x;i=1\"},\"Body\":{\"Foo\":\"bar_1\",\"Foo2\":\"bar_2\"}}";
+            var expectedJson = "{\"TypeId\":{\"IdType\":1,\"Id\":\"test_dyn2_typeid\"},\"Body\":{\"Foo\":\"bar_1\",\"Foo2\":\"bar_2\"}}";
             var expectedXml = "<uax:ExtensionObject xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">"
-                + "  <uax:TypeId><uax:Identifier>s=nsu=x;i=3</uax:Identifier></uax:TypeId>"
+                + "  <uax:TypeId><uax:Identifier>s=test_dyn2_xmlencodingid</uax:Identifier></uax:TypeId>"
                 + "  <uax:Body><FooXml><Foo>bar_1</Foo><Foo2>bar_2</Foo2></FooXml></uax:Body></uax:ExtensionObject>";
             expectedXml = PrettifyAndValidateXml(Encoding.UTF8.GetBytes(expectedXml));
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expectedJson);
 
-            var encodeable = new DynamicEncodeable("FooXml", "nsu=x;i=1", "nsu=x;i=2", "nsu=x;i=3", "nsu=x;i=4", new Dictionary<string, string> {
+            var encodeable = new DynamicEncodeable("FooXml", "test_dyn2_typeid", "test_dyn2_binaryencodingid", "test_dyn2_xmlencodingid", "test_dyn2_jsonencodingid", new Dictionary<string, string> {
                 { "Foo", "bar_1" },
                 { "Foo2", "bar_2" },
             });
