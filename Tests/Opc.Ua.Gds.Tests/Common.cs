@@ -205,7 +205,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 if ((random & 4) == 0)
                 {
-                    result.Add(String.Format("https://{0}:{1}/{2}", name, (port++).ToString(), appUri));
+                    result.Add(String.Format("opc.https://{0}:{1}/{2}", name, (port++).ToString(), appUri));
                 }
             }
             return result;
