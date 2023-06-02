@@ -107,15 +107,15 @@ namespace Opc.Ua.Bindings
                 description.EndpointUrl = uri.ToString();
                 description.Server = serverDescription;
 
-                    if (instanceCertificate != null)
+                if (instanceCertificate != null)
+                {
+                    description.ServerCertificate = instanceCertificate.RawData;
+                    // check if complete chain should be sent.
+                    if (configuration.SecurityConfiguration.SendCertificateChain &&
+                        instanceCertificateChain != null &&
+                        instanceCertificateChain.Count > 1)
                     {
-                        description.ServerCertificate = instanceCertificate.RawData;
-                        // check if complete chain should be sent.
-                        if (configuration.SecurityConfiguration.SendCertificateChain &&
-                            instanceCertificateChain != null &&
-                            instanceCertificateChain.Count > 1)
-                        {
-                            List<byte> serverCertificateChain = new List<byte>();
+                        List<byte> serverCertificateChain = new List<byte>();
 
                         for (int i = 0; i < instanceCertificateChain.Count; i++)
                         {

@@ -74,7 +74,7 @@ namespace Opc.Ua.Bindings
         private const int kMaxConnectionsPerServer = 64;
 
         /// <summary>
-        /// 
+        /// Create a transport channel based on the uri scheme.
         /// </summary>
         public HttpsTransportChannel(string uriScheme)
         {
@@ -186,45 +186,27 @@ namespace Opc.Ua.Bindings
                                 (httpRequestMessage, cert, chain, policyErrors) => {
                                     try
                                     {
-                                        // if no security specified, accept all
-                                        if (m_settings.Description.SecurityMode == MessageSecurityMode.None)
+                                        var validationChain = new X509Certificate2Collection();
+                                        if (chain != null && chain.ChainElements != null)
                                         {
-                                            return true;
-                                        }
-
-                                        // default, if no validator is specified, let the OS manage trust
-                                        if (m_tlsCertificateValidator == null)
-                                        {
-                                            if (policyErrors == SslPolicyErrors.None)
+                                            int i = 0;
+                                            Utils.LogInfo(Utils.TraceMasks.Security, "{0} Validate server chain:", nameof(HttpsTransportChannel));
+                                            foreach (var element in chain.ChainElements)
                                             {
-                                                Utils.LogInfo(Utils.TraceMasks.Security, "Accepting the HTTPS server certificate because it is trusted by the OS.");
-                                                return true;
+                                                Utils.LogCertificate(Utils.TraceMasks.Security, "{0}: ", element.Certificate, i);
+                                                validationChain.Add(element.Certificate);
+                                                i++;
                                             }
                                         }
                                         else
                                         {
-                                            var validationChain = new X509Certificate2Collection();
-                                            if (chain != null && chain.ChainElements != null)
-                                            {
-                                                int i = 0;
-                                                Utils.LogInfo(Utils.TraceMasks.Security, "{0} Validate server chain:", nameof(HttpsTransportChannel));
-                                                foreach (var element in chain.ChainElements)
-                                                {
-                                                    Utils.LogCertificate(Utils.TraceMasks.Security, "{0}: ", element.Certificate, i);
-                                                    validationChain.Add(element.Certificate);
-                                                    i++;
-                                                }
-                                            }
-                                            else
-                                            {
-                                                Utils.LogCertificate(Utils.TraceMasks.Security, "{0} Validate Server Certificate: ", cert, nameof(HttpsTransportChannel));
-                                                validationChain.Add(cert);
-                                            }
-
-                                            m_tlsCertificateValidator.Validate(validationChain);
-
-                                            return true;
+                                            Utils.LogCertificate(Utils.TraceMasks.Security, "{0} Validate Server Certificate: ", cert, nameof(HttpsTransportChannel));
+                                            validationChain.Add(cert);
                                         }
+
+                                        m_quotas.CertificateValidator?.Validate(validationChain);
+
+                                        return true;
                                     }
                                     catch (Exception ex)
                                     {
@@ -489,8 +471,6 @@ namespace Opc.Ua.Bindings
 
                 CertificateValidator = settings.CertificateValidator
             };
-            // TODO: how to set the https cert validator
-            m_tlsCertificateValidator = settings.CertificateValidator;
         }
 
         private string m_uriScheme;
@@ -499,7 +479,6 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private HttpClient m_client;
-        private ICertificateValidator m_tlsCertificateValidator;
         private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new MediaTypeHeaderValue("application/octet-stream");
     }
 }
