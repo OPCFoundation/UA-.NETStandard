@@ -160,14 +160,10 @@ namespace Opc.Ua.Bindings
                 // send client certificate for servers that require TLS client authentication
                 if (m_settings.ClientCertificate != null)
                 {
-                    var certProperty = handler.GetType().GetProperty("ClientCertificates");
+                    PropertyInfo certProperty = handler.GetType().GetProperty("ClientCertificates");
                     if (certProperty != null)
-                    PropertyInfo propertyInfo = handler.GetType().GetProperty("ClientCertificates");
-                    if (propertyInfo != null)
                     {
                         X509CertificateCollection clientCertificates = (X509CertificateCollection)certProperty.GetValue(handler);
-                        clientCertificates?.Add(m_settings.ClientCertificate);
-                        var clientCertificates = (X509CertificateCollection)propertyInfo.GetValue(handler);
                         _ = (clientCertificates?.Add(m_settings.ClientCertificate));
                     }
                 }
