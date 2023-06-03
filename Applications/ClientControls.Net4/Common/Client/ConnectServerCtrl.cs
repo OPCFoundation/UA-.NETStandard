@@ -74,7 +74,8 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public static readonly uint DefaultSessionTimeout = 60000;
         public static readonly int DefaultDiscoverTimeout = 15000;
-        public static readonly int DefaultReconnectPeriod = 10;
+        public static readonly int DefaultReconnectPeriod = 1;
+        public static readonly int DefaultReconnectPeriodExponentialBackOff = 10;
 
         /// <summary>
         /// A strip used to display session status information.
@@ -211,12 +212,12 @@ namespace Opc.Ua.Client.Controls
         public int ReconnectPeriod { get; set; } = DefaultReconnectPeriod;
 
         /// <summary>
-        /// The discover timeout.
+        /// The discover timeout in ms.
         /// </summary>
         public int DiscoverTimeout { get; set; } = DefaultDiscoverTimeout;
 
         /// <summary>
-        /// The session timeout.
+        /// The session timeout in ms.
         /// </summary>
         public uint SessionTimeout { get; set; } = DefaultSessionTimeout;
 
@@ -319,7 +320,10 @@ namespace Opc.Ua.Client.Controls
                 PreferredLocales);
 
             // set up keep alive callback.
-            m_session.KeepAlive += new KeepAliveEventHandler(Session_KeepAlive);
+            m_session.KeepAlive += Session_KeepAlive;
+
+            // set up reconnect handler.
+            m_reconnectHandler = new SessionReconnectHandler(true, DefaultReconnectPeriodExponentialBackOff * 1000);
 
             // raise an event.
             DoConnectComplete(null);
@@ -385,6 +389,9 @@ namespace Opc.Ua.Client.Controls
 
             // set up keep alive callback.
             m_session.KeepAlive += new KeepAliveEventHandler(Session_KeepAlive);
+
+            // set up reconnect handler.
+            m_reconnectHandler = new SessionReconnectHandler(true, DefaultReconnectPeriodExponentialBackOff * 1000);
 
             // raise an event.
             DoConnectComplete(null);
@@ -636,15 +643,10 @@ namespace Opc.Ua.Client.Controls
 
                     UpdateStatus(true, e.CurrentTime, "Reconnecting in {0}s", ReconnectPeriod);
 
-                    if (m_reconnectHandler == null)
+                    var state = m_reconnectHandler.BeginReconnect(m_session, ReconnectPeriod * 1000, Server_ReconnectComplete);
+                    if (state == SessionReconnectHandler.ReconnectState.Triggered)
                     {
-                        if (m_ReconnectStarting != null)
-                        {
-                            m_ReconnectStarting(this, e);
-                        }
-
-                        m_reconnectHandler = new SessionReconnectHandler(true);
-                        m_reconnectHandler.BeginReconnect(m_session, ReconnectPeriod * 1000, Server_ReconnectComplete);
+                        m_ReconnectStarting?.Invoke(this, e);
                     }
 
                     return;
@@ -730,11 +732,15 @@ namespace Opc.Ua.Client.Controls
                 // only apply session if reconnect was required
                 if (m_reconnectHandler.Session != null)
                 {
-                    m_session = m_reconnectHandler.Session as Session;
+                    if (!ReferenceEquals(m_session, m_reconnectHandler.Session))
+                    {
+                        var session = m_session;
+                        session.KeepAlive -= Session_KeepAlive;
+                        m_session = m_reconnectHandler.Session as Session;
+                        m_session.KeepAlive += Session_KeepAlive;
+                        Utils.SilentDispose(session);
+                    }
                 }
-
-                m_reconnectHandler.Dispose();
-                m_reconnectHandler = null;
 
                 // raise any additional notifications.
                 if (m_ReconnectComplete != null)

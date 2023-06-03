@@ -13,11 +13,13 @@
 
 using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -152,21 +154,21 @@ namespace Opc.Ua.Bindings
                 };
 
                 // limit the number of concurrent connections, if supported
-                var connectionProperty = handler.GetType().GetProperty("MaxConnectionsPerServer");
-                if (connectionProperty != null &&
-                    (Int32)connectionProperty.GetValue(handler) > kMaxConnectionsPerServer)
-                {
-                    connectionProperty.SetValue(handler, kMaxConnectionsPerServer);
-                }
+                PropertyInfo maxConnectionsPerServerProperty = handler.GetType().GetProperty("MaxConnectionsPerServer");
+                maxConnectionsPerServerProperty?.SetValue(handler, kMaxConnectionsPerServer);
 
                 // send client certificate for servers that require TLS client authentication
                 if (m_settings.ClientCertificate != null)
                 {
                     var certProperty = handler.GetType().GetProperty("ClientCertificates");
                     if (certProperty != null)
+                    PropertyInfo propertyInfo = handler.GetType().GetProperty("ClientCertificates");
+                    if (propertyInfo != null)
                     {
                         X509CertificateCollection clientCertificates = (X509CertificateCollection)certProperty.GetValue(handler);
                         clientCertificates?.Add(m_settings.ClientCertificate);
+                        var clientCertificates = (X509CertificateCollection)propertyInfo.GetValue(handler);
+                        _ = (clientCertificates?.Add(m_settings.ClientCertificate));
                     }
                 }
 
@@ -174,7 +176,7 @@ namespace Opc.Ua.Bindings
                 // on PostAsync, do not set validation handler
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
-                    var propertyInfo = handler.GetType().GetProperty("ServerCertificateCustomValidationCallback");
+                    PropertyInfo propertyInfo = handler.GetType().GetProperty("ServerCertificateCustomValidationCallback");
                     if (propertyInfo != null)
                     {
                         Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool>
@@ -191,7 +193,7 @@ namespace Opc.Ua.Bindings
                                         {
                                             int i = 0;
                                             Utils.LogInfo(Utils.TraceMasks.Security, "{0} Validate server chain:", nameof(HttpsTransportChannel));
-                                            foreach (var element in chain.ChainElements)
+                                            foreach (X509ChainElement element in chain.ChainElements)
                                             {
                                                 Utils.LogCertificate(Utils.TraceMasks.Security, "{0}: ", element.Certificate, i);
                                                 validationChain.Add(element.Certificate);
@@ -283,9 +285,11 @@ namespace Opc.Ua.Bindings
                 Task.Run(async () => {
                     try
                     {
-                        var ct = new CancellationTokenSource(m_operationTimeout).Token;
-                        response = await m_client.PostAsync(m_url, content, ct).ConfigureAwait(false);
-                        response.EnsureSuccessStatusCode();
+                        using (var cts = new CancellationTokenSource(m_operationTimeout))
+                        {
+                            response = await m_client.PostAsync(m_url, content, cts.Token).ConfigureAwait(false);
+                            response.EnsureSuccessStatusCode();
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -302,7 +306,7 @@ namespace Opc.Ua.Bindings
             catch (Exception ex)
             {
                 Utils.LogError(ex, "Exception sending HTTPS request.");
-                HttpsAsyncResult result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, response);
+                var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, response);
                 result.Exception = ex;
                 result.OperationCompleted();
                 return result;
@@ -312,7 +316,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            HttpsAsyncResult result2 = result as HttpsAsyncResult;
+            var result2 = result as HttpsAsyncResult;
             if (result2 == null)
             {
                 throw new ArgumentException("Invalid result object passed.", nameof(result));
@@ -411,18 +415,37 @@ namespace Opc.Ua.Bindings
                     content.Headers.Add(Profiles.HttpsSecurityPolicyHeader, EndpointDescription.SecurityPolicyUri);
                 }
 
-                if (ct == default)
+                HttpResponseMessage response;
+                using (var cts = new CancellationTokenSource(m_operationTimeout))
+                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct))
                 {
-                    ct = new CancellationTokenSource(m_operationTimeout).Token;
+                    response = await m_client.PostAsync(m_url, content, linkedCts.Token).ConfigureAwait(false);
                 }
-                HttpResponseMessage response = await m_client.PostAsync(m_url, content, ct).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
+
 #if NET6_0_OR_GREATER
                 Stream responseContent = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
 #else
                 Stream responseContent = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
 #endif
                 return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
+            }
+            catch (HttpRequestException hre)
+            {
+                if (hre.InnerException is WebException webex)
+                {
+                    StatusCode statusCode = StatusCodes.BadUnknownResponse;
+                    switch (webex.Status)
+                    {
+                        case WebExceptionStatus.Timeout: statusCode = StatusCodes.BadRequestTimeout; break;
+                        case WebExceptionStatus.ConnectionClosed:
+                        case WebExceptionStatus.ConnectFailure: statusCode = StatusCodes.BadNotConnected; break;
+                    }
+                    Utils.LogError(webex, "Exception sending HTTPS request.");
+                    throw ServiceResultException.Create((uint)statusCode, webex.Message);
+                }
+                Utils.LogError(hre, "Exception sending HTTPS request.");
+                throw;
             }
             catch (TaskCanceledException tce)
             {
@@ -432,7 +455,7 @@ namespace Opc.Ua.Bindings
             catch (Exception ex)
             {
                 Utils.LogError(ex, "Exception sending HTTPS request.");
-                throw;
+                throw ServiceResultException.Create(StatusCodes.BadUnknownResponse, ex.Message);
             }
         }
 

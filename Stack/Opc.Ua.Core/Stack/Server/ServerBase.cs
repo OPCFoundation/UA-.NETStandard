@@ -213,7 +213,7 @@ namespace Opc.Ua
                     if (ii.UriScheme == url.Scheme)
                     {
                         listener = ii;
-                        break;
+                        listener.CreateReverseConnection(url, timeout);
                     }
                 }
             }
@@ -222,8 +222,6 @@ namespace Opc.Ua
             {
                 throw new ArgumentException("No suitable listener found.", nameof(url));
             }
-
-            listener.CreateReverseConnection(url, timeout);
         }
 
         /// <summary>

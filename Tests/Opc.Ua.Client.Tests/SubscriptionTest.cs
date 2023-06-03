@@ -292,7 +292,7 @@ namespace Opc.Ua.Client.Tests
                 await subscription.CreateAsync().ConfigureAwait(false);
             }
 
-            await Task.Delay(5000);
+            await Task.Delay(5000).ConfigureAwait(false);
 
             TestContext.Out.WriteLine("{0} value changes.", valueChanges);
 
