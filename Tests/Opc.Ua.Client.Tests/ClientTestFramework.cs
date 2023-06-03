@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
@@ -170,11 +171,12 @@ namespace Opc.Ua.Client.Tests
                 try
                 {
                     Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                    Assert.NotNull(Session);
                     Session.ReturnDiagnostics = DiagnosticsMasks.All;
                 }
                 catch (Exception e)
                 {
-                    Assert.Ignore("OneTimeSetup failed to create session, tests skipped. Error: {0}", e.Message);
+                    Assert.Warn("OneTimeSetup failed to create session with {0}, tests fail. Error: {1}", ServerUrl, e.Message);
                 }
             }
         }

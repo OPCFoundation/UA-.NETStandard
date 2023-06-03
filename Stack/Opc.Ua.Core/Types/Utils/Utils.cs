@@ -84,7 +84,9 @@ namespace Opc.Ua
         public static readonly string[] DefaultUriSchemes = new string[]
         {
             Utils.UriSchemeOpcTcp,
-            Utils.UriSchemeOpcHttps
+            Utils.UriSchemeOpcHttps,
+            Utils.UriSchemeHttps,
+            Utils.UriSchemeOpcWss
         };
 
         /// <summary>

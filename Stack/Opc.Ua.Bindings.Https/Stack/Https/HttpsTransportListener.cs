@@ -32,6 +32,27 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The protocol supported by the listener.
         /// </summary>
+        public override string UriScheme => Utils.UriSchemeHttps;
+
+        /// <summary>
+        /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
+        /// </summary>
+        /// <returns>The transport listener.</returns>
+        public override ITransportListener Create()
+        {
+            return new HttpsTransportListener(Utils.UriSchemeHttps);
+        }
+    }
+
+    /// <summary>
+    /// Creates a new <see cref="HttpsTransportListener"/> with
+    /// <see cref="ITransportListener"/> interface.
+    /// </summary>
+    public class OpcHttpsTransportListenerFactory : HttpsServiceHost
+    {
+        /// <summary>
+        /// The protocol supported by the listener.
+        /// </summary>
         public override string UriScheme => Utils.UriSchemeOpcHttps;
 
         /// <summary>
@@ -40,7 +61,7 @@ namespace Opc.Ua.Bindings
         /// <returns>The transport listener.</returns>
         public override ITransportListener Create()
         {
-            return new HttpsTransportListener();
+            return new HttpsTransportListener(Utils.UriSchemeOpcHttps);
         }
     }
 
@@ -92,8 +113,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Initializes a new instance of the <see cref="HttpsTransportListener"/> class.
         /// </summary>
-        public HttpsTransportListener()
+        public HttpsTransportListener(string uriScheme)
         {
+            m_uriScheme = uriScheme;
         }
         #endregion
 
@@ -127,7 +149,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The URI scheme handled by the listener.
         /// </summary>
-        public string UriScheme => Utils.UriSchemeOpcHttps;
+        public string UriScheme => m_uriScheme;
 
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -481,6 +503,7 @@ namespace Opc.Ua.Bindings
         #region Private Fields
         private string m_listenerId;
         private Uri m_uri;
+        private readonly string m_uriScheme;
         private EndpointDescriptionCollection m_descriptions;
         private ChannelQuotas m_quotas;
         private ITransportListenerCallback m_callback;
