@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,44 +27,34 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using Opc.Ua;
 
 namespace TestData
 {
-    public partial class VectorVariableState : ITestDataSystemValuesGenerator
+    public partial class StructureValueObjectState
     {
         #region Initialization
         /// <summary>
-        /// Initializes the object as a collection of counters which change value on read.
+        /// Initializes the object with structures.
         /// </summary>
         protected override void OnAfterCreate(ISystemContext context, NodeState node)
         {
             base.OnAfterCreate(context, node);
 
-            InitializeVariable(context, X);
-            InitializeVariable(context, Y);
-            InitializeVariable(context, Z);
+            InitializeVariable(context, ScalarStructure, TestData.Variables.StructureValueObjectType_ScalarStructure);
+            InitializeVariable(context, VectorStructure, TestData.Variables.StructureValueObjectType_VectorStructure);
         }
         #endregion
 
         #region Protected Methods
         /// <summary>
-        /// Initializes the variable.
+        /// Handles the generate values method.
         /// </summary>
-        protected void InitializeVariable(ISystemContext context, BaseVariableState variable)
-        {
-            // set a valid initial value.
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
-
-            // copy access level to childs
-            variable.AccessLevel = AccessLevel;
-            variable.UserAccessLevel = UserAccessLevel;
-        }
-        #endregion
-
-        #region Public Methods
-        public virtual StatusCode OnGenerateValues(ISystemContext context)
+        protected override ServiceResult OnGenerateValues(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint count)
         {
             TestDataSystem system = context.SystemHandle as TestDataSystem;
 
@@ -73,19 +63,10 @@ namespace TestData
                 return StatusCodes.BadOutOfService;
             }
 
-            var accessLevel = AccessLevel;
-            var userAccessLevel = UserAccessLevel;
-            AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            ScalarStructure.OnGenerateValues(context);
+            VectorStructure.OnGenerateValues(context);
 
-            // generate structure values here
-            ServiceResult result = WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
-
-            AccessLevel = accessLevel;
-            UserAccessLevel = userAccessLevel;
-
-            ClearChangeMasks(context, true);
-
-            return result.StatusCode;
+            return base.OnGenerateValues(context, method, objectId, count);
         }
         #endregion
     }

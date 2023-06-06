@@ -596,29 +596,29 @@ namespace TestData
     #endif
     #endregion
 
-    #region TestDataVariableState Class
-    #if (!OPCUA_EXCLUDE_TestDataVariableState)
+    #region ScalarStructureVariableState Class
+    #if (!OPCUA_EXCLUDE_ScalarStructureVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class TestDataVariableState : BaseDataVariableState
+    public partial class ScalarStructureVariableState : BaseDataVariableState<TestData.ScalarStructureDataType>
     {
         #region Constructors
         /// <remarks />
-        public TestDataVariableState(NodeState parent) : base(parent)
+        public ScalarStructureVariableState(NodeState parent) : base(parent)
         {
         }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.VariableTypes.TestDataVariableType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(TestData.VariableTypes.ScalarStructureVariableType, TestData.Namespaces.TestData, namespaceUris);
         }
 
         /// <remarks />
         protected override NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(Opc.Ua.DataTypes.BaseDataType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+            return Opc.Ua.NodeId.Create(TestData.DataTypes.ScalarStructureDataType, TestData.Namespaces.TestData, namespaceUris);
         }
 
         /// <remarks />
@@ -651,403 +651,33 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////FWCBAgIAAAABABwAAABUZXN0RGF0YVZh" +
-           "cmlhYmxlVHlwZUluc3RhbmNlAQE3BAEBNwQ3BAAAABgBAQEAAAAAJAABATsEAwAAADVgiQoCAAAAAQAQ" +
-           "AAAAU2ltdWxhdGlvbkFjdGl2ZQEBOAQDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9k" +
-           "dWNlIG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAEQ4BAAAAAH/////AQH/" +
-           "////AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBATkEAC8BATkEOQQAAAEB/////wEAAAAX" +
-           "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQE6BAAuAEQ6BAAAlgEAAAABACoBAUYAAAAKAAAASXRl" +
-           "cmF0aW9ucwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJh" +
-           "dGUuAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUBATsE" +
-           "AC8BAEELOwQAAAEAAAAAJAEBATcEFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEBPAQALgBEPAQAAAAP" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBPQQALgBEPQQAAAAR/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBAT4EAC4ARD4EAAAAEf////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAAAoAAABTb3VyY2VOYW1lAQE/BAAuAEQ/BAAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAE" +
-           "AAAAVGltZQEBQAQALgBEQAQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRp" +
-           "bWUBAUEEAC4AREEEAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBAUMEAC4A" +
-           "REMEAAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBRAQALgBERAQAAAAF////" +
-           "/wEB/////wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBAUUEAC4AREUEAAAAEf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBAUYEAC4AREYEAAAAFf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQFJBAAuAERJBAAAAAz/////AQH/////" +
-           "AAAAABVgiQoCAAAAAAAIAAAAQnJhbmNoSWQBAUoEAC4AREoEAAAAEf////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAAAYAAABSZXRhaW4BAUsEAC4AREsEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABFbmFi" +
-           "bGVkU3RhdGUBAUwEAC8BACMjTAQAAAAV/////wEBAgAAAAEALCMAAQFgBAEALCMAAQFpBAEAAAAVYIkK" +
-           "AgAAAAAAAgAAAElkAQFNBAAuAERNBAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVhbGl0" +
-           "eQEBVQQALwEAKiNVBAAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1w" +
-           "AQFWBAAuAERWBAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkBAVcE" +
-           "AC8BACojVwQAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEBWAQA" +
-           "LgBEWAQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEBWQQALwEAKiNZBAAA" +
-           "ABX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQFaBAAuAERaBAAAAQAm" +
-           "Af////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBAVsEAC4ARFsEAAAADP////8B" +
-           "Af////8AAAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQFcBAAvAQBEI1wEAAABAQEAAAABAPkLAAEA8woA" +
-           "AAAABGGCCgQAAAAAAAYAAABFbmFibGUBAV0EAC8BAEMjXQQAAAEBAQAAAAEA+QsAAQDzCgAAAAAEYYIK" +
-           "BAAAAAAACgAAAEFkZENvbW1lbnQBAV4EAC8BAEUjXgQAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkKAgAA" +
-           "AAAADgAAAElucHV0QXJndW1lbnRzAQFfBAAuAERfBAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP" +
-           "/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAq" +
-           "AQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRo" +
-           "ZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2VkU3Rh" +
-           "dGUBAWAEAC8BACMjYAQAAAAV/////wEBAQAAAAEALCMBAQFMBAEAAAAVYIkKAgAAAAAAAgAAAElkAQFh" +
-           "BAAuAERhBAAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBAXIEAC8BAJcj" +
-           "cgQAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFzBAAuAERz" +
-           "BAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmll" +
-           "ciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAA" +
-           "AAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB" +
-           "/////wAAAAA=";
-        #endregion
-        #endif
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        public PropertyState<bool> SimulationActive
-        {
-            get
-            {
-                return m_simulationActive;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_simulationActive, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_simulationActive = value;
-            }
-        }
-
-        /// <remarks />
-        public GenerateValuesMethodState GenerateValues
-        {
-            get
-            {
-                return m_generateValuesMethod;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_generateValuesMethod, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_generateValuesMethod = value;
-            }
-        }
-
-        /// <remarks />
-        public AcknowledgeableConditionState CycleComplete
-        {
-            get
-            {
-                return m_cycleComplete;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_cycleComplete, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_cycleComplete = value;
-            }
-        }
-        #endregion
-
-        #region Overridden Methods
-        /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
-        {
-            if (m_simulationActive != null)
-            {
-                children.Add(m_simulationActive);
-            }
-
-            if (m_generateValuesMethod != null)
-            {
-                children.Add(m_generateValuesMethod);
-            }
-
-            if (m_cycleComplete != null)
-            {
-                children.Add(m_cycleComplete);
-            }
-
-            base.GetChildren(context, children);
-        }
-            
-        /// <remarks />
-        protected override BaseInstanceState FindChild(
-            ISystemContext context,
-            QualifiedName browseName,
-            bool createOrReplace,
-            BaseInstanceState replacement)
-        {
-            if (QualifiedName.IsNull(browseName))
-            {
-                return null;
-            }
-
-            BaseInstanceState instance = null;
-
-            switch (browseName.Name)
-            {
-                case TestData.BrowseNames.SimulationActive:
-                {
-                    if (createOrReplace)
-                    {
-                        if (SimulationActive == null)
-                        {
-                            if (replacement == null)
-                            {
-                                SimulationActive = new PropertyState<bool>(this);
-                            }
-                            else
-                            {
-                                SimulationActive = (PropertyState<bool>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = SimulationActive;
-                    break;
-                }
-
-                case TestData.BrowseNames.GenerateValues:
-                {
-                    if (createOrReplace)
-                    {
-                        if (GenerateValues == null)
-                        {
-                            if (replacement == null)
-                            {
-                                GenerateValues = new GenerateValuesMethodState(this);
-                            }
-                            else
-                            {
-                                GenerateValues = (GenerateValuesMethodState)replacement;
-                            }
-                        }
-                    }
-
-                    instance = GenerateValues;
-                    break;
-                }
-
-                case TestData.BrowseNames.CycleComplete:
-                {
-                    if (createOrReplace)
-                    {
-                        if (CycleComplete == null)
-                        {
-                            if (replacement == null)
-                            {
-                                CycleComplete = new AcknowledgeableConditionState(this);
-                            }
-                            else
-                            {
-                                CycleComplete = (AcknowledgeableConditionState)replacement;
-                            }
-                        }
-                    }
-
-                    instance = CycleComplete;
-                    break;
-                }
-            }
-
-            if (instance != null)
-            {
-                return instance;
-            }
-
-            return base.FindChild(context, browseName, createOrReplace, replacement);
-        }
-        #endregion
-
-        #region Private Fields
-        private PropertyState<bool> m_simulationActive;
-        private GenerateValuesMethodState m_generateValuesMethod;
-        private AcknowledgeableConditionState m_cycleComplete;
-        #endregion
-    }
-
-    #region TestDataVariableState<T> Class
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public class TestDataVariableState<T> : TestDataVariableState
-    {
-        #region Constructors
-        /// <remarks />
-        public TestDataVariableState(NodeState parent) : base(parent)
-        {
-            Value = default(T);
-        }
-
-        /// <remarks />
-        protected override void Initialize(ISystemContext context)
-        {
-            base.Initialize(context);
-
-            Value = default(T);
-            DataType = TypeInfo.GetDataTypeId(typeof(T));
-            ValueRank = TypeInfo.GetValueRank(typeof(T));
-        }
-
-        /// <remarks />
-        protected override void Initialize(ISystemContext context, NodeState source)
-        {
-            InitializeOptionalChildren(context);
-            base.Initialize(context, source);
-        }
-        #endregion
-
-        #region Public Members
-        /// <remarks />
-        public new T Value
-        {
-            get
-            {
-                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
-            }
-
-            set
-            {
-                ((BaseVariableState)this).Value = value;
-            }
-        }
-        #endregion
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region ScalarValueVariableState Class
-    #if (!OPCUA_EXCLUDE_ScalarValueVariableState)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class ScalarValueVariableState : TestDataVariableState<TestData.ScalarValueDataType>
-    {
-        #region Constructors
-        /// <remarks />
-        public ScalarValueVariableState(NodeState parent) : base(parent)
-        {
-        }
-
-        /// <remarks />
-        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
-        {
-            return Opc.Ua.NodeId.Create(TestData.VariableTypes.ScalarValueVariableType, TestData.Namespaces.TestData, namespaceUris);
-        }
-
-        /// <remarks />
-        protected override NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
-        {
-            return Opc.Ua.NodeId.Create(TestData.DataTypes.ScalarValueDataType, TestData.Namespaces.TestData, namespaceUris);
-        }
-
-        /// <remarks />
-        protected override int GetDefaultValueRank()
-        {
-            return ValueRanks.Scalar;
-        }
-
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <remarks />
-        protected override void Initialize(ISystemContext context)
-        {
-            base.Initialize(context);
-            Initialize(context, InitializationString);
-            InitializeOptionalChildren(context);
-        }
-
-        /// <remarks />
-        protected override void Initialize(ISystemContext context, NodeState source)
-        {
-            InitializeOptionalChildren(context);
-            base.Initialize(context, source);
-        }
-
-        /// <remarks />
-        protected override void InitializeOptionalChildren(ISystemContext context)
-        {
-            base.InitializeOptionalChildren(context);
-        }
-
-        #region Initialization String
-        private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////FWCBAgIAAAABAB8AAABTY2FsYXJWYWx1" +
-           "ZVZhcmlhYmxlVHlwZUluc3RhbmNlAQF2BAEBdgR2BAAAAQE2BAEBAQAAAAAkAAEBegQeAAAANWCJCgIA" +
-           "AAABABAAAABTaW11bGF0aW9uQWN0aXZlAQF3BAMAAAAARwAAAElmIHRydWUgdGhlIHNlcnZlciB3aWxs" +
-           "IHByb2R1Y2UgbmV3IHZhbHVlcyBmb3IgZWFjaCBtb25pdG9yZWQgdmFyaWFibGUuAC4ARHcEAAAAAf//" +
-           "//8BAf////8AAAAABGGCCgQAAAABAA4AAABHZW5lcmF0ZVZhbHVlcwEBeAQALwEBOQR4BAAAAQH/////" +
-           "AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAXkEAC4ARHkEAACWAQAAAAEAKgEBRgAAAAoA" +
-           "AABJdGVyYXRpb25zAAf/////AAAAAAMAAAAAJQAAAFRoZSBudW1iZXIgb2YgbmV3IHZhbHVlcyB0byBn" +
-           "ZW5lcmF0ZS4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARggAoBAAAAAQANAAAAQ3ljbGVDb21wbGV0" +
-           "ZQEBegQALwEAQQt6BAAAAQAAAAAkAQEBdgQXAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQF7BAAuAER7" +
-           "BAAAAA//////AQH/////AAAAABVgiQoCAAAAAAAJAAAARXZlbnRUeXBlAQF8BAAuAER8BAAAABH/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTm9kZQEBfQQALgBEfQQAAAAR/////wEB/////wAA" +
-           "AAAVYIkKAgAAAAAACgAAAFNvdXJjZU5hbWUBAX4EAC4ARH4EAAAADP////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAAAQAAABUaW1lAQF/BAAuAER/BAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNl" +
-           "aXZlVGltZQEBgAQALgBEgAQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQEB" +
-           "ggQALgBEggQAAAAV/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AQGDBAAuAESDBAAA" +
-           "AAX/////AQH/////AAAAABVgiQoCAAAAAAAQAAAAQ29uZGl0aW9uQ2xhc3NJZAEBhAQALgBEhAQAAAAR" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAAEgAAAENvbmRpdGlvbkNsYXNzTmFtZQEBhQQALgBEhQQAAAAV" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAADQAAAENvbmRpdGlvbk5hbWUBAYgEAC4ARIgEAAAADP////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAAAgAAABCcmFuY2hJZAEBiQQALgBEiQQAAAAR/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAAABgAAAFJldGFpbgEBigQALgBEigQAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAA" +
-           "AEVuYWJsZWRTdGF0ZQEBiwQALwEAIyOLBAAAABX/////AQECAAAAAQAsIwABAZ8EAQAsIwABAagEAQAA" +
-           "ABVgiQoCAAAAAAACAAAASWQBAYwEAC4ARIwEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABR" +
-           "dWFsaXR5AQGUBAAvAQAqI5QEAAAAE/////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1l" +
-           "c3RhbXABAZUEAC4ARJUEAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAExhc3RTZXZlcml0" +
-           "eQEBlgQALwEAKiOWBAAAAAX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1w" +
-           "AQGXBAAuAESXBAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABDb21tZW50AQGYBAAvAQAq" +
-           "I5gEAAAAFf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAZkEAC4ARJkE" +
-           "AAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAEBmgQALgBEmgQAAAAM" +
-           "/////wEB/////wAAAAAEYYIKBAAAAAAABwAAAERpc2FibGUBAZsEAC8BAEQjmwQAAAEBAQAAAAEA+QsA" +
-           "AQDzCgAAAAAEYYIKBAAAAAAABgAAAEVuYWJsZQEBnAQALwEAQyOcBAAAAQEBAAAAAQD5CwABAPMKAAAA" +
-           "AARhggoEAAAAAAAKAAAAQWRkQ29tbWVudAEBnQQALwEARSOdBAAAAQEBAAAAAQD5CwABAA0LAQAAABdg" +
-           "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAZ4EAC4ARJ4EAACWAgAAAAEAKgEBRgAAAAcAAABFdmVu" +
-           "dElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVu" +
-           "dC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQg" +
-           "dG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNr" +
-           "ZWRTdGF0ZQEBnwQALwEAIyOfBAAAABX/////AQEBAAAAAQAsIwEBAYsEAQAAABVgiQoCAAAAAAACAAAA" +
-           "SWQBAaAEAC4ARKAEAAAAAf////8BAf////8AAAAABGGCCgQAAAAAAAsAAABBY2tub3dsZWRnZQEBsQQA" +
-           "LwEAlyOxBAAAAQEBAAAAAQD5CwABAPAiAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAbIE" +
-           "AC4ARLIEAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVu" +
-           "dGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAA" +
-           "AAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAA" +
-           "AAAAAQH/////AAAAABVgiQoCAAAAAQAMAAAAQm9vbGVhblZhbHVlAQG1BAAvAD+1BAAAAAH/////AQH/" +
-           "////AAAAABVgiQoCAAAAAQAKAAAAU0J5dGVWYWx1ZQEBtgQALwA/tgQAAAAC/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAEACQAAAEJ5dGVWYWx1ZQEBtwQALwA/twQAAAAD/////wEB/////wAAAAAVYIkKAgAAAAEA" +
-           "CgAAAEludDE2VmFsdWUBAbgEAC8AP7gEAAAABP////8BAf////8AAAAAFWCJCgIAAAABAAsAAABVSW50" +
-           "MTZWYWx1ZQEBuQQALwA/uQQAAAAF/////wEB/////wAAAAAVYIkKAgAAAAEACgAAAEludDMyVmFsdWUB" +
-           "AboEAC8AP7oEAAAABv////8BAf////8AAAAAFWCJCgIAAAABAAsAAABVSW50MzJWYWx1ZQEBuwQALwA/" +
-           "uwQAAAAH/////wEB/////wAAAAAVYIkKAgAAAAEACgAAAEludDY0VmFsdWUBAbwEAC8AP7wEAAAACP//" +
-           "//8BAf////8AAAAAFWCJCgIAAAABAAsAAABVSW50NjRWYWx1ZQEBvQQALwA/vQQAAAAJ/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAEACgAAAEZsb2F0VmFsdWUBAb4EAC8AP74EAAAACv////8BAf////8AAAAAFWCJ" +
-           "CgIAAAABAAsAAABEb3VibGVWYWx1ZQEBvwQALwA/vwQAAAAL/////wEB/////wAAAAAVYIkKAgAAAAEA" +
-           "CwAAAFN0cmluZ1ZhbHVlAQHABAAvAD/ABAAAAAz/////AQH/////AAAAABVgiQoCAAAAAQANAAAARGF0" +
-           "ZVRpbWVWYWx1ZQEBwQQALwA/wQQAAAAN/////wEB/////wAAAAAVYIkKAgAAAAEACQAAAEd1aWRWYWx1" +
-           "ZQEBwgQALwA/wgQAAAAO/////wEB/////wAAAAAVYIkKAgAAAAEADwAAAEJ5dGVTdHJpbmdWYWx1ZQEB" +
-           "wwQALwA/wwQAAAAP/////wEB/////wAAAAAVYIkKAgAAAAEADwAAAFhtbEVsZW1lbnRWYWx1ZQEBxAQA" +
-           "LwA/xAQAAAAQ/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAE5vZGVJZFZhbHVlAQHFBAAvAD/FBAAA" +
-           "ABH/////AQH/////AAAAABVgiQoCAAAAAQATAAAARXhwYW5kZWROb2RlSWRWYWx1ZQEBxgQALwA/xgQA" +
-           "AAAS/////wEB/////wAAAAAVYIkKAgAAAAEAEgAAAFF1YWxpZmllZE5hbWVWYWx1ZQEBxwQALwA/xwQA" +
-           "AAAU/////wEB/////wAAAAAVYIkKAgAAAAEAEgAAAExvY2FsaXplZFRleHRWYWx1ZQEByAQALwA/yAQA" +
-           "AAAV/////wEB/////wAAAAAVYIkKAgAAAAEADwAAAFN0YXR1c0NvZGVWYWx1ZQEByQQALwA/yQQAAAAT" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAEADAAAAFZhcmlhbnRWYWx1ZQEBygQALwA/ygQAAAAY/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAEAEAAAAEVudW1lcmF0aW9uVmFsdWUBAcsEAC8AP8sEAAAAHf////8BAf//" +
-           "//8AAAAAFWCJCgIAAAABAA4AAABTdHJ1Y3R1cmVWYWx1ZQEBzAQALwA/zAQAAAAW/////wEB/////wAA" +
-           "AAAVYIkKAgAAAAEACwAAAE51bWJlclZhbHVlAQHNBAAvAD/NBAAAABr/////AQH/////AAAAABVgiQoC" +
-           "AAAAAQAMAAAASW50ZWdlclZhbHVlAQHOBAAvAD/OBAAAABv/////AQH/////AAAAABVgiQoCAAAAAQAN" +
-           "AAAAVUludGVnZXJWYWx1ZQEBzwQALwA/zwQAAAAc/////wEB/////wAAAAA=";
+           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////FWCBAgIAAAABACMAAABTY2FsYXJTdHJ1" +
+           "Y3R1cmVWYXJpYWJsZVR5cGVJbnN0YW5jZQEBqAEBAagBqAEAAAEBngEBAf////8bAAAAFWCJCgIAAAAB" +
+           "AAwAAABCb29sZWFuVmFsdWUBAakBAC8AP6kBAAAAAf////8BAf////8AAAAAFWCJCgIAAAABAAoAAABT" +
+           "Qnl0ZVZhbHVlAQGqAQAvAD+qAQAAAAL/////AQH/////AAAAABVgiQoCAAAAAQAJAAAAQnl0ZVZhbHVl" +
+           "AQGrAQAvAD+rAQAAAAP/////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50MTZWYWx1ZQEBrAEALwA/" +
+           "rAEAAAAE/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQxNlZhbHVlAQGtAQAvAD+tAQAAAAX/" +
+           "////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50MzJWYWx1ZQEBrgEALwA/rgEAAAAG/////wEB////" +
+           "/wAAAAAVYIkKAgAAAAEACwAAAFVJbnQzMlZhbHVlAQGvAQAvAD+vAQAAAAf/////AQH/////AAAAABVg" +
+           "iQoCAAAAAQAKAAAASW50NjRWYWx1ZQEBsAEALwA/sAEAAAAI/////wEB/////wAAAAAVYIkKAgAAAAEA" +
+           "CwAAAFVJbnQ2NFZhbHVlAQGxAQAvAD+xAQAAAAn/////AQH/////AAAAABVgiQoCAAAAAQAKAAAARmxv" +
+           "YXRWYWx1ZQEBsgEALwA/sgEAAAAK/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAERvdWJsZVZhbHVl" +
+           "AQGzAQAvAD+zAQAAAAv/////AQH/////AAAAABVgiQoCAAAAAQALAAAAU3RyaW5nVmFsdWUBAbQBAC8A" +
+           "P7QBAAAADP////8BAf////8AAAAAFWCJCgIAAAABAA0AAABEYXRlVGltZVZhbHVlAQG1AQAvAD+1AQAA" +
+           "AA3/////AQH/////AAAAABVgiQoCAAAAAQAJAAAAR3VpZFZhbHVlAQG2AQAvAD+2AQAAAA7/////AQH/" +
+           "////AAAAABVgiQoCAAAAAQAPAAAAQnl0ZVN0cmluZ1ZhbHVlAQG3AQAvAD+3AQAAAA//////AQH/////" +
+           "AAAAABVgiQoCAAAAAQAPAAAAWG1sRWxlbWVudFZhbHVlAQG4AQAvAD+4AQAAABD/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAQALAAAATm9kZUlkVmFsdWUBAbkBAC8AP7kBAAAAEf////8BAf////8AAAAAFWCJCgIA" +
+           "AAABABMAAABFeHBhbmRlZE5vZGVJZFZhbHVlAQG6AQAvAD+6AQAAABL/////AQH/////AAAAABVgiQoC" +
+           "AAAAAQASAAAAUXVhbGlmaWVkTmFtZVZhbHVlAQG7AQAvAD+7AQAAABT/////AQH/////AAAAABVgiQoC" +
+           "AAAAAQASAAAATG9jYWxpemVkVGV4dFZhbHVlAQG8AQAvAD+8AQAAABX/////AQH/////AAAAABVgiQoC" +
+           "AAAAAQAPAAAAU3RhdHVzQ29kZVZhbHVlAQG9AQAvAD+9AQAAABP/////AQH/////AAAAABVgiQoCAAAA" +
+           "AQAMAAAAVmFyaWFudFZhbHVlAQG+AQAvAD++AQAAABj/////AQH/////AAAAABVgiQoCAAAAAQAQAAAA" +
+           "RW51bWVyYXRpb25WYWx1ZQEBvwEALwA/vwEAAAAd/////wEB/////wAAAAAVYIkKAgAAAAEADgAAAFN0" +
+           "cnVjdHVyZVZhbHVlAQHAAQAvAD/AAQAAABb/////AQH/////AAAAABVgiQoCAAAAAQALAAAATnVtYmVy" +
+           "VmFsdWUBAcEBAC8AP8EBAAAAGv////8BAf////8AAAAAFWCJCgIAAAABAAwAAABJbnRlZ2VyVmFsdWUB" +
+           "AcIBAC8AP8IBAAAAG/////8BAf////8AAAAAFWCJCgIAAAABAA0AAABVSW50ZWdlclZhbHVlAQHDAQAv" +
+           "AD/DAQAAABz/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -2335,21 +1965,21 @@ namespace TestData
         #endregion
     }
 
-    #region ScalarValueVariableValue Class
+    #region ScalarStructureVariableValue Class
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public class ScalarValueVariableValue : BaseVariableValue
+    public class ScalarStructureVariableValue : BaseVariableValue
     {
         #region Constructors
         /// <remarks />
-        public ScalarValueVariableValue(ScalarValueVariableState variable, ScalarValueDataType value, object dataLock) : base(dataLock)
+        public ScalarStructureVariableValue(ScalarStructureVariableState variable, ScalarStructureDataType value, object dataLock) : base(dataLock)
         {
             m_value = value;
 
             if (m_value == null)
             {
-                m_value = new ScalarValueDataType();
+                m_value = new ScalarStructureDataType();
             }
 
             Initialize(variable);
@@ -2358,13 +1988,13 @@ namespace TestData
 
         #region Public Members
         /// <remarks />
-        public ScalarValueVariableState Variable
+        public ScalarStructureVariableState Variable
         {
             get { return m_variable; }
         }
 
         /// <remarks />
-        public ScalarValueDataType Value
+        public ScalarStructureDataType Value
         {
             get { return m_value; }
             set { m_value = value; }
@@ -2372,7 +2002,7 @@ namespace TestData
         #endregion
 
         #region Private Methods
-        private void Initialize(ScalarValueVariableState variable)
+        private void Initialize(ScalarStructureVariableState variable)
         {
             lock (Lock)
             {
@@ -2615,21 +2245,21 @@ namespace TestData
         {
             lock (Lock)
             {
-                ScalarValueDataType newValue;
+                ScalarStructureDataType newValue;
                 if (value is ExtensionObject extensionObject)
                 {
-                    newValue = (ScalarValueDataType)extensionObject.Body;
+                    newValue = (ScalarStructureDataType)extensionObject.Body;
                 }
                 else
                 {
-                    newValue = (ScalarValueDataType)value;
+                    newValue = (ScalarStructureDataType)value;
                 }
 
                 if (!Utils.IsEqual(m_value, newValue))
                 {
                     UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
                     Timestamp = timestamp;
-                    m_value = (ScalarValueDataType)Write(newValue);
+                    m_value = (ScalarStructureDataType)Write(newValue);
                     m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 }
             }
@@ -2637,7 +2267,7 @@ namespace TestData
             return ServiceResult.Good;
         }
 
-        private void UpdateChildrenChangeMasks(ISystemContext context, ref ScalarValueDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref ScalarStructureDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
             if (!Utils.IsEqual(m_value.BooleanValue, newValue.BooleanValue)) UpdateChildVariableStatus(m_variable.BooleanValue, ref statusCode, ref timestamp);
             if (!Utils.IsEqual(m_value.SByteValue, newValue.SByteValue)) UpdateChildVariableStatus(m_variable.SByteValue, ref statusCode, ref timestamp);
@@ -4443,8 +4073,8 @@ namespace TestData
         #endregion
 
         #region Private Fields
-        private ScalarValueDataType m_value;
-        private ScalarValueVariableState m_variable;
+        private ScalarStructureDataType m_value;
+        private ScalarStructureVariableState m_variable;
         #endregion
     }
     #endregion
@@ -6374,6 +6004,258 @@ namespace TestData
         private BaseDataVariableState m_integerValue;
         private BaseDataVariableState m_uIntegerValue;
         private VectorVariableState m_vectorValue;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region StructureValueObjectState Class
+    #if (!OPCUA_EXCLUDE_StructureValueObjectState)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class StructureValueObjectState : TestDataObjectState
+    {
+        #region Constructors
+        /// <remarks />
+        public StructureValueObjectState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <remarks />
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(TestData.ObjectTypes.StructureValueObjectType, TestData.Namespaces.TestData, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <remarks />
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <remarks />
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <remarks />
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABACAAAABTdHJ1Y3R1cmVW" +
+           "YWx1ZU9iamVjdFR5cGVJbnN0YW5jZQEBIQABASEAIQAAAAEAAAAAJAABASUABQAAADVgiQoCAAAAAQAQ" +
+           "AAAAU2ltdWxhdGlvbkFjdGl2ZQEBIgADAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9k" +
+           "dWNlIG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAEQiAAAAAAH/////AQH/" +
+           "////AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBASMAAC8BAfkDIwAAAAEB/////wEAAAAX" +
+           "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEkAAAuAEQkAAAAlgEAAAABACoBAUYAAAAKAAAASXRl" +
+           "cmF0aW9ucwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJh" +
+           "dGUuAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUBASUA" +
+           "AC8BAEELJQAAAAEAAAAAJAEBASEAFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEBJgAALgBEJgAAAAAP" +
+           "/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBJwAALgBEJwAAAAAR/////wEB////" +
+           "/wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBASgAAC4ARCgAAAAAEf////8BAf////8AAAAAFWCJ" +
+           "CgIAAAAAAAoAAABTb3VyY2VOYW1lAQEpAAAuAEQpAAAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAE" +
+           "AAAAVGltZQEBKgAALgBEKgAAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRp" +
+           "bWUBASsAAC4ARCsAAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBAS0AAC4A" +
+           "RC0AAAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBLgAALgBELgAAAAAF////" +
+           "/wEB/////wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBAS8AAC4ARC8AAAAAEf////8B" +
+           "Af////8AAAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBATAAAC4ARDAAAAAAFf////8B" +
+           "Af////8AAAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQEzAAAuAEQzAAAAAAz/////AQH/////" +
+           "AAAAABVgiQoCAAAAAAAIAAAAQnJhbmNoSWQBATQAAC4ARDQAAAAAEf////8BAf////8AAAAAFWCJCgIA" +
+           "AAAAAAYAAABSZXRhaW4BATUAAC4ARDUAAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABFbmFi" +
+           "bGVkU3RhdGUBATYAAC8BACMjNgAAAAAV/////wEBAgAAAAEALCMAAQFKAAEALCMAAQFTAAEAAAAVYIkK" +
+           "AgAAAAAAAgAAAElkAQE3AAAuAEQ3AAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVhbGl0" +
+           "eQEBPwAALwEAKiM/AAAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1w" +
+           "AQFAAAAuAERAAAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkBAUEA" +
+           "AC8BACojQQAAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEBQgAA" +
+           "LgBEQgAAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEBQwAALwEAKiNDAAAA" +
+           "ABX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQFEAAAuAEREAAAAAQAm" +
+           "Af////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBAUUAAC4AREUAAAAADP////8B" +
+           "Af////8AAAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQFGAAAvAQBEI0YAAAABAQEAAAABAPkLAAEA8woA" +
+           "AAAABGGCCgQAAAAAAAYAAABFbmFibGUBAUcAAC8BAEMjRwAAAAEBAQAAAAEA+QsAAQDzCgAAAAAEYYIK" +
+           "BAAAAAAACgAAAEFkZENvbW1lbnQBAUgAAC8BAEUjSAAAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkKAgAA" +
+           "AAAADgAAAElucHV0QXJndW1lbnRzAQFJAAAuAERJAAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP" +
+           "/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAq" +
+           "AQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRo" +
+           "ZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2VkU3Rh" +
+           "dGUBAUoAAC8BACMjSgAAAAAV/////wEBAQAAAAEALCMBAQE2AAEAAAAVYIkKAgAAAAAAAgAAAElkAQFL" +
+           "AAAuAERLAAAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBAVwAAC8BAJcj" +
+           "XAAAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFdAAAuAERd" +
+           "AAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmll" +
+           "ciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAA" +
+           "AAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB" +
+           "/////wAAAAAVYIkKAgAAAAEADwAAAFNjYWxhclN0cnVjdHVyZQEBPgEALwEBqAE+AQAAAQGeAf////8B" +
+           "Af////8bAAAAFWCJCgIAAAABAAwAAABCb29sZWFuVmFsdWUBAT8BAC8APz8BAAAAAf////8BAf////8A" +
+           "AAAAFWCJCgIAAAABAAoAAABTQnl0ZVZhbHVlAQFAAQAvAD9AAQAAAAL/////AQH/////AAAAABVgiQoC" +
+           "AAAAAQAJAAAAQnl0ZVZhbHVlAQFBAQAvAD9BAQAAAAP/////AQH/////AAAAABVgiQoCAAAAAQAKAAAA" +
+           "SW50MTZWYWx1ZQEBQgEALwA/QgEAAAAE/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQxNlZh" +
+           "bHVlAQFDAQAvAD9DAQAAAAX/////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50MzJWYWx1ZQEBRAEA" +
+           "LwA/RAEAAAAG/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQzMlZhbHVlAQFFAQAvAD9FAQAA" +
+           "AAf/////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50NjRWYWx1ZQEBRgEALwA/RgEAAAAI/////wEB" +
+           "/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQ2NFZhbHVlAQFHAQAvAD9HAQAAAAn/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAQAKAAAARmxvYXRWYWx1ZQEBSAEALwA/SAEAAAAK/////wEB/////wAAAAAVYIkKAgAA" +
+           "AAEACwAAAERvdWJsZVZhbHVlAQFJAQAvAD9JAQAAAAv/////AQH/////AAAAABVgiQoCAAAAAQALAAAA" +
+           "U3RyaW5nVmFsdWUBAUoBAC8AP0oBAAAADP////8BAf////8AAAAAFWCJCgIAAAABAA0AAABEYXRlVGlt" +
+           "ZVZhbHVlAQFLAQAvAD9LAQAAAA3/////AQH/////AAAAABVgiQoCAAAAAQAJAAAAR3VpZFZhbHVlAQFM" +
+           "AQAvAD9MAQAAAA7/////AQH/////AAAAABVgiQoCAAAAAQAPAAAAQnl0ZVN0cmluZ1ZhbHVlAQFNAQAv" +
+           "AD9NAQAAAA//////AQH/////AAAAABVgiQoCAAAAAQAPAAAAWG1sRWxlbWVudFZhbHVlAQFOAQAvAD9O" +
+           "AQAAABD/////AQH/////AAAAABVgiQoCAAAAAQALAAAATm9kZUlkVmFsdWUBAU8BAC8AP08BAAAAEf//" +
+           "//8BAf////8AAAAAFWCJCgIAAAABABMAAABFeHBhbmRlZE5vZGVJZFZhbHVlAQFQAQAvAD9QAQAAABL/" +
+           "////AQH/////AAAAABVgiQoCAAAAAQASAAAAUXVhbGlmaWVkTmFtZVZhbHVlAQFRAQAvAD9RAQAAABT/" +
+           "////AQH/////AAAAABVgiQoCAAAAAQASAAAATG9jYWxpemVkVGV4dFZhbHVlAQFSAQAvAD9SAQAAABX/" +
+           "////AQH/////AAAAABVgiQoCAAAAAQAPAAAAU3RhdHVzQ29kZVZhbHVlAQFTAQAvAD9TAQAAABP/////" +
+           "AQH/////AAAAABVgiQoCAAAAAQAMAAAAVmFyaWFudFZhbHVlAQFUAQAvAD9UAQAAABj/////AQH/////" +
+           "AAAAABVgiQoCAAAAAQAQAAAARW51bWVyYXRpb25WYWx1ZQEBVQEALwA/VQEAAAAd/////wEB/////wAA" +
+           "AAAVYIkKAgAAAAEADgAAAFN0cnVjdHVyZVZhbHVlAQFWAQAvAD9WAQAAABb/////AQH/////AAAAABVg" +
+           "iQoCAAAAAQALAAAATnVtYmVyVmFsdWUBAVcBAC8AP1cBAAAAGv////8BAf////8AAAAAFWCJCgIAAAAB" +
+           "AAwAAABJbnRlZ2VyVmFsdWUBAVgBAC8AP1gBAAAAG/////8BAf////8AAAAAFWCJCgIAAAABAA0AAABV" +
+           "SW50ZWdlclZhbHVlAQFZAQAvAD9ZAQAAABz/////AQH/////AAAAABVgiQoCAAAAAQAPAAAAVmVjdG9y" +
+           "U3RydWN0dXJlAQFaAQAvAQF8B1oBAAABAXsH/////wEB/////wMAAAAVYIkKAgAAAAEAAQAAAFgBAVsB" +
+           "AC4ARFsBAAAAC/////8BAf////8AAAAAFWCJCgIAAAABAAEAAABZAQFcAQAuAERcAQAAAAv/////AQH/" +
+           "////AAAAABVgiQoCAAAAAQABAAAAWgEBXQEALgBEXQEAAAAL/////wEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public ScalarStructureVariableState ScalarStructure
+        {
+            get
+            {
+                return m_scalarStructure;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_scalarStructure, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_scalarStructure = value;
+            }
+        }
+
+        /// <remarks />
+        public VectorVariableState VectorStructure
+        {
+            get
+            {
+                return m_vectorStructure;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_vectorStructure, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_vectorStructure = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <remarks />
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_scalarStructure != null)
+            {
+                children.Add(m_scalarStructure);
+            }
+
+            if (m_vectorStructure != null)
+            {
+                children.Add(m_vectorStructure);
+            }
+
+            base.GetChildren(context, children);
+        }
+            
+        /// <remarks />
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case TestData.BrowseNames.ScalarStructure:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ScalarStructure == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ScalarStructure = new ScalarStructureVariableState(this);
+                            }
+                            else
+                            {
+                                ScalarStructure = (ScalarStructureVariableState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ScalarStructure;
+                    break;
+                }
+
+                case TestData.BrowseNames.VectorStructure:
+                {
+                    if (createOrReplace)
+                    {
+                        if (VectorStructure == null)
+                        {
+                            if (replacement == null)
+                            {
+                                VectorStructure = new VectorVariableState(this);
+                            }
+                            else
+                            {
+                                VectorStructure = (VectorVariableState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = VectorStructure;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private ScalarStructureVariableState m_scalarStructure;
+        private VectorVariableState m_vectorStructure;
         #endregion
     }
     #endif

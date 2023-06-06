@@ -30,6 +30,7 @@
 using System;
 using Opc.Ua;
 
+#if mist
 namespace TestData
 {
     public partial class TestDataVariableState : ITestDataSystemValuesGenerator
@@ -119,3 +120,4 @@ namespace TestData
         #endregion
     }
 }
+#endif
