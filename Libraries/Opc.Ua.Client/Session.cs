@@ -5311,6 +5311,11 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadSecureChannelClosed:
                     case StatusCodes.BadServerHalted:
                         return;
+                    // Servers may return this error when shutting down
+                    case StatusCodes.BadTooManyOperations:
+                    case StatusCodes.BadTcpServerTooBusy:
+                        // TODO: handle server overload.
+                        break;
                 }
 
                 Utils.LogError(e, "PUBLISH #{0} - Unhandled error {1} during Publish.", requestHeader.RequestHandle, error.StatusCode);

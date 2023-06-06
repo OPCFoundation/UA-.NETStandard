@@ -1903,6 +1903,9 @@ namespace Opc.Ua.Client
                 // get list of new messages to process.
                 List<NotificationMessage> messagesToProcess = null;
 
+                // get list of new messages to process.
+                List<IncomingMessage> keepAliveToProcess = null;
+
                 // get list of new messages to republish.
                 List<IncomingMessage> messagesToRepublish = null;
 
@@ -1910,8 +1913,18 @@ namespace Opc.Ua.Client
                 {
                     for (LinkedListNode<IncomingMessage> ii = m_incomingMessages.First; ii != null; ii = ii.Next)
                     {
+                        // process keep alive messages
+                        if (ii.Value.Message == null && !ii.Value.Processed)
+                        {
+                            if (keepAliveToProcess == null)
+                            {
+                                keepAliveToProcess = new List<IncomingMessage>();
+                            }
+                            keepAliveToProcess.Add(ii.Value);
+                        }
+
                         // update monitored items with unprocessed messages.
-                        if (ii.Value.Message != null && !ii.Value.Processed &&
+                        else if (ii.Value.Message != null && !ii.Value.Processed &&
                             // If sequential publishing is enabled, only release messages in perfect sequence. 
                             (!m_sequentialPublishing || ii.Value.SequenceNumber <= m_lastSequenceNumberProcessed + 1))
                         {
@@ -1971,25 +1984,56 @@ namespace Opc.Ua.Client
                     }
                 }
 
+                FastDataChangeNotificationEventHandler datachangeCallback = m_fastDataChangeCallback;
+                FastEventNotificationEventHandler eventCallback = m_fastEventCallback;
+
+                // process new keep alive messages.
+                if (keepAliveToProcess != null)
+                {
+                    foreach (IncomingMessage message in keepAliveToProcess)
+                    {
+                        if (datachangeCallback != null)
+                        {
+                            var datachange = new DataChangeNotification {
+                                PublishTime = message.Timestamp,
+                                SequenceNumber = message.SequenceNumber,
+                                IsKeepAlive = true
+                            };
+                            datachangeCallback(this, datachange, new List<string>());
+                        }
+
+                        if (eventCallback != null)
+                        {
+                            var events = new EventNotificationList {
+                                PublishTime = message.Timestamp,
+                                SequenceNumber = message.SequenceNumber,
+                                IsKeepAlive = true
+                            };
+                            eventCallback(this, events, new List<string>());
+                        }
+                    }
+                }
+
                 // process new messages.
                 if (messagesToProcess != null)
                 {
-                    FastDataChangeNotificationEventHandler datachangeCallback = m_fastDataChangeCallback;
-                    FastEventNotificationEventHandler eventCallback = m_fastEventCallback;
-                    int noNotificationsReceived = 0;
+                    int noNotificationsReceived;
 
-                    for (int ii = 0; ii < messagesToProcess.Count; ii++)
+                    foreach (NotificationMessage message in messagesToProcess)
                     {
-                        NotificationMessage message = messagesToProcess[ii];
                         noNotificationsReceived = 0;
                         try
                         {
-                            for (int jj = 0; jj < message.NotificationData.Count; jj++)
+                            foreach (ExtensionObject notificationData in message.NotificationData)
                             {
-                                DataChangeNotification datachange = message.NotificationData[jj].Body as DataChangeNotification;
+                                var datachange = notificationData.Body as DataChangeNotification;
 
                                 if (datachange != null)
                                 {
+                                    datachange.PublishTime = message.PublishTime;
+                                    datachange.SequenceNumber = message.SequenceNumber;
+                                    datachange.IsKeepAlive = false;
+
                                     noNotificationsReceived += datachange.MonitoredItems.Count;
 
                                     if (!m_disableMonitoredItemCache)
@@ -2003,10 +2047,14 @@ namespace Opc.Ua.Client
                                     }
                                 }
 
-                                EventNotificationList events = message.NotificationData[jj].Body as EventNotificationList;
+                                var events = notificationData.Body as EventNotificationList;
 
                                 if (events != null)
                                 {
+                                    events.PublishTime = message.PublishTime;
+                                    events.SequenceNumber = message.SequenceNumber;
+                                    events.IsKeepAlive = false;
+
                                     noNotificationsReceived += events.Events.Count;
 
                                     if (!m_disableMonitoredItemCache)
@@ -2020,7 +2068,7 @@ namespace Opc.Ua.Client
                                     }
                                 }
 
-                                StatusChangeNotification statusChanged = message.NotificationData[jj].Body as StatusChangeNotification;
+                                StatusChangeNotification statusChanged = notificationData.Body as StatusChangeNotification;
 
                                 if (statusChanged != null)
                                 {

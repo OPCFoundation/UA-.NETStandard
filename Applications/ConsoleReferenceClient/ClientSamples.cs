@@ -878,6 +878,7 @@ namespace Quickstarts
                     KeepAliveCount = keepAliveCount,
                     SequentialPublishing = true,
                     RepublishAfterTransfer = true,
+                    DisableMonitoredItemCache = true,
                     MaxNotificationsPerPublish = 1000,
                     MinLifetimeInterval = (uint)session.SessionTimeout,
                     FastDataChangeCallback = FastDataChangeNotification,
@@ -966,7 +967,16 @@ namespace Quickstarts
         {
             try
             {
-                m_output.WriteLine("Notification: Id={0} Items={1}.", subscription.Id, notification.MonitoredItems.Count);
+                if (notification.IsKeepAlive)
+                {
+                    m_output.WriteLine("Keep Alive  : Id={0} SequenceNumber={1}.",
+                        subscription.Id, notification.SequenceNumber);
+                }
+                else
+                {
+                    m_output.WriteLine("Notification: Id={0} SequenceNumber={1} Items={2}.",
+                        subscription.Id, notification.SequenceNumber, notification.MonitoredItems.Count);
+                }
             }
             catch (Exception ex)
             {
