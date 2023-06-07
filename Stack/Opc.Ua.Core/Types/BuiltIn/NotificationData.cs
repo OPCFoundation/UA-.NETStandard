@@ -37,15 +37,5 @@ namespace Opc.Ua
         /// A value of MinTime indicates that the time is not known.
         /// </remarks>
         public DateTime PublishTime { get; set; }
-
-        /// <summary>
-        /// Helper variable for a client to pass the information 
-        /// that the notification is a keep alive message.
-        /// </summary>
-        /// <remarks>
-        /// The value of IsKeepAlive is only valid if the <see cref="SequenceNumber"/>
-        /// and <see cref="PublishTime"/> is known.
-        /// </remarks>
-        public bool IsKeepAlive { get; set; }
     }
 }

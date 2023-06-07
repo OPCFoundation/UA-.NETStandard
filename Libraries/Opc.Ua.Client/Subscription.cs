@@ -114,6 +114,7 @@ namespace Opc.Ua.Client
                     m_publishStatusChanged = template.m_publishStatusChanged;
                     m_fastDataChangeCallback = template.m_fastDataChangeCallback;
                     m_fastEventCallback = template.m_fastEventCallback;
+                    m_fastKeepAliveCallback = template.m_fastKeepAliveCallback;
                 }
 
                 // copy the list of monitored items.
@@ -452,6 +453,19 @@ namespace Opc.Ua.Client
         {
             get => m_fastEventCallback;
             set => m_fastEventCallback = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the fast keep alive callback.
+        /// </summary>
+        /// <value>The keep alive change callback.</value>
+        /// <remarks>
+        /// Only one callback is allowed at a time but it is more efficient to call than an event.
+        /// </remarks>
+        public FastKeepAliveNotificationEventHandler FastKeepAliveCallback
+        {
+            get => m_fastKeepAliveCallback;
+            set => m_fastKeepAliveCallback = value;
         }
 
         /// <summary>
@@ -1984,33 +1998,17 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                FastDataChangeNotificationEventHandler datachangeCallback = m_fastDataChangeCallback;
-                FastEventNotificationEventHandler eventCallback = m_fastEventCallback;
-
                 // process new keep alive messages.
-                if (keepAliveToProcess != null)
+                FastKeepAliveNotificationEventHandler keepAliveCallback = m_fastKeepAliveCallback;
+                if (keepAliveToProcess != null && keepAliveCallback != null)
                 {
                     foreach (IncomingMessage message in keepAliveToProcess)
                     {
-                        if (datachangeCallback != null)
-                        {
-                            var datachange = new DataChangeNotification {
-                                PublishTime = message.Timestamp,
-                                SequenceNumber = message.SequenceNumber,
-                                IsKeepAlive = true
-                            };
-                            datachangeCallback(this, datachange, new List<string>());
-                        }
-
-                        if (eventCallback != null)
-                        {
-                            var events = new EventNotificationList {
-                                PublishTime = message.Timestamp,
-                                SequenceNumber = message.SequenceNumber,
-                                IsKeepAlive = true
-                            };
-                            eventCallback(this, events, new List<string>());
-                        }
+                        var keepAlive = new NotificationData {
+                            PublishTime = message.Timestamp,
+                            SequenceNumber = message.SequenceNumber
+                        };
+                        keepAliveCallback(this, keepAlive);
                     }
                 }
 
@@ -2018,6 +2016,8 @@ namespace Opc.Ua.Client
                 if (messagesToProcess != null)
                 {
                     int noNotificationsReceived;
+                    FastDataChangeNotificationEventHandler datachangeCallback = m_fastDataChangeCallback;
+                    FastEventNotificationEventHandler eventCallback = m_fastEventCallback;
 
                     foreach (NotificationMessage message in messagesToProcess)
                     {
@@ -2032,7 +2032,6 @@ namespace Opc.Ua.Client
                                 {
                                     datachange.PublishTime = message.PublishTime;
                                     datachange.SequenceNumber = message.SequenceNumber;
-                                    datachange.IsKeepAlive = false;
 
                                     noNotificationsReceived += datachange.MonitoredItems.Count;
 
@@ -2053,7 +2052,6 @@ namespace Opc.Ua.Client
                                 {
                                     events.PublishTime = message.PublishTime;
                                     events.SequenceNumber = message.SequenceNumber;
-                                    events.IsKeepAlive = false;
 
                                     noNotificationsReceived += events.Events.Count;
 
@@ -2524,6 +2522,7 @@ namespace Opc.Ua.Client
         private bool m_disableMonitoredItemCache;
         private FastDataChangeNotificationEventHandler m_fastDataChangeCallback;
         private FastEventNotificationEventHandler m_fastEventCallback;
+        private FastKeepAliveNotificationEventHandler m_fastKeepAliveCallback;
         private int m_outstandingMessageWorkers;
         private SemaphoreSlim m_messageWorkersSemaphore;
         private bool m_sequentialPublishing;
@@ -2616,6 +2615,11 @@ namespace Opc.Ua.Client
     /// The delegate used to receive event notifications via a direct function call instead of a .NET Event.
     /// </summary>
     public delegate void FastEventNotificationEventHandler(Subscription subscription, EventNotificationList notification, IList<string> stringTable);
+
+    /// <summary>
+    /// The delegate used to receive keep alive notifications via a direct function call instead of a .NET Event.
+    /// </summary>
+    public delegate void FastKeepAliveNotificationEventHandler(Subscription subscription, NotificationData notification);
 
     #region SubscriptionStateChangedEventArgs Class
     /// <summary>

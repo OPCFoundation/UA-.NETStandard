@@ -882,6 +882,7 @@ namespace Quickstarts
                     MaxNotificationsPerPublish = 1000,
                     MinLifetimeInterval = (uint)session.SessionTimeout,
                     FastDataChangeCallback = FastDataChangeNotification,
+                    FastKeepAliveCallback = FastKeepAliveNotification,
                 };
                 session.AddSubscription(subscription);
 
@@ -961,22 +962,31 @@ namespace Quickstarts
 
         #region Private Methods
         /// <summary>
+        /// The fast keep alive notification callback.
+        /// </summary>
+        private void FastKeepAliveNotification(Subscription subscription, NotificationData notification)
+        {
+            try
+            {
+                m_output.WriteLine("Keep Alive  : Id={0} PublishTime={1} SequenceNumber={2}.",
+                    subscription.Id, notification.PublishTime, notification.SequenceNumber);
+            }
+            catch (Exception ex)
+            {
+                m_output.WriteLine("FastKeepAliveNotification error: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
         /// The fast data change notification callback.
         /// </summary>
         private void FastDataChangeNotification(Subscription subscription, DataChangeNotification notification, IList<string> stringTable)
         {
             try
             {
-                if (notification.IsKeepAlive)
-                {
-                    m_output.WriteLine("Keep Alive  : Id={0} SequenceNumber={1}.",
-                        subscription.Id, notification.SequenceNumber);
-                }
-                else
-                {
-                    m_output.WriteLine("Notification: Id={0} SequenceNumber={1} Items={2}.",
-                        subscription.Id, notification.SequenceNumber, notification.MonitoredItems.Count);
-                }
+                m_output.WriteLine("Notification: Id={0} PublishTime={1} SequenceNumber={2} Items={3}.",
+                    subscription.Id, notification.PublishTime,
+                    notification.SequenceNumber, notification.MonitoredItems.Count);
             }
             catch (Exception ex)
             {
