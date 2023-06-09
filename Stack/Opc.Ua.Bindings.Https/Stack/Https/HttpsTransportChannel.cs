@@ -164,7 +164,7 @@ namespace Opc.Ua.Bindings
                     if (certProperty != null)
                     {
                         X509CertificateCollection clientCertificates = (X509CertificateCollection)certProperty.GetValue(handler);
-                        _ = (clientCertificates?.Add(m_settings.ClientCertificate));
+                        _ = clientCertificates?.Add(m_settings.ClientCertificate);
                     }
                 }
 
