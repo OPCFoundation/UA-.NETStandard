@@ -54,6 +54,11 @@ namespace Opc.Ua.Client
         public const int DefaultReconnectPeriod = 1000;
 
         /// <summary>
+        /// The default reconnect operation limit in ms.
+        /// </summary>
+        public const int MinReconnectOperationLimit = 5000;
+
+        /// <summary>
         /// The internal state of the reconnect handler.
         /// </summary>
         public enum ReconnectState
@@ -361,8 +366,7 @@ namespace Opc.Ua.Client
         {
             // helper to override operation timeout
             int operationTimeout = m_session.OperationTimeout;
-            int reconnectOperationTimeout = m_reconnectPeriod >= DefaultReconnectPeriod ?
-                m_reconnectPeriod : DefaultReconnectPeriod;
+            int reconnectOperationTimeout = Math.Max(m_reconnectPeriod, MinReconnectOperationLimit);
 
             // try a reconnect.
             if (!m_reconnectFailed)
