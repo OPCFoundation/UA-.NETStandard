@@ -168,59 +168,54 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                // OSX platform cannot auto validate certs and throws
-                // on PostAsync, do not set validation handler
-                if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                PropertyInfo propertyInfo = handler.GetType().GetProperty("ServerCertificateCustomValidationCallback");
+                if (propertyInfo != null)
                 {
-                    PropertyInfo propertyInfo = handler.GetType().GetProperty("ServerCertificateCustomValidationCallback");
-                    if (propertyInfo != null)
+                    Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool>
+                        serverCertificateCustomValidationCallback;
+
+                    try
                     {
-                        Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool>
-                            serverCertificateCustomValidationCallback;
-
-                        try
-                        {
-                            serverCertificateCustomValidationCallback =
-                                (httpRequestMessage, cert, chain, policyErrors) => {
-                                    try
+                        serverCertificateCustomValidationCallback =
+                            (httpRequestMessage, cert, chain, policyErrors) => {
+                                try
+                                {
+                                    var validationChain = new X509Certificate2Collection();
+                                    if (chain != null && chain.ChainElements != null)
                                     {
-                                        var validationChain = new X509Certificate2Collection();
-                                        if (chain != null && chain.ChainElements != null)
+                                        int i = 0;
+                                        Utils.LogInfo(Utils.TraceMasks.Security, "{0} Validate server chain:", nameof(HttpsTransportChannel));
+                                        foreach (X509ChainElement element in chain.ChainElements)
                                         {
-                                            int i = 0;
-                                            Utils.LogInfo(Utils.TraceMasks.Security, "{0} Validate server chain:", nameof(HttpsTransportChannel));
-                                            foreach (X509ChainElement element in chain.ChainElements)
-                                            {
-                                                Utils.LogCertificate(Utils.TraceMasks.Security, "{0}: ", element.Certificate, i);
-                                                validationChain.Add(element.Certificate);
-                                                i++;
-                                            }
+                                            Utils.LogCertificate(Utils.TraceMasks.Security, "{0}: ", element.Certificate, i);
+                                            validationChain.Add(element.Certificate);
+                                            i++;
                                         }
-                                        else
-                                        {
-                                            Utils.LogCertificate(Utils.TraceMasks.Security, "{0} Validate Server Certificate: ", cert, nameof(HttpsTransportChannel));
-                                            validationChain.Add(cert);
-                                        }
-
-                                        m_quotas.CertificateValidator?.Validate(validationChain);
-
-                                        return true;
                                     }
-                                    catch (Exception ex)
+                                    else
                                     {
-                                        Utils.LogError(ex, "{0} Failed to validate certificate.", nameof(HttpsTransportChannel));
+                                        Utils.LogCertificate(Utils.TraceMasks.Security, "{0} Validate Server Certificate: ", cert, nameof(HttpsTransportChannel));
+                                        validationChain.Add(cert);
                                     }
-                                    return false;
-                                };
-                            propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
 
-                            Utils.LogInfo("{0} ServerCertificate callback enabled.", nameof(HttpsTransportChannel));
-                        }
-                        catch (PlatformNotSupportedException)
-                        {
-                            // client may throw if not supported (e.g. UWP)
-                            serverCertificateCustomValidationCallback = null;
-                        }
+                                    m_quotas.CertificateValidator?.Validate(validationChain);
+
+                                    return true;
+                                }
+                                catch (Exception ex)
+                                {
+                                    Utils.LogError(ex, "{0} Failed to validate certificate.", nameof(HttpsTransportChannel));
+                                }
+                                return false;
+                            };
+                        propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
+
+                        Utils.LogInfo("{0} ServerCertificate callback enabled.", nameof(HttpsTransportChannel));
+                    }
+                    catch (PlatformNotSupportedException)
+                    {
+                        // client may throw if not supported (e.g. UWP)
+                        serverCertificateCustomValidationCallback = null;
                     }
                 }
 
