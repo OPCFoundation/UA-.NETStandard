@@ -213,12 +213,13 @@ namespace Opc.Ua.Client
                 }
 
                 // set reconnect period within boundaries
-                m_baseReconnectPeriod = reconnectPeriod = CheckedReconnectPeriod(reconnectPeriod);
+                reconnectPeriod = CheckedReconnectPeriod(reconnectPeriod);
 
                 // ignore subsequent trigger requests
                 if (m_state == ReconnectState.Ready)
                 {
                     m_session = session;
+                    m_baseReconnectPeriod = reconnectPeriod;
                     m_reconnectFailed = false;
                     m_cancelReconnect = false;
                     m_callback = callback;
@@ -230,8 +231,9 @@ namespace Opc.Ua.Client
                 }
 
                 // if triggered, reset timer if requested reconnect period is smaller
-                if (m_state == ReconnectState.Triggered && reconnectPeriod < m_reconnectPeriod)
+                if (m_state == ReconnectState.Triggered && reconnectPeriod < m_baseReconnectPeriod)
                 {
+                    m_baseReconnectPeriod = reconnectPeriod;
                     m_reconnectTimer.Change(JitteredReconnectPeriod(reconnectPeriod), Timeout.Infinite);
                     m_reconnectPeriod = CheckedReconnectPeriod(reconnectPeriod, true);
                 }

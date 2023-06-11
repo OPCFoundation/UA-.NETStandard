@@ -5293,7 +5293,8 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // don't send another publish for these errors.
+                // don't send another publish for these errors,
+                // or throttle to avoid server overload.
                 switch (error.Code)
                 {
                     case StatusCodes.BadTooManyPublishRequests:
@@ -5311,6 +5312,12 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadSecureChannelClosed:
                     case StatusCodes.BadServerHalted:
                         return;
+
+                    // Servers may return this error when overloaded
+                    case StatusCodes.BadTooManyOperations:
+                    case StatusCodes.BadTcpServerTooBusy:
+                        Thread.Sleep(100);
+                        break;
                 }
 
                 Utils.LogError(e, "PUBLISH #{0} - Unhandled error {1} during Publish.", requestHeader.RequestHandle, error.StatusCode);
