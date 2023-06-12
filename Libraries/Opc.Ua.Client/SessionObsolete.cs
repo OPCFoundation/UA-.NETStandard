@@ -99,6 +99,24 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             bool deleteSubscriptions,
             CancellationToken ct) => base.CloseSessionAsync(requestHeader, deleteSubscriptions, ct);
+
+        /// <inheritdoc/>
+        [Obsolete("Call ISession.TransferSubscriptions(SubscriptionIds, bool) instead.")]
+        public override ResponseHeader TransferSubscriptions(
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool sendInitialValues,
+            out TransferResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos) => base.TransferSubscriptions(
+                requestHeader, subscriptionIds, sendInitialValues, out results, out diagnosticInfos);
+
+        /// <inheritdoc/>
+        [Obsolete("Call ISession.TransferSubscriptionsAsync(SubscriptionIds, bool) instead.")]
+        public override Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool sendInitialValues,
+            CancellationToken ct) => TransferSubscriptionsAsync(requestHeader, subscriptionIds, sendInitialValues, ct);
     }
 }
 #endif

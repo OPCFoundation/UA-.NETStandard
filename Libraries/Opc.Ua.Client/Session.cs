@@ -5316,7 +5316,7 @@ namespace Opc.Ua.Client
                     // Servers may return this error when overloaded
                     case StatusCodes.BadTooManyOperations:
                     case StatusCodes.BadTcpServerTooBusy:
-                        // throttle the resend to lower server load
+                        // throttle the resend to reduce server load
                         Thread.Sleep(100);
                         break;
                 }

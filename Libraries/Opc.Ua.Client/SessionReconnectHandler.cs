@@ -54,9 +54,9 @@ namespace Opc.Ua.Client
         public const int DefaultReconnectPeriod = 1000;
 
         /// <summary>
-        /// The default reconnect operation limit in ms.
+        /// The default reconnect operation timeout in ms.
         /// </summary>
-        public const int MinReconnectOperationLimit = 5000;
+        public const int MinReconnectOperationTimeout = 5000;
 
         /// <summary>
         /// The internal state of the reconnect handler.
@@ -351,7 +351,9 @@ namespace Opc.Ua.Client
                     {
                         int adjustedReconnectPeriod = JitteredReconnectPeriod(m_reconnectPeriod) -
                             (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
-                        m_reconnectTimer.Change(CheckedReconnectPeriod(adjustedReconnectPeriod), Timeout.Infinite);
+                        adjustedReconnectPeriod = CheckedReconnectPeriod(adjustedReconnectPeriod);
+                        m_reconnectTimer.Change(adjustedReconnectPeriod, Timeout.Infinite);
+                        Utils.LogInfo("Reconnect period is {0} ms, calling OnReconnectSession in {1} ms.", m_reconnectPeriod, adjustedReconnectPeriod);
                         m_reconnectPeriod = CheckedReconnectPeriod(m_reconnectPeriod, true);
                         m_state = ReconnectState.Triggered;
                     }
@@ -366,7 +368,7 @@ namespace Opc.Ua.Client
         {
             // helper to override operation timeout
             int operationTimeout = m_session.OperationTimeout;
-            int reconnectOperationTimeout = Math.Max(m_reconnectPeriod, MinReconnectOperationLimit);
+            int reconnectOperationTimeout = Math.Max(m_reconnectPeriod, MinReconnectOperationTimeout);
 
             // try a reconnect.
             if (!m_reconnectFailed)
@@ -408,7 +410,6 @@ namespace Opc.Ua.Client
                             // check if reconnecting is still an option.
                             if (m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) > DateTime.UtcNow)
                             {
-                                Utils.LogInfo("Calling OnReconnectSession in {0} ms.", m_reconnectPeriod);
                                 return false;
                             }
                         }
