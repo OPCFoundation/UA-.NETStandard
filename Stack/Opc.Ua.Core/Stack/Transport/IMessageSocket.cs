@@ -90,6 +90,12 @@ namespace Opc.Ua.Bindings
     public interface IMessageSink
     {
         /// <summary>
+        /// Indicates that the sender side of the channel
+        /// has too many outstanding messages that were not yet delivered.
+        /// </summary>
+        bool ChannelFull { get; }
+
+        /// <summary>
         /// Called when a new message arrives.
         /// </summary>
         void OnMessageReceived(IMessageSocket source, ArraySegment<byte> message);

@@ -20,9 +20,8 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -214,7 +213,7 @@ namespace Opc.Ua
                     if (ii.UriScheme == url.Scheme)
                     {
                         listener = ii;
-                        break;
+                        listener.CreateReverseConnection(url, timeout);
                     }
                 }
             }
@@ -223,8 +222,6 @@ namespace Opc.Ua
             {
                 throw new ArgumentException("No suitable listener found.", nameof(url));
             }
-
-            listener.CreateReverseConnection(url, timeout);
         }
 
         /// <summary>
@@ -396,6 +393,7 @@ namespace Opc.Ua
                 switch (address.Url.Scheme)
                 {
                     case Utils.UriSchemeHttps:
+                    case Utils.UriSchemeOpcHttps:
                     {
                         address.ProfileUri = Profiles.HttpsBinaryTransport;
                         address.DiscoveryUrl = address.Url;
@@ -405,6 +403,13 @@ namespace Opc.Ua
                     case Utils.UriSchemeOpcTcp:
                     {
                         address.ProfileUri = Profiles.UaTcpTransport;
+                        address.DiscoveryUrl = address.Url;
+                        break;
+                    }
+
+                    case Utils.UriSchemeOpcWss:
+                    {
+                        address.ProfileUri = Profiles.UaWssTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
                     }
@@ -777,10 +782,30 @@ namespace Opc.Ua
         protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
         {
             // disconnect all sessions
+            InstanceCertificateChain = null;
             InstanceCertificate = e.SecurityConfiguration.ApplicationCertificate.Certificate;
+            if (Configuration.SecurityConfiguration.SendCertificateChain)
+            {
+                InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
+                var issuers = new List<CertificateIdentifier>();
+                var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
+                Configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).GetAwaiter().GetResult();
+                foreach (var error in validationErrors)
+                {
+                    if (error.Value != null)
+                    {
+                        Utils.LogCertificate("OnCertificateUpdate: GetIssuers Validation Error: {0}", error.Key, error.Value.Result);
+                    }
+                }
+                for (int i = 0; i < issuers.Count; i++)
+                {
+                    InstanceCertificateChain.Add(issuers[i].Certificate);
+                }
+            }
+
             foreach (var listener in TransportListeners)
             {
-                listener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, null);
+                listener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, InstanceCertificateChain);
             }
         }
 
@@ -855,7 +880,7 @@ namespace Opc.Ua
 
             foreach (UserTokenPolicy policy in configuration.ServerConfiguration.UserTokenPolicies)
             {
-                UserTokenPolicy clone = (UserTokenPolicy)policy.MemberwiseClone();
+                UserTokenPolicy clone = (UserTokenPolicy)policy.Clone();
 
                 if (String.IsNullOrEmpty(policy.SecurityPolicyUri))
                 {
@@ -876,7 +901,7 @@ namespace Opc.Ua
 
                 // ensure each policy has a unique id within the context of the Server
                 clone.PolicyId = Utils.Format("{0}", ++m_userTokenPolicyId);
-                
+
                 policies.Add(clone);
             }
 
@@ -982,15 +1007,8 @@ namespace Opc.Ua
         /// </summary>
         protected IList<BaseAddress> FilterByEndpointUrl(Uri endpointUrl, IList<BaseAddress> baseAddresses)
         {
-            // client gets all of the endpoints if it using a known variant of the hostname.
-            if (NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
-            {
-                return baseAddresses;
-            }
-
             // client only gets alternate addresses that match the DNS name that it used.
             List<BaseAddress> accessibleAddresses = new List<BaseAddress>();
-
             foreach (BaseAddress baseAddress in baseAddresses)
             {
                 if (baseAddress.Url.DnsSafeHost == endpointUrl.DnsSafeHost)
@@ -1012,16 +1030,24 @@ namespace Opc.Ua
                 }
             }
 
-            // no match on client DNS name. client gets only addresses that match the scheme.
-            if (accessibleAddresses.Count == 0)
+            if (accessibleAddresses.Count != 0)
             {
-                foreach (BaseAddress baseAddress in baseAddresses)
+                return accessibleAddresses;
+            }
+
+            // client gets all of the endpoints if it using a known variant of the hostname.
+            if (NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
+            {
+                return baseAddresses;
+            }
+
+            // no match on client DNS name. client gets only addresses that match the scheme.
+            foreach (BaseAddress baseAddress in baseAddresses)
+            {
+                if (baseAddress.Url.Scheme == endpointUrl.Scheme)
                 {
-                    if (baseAddress.Url.Scheme == endpointUrl.Scheme)
-                    {
-                        accessibleAddresses.Add(baseAddress);
-                        continue;
-                    }
+                    accessibleAddresses.Add(baseAddress);
+                    continue;
                 }
             }
 
@@ -1035,7 +1061,9 @@ namespace Opc.Ua
         {
             string url = baseAddress.Url.ToString();
 
-            if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) && (!(url.EndsWith("discovery"))))
+            if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
+                url.StartsWith(Utils.UriSchemeHttp) &&
+                (!(url.EndsWith("discovery"))))
             {
                 url += "/discovery";
             }
@@ -1166,6 +1194,9 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(StatusCodes.BadRequestHeaderInvalid);
             }
+
+            // mask valid diagnostic masks
+            requestHeader.ReturnDiagnostics &= (uint)DiagnosticsMasks.All;
         }
 
         /// <summary>
@@ -1291,8 +1322,22 @@ namespace Opc.Ua
 
             // load certificate chain.
             InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
-            List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-            configuration.CertificateValidator.GetIssuers(InstanceCertificateChain, issuers).Wait();
+            var issuers = new List<CertificateIdentifier>();
+            var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
+            configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).Wait();
+
+            if (validationErrors.Count > 0)
+            {
+                Utils.LogWarning("Issuer validation errors ignored on startup:");
+                // only list warning for errors to avoid that the server can not start
+                foreach (var error in validationErrors)
+                {
+                    if (error.Value != null)
+                    {
+                        Utils.LogCertificate(LogLevel.Warning, "- " + error.Value.Message, error.Key);
+                    }
+                }
+            }
 
             for (int i = 0; i < issuers.Count; i++)
             {
@@ -1412,7 +1457,7 @@ namespace Opc.Ua
                 m_activeThreadCount = 0;
 
 #if THREAD_SCHEDULER
-                m_queue = new Queue<IEndpointIncomingRequest>();
+                m_queue = new Queue<IEndpointIncomingRequest>(maxRequestCount);
                 m_totalThreadCount = 0;
 #endif
 
@@ -1575,7 +1620,7 @@ namespace Opc.Ua
                             m_activeThreadCount--;
 
                             // wait for a request. end the thread if no activity.
-                            if (m_stopped || (!Monitor.Wait(m_lock, 30000) && m_totalThreadCount > m_minThreadCount))
+                            if (m_stopped || (!Monitor.Wait(m_lock, 15_000) && m_totalThreadCount > m_minThreadCount))
                             {
                                 m_totalThreadCount--;
                                 Utils.LogTrace("Thread ended: {0:X8}. Total: {1} Active: {2}",

@@ -136,7 +136,7 @@ namespace Opc.Ua.Bindings
             m_serverCertificate = settings.ServerCertificate;
             m_serverCertificateChain = settings.ServerCertificateChain;
 
-            m_bufferManager = new BufferManager("Server", (int)Int32.MaxValue, m_quotas.MaxBufferSize);
+            m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
             m_channels = new Dictionary<uint, TcpListenerChannel>();
             m_reverseConnectListener = settings.ReverseConnectListener;
 
@@ -300,7 +300,7 @@ namespace Opc.Ua.Bindings
                 {
                     ipAddress = IPAddress.Parse(m_uri.Host);
                 }
-             
+
                 // create IPv4 or IPv6 socket.
                 try
                 {
@@ -440,7 +440,20 @@ namespace Opc.Ua.Bindings
             m_serverCertificateChain = serverCertificateChain;
             foreach (var description in m_descriptions)
             {
-                if (description.ServerCertificate != null)
+                // check if complete chain should be sent.
+                if (m_serverCertificateChain != null &&
+                    m_serverCertificateChain.Count > 1)
+                {
+                    var byteServerCertificateChain = new List<byte>();
+
+                    for (int i = 0; i < m_serverCertificateChain.Count; i++)
+                    {
+                        byteServerCertificateChain.AddRange(m_serverCertificateChain[i].RawData);
+                    }
+
+                    description.ServerCertificate = byteServerCertificateChain.ToArray();
+                }
+                else if (description.ServerCertificate != null)
                 {
                     description.ServerCertificate = serverCertificate.RawData;
                 }

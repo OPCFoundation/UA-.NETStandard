@@ -42,18 +42,31 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 
-namespace Quickstarts.ConsoleReferenceClient
+namespace Quickstarts
 {
+    /// <summary>
+    /// A client interface which holds an active session.
+    /// The client handler may reconnect and the Session
+    /// property may be updated during operation.
+    /// </summary>
+    public interface IUAClient
+    {
+        /// <summary>
+        /// The session to use.
+        /// </summary>
+        ISession Session { get; }
+    };
+
     /// <summary>
     /// Sample Session calls based on the reference server node model.
     /// </summary>
     public class ClientSamples
     {
         const int kMaxSearchDepth = 128;
-        public ClientSamples(TextWriter output, Action<IList, IList> validateResponse, ManualResetEvent quitEvent, bool verbose = false)
+        public ClientSamples(TextWriter output, Action<IList, IList> validateResponse, ManualResetEvent quitEvent = null, bool verbose = false)
         {
             m_output = output;
-            m_validateResponse = validateResponse;
+            m_validateResponse = validateResponse ?? ClientBase.ValidateResponse;
             m_quitEvent = quitEvent;
             m_verbose = verbose;
         }
@@ -62,7 +75,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Read a list of nodes from Server
         /// </summary>
-        public void ReadNodes(Session session)
+        public void ReadNodes(ISession session)
         {
             if (session == null || session.Connected == false)
             {
@@ -125,7 +138,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Write a list of nodes to the Server.
         /// </summary>
-        public void WriteNodes(Session session)
+        public void WriteNodes(ISession session)
         {
             if (session == null || session.Connected == false)
             {
@@ -194,7 +207,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Browse Server nodes
         /// </summary>
-        public void Browse(Session session)
+        public void Browse(ISession session)
         {
             if (session == null || session.Connected == false)
             {
@@ -211,6 +224,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 browser.BrowseDirection = BrowseDirection.Forward;
                 browser.NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable;
                 browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
+                browser.IncludeSubtypes = true;
 
                 NodeId nodeToBrowse = ObjectIds.Server;
 
@@ -236,7 +250,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Call UA method
         /// </summary>
-        public void CallMethod(Session session)
+        public void CallMethod(ISession session)
         {
             if (session == null || session.Connected == false)
             {
@@ -278,7 +292,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Create Subscription and MonitoredItems for DataChanges
         /// </summary>
-        public void SubscribeToDataChanges(Session session, uint minLifeTime)
+        public void SubscribeToDataChanges(ISession session, uint minLifeTime)
         {
             if (session == null || session.Connected == false)
             {
@@ -363,11 +377,12 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <param name="filterUATypes">Filters nodes from namespace 0 from the result.</param>
         /// <returns>The list of nodes on the server.</returns>
         public IList<INode> FetchAllNodesNodeCache(
-            UAClient uaClient,
+            IUAClient uaClient,
             NodeId startingNode,
             bool fetchTree = false,
             bool addRootNode = false,
-            bool filterUATypes = true)
+            bool filterUATypes = true,
+            bool clearNodeCache = true)
         {
             var stopwatch = new Stopwatch();
             var nodeDictionary = new Dictionary<ExpandedNodeId, INode>();
@@ -376,19 +391,15 @@ namespace Quickstarts.ConsoleReferenceClient
                     startingNode
                 };
 
-            // clear NodeCache to fetch all nodes from server
-            uaClient.Session.NodeCache.Clear();
-
             // start
             stopwatch.Start();
 
-            // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
-            var bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
-            var namespaceUris = uaClient.Session.NamespaceUris;
-            var referenceTypes = typeof(ReferenceTypeIds)
-                     .GetFields(bindingFlags)
-                     .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
-            uaClient.Session.FetchTypeTree(new ExpandedNodeIdCollection(referenceTypes));
+            if (clearNodeCache)
+            {
+                // clear NodeCache to fetch all nodes from server
+                uaClient.Session.NodeCache.Clear();
+                FetchReferenceIdTypes(uaClient.Session);
+            }
 
             // add root node
             if (addRootNode)
@@ -400,7 +411,7 @@ namespace Quickstarts.ConsoleReferenceClient
             int searchDepth = 0;
             while (nodesToBrowse.Count > 0 && searchDepth < kMaxSearchDepth)
             {
-                if (m_quitEvent.WaitOne(0))
+                if (m_quitEvent?.WaitOne(0) == true)
                 {
                     m_output.WriteLine("Browse aborted.");
                     break;
@@ -408,7 +419,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                 searchDepth++;
                 Utils.LogInfo("{0}: Find {1} references after {2}ms", searchDepth, nodesToBrowse.Count, stopwatch.ElapsedMilliseconds);
-                var response = uaClient.Session.NodeCache.FindReferences(
+                IList<INode> response = uaClient.Session.NodeCache.FindReferences(
                     nodesToBrowse,
                     references,
                     false,
@@ -416,13 +427,33 @@ namespace Quickstarts.ConsoleReferenceClient
 
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 int duplicates = 0;
-                foreach (var node in response)
+                int leafNodes = 0;
+                foreach (INode node in response)
                 {
                     if (!nodeDictionary.ContainsKey(node.NodeId))
                     {
                         if (fetchTree)
                         {
-                            nextNodesToBrowse.Add(node.NodeId);
+                            bool leafNode = false;
+
+                            // no need to browse property types
+                            if (node is VariableNode variableNode)
+                            {
+                                var hasTypeDefinition = variableNode.ReferenceTable.FirstOrDefault(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasTypeDefinition));
+                                if (hasTypeDefinition != null)
+                                {
+                                    leafNode = (hasTypeDefinition.TargetId == VariableTypeIds.PropertyType);
+                                }
+                            }
+
+                            if (!leafNode)
+                            {
+                                nextNodesToBrowse.Add(node.NodeId);
+                            }
+                            else
+                            {
+                                leafNodes++;
+                            }
                         }
 
                         if (filterUATypes)
@@ -446,6 +477,10 @@ namespace Quickstarts.ConsoleReferenceClient
                 if (duplicates > 0)
                 {
                     Utils.LogInfo("Find References {0} duplicate nodes were ignored", duplicates);
+                }
+                if (leafNodes > 0)
+                {
+                    Utils.LogInfo("Find References {0} leaf nodes were ignored", leafNodes);
                 }
                 nodesToBrowse = nextNodesToBrowse;
             }
@@ -477,7 +512,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <param name="startingNode">The node where the browse operation starts.</param>
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
         public ReferenceDescriptionCollection BrowseFullAddressSpace(
-            UAClient uaClient,
+            IUAClient uaClient,
             NodeId startingNode = null,
             BrowseDescription browseDescription = null)
         {
@@ -502,7 +537,7 @@ namespace Quickstarts.ConsoleReferenceClient
             var referenceDescriptions = new Dictionary<ExpandedNodeId, ReferenceDescription>();
 
             int searchDepth = 0;
-            uint maxNodesPerBrowse = 0;
+            uint maxNodesPerBrowse = uaClient.Session.OperationLimits.MaxNodesPerBrowse;
             while (browseDescriptionCollection.Any() && searchDepth < kMaxSearchDepth)
             {
                 searchDepth++;
@@ -512,10 +547,11 @@ namespace Quickstarts.ConsoleReferenceClient
                 BrowseResultCollection allBrowseResults = new BrowseResultCollection();
                 bool repeatBrowse;
                 BrowseResultCollection browseResultCollection = new BrowseResultCollection();
+                BrowseDescriptionCollection unprocessedOperations = new BrowseDescriptionCollection();
                 DiagnosticInfoCollection diagnosticsInfoCollection;
                 do
                 {
-                    if (m_quitEvent.WaitOne(0))
+                    if (m_quitEvent?.WaitOne(0) == true)
                     {
                         m_output.WriteLine("Browse aborted.");
                         break;
@@ -533,7 +569,28 @@ namespace Quickstarts.ConsoleReferenceClient
                         ClientBase.ValidateResponse(browseResultCollection, browseCollection);
                         ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, browseCollection);
 
-                        allBrowseResults.AddRange(browseResultCollection);
+                        // seperate unprocessed nodes for later
+                        int ii = 0;
+                        foreach (BrowseResult browseResult in browseResultCollection)
+                        {
+                            // check for error.
+                            StatusCode statusCode = browseResult.StatusCode;
+                            if (StatusCode.IsBad(statusCode))
+                            {
+                                // this error indicates that the server does not have enough simultaneously active 
+                                // continuation points. This request will need to be resent after the other operations
+                                // have been completed and their continuation points released.
+                                if (statusCode == StatusCodes.BadNoContinuationPoints)
+                                {
+                                    unprocessedOperations.Add(browseCollection[ii++]);
+                                    continue;
+                                }
+                            }
+
+                            // save results.
+                            allBrowseResults.Add(browseResult);
+                            ii++;
+                        }
                     }
                     catch (ServiceResultException sre)
                     {
@@ -566,7 +623,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 var continuationPoints = PrepareBrowseNext(browseResultCollection);
                 while (continuationPoints.Any())
                 {
-                    if (m_quitEvent.WaitOne(0))
+                    if (m_quitEvent?.WaitOne(0) == true)
                     {
                         m_output.WriteLine("Browse aborted.");
                     }
@@ -585,12 +642,15 @@ namespace Quickstarts.ConsoleReferenceClient
                 int duplicates = 0;
                 foreach (var browseResult in allBrowseResults)
                 {
-                    foreach (var reference in browseResult.References)
+                    foreach (ReferenceDescription reference in browseResult.References)
                     {
                         if (!referenceDescriptions.ContainsKey(reference.NodeId))
                         {
                             referenceDescriptions[reference.NodeId] = reference;
-                            browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, uaClient.Session.NamespaceUris));
+                            if (reference.ReferenceTypeId != ReferenceTypeIds.HasProperty)
+                            {
+                                browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, uaClient.Session.NamespaceUris));
+                            }
                         }
                         else
                         {
@@ -603,6 +663,9 @@ namespace Quickstarts.ConsoleReferenceClient
                     Utils.LogInfo("Browse Result {0} duplicate nodes were ignored.", duplicates);
                 }
                 browseDescriptionCollection.AddRange(CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate));
+
+                // add unprocessed nodes if any
+                browseDescriptionCollection.AddRange(unprocessedOperations);
             }
 
             stopWatch.Stop();
@@ -633,7 +696,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// Outputs elapsed time information for perf testing and lists all
         /// types that were successfully added to the session encodeable type factory.
         /// </remarks>
-        public async Task LoadTypeSystem(Session session)
+        public async Task LoadTypeSystem(ISession session)
         {
             m_output.WriteLine("Load the server type system.");
 
@@ -669,21 +732,44 @@ namespace Quickstarts.ConsoleReferenceClient
         }
         #endregion
 
+        #region Fetch ReferenceId Types
+        /// <summary>
+        /// Read all ReferenceTypeIds from the server that are not known by the client.
+        /// To reduce the number of calls due to traversal call pyramid, start with all
+        /// known reference types to reduce the number of FetchReferences/FetchNodes calls.
+        /// </summary>
+        /// <remarks>
+        /// The NodeCache needs this information to function properly with subtypes of hierarchical calls.
+        /// </remarks>
+        /// <param name="session">The session to use</param>
+        void FetchReferenceIdTypes(ISession session)
+        {
+            // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
+            var bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+            var namespaceUris = session.NamespaceUris;
+            var referenceTypes = typeof(ReferenceTypeIds)
+                     .GetFields(bindingFlags)
+                     .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
+            session.FetchTypeTree(new ExpandedNodeIdCollection(referenceTypes));
+        }
+        #endregion
+
         #region Read Values and output as JSON sample
         /// <summary>
         /// Output all values as JSON.
         /// </summary>
-        /// <param name="uaClient">The UAClient with a session to use.</param>
+        /// <param name="session">The session to use.</param>
         /// <param name="variableIds">The variables to output.</param>
-        public async Task ReadAllValuesAsync(
-            UAClient uaClient,
+        public async Task<(DataValueCollection, IList<ServiceResult>)> ReadAllValuesAsync(
+            IUAClient uaClient,
             NodeIdCollection variableIds)
         {
             bool retrySingleRead = false;
+            DataValueCollection values = null;
+            IList<ServiceResult> errors = null;
+
             do
             {
-                DataValueCollection values;
-                IList<ServiceResult> errors;
                 try
                 {
                     if (retrySingleRead)
@@ -746,6 +832,86 @@ namespace Quickstarts.ConsoleReferenceClient
                     retrySingleRead = !retrySingleRead;
                 }
             } while (retrySingleRead);
+
+            return (values, errors);
+        }
+        #endregion
+
+        #region Subscribe Values
+        /// <summary>
+        /// Subscribe to all variables in the list.
+        /// </summary>
+        /// <param name="uaClient">The UAClient with a session to use.</param>
+        /// <param name="variableIds">The variables to subscribe.</param>
+        public async Task SubscribeAllValuesAsync(
+            IUAClient uaClient,
+            NodeCollection variableIds,
+            int samplingInterval,
+            int publishingInterval,
+            uint queueSize,
+            uint lifetimeCount,
+            uint keepAliveCount)
+        {
+            if (uaClient.Session == null || !uaClient.Session.Connected)
+            {
+                m_output.WriteLine("Session not connected!");
+                return;
+            }
+
+            try
+            {
+                // Create a subscription for receiving data change notifications
+                var session = uaClient.Session;
+
+                // test for deferred ack of sequence numbers
+                session.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
+
+                // set a minimum amount of three publish requests per session
+                session.MinPublishRequestCount = 3;
+
+                // Define Subscription parameters
+                Subscription subscription = new Subscription(session.DefaultSubscription) {
+                    DisplayName = "Console ReferenceClient Subscription",
+                    PublishingEnabled = true,
+                    PublishingInterval = publishingInterval,
+                    LifetimeCount = lifetimeCount,
+                    KeepAliveCount = keepAliveCount,
+                    SequentialPublishing = true,
+                    RepublishAfterTransfer = true,
+                    MaxNotificationsPerPublish = 1000,
+                    MinLifetimeInterval = (uint)session.SessionTimeout,
+                    FastDataChangeCallback = FastDataChangeNotification,
+                };
+                session.AddSubscription(subscription);
+
+                // Create the subscription on Server side
+                await subscription.CreateAsync().ConfigureAwait(false);
+                m_output.WriteLine("New Subscription created with SubscriptionId = {0}.", subscription.Id);
+
+                // Create MonitoredItems for data changes
+                foreach (Node item in variableIds)
+                {
+                    MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem) {
+                        StartNodeId = item.NodeId,
+                        AttributeId = Attributes.Value,
+                        SamplingInterval = samplingInterval,
+                        DisplayName = item.DisplayName.Text ?? item.BrowseName.Name,
+                        QueueSize = queueSize,
+                        DiscardOldest = true,
+                        MonitoringMode = MonitoringMode.Reporting,
+                    };
+                    subscription.AddItem(monitoredItem);
+                    if (subscription.CurrentKeepAliveCount > 1000) break;
+                }
+
+                // Create the monitored items on Server side
+                subscription.ApplyChanges();
+                m_output.WriteLine("MonitoredItems {0} created for SubscriptionId = {1}.", subscription.MonitoredItemCount, subscription.Id);
+            }
+            catch (Exception ex)
+            {
+                m_output.WriteLine("Subscribe error: {0}", ex.Message);
+            }
         }
         #endregion
 
@@ -794,6 +960,21 @@ namespace Quickstarts.ConsoleReferenceClient
 
         #region Private Methods
         /// <summary>
+        /// The fast data change notification callback.
+        /// </summary>
+        private void FastDataChangeNotification(Subscription subscription, DataChangeNotification notification, IList<string> stringTable)
+        {
+            try
+            {
+                m_output.WriteLine("Notification: Id={0} Items={1}.", subscription.Id, notification.MonitoredItems.Count);
+            }
+            catch (Exception ex)
+            {
+                m_output.WriteLine("FastDataChangeNotification error: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
         /// Handle DataChange notifications from Server
         /// </summary>
         private void OnMonitoredItemNotification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
@@ -802,11 +983,30 @@ namespace Quickstarts.ConsoleReferenceClient
             {
                 // Log MonitoredItem Notification event
                 MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
-                m_output.WriteLine("Notification: {0} \"{1}\" and Value = {2}.", notification.Message.SequenceNumber, monitoredItem.DisplayName, notification.Value);
+                m_output.WriteLine("Notification: {0} \"{1}\" and Value = {2}.", notification.Message.SequenceNumber, monitoredItem.ResolvedNodeId, notification.Value);
             }
             catch (Exception ex)
             {
                 m_output.WriteLine("OnMonitoredItemNotification error: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Event handler to defer publish response sequence number acknowledge.
+        /// </summary>
+        private void DeferSubscriptionAcknowledge(ISession session, PublishSequenceNumbersToAcknowledgeEventArgs e)
+        {
+            // for testing keep the latest sequence numbers for a while
+            const int AckDelay = 5;
+            if (e.AcknowledgementsToSend.Count > 0)
+            {
+                // defer latest sequence numbers
+                var deferredItems = e.AcknowledgementsToSend.OrderByDescending(s => s.SequenceNumber).Take(AckDelay).ToList();
+                e.DeferredAcknowledgementsToSend.AddRange(deferredItems);
+                foreach (var deferredItem in deferredItems)
+                {
+                    e.AcknowledgementsToSend.Remove(deferredItem);
+                }
             }
         }
 
