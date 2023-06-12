@@ -43,9 +43,15 @@ namespace Opc.Ua
         public const string UriSchemeHttp = "http";
 
         /// <summary>
-        /// The URI scheme for the HTTPS protocol.
+        /// The URI scheme for the HTTPS protocol, used in some legacy https
+        /// clients and servers but not compliant to spec version 1.04.
         /// </summary>
         public const string UriSchemeHttps = "https";
+
+        /// <summary>
+        /// The URI scheme for the UA HTTPS protocol.
+        /// </summary>
+        public const string UriSchemeOpcHttps = "opc.https";
 
         /// <summary>
         /// The URI scheme for the UA TCP protocol.
@@ -78,7 +84,9 @@ namespace Opc.Ua
         public static readonly string[] DefaultUriSchemes = new string[]
         {
             Utils.UriSchemeOpcTcp,
-            Utils.UriSchemeHttps
+            Utils.UriSchemeOpcHttps,
+            Utils.UriSchemeHttps,
+            Utils.UriSchemeOpcWss
         };
 
         /// <summary>
@@ -141,8 +149,19 @@ namespace Opc.Ua
         /// </summary>
         public static readonly ReadOnlyDictionary<string, string> DefaultBindings = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>() {
-                { Utils.UriSchemeHttps, "Opc.Ua.Bindings.Https"}
+                { Utils.UriSchemeHttps, "Opc.Ua.Bindings.Https"},
+                { Utils.UriSchemeOpcHttps, "Opc.Ua.Bindings.Https"}
             });
+
+        /// <summary>
+        /// Returns <c>true</c> if the url starts with opc.https or https.
+        /// </summary>
+        /// <param name="url">The url</param>
+        public static bool IsUriHttpsScheme(string url)
+        {
+            return url.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
+                url.StartsWith(Utils.UriSchemeOpcHttps, StringComparison.Ordinal);
+        }
         #endregion
 
         #region Trace Support

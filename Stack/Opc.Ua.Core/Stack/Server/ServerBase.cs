@@ -393,6 +393,7 @@ namespace Opc.Ua
                 switch (address.Url.Scheme)
                 {
                     case Utils.UriSchemeHttps:
+                    case Utils.UriSchemeOpcHttps:
                     {
                         address.ProfileUri = Profiles.HttpsBinaryTransport;
                         address.DiscoveryUrl = address.Url;
@@ -402,6 +403,13 @@ namespace Opc.Ua
                     case Utils.UriSchemeOpcTcp:
                     {
                         address.ProfileUri = Profiles.UaTcpTransport;
+                        address.DiscoveryUrl = address.Url;
+                        break;
+                    }
+
+                    case Utils.UriSchemeOpcWss:
+                    {
+                        address.ProfileUri = Profiles.UaWssTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
                     }
@@ -1053,7 +1061,9 @@ namespace Opc.Ua
         {
             string url = baseAddress.Url.ToString();
 
-            if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) && (!(url.EndsWith("discovery"))))
+            if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
+                url.StartsWith(Utils.UriSchemeHttp) &&
+                (!(url.EndsWith("discovery"))))
             {
                 url += "/discovery";
             }

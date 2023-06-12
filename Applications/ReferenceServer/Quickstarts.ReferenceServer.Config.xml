@@ -74,7 +74,7 @@
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>https://localhost:62540/Quickstarts/ReferenceServer</ua:String>
+      <ua:String>opc.https://localhost:62540/Quickstarts/ReferenceServer</ua:String>
       <ua:String>opc.tcp://localhost:62541/Quickstarts/ReferenceServer</ua:String>
     </BaseAddresses>
     <!-- 
