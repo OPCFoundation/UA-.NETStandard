@@ -32,7 +32,7 @@ using Opc.Ua;
 
 namespace TestData
 {
-    public partial class ScalarValueVariableState
+    public partial class ScalarStructureVariableState : ITestDataSystemValuesGenerator
     {
         #region Initialization
         /// <summary>
@@ -41,11 +41,6 @@ namespace TestData
         protected override void OnAfterCreate(ISystemContext context, NodeState node)
         {
             base.OnAfterCreate(context, node);
-
-            if (!SimulationActive.Value)
-            {
-                AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            }
 
             InitializeVariable(context, BooleanValue);
             InitializeVariable(context, SByteValue);
@@ -79,36 +74,22 @@ namespace TestData
 
         #region Protected Methods
         /// <summary>
-        /// Handles the generate values method.
+        /// Initializes the variable.
         /// </summary>
-        protected override ServiceResult OnGenerateValues(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            uint count)
+        protected void InitializeVariable(ISystemContext context, BaseVariableState variable)
         {
+            // set a valid initial value.
             TestDataSystem system = context.SystemHandle as TestDataSystem;
 
-            if (system == null)
-            {
-                return StatusCodes.BadOutOfService;
-            }
-
-            // generate structure values here
-            this.WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
-
-            return base.OnGenerateValues(context, method, objectId, count);
+            // copy access level to childs
+            variable.AccessLevel = AccessLevel;
+            variable.UserAccessLevel = UserAccessLevel;
         }
         #endregion
 
         #region Public Methods
-        public override StatusCode OnGenerateValues(ISystemContext context)
+        public virtual StatusCode OnGenerateValues(ISystemContext context)
         {
-            if (!SimulationActive.Value)
-            {
-                return StatusCodes.BadInvalidState;
-            }
-
             TestDataSystem system = context.SystemHandle as TestDataSystem;
 
             if (system == null)
@@ -121,12 +102,14 @@ namespace TestData
             AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
             // generate structure values here
-            this.WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
+            ServiceResult result = WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
 
             AccessLevel = accessLevel;
             UserAccessLevel = userAccessLevel;
 
-            return base.OnGenerateValues(context);
+            ClearChangeMasks(context, true);
+
+            return result.StatusCode;
         }
         #endregion
     }

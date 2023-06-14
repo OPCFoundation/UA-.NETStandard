@@ -44,49 +44,49 @@ namespace Boiler
     public static partial class Methods
     {
         /// <remarks />
-        public const uint BoilerStateMachineType_Start = 1095;
+        public const uint BoilerStateMachineType_Start = 1118;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_Suspend = 1096;
+        public const uint BoilerStateMachineType_Suspend = 1119;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_Resume = 1097;
+        public const uint BoilerStateMachineType_Resume = 1120;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_Halt = 1098;
+        public const uint BoilerStateMachineType_Halt = 1121;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_Reset = 1099;
+        public const uint BoilerStateMachineType_Reset = 1122;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_Start = 15013;
+        public const uint BoilerType_Simulation_Start = 1233;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_Suspend = 15014;
+        public const uint BoilerType_Simulation_Suspend = 1234;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_Resume = 15015;
+        public const uint BoilerType_Simulation_Resume = 1235;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_Halt = 15016;
+        public const uint BoilerType_Simulation_Halt = 1236;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_Reset = 15017;
+        public const uint BoilerType_Simulation_Reset = 1237;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_Start = 15018;
+        public const uint Boilers_Boiler1_Simulation_Start = 1317;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_Suspend = 15019;
+        public const uint Boilers_Boiler1_Simulation_Suspend = 1318;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_Resume = 15020;
+        public const uint Boilers_Boiler1_Simulation_Resume = 1319;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_Halt = 15021;
+        public const uint Boilers_Boiler1_Simulation_Halt = 1320;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_Reset = 15022;
+        public const uint Boilers_Boiler1_Simulation_Reset = 1321;
     }
     #endregion
 
@@ -97,88 +97,88 @@ namespace Boiler
     public static partial class Objects
     {
         /// <remarks />
-        public const uint BoilerInputPipeType_FlowTransmitter1 = 1102;
+        public const uint BoilerInputPipeType_FlowTransmitter1 = 1125;
 
         /// <remarks />
-        public const uint BoilerInputPipeType_Valve = 1109;
+        public const uint BoilerInputPipeType_Valve = 1132;
 
         /// <remarks />
-        public const uint BoilerDrumType_LevelIndicator = 1117;
+        public const uint BoilerDrumType_LevelIndicator = 1140;
 
         /// <remarks />
-        public const uint BoilerOutputPipeType_FlowTransmitter2 = 1125;
+        public const uint BoilerOutputPipeType_FlowTransmitter2 = 1148;
 
         /// <remarks />
-        public const uint BoilerType_InputPipe = 1133;
+        public const uint BoilerType_InputPipe = 1156;
 
         /// <remarks />
-        public const uint BoilerType_InputPipe_FlowTransmitter1 = 1134;
+        public const uint BoilerType_InputPipe_FlowTransmitter1 = 1157;
 
         /// <remarks />
-        public const uint BoilerType_InputPipe_Valve = 1141;
+        public const uint BoilerType_InputPipe_Valve = 1164;
 
         /// <remarks />
-        public const uint BoilerType_Drum = 1148;
+        public const uint BoilerType_Drum = 1171;
 
         /// <remarks />
-        public const uint BoilerType_Drum_LevelIndicator = 1149;
+        public const uint BoilerType_Drum_LevelIndicator = 1172;
 
         /// <remarks />
-        public const uint BoilerType_OutputPipe = 1156;
+        public const uint BoilerType_OutputPipe = 1179;
 
         /// <remarks />
-        public const uint BoilerType_OutputPipe_FlowTransmitter2 = 1157;
+        public const uint BoilerType_OutputPipe_FlowTransmitter2 = 1180;
 
         /// <remarks />
-        public const uint BoilerType_FlowController = 1164;
+        public const uint BoilerType_FlowController = 1187;
 
         /// <remarks />
-        public const uint BoilerType_LevelController = 1168;
+        public const uint BoilerType_LevelController = 1191;
 
         /// <remarks />
-        public const uint BoilerType_CustomController = 1172;
+        public const uint BoilerType_CustomController = 1195;
 
         /// <remarks />
-        public const uint BoilerType_Simulation = 1178;
+        public const uint BoilerType_Simulation = 1201;
 
         /// <remarks />
-        public const uint Boilers = 1240;
+        public const uint Boilers = 1238;
 
         /// <remarks />
-        public const uint Boilers_Boiler1 = 1241;
+        public const uint Boilers_Boiler1 = 1239;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_InputPipe = 1242;
+        public const uint Boilers_Boiler1_InputPipe = 1240;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_InputPipe_FlowTransmitter1 = 1243;
+        public const uint Boilers_Boiler1_InputPipe_FlowTransmitter1 = 1241;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_InputPipe_Valve = 1250;
+        public const uint Boilers_Boiler1_InputPipe_Valve = 1248;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Drum = 1257;
+        public const uint Boilers_Boiler1_Drum = 1255;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Drum_LevelIndicator = 1258;
+        public const uint Boilers_Boiler1_Drum_LevelIndicator = 1256;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_OutputPipe = 1265;
+        public const uint Boilers_Boiler1_OutputPipe = 1263;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_OutputPipe_FlowTransmitter2 = 1266;
+        public const uint Boilers_Boiler1_OutputPipe_FlowTransmitter2 = 1264;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_FlowController = 1273;
+        public const uint Boilers_Boiler1_FlowController = 1271;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_LevelController = 1277;
+        public const uint Boilers_Boiler1_LevelController = 1275;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_CustomController = 1281;
+        public const uint Boilers_Boiler1_CustomController = 1279;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation = 1287;
+        public const uint Boilers_Boiler1_Simulation = 1285;
     }
     #endregion
 
@@ -189,46 +189,46 @@ namespace Boiler
     public static partial class ObjectTypes
     {
         /// <remarks />
-        public const uint GenericControllerType = 210;
+        public const uint GenericControllerType = 1004;
 
         /// <remarks />
-        public const uint GenericSensorType = 991;
+        public const uint GenericSensorType = 1008;
 
         /// <remarks />
-        public const uint GenericActuatorType = 998;
+        public const uint GenericActuatorType = 1015;
 
         /// <remarks />
-        public const uint CustomControllerType = 513;
+        public const uint CustomControllerType = 1022;
 
         /// <remarks />
-        public const uint ValveType = 1010;
+        public const uint ValveType = 1028;
 
         /// <remarks />
-        public const uint LevelControllerType = 1017;
+        public const uint LevelControllerType = 1035;
 
         /// <remarks />
-        public const uint FlowControllerType = 1021;
+        public const uint FlowControllerType = 1039;
 
         /// <remarks />
-        public const uint LevelIndicatorType = 1025;
+        public const uint LevelIndicatorType = 1043;
 
         /// <remarks />
-        public const uint FlowTransmitterType = 1032;
+        public const uint FlowTransmitterType = 1050;
 
         /// <remarks />
-        public const uint BoilerStateMachineType = 1039;
+        public const uint BoilerStateMachineType = 1057;
 
         /// <remarks />
-        public const uint BoilerInputPipeType = 1101;
+        public const uint BoilerInputPipeType = 1124;
 
         /// <remarks />
-        public const uint BoilerDrumType = 1116;
+        public const uint BoilerDrumType = 1139;
 
         /// <remarks />
-        public const uint BoilerOutputPipeType = 1124;
+        public const uint BoilerOutputPipeType = 1147;
 
         /// <remarks />
-        public const uint BoilerType = 1132;
+        public const uint BoilerType = 1155;
     }
     #endregion
 
@@ -239,13 +239,13 @@ namespace Boiler
     public static partial class ReferenceTypes
     {
         /// <remarks />
-        public const uint FlowTo = 985;
+        public const uint FlowTo = 1001;
 
         /// <remarks />
-        public const uint HotFlowTo = 986;
+        public const uint HotFlowTo = 1002;
 
         /// <remarks />
-        public const uint SignalTo = 987;
+        public const uint SignalTo = 1003;
     }
     #endregion
 
@@ -256,370 +256,370 @@ namespace Boiler
     public static partial class Variables
     {
         /// <remarks />
-        public const uint GenericControllerType_Measurement = 988;
+        public const uint GenericControllerType_Measurement = 1005;
 
         /// <remarks />
-        public const uint GenericControllerType_SetPoint = 989;
+        public const uint GenericControllerType_SetPoint = 1006;
 
         /// <remarks />
-        public const uint GenericControllerType_ControlOut = 990;
+        public const uint GenericControllerType_ControlOut = 1007;
 
         /// <remarks />
-        public const uint GenericSensorType_Output = 992;
+        public const uint GenericSensorType_Output = 1009;
 
         /// <remarks />
-        public const uint GenericSensorType_Output_EURange = 995;
+        public const uint GenericSensorType_Output_EURange = 1013;
 
         /// <remarks />
-        public const uint GenericActuatorType_Input = 999;
+        public const uint GenericActuatorType_Input = 1016;
 
         /// <remarks />
-        public const uint GenericActuatorType_Input_EURange = 1002;
+        public const uint GenericActuatorType_Input_EURange = 1020;
 
         /// <remarks />
-        public const uint CustomControllerType_Input1 = 1005;
+        public const uint CustomControllerType_Input1 = 1023;
 
         /// <remarks />
-        public const uint CustomControllerType_Input2 = 1006;
+        public const uint CustomControllerType_Input2 = 1024;
 
         /// <remarks />
-        public const uint CustomControllerType_Input3 = 1007;
+        public const uint CustomControllerType_Input3 = 1025;
 
         /// <remarks />
-        public const uint CustomControllerType_ControlOut = 1008;
+        public const uint CustomControllerType_ControlOut = 1026;
 
         /// <remarks />
-        public const uint CustomControllerType_DescriptionX = 1009;
+        public const uint CustomControllerType_DescriptionX = 1027;
 
         /// <remarks />
-        public const uint ValveType_Input_EURange = 1014;
+        public const uint ValveType_Input_EURange = 1033;
 
         /// <remarks />
-        public const uint LevelIndicatorType_Output_EURange = 1029;
+        public const uint LevelIndicatorType_Output_EURange = 1048;
 
         /// <remarks />
-        public const uint FlowTransmitterType_Output_EURange = 1036;
+        public const uint FlowTransmitterType_Output_EURange = 1055;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_CurrentState_Id = 1041;
+        public const uint BoilerStateMachineType_CurrentState_Id = 1059;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_CurrentState_Number = 1043;
+        public const uint BoilerStateMachineType_CurrentState_Number = 1061;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_LastTransition_Id = 1046;
+        public const uint BoilerStateMachineType_LastTransition_Id = 1064;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_LastTransition_Number = 1048;
+        public const uint BoilerStateMachineType_LastTransition_Number = 1066;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_LastTransition_TransitionTime = 1049;
+        public const uint BoilerStateMachineType_LastTransition_TransitionTime = 1067;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ProgramDiagnostic_CreateSessionId = 15024;
+        public const uint BoilerStateMachineType_ProgramDiagnostic_CreateSessionId = 1079;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ProgramDiagnostic_CreateClientName = 15025;
+        public const uint BoilerStateMachineType_ProgramDiagnostic_CreateClientName = 1080;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ProgramDiagnostic_InvocationCreationTime = 15026;
+        public const uint BoilerStateMachineType_ProgramDiagnostic_InvocationCreationTime = 1081;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ProgramDiagnostic_LastTransitionTime = 15027;
+        public const uint BoilerStateMachineType_ProgramDiagnostic_LastTransitionTime = 1082;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodCall = 15028;
+        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodCall = 1083;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodSessionId = 15029;
+        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodSessionId = 1084;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodInputArguments = 15030;
+        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodInputArguments = 1085;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodOutputArguments = 15031;
+        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodOutputArguments = 1086;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodInputValues = 15032;
+        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodInputValues = 1087;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodOutputValues = 15033;
+        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodOutputValues = 1088;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodCallTime = 15034;
+        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodCallTime = 1089;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodReturnStatus = 15035;
+        public const uint BoilerStateMachineType_ProgramDiagnostic_LastMethodReturnStatus = 1090;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_Halted_StateNumber = 1076;
+        public const uint BoilerStateMachineType_Halted_StateNumber = 1093;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_Ready_StateNumber = 1070;
+        public const uint BoilerStateMachineType_Ready_StateNumber = 1095;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_Running_StateNumber = 1072;
+        public const uint BoilerStateMachineType_Running_StateNumber = 1097;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_Suspended_StateNumber = 1074;
+        public const uint BoilerStateMachineType_Suspended_StateNumber = 1099;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_HaltedToReady_TransitionNumber = 1078;
+        public const uint BoilerStateMachineType_HaltedToReady_TransitionNumber = 1101;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ReadyToRunning_TransitionNumber = 1080;
+        public const uint BoilerStateMachineType_ReadyToRunning_TransitionNumber = 1103;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_RunningToHalted_TransitionNumber = 1082;
+        public const uint BoilerStateMachineType_RunningToHalted_TransitionNumber = 1105;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_RunningToReady_TransitionNumber = 1084;
+        public const uint BoilerStateMachineType_RunningToReady_TransitionNumber = 1107;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_RunningToSuspended_TransitionNumber = 1086;
+        public const uint BoilerStateMachineType_RunningToSuspended_TransitionNumber = 1109;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_SuspendedToRunning_TransitionNumber = 1088;
+        public const uint BoilerStateMachineType_SuspendedToRunning_TransitionNumber = 1111;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_SuspendedToHalted_TransitionNumber = 1090;
+        public const uint BoilerStateMachineType_SuspendedToHalted_TransitionNumber = 1113;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_SuspendedToReady_TransitionNumber = 1092;
+        public const uint BoilerStateMachineType_SuspendedToReady_TransitionNumber = 1115;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_ReadyToHalted_TransitionNumber = 1094;
+        public const uint BoilerStateMachineType_ReadyToHalted_TransitionNumber = 1117;
 
         /// <remarks />
-        public const uint BoilerStateMachineType_UpdateRate = 1100;
+        public const uint BoilerStateMachineType_UpdateRate = 1123;
 
         /// <remarks />
-        public const uint BoilerInputPipeType_FlowTransmitter1_Output = 1103;
+        public const uint BoilerInputPipeType_FlowTransmitter1_Output = 1126;
 
         /// <remarks />
-        public const uint BoilerInputPipeType_FlowTransmitter1_Output_EURange = 1106;
+        public const uint BoilerInputPipeType_FlowTransmitter1_Output_EURange = 1130;
 
         /// <remarks />
-        public const uint BoilerInputPipeType_Valve_Input = 1110;
+        public const uint BoilerInputPipeType_Valve_Input = 1133;
 
         /// <remarks />
-        public const uint BoilerInputPipeType_Valve_Input_EURange = 1113;
+        public const uint BoilerInputPipeType_Valve_Input_EURange = 1137;
 
         /// <remarks />
-        public const uint BoilerDrumType_LevelIndicator_Output = 1118;
+        public const uint BoilerDrumType_LevelIndicator_Output = 1141;
 
         /// <remarks />
-        public const uint BoilerDrumType_LevelIndicator_Output_EURange = 1121;
+        public const uint BoilerDrumType_LevelIndicator_Output_EURange = 1145;
 
         /// <remarks />
-        public const uint BoilerOutputPipeType_FlowTransmitter2_Output = 1126;
+        public const uint BoilerOutputPipeType_FlowTransmitter2_Output = 1149;
 
         /// <remarks />
-        public const uint BoilerOutputPipeType_FlowTransmitter2_Output_EURange = 1129;
+        public const uint BoilerOutputPipeType_FlowTransmitter2_Output_EURange = 1153;
 
         /// <remarks />
-        public const uint BoilerType_InputPipe_FlowTransmitter1_Output = 1135;
+        public const uint BoilerType_InputPipe_FlowTransmitter1_Output = 1158;
 
         /// <remarks />
-        public const uint BoilerType_InputPipe_FlowTransmitter1_Output_EURange = 1138;
+        public const uint BoilerType_InputPipe_FlowTransmitter1_Output_EURange = 1162;
 
         /// <remarks />
-        public const uint BoilerType_InputPipe_Valve_Input = 1142;
+        public const uint BoilerType_InputPipe_Valve_Input = 1165;
 
         /// <remarks />
-        public const uint BoilerType_InputPipe_Valve_Input_EURange = 1145;
+        public const uint BoilerType_InputPipe_Valve_Input_EURange = 1169;
 
         /// <remarks />
-        public const uint BoilerType_Drum_LevelIndicator_Output = 1150;
+        public const uint BoilerType_Drum_LevelIndicator_Output = 1173;
 
         /// <remarks />
-        public const uint BoilerType_Drum_LevelIndicator_Output_EURange = 1153;
+        public const uint BoilerType_Drum_LevelIndicator_Output_EURange = 1177;
 
         /// <remarks />
-        public const uint BoilerType_OutputPipe_FlowTransmitter2_Output = 1158;
+        public const uint BoilerType_OutputPipe_FlowTransmitter2_Output = 1181;
 
         /// <remarks />
-        public const uint BoilerType_OutputPipe_FlowTransmitter2_Output_EURange = 1161;
+        public const uint BoilerType_OutputPipe_FlowTransmitter2_Output_EURange = 1185;
 
         /// <remarks />
-        public const uint BoilerType_FlowController_Measurement = 1165;
+        public const uint BoilerType_FlowController_Measurement = 1188;
 
         /// <remarks />
-        public const uint BoilerType_FlowController_SetPoint = 1166;
+        public const uint BoilerType_FlowController_SetPoint = 1189;
 
         /// <remarks />
-        public const uint BoilerType_FlowController_ControlOut = 1167;
+        public const uint BoilerType_FlowController_ControlOut = 1190;
 
         /// <remarks />
-        public const uint BoilerType_LevelController_Measurement = 1169;
+        public const uint BoilerType_LevelController_Measurement = 1192;
 
         /// <remarks />
-        public const uint BoilerType_LevelController_SetPoint = 1170;
+        public const uint BoilerType_LevelController_SetPoint = 1193;
 
         /// <remarks />
-        public const uint BoilerType_LevelController_ControlOut = 1171;
+        public const uint BoilerType_LevelController_ControlOut = 1194;
 
         /// <remarks />
-        public const uint BoilerType_CustomController_Input1 = 1173;
+        public const uint BoilerType_CustomController_Input1 = 1196;
 
         /// <remarks />
-        public const uint BoilerType_CustomController_Input2 = 1174;
+        public const uint BoilerType_CustomController_Input2 = 1197;
 
         /// <remarks />
-        public const uint BoilerType_CustomController_Input3 = 1175;
+        public const uint BoilerType_CustomController_Input3 = 1198;
 
         /// <remarks />
-        public const uint BoilerType_CustomController_ControlOut = 1176;
+        public const uint BoilerType_CustomController_ControlOut = 1199;
 
         /// <remarks />
-        public const uint BoilerType_CustomController_DescriptionX = 1177;
+        public const uint BoilerType_CustomController_DescriptionX = 1200;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_CurrentState = 1179;
+        public const uint BoilerType_Simulation_CurrentState = 1202;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_CurrentState_Id = 1180;
+        public const uint BoilerType_Simulation_CurrentState_Id = 1203;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_CurrentState_Number = 1182;
+        public const uint BoilerType_Simulation_CurrentState_Number = 1205;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_LastTransition = 1184;
+        public const uint BoilerType_Simulation_LastTransition = 1207;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_LastTransition_Id = 1185;
+        public const uint BoilerType_Simulation_LastTransition_Id = 1208;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_LastTransition_Number = 1187;
+        public const uint BoilerType_Simulation_LastTransition_Number = 1210;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_LastTransition_TransitionTime = 1188;
+        public const uint BoilerType_Simulation_LastTransition_TransitionTime = 1211;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_Deletable = 1190;
+        public const uint BoilerType_Simulation_Deletable = 1215;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_AutoDelete = 1191;
+        public const uint BoilerType_Simulation_AutoDelete = 1216;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_RecycleCount = 1192;
+        public const uint BoilerType_Simulation_RecycleCount = 1217;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_ProgramDiagnostic_CreateSessionId = 15037;
+        public const uint BoilerType_Simulation_ProgramDiagnostic_CreateSessionId = 1219;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_ProgramDiagnostic_CreateClientName = 15038;
+        public const uint BoilerType_Simulation_ProgramDiagnostic_CreateClientName = 1220;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_ProgramDiagnostic_InvocationCreationTime = 15039;
+        public const uint BoilerType_Simulation_ProgramDiagnostic_InvocationCreationTime = 1221;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_ProgramDiagnostic_LastTransitionTime = 15040;
+        public const uint BoilerType_Simulation_ProgramDiagnostic_LastTransitionTime = 1222;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodCall = 15041;
+        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodCall = 1223;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodSessionId = 15042;
+        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodSessionId = 1224;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodInputArguments = 15043;
+        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodInputArguments = 1225;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodOutputArguments = 15044;
+        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodOutputArguments = 1226;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodInputValues = 15045;
+        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodInputValues = 1227;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodOutputValues = 15046;
+        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodOutputValues = 1228;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodCallTime = 15047;
+        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodCallTime = 1229;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodReturnStatus = 15048;
+        public const uint BoilerType_Simulation_ProgramDiagnostic_LastMethodReturnStatus = 1230;
 
         /// <remarks />
-        public const uint BoilerType_Simulation_UpdateRate = 1239;
+        public const uint BoilerType_Simulation_UpdateRate = 1232;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_InputPipe_FlowTransmitter1_Output = 1244;
+        public const uint Boilers_Boiler1_InputPipe_FlowTransmitter1_Output = 1242;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_InputPipe_FlowTransmitter1_Output_EURange = 1247;
+        public const uint Boilers_Boiler1_InputPipe_FlowTransmitter1_Output_EURange = 1246;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_InputPipe_Valve_Input = 1251;
+        public const uint Boilers_Boiler1_InputPipe_Valve_Input = 1249;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_InputPipe_Valve_Input_EURange = 1254;
+        public const uint Boilers_Boiler1_InputPipe_Valve_Input_EURange = 1253;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Drum_LevelIndicator_Output = 1259;
+        public const uint Boilers_Boiler1_Drum_LevelIndicator_Output = 1257;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Drum_LevelIndicator_Output_EURange = 1262;
+        public const uint Boilers_Boiler1_Drum_LevelIndicator_Output_EURange = 1261;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_OutputPipe_FlowTransmitter2_Output = 1267;
+        public const uint Boilers_Boiler1_OutputPipe_FlowTransmitter2_Output = 1265;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_OutputPipe_FlowTransmitter2_Output_EURange = 1270;
+        public const uint Boilers_Boiler1_OutputPipe_FlowTransmitter2_Output_EURange = 1269;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_FlowController_Measurement = 1274;
+        public const uint Boilers_Boiler1_FlowController_Measurement = 1272;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_FlowController_SetPoint = 1275;
+        public const uint Boilers_Boiler1_FlowController_SetPoint = 1273;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_FlowController_ControlOut = 1276;
+        public const uint Boilers_Boiler1_FlowController_ControlOut = 1274;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_LevelController_Measurement = 1278;
+        public const uint Boilers_Boiler1_LevelController_Measurement = 1276;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_LevelController_SetPoint = 1279;
+        public const uint Boilers_Boiler1_LevelController_SetPoint = 1277;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_LevelController_ControlOut = 1280;
+        public const uint Boilers_Boiler1_LevelController_ControlOut = 1278;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_CustomController_Input1 = 1282;
+        public const uint Boilers_Boiler1_CustomController_Input1 = 1280;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_CustomController_Input2 = 1283;
+        public const uint Boilers_Boiler1_CustomController_Input2 = 1281;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_CustomController_Input3 = 1284;
+        public const uint Boilers_Boiler1_CustomController_Input3 = 1282;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_CustomController_ControlOut = 1285;
+        public const uint Boilers_Boiler1_CustomController_ControlOut = 1283;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_CustomController_DescriptionX = 1286;
+        public const uint Boilers_Boiler1_CustomController_DescriptionX = 1284;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_CurrentState = 1288;
+        public const uint Boilers_Boiler1_Simulation_CurrentState = 1286;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_CurrentState_Id = 1289;
+        public const uint Boilers_Boiler1_Simulation_CurrentState_Id = 1287;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_CurrentState_Number = 1291;
+        public const uint Boilers_Boiler1_Simulation_CurrentState_Number = 1289;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_LastTransition = 1293;
+        public const uint Boilers_Boiler1_Simulation_LastTransition = 1291;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_LastTransition_Id = 1294;
+        public const uint Boilers_Boiler1_Simulation_LastTransition_Id = 1292;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_LastTransition_Number = 1296;
+        public const uint Boilers_Boiler1_Simulation_LastTransition_Number = 1294;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_LastTransition_TransitionTime = 1297;
+        public const uint Boilers_Boiler1_Simulation_LastTransition_TransitionTime = 1295;
 
         /// <remarks />
         public const uint Boilers_Boiler1_Simulation_Deletable = 1299;
@@ -631,43 +631,43 @@ namespace Boiler
         public const uint Boilers_Boiler1_Simulation_RecycleCount = 1301;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_CreateSessionId = 15050;
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_CreateSessionId = 1303;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_CreateClientName = 15051;
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_CreateClientName = 1304;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_InvocationCreationTime = 15052;
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_InvocationCreationTime = 1305;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastTransitionTime = 15053;
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastTransitionTime = 1306;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodCall = 15054;
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodCall = 1307;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodSessionId = 15055;
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodSessionId = 1308;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodInputArguments = 15056;
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodInputArguments = 1309;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodOutputArguments = 15057;
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodOutputArguments = 1310;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodInputValues = 15058;
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodInputValues = 1311;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodOutputValues = 15059;
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodOutputValues = 1312;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodCallTime = 15060;
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodCallTime = 1313;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodReturnStatus = 15061;
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodReturnStatus = 1314;
 
         /// <remarks />
-        public const uint Boilers_Boiler1_Simulation_UpdateRate = 1348;
+        public const uint Boilers_Boiler1_Simulation_UpdateRate = 1316;
     }
     #endregion
 
