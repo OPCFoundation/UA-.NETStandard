@@ -836,7 +836,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 m_resetCounter = true;
                 Count = Interlocked.Increment(ref s_count);
 
-                m_fields = new Dictionary<string, string> { { "Foo", $"bar_{Count}" } };
+                m_fields = new Dictionary<string, (int, string)> { { "Foo", (1, $"bar_{Count}") } };
             }
 
             public DynamicEncodeable(string xmlName, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, ExpandedNodeId jsonEncodingId, int count)
@@ -848,7 +848,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 JsonEncodingId = jsonEncodingId;
 
                 Count = count;
-                m_fields = new Dictionary<string, string> { { "Foo", $"bar_{Count}" } };
+                m_fields = new Dictionary<string, (int, string)> { { "Foo", (1, $"bar_{Count}") } };
             }
 
             public DynamicEncodeable(string xmlName, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, ExpandedNodeId jsonEncodingId, string foo)
@@ -859,10 +859,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 XmlEncodingId = xmlEncodingId;
                 JsonEncodingId = jsonEncodingId;
 
-                m_fields = new Dictionary<string, string> { { "Foo" , foo } };
+                m_fields = new Dictionary<string, (int, string)> { { "Foo" , (1, foo) } };
             }
 
-            public DynamicEncodeable(string xmlName, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, ExpandedNodeId jsonEncodingId, Dictionary<string, string> fields)
+            public DynamicEncodeable(string xmlName, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, ExpandedNodeId jsonEncodingId, Dictionary<string, (int, string)> fields)
             {
                 m_xmlName = xmlName;
                 TypeId = typeId;
@@ -884,18 +884,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public void Encode(IEncoder encoder)
             {
                 InitializeFromFactory(encoder.Context?.Factory);
-                foreach (var field in m_fields)
+                foreach (var field in m_fields.OrderBy(kv => kv.Value.FieldOrder).ToList())
                 {
-                    encoder.WriteString(field.Key, field.Value);
+                    encoder.WriteString(field.Key, field.Value.Value);
                 }
             }
 
             public void Decode(IDecoder decoder)
             {
                 InitializeFromFactory(decoder.Context?.Factory);
-                foreach (var fieldName in m_fields.Keys)
+                foreach (var fieldKV in m_fields.OrderBy(kv => kv.Value.FieldOrder).ToList())
                 {
-                    m_fields[fieldName] = decoder.ReadString(fieldName);
+                    m_fields[fieldKV.Key] = (fieldKV.Value.FieldOrder, decoder.ReadString(fieldKV.Key));
                 }
             }
 
@@ -914,7 +914,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     JsonEncodingId = encodeable?.JsonEncodingId;
                     BinaryEncodingId = encodeable?.BinaryEncodingId;
                     Count = encodeable?.Count ?? 0;
-                    m_fields = encodeable?.m_fields.ToDictionary(kv => kv.Key, kv => (string) null);
+                    m_fields = encodeable?.m_fields.ToDictionary(kv => kv.Key, kv => (kv.Value.FieldOrder, (string) null));
                     m_xmlName = encodeable?.m_xmlName;
                 }
             }
@@ -954,7 +954,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 return new XmlQualifiedName(m_xmlName);
             }
 
-            private Dictionary<string, string> m_fields;
+            private Dictionary<string, (int FieldOrder, string Value)> m_fields;
             private string m_xmlName;
             private bool m_resetCounter;
         }

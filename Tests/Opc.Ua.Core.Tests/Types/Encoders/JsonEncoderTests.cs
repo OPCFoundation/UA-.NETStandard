@@ -498,7 +498,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
-            using (var encodeable = new DynamicEncodeable("FooXml", "test_dyn_typeid", "test_dyn_binaryencodingid", "test_dyn_xmlencodingid", "test_dyn_jsonencodingid", new Dictionary<string, string> { { "Foo", "bar_1" } }))
+            using (var encodeable = new DynamicEncodeable("FooXml", "test_dyn_typeid", "test_dyn_binaryencodingid", "test_dyn_xmlencodingid", "test_dyn_jsonencodingid", new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } }))
             {
                 using (var encoder = new JsonEncoder(Context, true, false))
                 {
@@ -531,9 +531,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expectedJson);
 
-            var encodeable = new DynamicEncodeable("FooXml", "test_dyn2_typeid", "test_dyn2_binaryencodingid", "test_dyn2_xmlencodingid", "test_dyn2_jsonencodingid", new Dictionary<string, string> {
-                { "Foo", "bar_1" },
-                { "Foo2", "bar_2" },
+            var encodeable = new DynamicEncodeable("FooXml", "test_dyn2_typeid", "test_dyn2_binaryencodingid", "test_dyn2_xmlencodingid", "test_dyn2_jsonencodingid", new Dictionary<string, (int, string)> {
+                { "Foo", (1, "bar_1") },
+                { "Foo2", (2, "bar_2") },
             });
 
             // Register in the context's Factory, make it a custom factory so the dynamic type can look up its type information when instantiated during encoding/decoding
