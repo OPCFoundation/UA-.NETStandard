@@ -276,9 +276,7 @@ namespace Quickstarts
                     {
                         m_output.WriteLine("--- RECONNECTED TO NEW SESSION --- {0}", m_reconnectHandler.Session.SessionId);
                         var session = m_session;
-                        session.KeepAlive -= Session_KeepAlive;
-                        m_session = m_reconnectHandler.Session as Session;
-                        m_session.KeepAlive += Session_KeepAlive;
+                        m_session = m_reconnectHandler.Session;
                         Utils.SilentDispose(session);
                     }
                     else
@@ -332,7 +330,7 @@ namespace Quickstarts
         private object m_lock = new object();
         private ApplicationConfiguration m_configuration;
         private SessionReconnectHandler m_reconnectHandler;
-        private Session m_session;
+        private ISession m_session;
         private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;
         #endregion

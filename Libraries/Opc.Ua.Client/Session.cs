@@ -387,6 +387,17 @@ namespace Opc.Ua.Client
             }
 
             base.Dispose(disposing);
+
+            if (disposing)
+            {
+                // suppress spurious events
+                m_KeepAlive = null;
+                m_Publish = null;
+                m_PublishError = null;
+                m_PublishSequenceNumbersToAcknowledge = null;
+                m_SubscriptionsChanged = null;
+                m_SessionClosing = null;
+            }
         }
         #endregion
 

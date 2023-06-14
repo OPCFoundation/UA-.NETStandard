@@ -349,11 +349,12 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        int adjustedReconnectPeriod = JitteredReconnectPeriod(m_reconnectPeriod) -
-                            (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
+                        int elapsed = (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
+                        Utils.LogInfo("Reconnect period is {0} ms, {1} ms elapsed in reconnect.", m_reconnectPeriod, elapsed);
+                        int adjustedReconnectPeriod = JitteredReconnectPeriod(m_reconnectPeriod) - elapsed;
                         adjustedReconnectPeriod = CheckedReconnectPeriod(adjustedReconnectPeriod);
                         m_reconnectTimer.Change(adjustedReconnectPeriod, Timeout.Infinite);
-                        Utils.LogInfo("Reconnect period is {0} ms, calling OnReconnectSession in {1} ms.", m_reconnectPeriod, adjustedReconnectPeriod);
+                        Utils.LogInfo("Next adjusted reconnect scheduled in {0} ms.", adjustedReconnectPeriod);
                         m_reconnectPeriod = CheckedReconnectPeriod(m_reconnectPeriod, true);
                         m_state = ReconnectState.Triggered;
                     }
@@ -407,9 +408,11 @@ namespace Opc.Ua.Client
                             sre.StatusCode == StatusCodes.BadRequestTimeout ||
                             sre.StatusCode == StatusCodes.BadTimeout)
                         {
-                            // check if reconnecting is still an option.
-                            if (m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) > DateTime.UtcNow)
+                            // check if reactivating is still an option.
+                            TimeSpan timeout = m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) - DateTime.UtcNow;
+                            if (timeout.TotalMilliseconds > 0)
                             {
+                                Utils.LogInfo("Retry to reactivate, est. session timeout in {0} ms.", timeout.TotalMilliseconds);
                                 return false;
                             }
                         }
@@ -419,6 +422,12 @@ namespace Opc.Ua.Client
                         {
                             m_updateFromServer = true;
                             Utils.LogInfo("Reconnect failed due to security check. Request endpoint update from server. {0}", sre.Message);
+                        }
+                        else
+                        {
+                            // next attempt is to recreate session
+                            m_reconnectFailed = true;
+                            return false;
                         }
                     }
                     else
