@@ -36,6 +36,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 
 namespace Quickstarts.ConsoleReferenceClient
@@ -80,6 +81,7 @@ namespace Quickstarts.ConsoleReferenceClient
             string password = null;
             int timeout = Timeout.Infinite;
             string logFile = null;
+            string reverseConnectUrlString = null;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 usage,
@@ -99,6 +101,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "j|json", "Output all Values as JSON", j => { if (j != null) jsonvalues = true; } },
                 { "v|verbose", "Verbose output", v => { if (v != null) verbose = true; } },
                 { "s|subscribe", "Subscribe", s => { if (s != null) subscribe = true; } },
+                { "rc|reverseconnect=", "Connect using the reverse connect endpoint. (e.g. opc.tcp://localhost:65300)", (string url) => reverseConnectUrlString = url},
             };
 
             try
@@ -158,6 +161,16 @@ namespace Quickstarts.ConsoleReferenceClient
                     throw new ErrorExitException("Application instance certificate invalid!", ExitCode.ErrorCertificate);
                 }
 
+                ReverseConnectManager reverseConnectManager = null;
+                if (reverseConnectUrlString != null)
+                {
+                    // start the reverse connection manager
+                    output.WriteLine("Create reverse connection endpoint at {0}.", reverseConnectUrlString);
+                    reverseConnectManager = new ReverseConnectManager();
+                    reverseConnectManager.AddEndpoint(new Uri(reverseConnectUrlString));
+                    reverseConnectManager.StartService(config);
+                }
+
                 // wait for timeout or Ctrl-C
                 var quitEvent = ConsoleUtils.CtrlCHandler();
 
@@ -177,8 +190,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
 
                     // create the UA Client object and connect to configured server.
-                    using (UAClient uaClient = new UAClient(
-                        application.ApplicationConfiguration, output, ClientBase.ValidateResponse) {
+                    using (UAClient uaClient = new UAClient(application.ApplicationConfiguration, reverseConnectManager, output, ClientBase.ValidateResponse) {
                         AutoAccept = autoAccept,
                         SessionLifeTime = 60000,
                     })

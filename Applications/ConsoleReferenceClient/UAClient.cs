@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -51,6 +52,19 @@ namespace Quickstarts
             m_output = writer;
             m_configuration = configuration;
             m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
+            m_reverseConnectManager = null;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the UAClient class for reverse connections.
+        /// </summary>
+        public UAClient(ApplicationConfiguration configuration, ReverseConnectManager reverseConnectManager, TextWriter writer, Action<IList, IList> validateResponse)
+        {
+            m_validateResponse = validateResponse;
+            m_output = writer;
+            m_configuration = configuration;
+            m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
+            m_reverseConnectManager = reverseConnectManager;
         }
         #endregion
 
@@ -124,19 +138,46 @@ namespace Quickstarts
                 }
                 else
                 {
-                    m_output.WriteLine("Connecting to... {0}", serverUrl);
+                    ITransportWaitingConnection connection = null;
+                    EndpointDescription endpointDescription = null;
+                    if (m_reverseConnectManager != null)
+                    {
+                        m_output.WriteLine("Waiting for reverse connection to.... {0}", serverUrl);
+                        do
+                        {
+                            using (var cts = new CancellationTokenSource(30_000))
+                            {
+                                connection = await m_reverseConnectManager.WaitForConnection(new Uri(serverUrl), null, cts.Token);
+                                if (connection == null)
+                                {
+                                    throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for a reverse connection timed out.");
+                                }
+                                if (endpointDescription == null)
+                                {
+                                    m_output.WriteLine("Discover reverse connection endpoints....");
+                                    endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, connection, useSecurity);
+                                    connection = null;
+                                }
+                            }
+                        } while (connection == null);
+                    }
+                    else
+                    {
+                        m_output.WriteLine("Connecting to... {0}", serverUrl);
+                        endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, serverUrl, useSecurity);
+                    }
 
                     // Get the endpoint by connecting to server's discovery endpoint.
                     // Try to find the first endopint with security.
-                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, serverUrl, useSecurity);
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
                     // Create the session
                     var session = await Opc.Ua.Client.Session.Create(
                         m_configuration,
+                        connection,
                         endpoint,
-                        true,
+                        connection == null,
                         false,
                         m_configuration.ApplicationName,
                         SessionLifeTime,
@@ -328,6 +369,7 @@ namespace Quickstarts
 
         #region Private Fields
         private object m_lock = new object();
+        private ReverseConnectManager m_reverseConnectManager;
         private ApplicationConfiguration m_configuration;
         private SessionReconnectHandler m_reconnectHandler;
         private ISession m_session;
