@@ -104,6 +104,8 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "rc|reverseconnect=", "Connect using the reverse connect endpoint. (e.g. opc.tcp://localhost:65300)", (string url) => reverseConnectUrlString = url},
             };
 
+            ReverseConnectManager reverseConnectManager = null;
+
             try
             {
                 // parse command line and set options
@@ -161,7 +163,6 @@ namespace Quickstarts.ConsoleReferenceClient
                     throw new ErrorExitException("Application instance certificate invalid!", ExitCode.ErrorCertificate);
                 }
 
-                ReverseConnectManager reverseConnectManager = null;
                 if (reverseConnectUrlString != null)
                 {
                     // start the reverse connection manager
@@ -318,6 +319,11 @@ namespace Quickstarts.ConsoleReferenceClient
             catch (Exception ex)
             {
                 output.WriteLine(ex.Message);
+            }
+            finally
+            {
+                Utils.SilentDispose(reverseConnectManager);
+                output.Close();
             }
         }
     }
