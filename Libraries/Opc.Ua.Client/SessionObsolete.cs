@@ -116,7 +116,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
-            CancellationToken ct) => TransferSubscriptionsAsync(requestHeader, subscriptionIds, sendInitialValues, ct);
+            CancellationToken ct) => base.TransferSubscriptionsAsync(requestHeader, subscriptionIds, sendInitialValues, ct);
     }
 }
 #endif
