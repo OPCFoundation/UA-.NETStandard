@@ -2521,6 +2521,9 @@ namespace Opc.Ua.Client
                 sessionTimeout = (uint)m_configuration.ClientConfiguration.DefaultSessionTimeout;
             }
 
+            bool serverIsGateway = !string.IsNullOrEmpty(m_endpoint.Description.Server.GatewayServerUri);
+            string serverUri = serverIsGateway ? m_endpoint.Description.Server.ApplicationUri : null;
+
             bool successCreateSession = false;
             //if security none, first try to connect without certificate
             if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
@@ -2531,7 +2534,7 @@ namespace Opc.Ua.Client
                     base.CreateSession(
                         null,
                         clientDescription,
-                        m_endpoint.Description.Server.ApplicationUri,
+                        serverUri,
                         m_endpoint.EndpointUrl.ToString(),
                         sessionName,
                         clientNonce,
@@ -2562,7 +2565,7 @@ namespace Opc.Ua.Client
                 base.CreateSession(
                         null,
                         clientDescription,
-                        m_endpoint.Description.Server.ApplicationUri,
+                        serverUri,
                         m_endpoint.EndpointUrl.ToString(),
                         sessionName,
                         clientNonce,
