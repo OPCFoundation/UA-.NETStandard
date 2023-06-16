@@ -276,7 +276,7 @@ namespace Quickstarts
                         return;
                     }
 
-                    var state = m_reconnectHandler.BeginReconnect(m_session, ReconnectPeriod, Client_ReconnectComplete);
+                    var state = m_reconnectHandler.BeginReconnect(m_session, m_reverseConnectManager, ReconnectPeriod, Client_ReconnectComplete);
                     if (state == SessionReconnectHandler.ReconnectState.Triggered)
                     {
                         Utils.LogInfo("KeepAlive status {0}, reconnect status {1}, reconnect period {2}ms.", e.Status, state, ReconnectPeriod);
