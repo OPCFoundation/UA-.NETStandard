@@ -235,7 +235,7 @@ namespace Opc.Ua.Client
                     return m_state;
                 }
 
-                // if triggered, reset timer if requested reconnect period is shorter
+                // if triggered, reset timer only if requested reconnect period is shorter
                 if (m_state == ReconnectState.Triggered && reconnectPeriod < m_baseReconnectPeriod)
                 {
                     m_baseReconnectPeriod = reconnectPeriod;

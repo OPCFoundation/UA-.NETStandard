@@ -340,24 +340,21 @@ namespace Opc.Ua.Client
         {
             lock (m_lock)
             {
-                if (m_endpointUrls != null)
+                foreach (var host in m_endpointUrls)
                 {
-                    foreach (var host in m_endpointUrls)
+                    var value = host.Value;
+                    try
                     {
-                        var value = host.Value;
-                        try
+                        if (value.State == ReverseConnectHostState.Open)
                         {
-                            if (value.State == ReverseConnectHostState.Open)
-                            {
-                                value.ReverseConnectHost.Close();
-                                value.State = ReverseConnectHostState.Closed;
-                            }
+                            value.ReverseConnectHost.Close();
+                            value.State = ReverseConnectHostState.Closed;
                         }
-                        catch (Exception e)
-                        {
-                            Utils.LogError(e, "Failed to Close {0}.", host.Key);
-                            value.State = ReverseConnectHostState.Errored;
-                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError(e, "Failed to Close {0}.", host.Key);
+                        value.State = ReverseConnectHostState.Errored;
                     }
                 }
             }
