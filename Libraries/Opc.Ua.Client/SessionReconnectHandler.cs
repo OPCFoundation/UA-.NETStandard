@@ -235,7 +235,7 @@ namespace Opc.Ua.Client
                     return m_state;
                 }
 
-                // if triggered, reset timer if requested reconnect period is smaller
+                // if triggered, reset timer if requested reconnect period is shorter
                 if (m_state == ReconnectState.Triggered && reconnectPeriod < m_baseReconnectPeriod)
                 {
                     m_baseReconnectPeriod = reconnectPeriod;
@@ -351,8 +351,8 @@ namespace Opc.Ua.Client
                     {
                         int elapsed = (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
                         Utils.LogInfo("Reconnect period is {0} ms, {1} ms elapsed in reconnect.", m_reconnectPeriod, elapsed);
-                        int adjustedReconnectPeriod = JitteredReconnectPeriod(m_reconnectPeriod) - elapsed;
-                        adjustedReconnectPeriod = CheckedReconnectPeriod(adjustedReconnectPeriod);
+                        int adjustedReconnectPeriod = CheckedReconnectPeriod(m_reconnectPeriod - elapsed);
+                        adjustedReconnectPeriod = JitteredReconnectPeriod(adjustedReconnectPeriod);
                         m_reconnectTimer.Change(adjustedReconnectPeriod, Timeout.Infinite);
                         Utils.LogInfo("Next adjusted reconnect scheduled in {0} ms.", adjustedReconnectPeriod);
                         m_reconnectPeriod = CheckedReconnectPeriod(m_reconnectPeriod, true);
