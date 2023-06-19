@@ -78,7 +78,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool jsonvalues = false;
             bool verbose = false;
             bool subscribe = false;
-            bool useSecurity = true;
+            bool noSecurity = false;
             string password = null;
             int timeout = Timeout.Infinite;
             string logFile = null;
@@ -88,7 +88,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 usage,
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
-                { "nsec|nosecurity", "select endpoint with security NONE, if available", s => useSecurity = !(s != null) },
+                { "nsec|nosecurity", "select endpoint with security NONE, least secure if unavailable", s => noSecurity = s != null },
                 { "un|username=", "the name of the user identity for the connection", (string u) => username = u },
                 { "up|userpassword=", "the password of the user identity for the connection", (string u) => userpassword = u },
                 { "c|console", "log to console", c => logConsole = c != null },
@@ -175,7 +175,8 @@ namespace Quickstarts.ConsoleReferenceClient
                 }
 
                 // wait for timeout or Ctrl-C
-                var quitEvent = ConsoleUtils.CtrlCHandler();
+                var quitCTS = new CancellationTokenSource();
+                var quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
 
                 // connect to a server until application stops
                 bool quit = false;
@@ -204,7 +205,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             uaClient.UserIdentity = new UserIdentity(username, userpassword ?? string.Empty);
                         }
 
-                        bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), useSecurity).ConfigureAwait(false);
+                        bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), !noSecurity, quitCTS.Token).ConfigureAwait(false);
                         if (connected)
                         {
                             output.WriteLine("Connected! Ctrl-C to quit.");

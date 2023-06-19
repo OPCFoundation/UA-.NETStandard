@@ -126,7 +126,7 @@ namespace Quickstarts
         /// <summary>
         /// Creates a session with the UA server
         /// </summary>
-        public async Task<bool> ConnectAsync(string serverUrl, bool useSecurity = true)
+        public async Task<bool> ConnectAsync(string serverUrl, bool useSecurity = true, CancellationToken ct = default)
         {
             if (serverUrl == null) throw new ArgumentNullException(nameof(serverUrl));
 
@@ -146,8 +146,9 @@ namespace Quickstarts
                         do
                         {
                             using (var cts = new CancellationTokenSource(30_000))
+                            using (var linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(ct, cts.Token))
                             {
-                                connection = await m_reverseConnectManager.WaitForConnection(new Uri(serverUrl), null, cts.Token);
+                                connection = await m_reverseConnectManager.WaitForConnection(new Uri(serverUrl), null, linkedCTS.Token);
                                 if (connection == null)
                                 {
                                     throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for a reverse connection timed out.");
