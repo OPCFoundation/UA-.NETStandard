@@ -78,6 +78,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool jsonvalues = false;
             bool verbose = false;
             bool subscribe = false;
+            bool useSecurity = true;
             string password = null;
             int timeout = Timeout.Infinite;
             string logFile = null;
@@ -87,6 +88,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 usage,
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
+                { "nsec|nosecurity", "select endpoint with security NONE, if available", s => useSecurity = !(s != null) },
                 { "un|username=", "the name of the user identity for the connection", (string u) => username = u },
                 { "up|userpassword=", "the password of the user identity for the connection", (string u) => userpassword = u },
                 { "c|console", "log to console", c => logConsole = c != null },
@@ -101,7 +103,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "j|json", "Output all Values as JSON", j => { if (j != null) jsonvalues = true; } },
                 { "v|verbose", "Verbose output", v => { if (v != null) verbose = true; } },
                 { "s|subscribe", "Subscribe", s => { if (s != null) subscribe = true; } },
-                { "rc|reverseconnect=", "Connect using the reverse connect endpoint. (e.g. opc.tcp://localhost:65300)", (string url) => reverseConnectUrlString = url},
+                { "rc|reverseconnect=", "Connect using the reverse connect endpoint. (e.g. rc=opc.tcp://localhost:65300)", (string url) => reverseConnectUrlString = url},
             };
 
             ReverseConnectManager reverseConnectManager = null;
@@ -193,7 +195,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     // create the UA Client object and connect to configured server.
                     using (UAClient uaClient = new UAClient(application.ApplicationConfiguration, reverseConnectManager, output, ClientBase.ValidateResponse) {
                         AutoAccept = autoAccept,
-                        SessionLifeTime = 60000,
+                        SessionLifeTime = 60_000,
                     })
                     {
                         // set user identity
@@ -202,7 +204,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             uaClient.UserIdentity = new UserIdentity(username, userpassword ?? string.Empty);
                         }
 
-                        bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), false).ConfigureAwait(false);
+                        bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), useSecurity).ConfigureAwait(false);
                         if (connected)
                         {
                             output.WriteLine("Connected! Ctrl-C to quit.");
@@ -270,7 +272,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                     }
 
                                     await samples.SubscribeAllValuesAsync(uaClient,
-                                        variableIds: new NodeCollection(variables.Take(100)),
+                                        variableIds: new NodeCollection(variables),
                                         samplingInterval: 1000,
                                         publishingInterval: 5000,
                                         queueSize: 10,
