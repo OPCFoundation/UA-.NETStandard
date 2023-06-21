@@ -14,10 +14,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
@@ -28,14 +26,33 @@ namespace Opc.Ua
     /// </summary>
     public class DirectoryCertificateStore : ICertificateStore
     {
+        // the sub directories and extensions used in a directory store
+        private const string kCertsPath = "certs";
+        private const string kPrivateKeyPath = "private";
+        private const string kCrlPath = "crl";
+        private const string kCertExtension = ".der";
+        private const string kCrlExtension = ".crl";
+        private const string kPemExtension = ".pem";
+        private const string kPfxExtension = ".pfx";
+
         #region Constructors
         /// <summary>
-        /// Initializes a store with the specified directory path.
+        /// Initializes a store for a directory path.
         /// </summary>
-        public DirectoryCertificateStore()
+        public DirectoryCertificateStore() : this(false)
         {
+        }
+
+        /// <summary>
+        /// Initializes a store with a directory path.
+        /// </summary>
+        public DirectoryCertificateStore(bool noSubDirs)
+        {
+            m_noSubDirs = noSubDirs;
             m_certificates = new Dictionary<string, Entry>();
         }
+
+
         #endregion
 
         #region IDisposable Members
@@ -61,6 +78,7 @@ namespace Opc.Ua
                     m_directory = null;
                     m_certificateSubdir = null;
                     m_privateKeySubdir = null;
+                    m_crlSubdir = null;
                     m_lastDirectoryCheck = DateTime.MinValue;
                 }
             }
@@ -91,8 +109,18 @@ namespace Opc.Ua
                     NoPrivateKeys = noPrivateKeys;
                     StorePath = location;
                     m_directory = new DirectoryInfo(trimmedLocation);
-                    m_certificateSubdir = new DirectoryInfo(Path.Combine(m_directory.FullName, "certs"));
-                    m_privateKeySubdir = new DirectoryInfo(Path.Combine(m_directory.FullName, "private"));
+                    if (m_noSubDirs)
+                    {
+                        m_certificateSubdir = m_directory;
+                        m_crlSubdir = m_directory;
+                        m_privateKeySubdir = !noPrivateKeys ? m_directory : null;
+                    }
+                    else
+                    {
+                        m_certificateSubdir = new DirectoryInfo(Path.Combine(m_directory.FullName, kCertsPath));
+                        m_crlSubdir = new DirectoryInfo(Path.Combine(m_directory.FullName, kCrlPath));
+                        m_privateKeySubdir = !noPrivateKeys ? new DirectoryInfo(Path.Combine(m_directory.FullName, kPrivateKeyPath)) : null;
+                    }
                     m_certificates.Clear();
                     m_lastDirectoryCheck = DateTime.MinValue;
                 }
@@ -117,7 +145,7 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 IDictionary<string, Entry> certificatesInStore = Load(null);
-                X509Certificate2Collection certificates = new X509Certificate2Collection();
+                var certificates = new X509Certificate2Collection();
 
                 foreach (Entry entry in certificatesInStore.Values)
                 {
@@ -238,7 +266,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
-            X509Certificate2Collection certificates = new X509Certificate2Collection();
+            var certificates = new X509Certificate2Collection();
 
             lock (m_lock)
             {
@@ -312,7 +340,8 @@ namespace Opc.Ua
         /// </summary>
         public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
         {
-            if (NoPrivateKeys || m_certificateSubdir == null || !m_certificateSubdir.Exists)
+            if (NoPrivateKeys || m_privateKeySubdir == null ||
+                m_certificateSubdir == null || !m_certificateSubdir.Exists)
             {
                 return null;
             }
@@ -330,11 +359,11 @@ namespace Opc.Ua
             {
                 bool certificateFound = false;
                 Exception importException = null;
-                foreach (FileInfo file in m_certificateSubdir.GetFiles("*.der"))
+                foreach (FileInfo file in m_certificateSubdir.GetFiles("*" + kCertExtension))
                 {
                     try
                     {
-                        X509Certificate2 certificate = new X509Certificate2(file.FullName);
+                        var certificate = new X509Certificate2(file.FullName);
 
                         if (!String.IsNullOrEmpty(thumbprint))
                         {
@@ -378,8 +407,8 @@ namespace Opc.Ua
                             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet
                         };
 
-                        FileInfo privateKeyFilePfx = new FileInfo(filePath + ".pfx");
-                        FileInfo privateKeyFilePem = new FileInfo(filePath + ".pem");
+                        var privateKeyFilePfx = new FileInfo(filePath + kPfxExtension);
+                        var privateKeyFilePem = new FileInfo(filePath + kPemExtension);
                         password = password ?? String.Empty;
                         if (privateKeyFilePfx.Exists)
                         {
@@ -481,13 +510,11 @@ namespace Opc.Ua
             }
 
             // check for CRL.
-            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
-
-            if (info.Exists)
+            if (m_crlSubdir.Exists)
             {
                 bool crlExpired = true;
 
-                foreach (FileInfo file in info.GetFiles("*.crl"))
+                foreach (FileInfo file in m_crlSubdir.GetFiles("*" + kCrlExtension))
                 {
                     X509CRL crl = null;
 
@@ -542,13 +569,11 @@ namespace Opc.Ua
             var crls = new X509CRLCollection();
 
             // check for CRL.
-            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
-
-            if (info.Exists)
+            if (m_crlSubdir.Exists)
             {
-                foreach (FileInfo file in info.GetFiles("*.crl"))
+                foreach (FileInfo file in m_crlSubdir.GetFiles("*" + kCrlExtension))
                 {
-                    X509CRL crl = new X509CRL(file.FullName);
+                    var crl = new X509CRL(file.FullName);
                     crls.Add(crl);
                 }
             }
@@ -615,13 +640,11 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Could not find issuer of the CRL.");
             }
 
-            StringBuilder builder = new StringBuilder();
-            builder.Append(m_directory.FullName);
-            builder.Append(Path.DirectorySeparatorChar).Append("crl").Append(Path.DirectorySeparatorChar);
-            builder.Append(GetFileName(issuer));
-            builder.Append(".crl");
+            var builder = new StringBuilder();
+            builder.Append(m_crlSubdir.FullName).Append(Path.DirectorySeparatorChar);
+            builder.Append(GetFileName(issuer)).Append(kCrlExtension);
 
-            FileInfo fileInfo = new FileInfo(builder.ToString());
+            var fileInfo = new FileInfo(builder.ToString());
 
             if (!fileInfo.Directory.Exists)
             {
@@ -639,14 +662,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
-            string filePath = m_directory.FullName;
-            filePath += Path.DirectorySeparatorChar + "crl";
 
-            DirectoryInfo dirInfo = new DirectoryInfo(filePath);
-
-            if (dirInfo.Exists)
+            if (m_crlSubdir.Exists)
             {
-                foreach (FileInfo fileInfo in dirInfo.GetFiles("*.crl"))
+                foreach (FileInfo fileInfo in m_crlSubdir.GetFiles("*" + kCrlExtension))
                 {
                     if (fileInfo.Length == crl.RawData.Length)
                     {
@@ -706,7 +725,7 @@ namespace Opc.Ua
 
                 // check if cache is still good.
                 if ((m_certificateSubdir.LastWriteTimeUtc < m_lastDirectoryCheck) &&
-                    (NoPrivateKeys || !m_privateKeySubdir.Exists || m_privateKeySubdir.LastWriteTimeUtc < m_lastDirectoryCheck))
+                    (NoPrivateKeys || m_privateKeySubdir == null || m_privateKeySubdir.Exists || m_privateKeySubdir.LastWriteTimeUtc < m_lastDirectoryCheck))
                 {
                     return m_certificates;
                 }
@@ -720,7 +739,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        Entry entry = new Entry {
+                        var entry = new Entry {
                             Certificate = new X509Certificate2(file.FullName),
                             CertificateFile = file,
                             PrivateKeyFile = null,
@@ -731,20 +750,20 @@ namespace Opc.Ua
                         {
                             string fileRoot = file.Name.Substring(0, entry.CertificateFile.Name.Length - entry.CertificateFile.Extension.Length);
 
-                            StringBuilder filePath = new StringBuilder();
+                            var filePath = new StringBuilder();
                             filePath.Append(m_privateKeySubdir.FullName);
                             filePath.Append(Path.DirectorySeparatorChar);
                             filePath.Append(fileRoot);
 
                             // check for PFX file.
-                            entry.PrivateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
+                            entry.PrivateKeyFile = new FileInfo(filePath.ToString() + kPfxExtension);
 
                             // note: only obtain the filenames for delete, loading the private keys
                             // without authorization causes false negatives (LogErrors)
                             if (!entry.PrivateKeyFile.Exists)
                             {
                                 // check for PEM file.
-                                entry.PrivateKeyFile = new FileInfo(filePath.ToString() + ".pem");
+                                entry.PrivateKeyFile = new FileInfo(filePath.ToString() + kPemExtension);
 
                                 if (!entry.PrivateKeyFile.Exists)
                                 {
@@ -816,7 +835,7 @@ namespace Opc.Ua
                 }
             }
 
-            StringBuilder fileName = new StringBuilder();
+            var fileName = new StringBuilder();
 
             // remove any special characters.
             for (int ii = 0; ii < commonName.Length; ii++)
@@ -843,7 +862,7 @@ namespace Opc.Ua
         /// </summary>
         private void WriteFile(byte[] data, string fileName, bool includePrivateKey)
         {
-            StringBuilder filePath = new StringBuilder();
+            var filePath = new StringBuilder();
 
             if (!m_directory.Exists)
             {
@@ -852,6 +871,11 @@ namespace Opc.Ua
 
             if (includePrivateKey)
             {
+                if (m_privateKeySubdir == null)
+                {
+                    // nothing to do
+                    return;
+                }
                 filePath.Append(m_privateKeySubdir.FullName);
             }
             else
@@ -864,22 +888,22 @@ namespace Opc.Ua
 
             if (includePrivateKey)
             {
-                filePath.Append(".pfx");
+                filePath.Append(kPfxExtension);
             }
             else
             {
-                filePath.Append(".der");
+                filePath.Append(kCertExtension);
             }
 
             // create the directory.
-            FileInfo fileInfo = new FileInfo(filePath.ToString());
+            var fileInfo = new FileInfo(filePath.ToString());
             if (!fileInfo.Directory.Exists)
             {
                 fileInfo.Directory.Create();
             }
 
             // write file.
-            BinaryWriter writer = new BinaryWriter(fileInfo.Open(FileMode.Create));
+            var writer = new BinaryWriter(fileInfo.Open(FileMode.Create));
             try
             {
                 writer.Write(data);
@@ -891,7 +915,7 @@ namespace Opc.Ua
             }
 
             m_certificateSubdir.Refresh();
-            m_privateKeySubdir.Refresh();
+            m_privateKeySubdir?.Refresh();
         }
         #endregion
 
@@ -907,8 +931,10 @@ namespace Opc.Ua
 
         #region Private Fields
         private object m_lock = new object();
+        private bool m_noSubDirs;
         private DirectoryInfo m_directory;
         private DirectoryInfo m_certificateSubdir;
+        private DirectoryInfo m_crlSubdir;
         private DirectoryInfo m_privateKeySubdir;
         private Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
