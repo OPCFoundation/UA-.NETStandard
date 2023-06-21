@@ -38,7 +38,7 @@ using Opc.Ua.Security.Certificates;
 namespace Opc.Ua.Configuration.Tests
 {
     /// <summary>
-    /// Tests for the CertificateFactory class.
+    /// Tests for the custom certificate store config extensions.
     /// </summary>
     [TestFixture, Category("CertificateStore")]
     [SetCulture("en-us")]
@@ -71,19 +71,25 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = "Application",
             };
 
+            string appStorePath = m_tempPath + Path.DirectorySeparatorChar + "own";
+            string trustedStorePath = m_tempPath + Path.DirectorySeparatorChar + "trusted";
+            string issuerStorePath = m_tempPath + Path.DirectorySeparatorChar + "issuer";
+            string trustedUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "trustedUser";
+            string issuerUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "userIssuer";
+
             var appConfigBuilder = application.Build(
                 applicationUri: "urn:localhost:CertStoreTypeTest",
                 productUri: "uri:opcfoundation.org:Tests:CertStoreTypeTest")
                 .AsClient()
                 .AddSecurityConfigurationStores(
                     subjectName: "CN=CertStoreTypeTest, O=OPC Foundation",
-                    appRoot: TestCertStore.StoreTypePrefix + m_tempPath + Path.DirectorySeparatorChar + "own",
-                    trustedRoot: TestCertStore.StoreTypePrefix + m_tempPath + Path.DirectorySeparatorChar + "trusted",
-                    issuerRoot: TestCertStore.StoreTypePrefix + m_tempPath + Path.DirectorySeparatorChar + "issuer"
+                    appRoot: TestCertStore.StoreTypePrefix + appStorePath,
+                    trustedRoot: TestCertStore.StoreTypePrefix + trustedStorePath,
+                    issuerRoot: TestCertStore.StoreTypePrefix + issuerStorePath
                     )
                 .AddSecurityConfigurationUserStore(
-                    trustedRoot: TestCertStore.StoreTypePrefix + m_tempPath + Path.DirectorySeparatorChar + "trustedUser",
-                    issuerRoot: TestCertStore.StoreTypePrefix + m_tempPath + Path.DirectorySeparatorChar + "userIssuer"
+                    trustedRoot: TestCertStore.StoreTypePrefix + trustedUserStorePath,
+                    issuerRoot: TestCertStore.StoreTypePrefix + issuerUserStorePath
                 );
 
             // patch custom stores before creating the config
@@ -94,17 +100,32 @@ namespace Opc.Ua.Configuration.Tests
 
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
-            var trustedIssuers = appConfig.SecurityConfiguration.TrustedIssuerCertificates;
-            ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore();
-            trustedIssuersStore.Close();
+
+            OpenCertStore(appConfig.SecurityConfiguration.TrustedIssuerCertificates);
+            OpenCertStore(appConfig.SecurityConfiguration.TrustedPeerCertificates);
+            OpenCertStore(appConfig.SecurityConfiguration.UserIssuerCertificates);
+            OpenCertStore(appConfig.SecurityConfiguration.TrustedUserCertificates);
+
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
-            CertificateStoreIdentifier.OpenStore(TestCertStore.StoreTypePrefix + m_tempPath + Path.DirectorySeparatorChar + "trustedUser");
+            CertificateStoreIdentifier.OpenStore(TestCertStore.StoreTypePrefix + trustedUserStorePath);
             Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
         }
         #endregion Test Methods
 
-        #region Private members
+        #region Private Methods
+        private void OpenCertStore(CertificateTrustList trustList)
+        {
+            using (ICertificateStore trustListStore = trustList.OpenStore())
+            {
+                var certs = trustListStore.Enumerate();
+                var crls = trustListStore.EnumerateCRLs();
+                trustListStore.Close();
+            }
+        }
+        #endregion
+
+        #region Private Members
         private string m_tempPath;
         #endregion
     }
