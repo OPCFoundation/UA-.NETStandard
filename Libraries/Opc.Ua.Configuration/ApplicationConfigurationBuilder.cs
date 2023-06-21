@@ -141,15 +141,8 @@ namespace Opc.Ua.Configuration
                     StoreType = rejectedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
                 },
-                // ensure secure default settings
-                AutoAcceptUntrustedCertificates = false,
-                AddAppCertToTrustedStore = false,
-                RejectSHA1SignedCertificates = true,
-                RejectUnknownRevocationStatus = true,
-                SuppressNonceValidationErrors = false,
-                SendCertificateChain = true,
-                MinimumCertificateKeySize = CertificateFactory.DefaultKeySize
             };
+            SetSecureDefaults(ApplicationConfiguration.SecurityConfiguration);
 
             return this;
         }
@@ -189,15 +182,8 @@ namespace Opc.Ua.Configuration
                     StoreType = rejectedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
                 },
-                // ensure secure default settings
-                AutoAcceptUntrustedCertificates = false,
-                AddAppCertToTrustedStore = false,
-                RejectSHA1SignedCertificates = true,
-                RejectUnknownRevocationStatus = true,
-                SuppressNonceValidationErrors = false,
-                SendCertificateChain = true,
-                MinimumCertificateKeySize = CertificateFactory.DefaultKeySize
             };
+            SetSecureDefaults(ApplicationConfiguration.SecurityConfiguration);
 
             return this;
         }
@@ -995,6 +981,21 @@ namespace Opc.Ua.Configuration
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Set secure defaults for flags.
+        /// </summary>
+        private void SetSecureDefaults(SecurityConfiguration securityConfiguration)
+        {
+            // ensure secure default settings
+            securityConfiguration.AutoAcceptUntrustedCertificates = false;
+            securityConfiguration.AddAppCertToTrustedStore = false;
+            securityConfiguration.RejectSHA1SignedCertificates = true;
+            securityConfiguration.RejectUnknownRevocationStatus = true;
+            securityConfiguration.SuppressNonceValidationErrors = false;
+            securityConfiguration.SendCertificateChain = true;
+            securityConfiguration.MinimumCertificateKeySize = CertificateFactory.DefaultKeySize;
         }
 
         /// <summary>
