@@ -725,7 +725,8 @@ namespace Opc.Ua
 
                 // check if cache is still good.
                 if ((m_certificateSubdir.LastWriteTimeUtc < m_lastDirectoryCheck) &&
-                    (NoPrivateKeys || m_privateKeySubdir == null || m_privateKeySubdir.Exists || m_privateKeySubdir.LastWriteTimeUtc < m_lastDirectoryCheck))
+                    (NoPrivateKeys || m_privateKeySubdir == null || !m_privateKeySubdir.Exists ||
+                    m_privateKeySubdir.LastWriteTimeUtc < m_lastDirectoryCheck))
                 {
                     return m_certificates;
                 }

@@ -934,7 +934,7 @@ namespace Opc.Ua.Configuration
             }
             else
             {
-                // return custom root store, the 
+                // return custom root store
                 return pkiRoot;
             }
             throw new NotSupportedException("Unsupported store type.");
