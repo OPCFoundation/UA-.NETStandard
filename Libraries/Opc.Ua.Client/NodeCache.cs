@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 
 namespace Opc.Ua.Client
 {
@@ -51,6 +52,18 @@ namespace Opc.Ua.Client
             m_typeTree = new TypeTable(m_session.NamespaceUris);
             m_nodes = new NodeTable(m_session.NamespaceUris, m_session.ServerUris, m_typeTree);
             m_uaTypesLoaded = false;
+            m_cacheLock = new ReaderWriterLockSlim();
+        }
+
+        /// <summary>
+        /// Destructor to clean up.
+        /// </summary>
+        ~NodeCache()
+        {
+            if (m_cacheLock != null)
+            {
+                m_cacheLock.Dispose();
+            }
         }
         #endregion
 
@@ -79,16 +92,24 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            // check if node alredy exists.
-            INode node = m_nodes.Find(nodeId);
-
-            if (node != null)
+            m_cacheLock.EnterReadLock();
+            try
             {
-                // do not return temporary nodes created after a Browse().
-                if (node.GetType() != typeof(Node))
+                // check if node alredy exists.
+                INode node = m_nodes.Find(nodeId);
+
+                if (node != null)
                 {
-                    return node;
+                    // do not return temporary nodes created after a Browse().
+                    if (node.GetType() != typeof(Node))
+                    {
+                        return node;
+                    }
                 }
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
             }
 
             // fetch node from server.
@@ -120,8 +141,17 @@ namespace Opc.Ua.Client
             int ii;
             for (ii = 0; ii < count; ii++)
             {
-                // check if node already exists.
-                INode node = m_nodes.Find(nodeIds[ii]);
+                INode node;
+                m_cacheLock.EnterReadLock();
+                try
+                {
+                    // check if node already exists.
+                    node = m_nodes.Find(nodeIds[ii]);
+                }
+                finally
+                {
+                    m_cacheLock.ExitReadLock();
+                }
 
                 // do not return temporary nodes created after a Browse().
                 if (node != null &&
@@ -185,7 +215,6 @@ namespace Opc.Ua.Client
         {
             // find the source.
             Node source = Find(sourceId) as Node;
-
             if (source == null)
             {
                 return null;
@@ -573,16 +602,24 @@ namespace Opc.Ua.Client
             var assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
             predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes", assembly, true);
 
-            for (int ii = 0; ii < predefinedNodes.Count; ii++)
+            m_cacheLock.EnterWriteLock();
+            try
             {
-                BaseTypeState type = predefinedNodes[ii] as BaseTypeState;
-
-                if (type == null)
+                for (int ii = 0; ii < predefinedNodes.Count; ii++)
                 {
-                    continue;
-                }
+                    BaseTypeState type = predefinedNodes[ii] as BaseTypeState;
 
-                type.Export(context, m_nodes);
+                    if (type == null)
+                    {
+                        continue;
+                    }
+
+                    type.Export(context, m_nodes);
+                }
+            }
+            finally
+            {
+                m_cacheLock.ExitWriteLock();
             }
             m_uaTypesLoaded = true;
         }
@@ -591,7 +628,15 @@ namespace Opc.Ua.Client
         public void Clear()
         {
             m_uaTypesLoaded = false;
-            m_nodes.Clear();
+            m_cacheLock.EnterWriteLock();
+            try
+            {
+                m_nodes.Clear();
+            }
+            finally
+            {
+                m_cacheLock.ExitWriteLock();
+            }
         }
 
         /// <inheritdoc/>
@@ -612,32 +657,41 @@ namespace Opc.Ua.Client
                 // fetch references from server.
                 ReferenceDescriptionCollection references = m_session.FetchReferences(localId);
 
-                foreach (ReferenceDescription reference in references)
+                m_cacheLock.EnterWriteLock();
+                try
                 {
-                    // create a placeholder for the node if it does not already exist.
-                    if (!m_nodes.Exists(reference.NodeId))
+                    foreach (ReferenceDescription reference in references)
                     {
-                        // transform absolute identifiers.
-                        if (reference.NodeId != null && reference.NodeId.IsAbsolute)
+                        // create a placeholder for the node if it does not already exist.
+                        if (!m_nodes.Exists(reference.NodeId))
                         {
-                            reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
+                            // transform absolute identifiers.
+                            if (reference.NodeId != null && reference.NodeId.IsAbsolute)
+                            {
+                                reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
+                            }
+
+                            Node target = new Node(reference);
+                            m_nodes.Attach(target);
                         }
 
-                        Node target = new Node(reference);
-                        m_nodes.Attach(target);
+                        // add the reference.
+                        source.ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
                     }
 
-                    // add the reference.
-                    source.ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
+                    // add to cache.
+                    m_nodes.Attach(source);
+
+                }
+                finally
+                {
+                    m_cacheLock.ExitWriteLock();
                 }
             }
             catch (Exception e)
             {
                 Utils.LogError("Could not fetch references for valid node with NodeId = {0}. Error = {1}", nodeId, e.Message);
             }
-
-            // add to cache.
-            m_nodes.Attach(source);
 
             return source;
         }
@@ -658,41 +712,49 @@ namespace Opc.Ua.Client
             m_session.ReadNodes(localIds, out IList<Node> sourceNodes, out IList<ServiceResult> readErrors);
             m_session.FetchReferences(localIds, out IList<ReferenceDescriptionCollection> referenceCollectionList, out IList<ServiceResult> fetchErrors);
 
-            int ii = 0;
-            for (ii = 0; ii < count; ii++)
+            m_cacheLock.EnterWriteLock();
+            try
             {
-                if (ServiceResult.IsBad(readErrors[ii]))
+                int ii = 0;
+                for (ii = 0; ii < count; ii++)
                 {
-                    continue;
-                }
-
-                if (!ServiceResult.IsBad(fetchErrors[ii]))
-                {
-                    // fetch references from server.
-                    ReferenceDescriptionCollection references = referenceCollectionList[ii];
-
-                    foreach (ReferenceDescription reference in references)
+                    if (ServiceResult.IsBad(readErrors[ii]))
                     {
-                        // create a placeholder for the node if it does not already exist.
-                        if (!m_nodes.Exists(reference.NodeId))
+                        continue;
+                    }
+
+                    if (!ServiceResult.IsBad(fetchErrors[ii]))
+                    {
+                        // fetch references from server.
+                        ReferenceDescriptionCollection references = referenceCollectionList[ii];
+
+                        foreach (ReferenceDescription reference in references)
                         {
-                            // transform absolute identifiers.
-                            if (reference.NodeId != null && reference.NodeId.IsAbsolute)
+                            // create a placeholder for the node if it does not already exist.
+                            if (!m_nodes.Exists(reference.NodeId))
                             {
-                                reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
+                                // transform absolute identifiers.
+                                if (reference.NodeId != null && reference.NodeId.IsAbsolute)
+                                {
+                                    reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
+                                }
+
+                                Node target = new Node(reference);
+                                m_nodes.Attach(target);
                             }
 
-                            Node target = new Node(reference);
-                            m_nodes.Attach(target);
+                            // add the reference.
+                            sourceNodes[ii].ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
                         }
-
-                        // add the reference.
-                        sourceNodes[ii].ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
                     }
-                }
 
-                // add to cache.
-                m_nodes.Attach(sourceNodes[ii]);
+                    // add to cache.
+                    m_nodes.Attach(sourceNodes[ii]);
+                }
+            }
+            finally
+            {
+                m_cacheLock.ExitWriteLock();
             }
 
             return sourceNodes;
@@ -909,6 +971,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
+        private ReaderWriterLockSlim m_cacheLock = new ReaderWriterLockSlim();
         private ISession m_session;
         private TypeTable m_typeTree;
         private NodeTable m_nodes;

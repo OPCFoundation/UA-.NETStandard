@@ -182,7 +182,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Browse all variables in the objects folder.
         /// </summary>
-        [Test, Order(100)]
+        [Test, Order(200)]
         public void NodeCache_BrowseAllVariables_MultipleNodes()
         {
             var result = new List<INode>();
@@ -354,6 +354,82 @@ namespace Opc.Ua.Client.Tests
                 .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), Session.NamespaceUris));
 
             Session.FetchTypeTree(new ExpandedNodeIdCollection(fieldValues));
+        }
+
+        [Test, Order(1000)]
+        public void NodeCacheFetchNodesConcurrent()
+        {
+            const int TestCycles = 10;
+            if (ReferenceDescriptions == null)
+            {
+                BrowseFullAddressSpace();
+            }
+
+            Random random = new Random(62541);
+            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(TestCycles).Select(r => r.NodeId).ToList();
+            var taskList = new List<Task>();
+
+            // test concurrent access of FetchNodes
+            for (int i = 0; i < 10; i++)
+            {
+                Task t = Task.Run(
+                    () => {
+                        IList<Node> nodeCollection = Session.NodeCache.FetchNodes(testSet);
+                    }
+                    );
+                taskList.Add(t);
+            }
+            Task.WaitAll(taskList.ToArray());
+        }
+
+        [Test, Order(1100)]
+        public void NodeCacheFindNodesConcurrent()
+        {
+            const int TestCycles = 10;
+            if (ReferenceDescriptions == null)
+            {
+                BrowseFullAddressSpace();
+            }
+
+            Random random = new Random(62541);
+            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(TestCycles).Select(r => r.NodeId).ToList();
+            var taskList = new List<Task>();
+
+            // test concurrent access of FetchNodes
+            for (int i = 0; i < 10; i++)
+            {
+                Task t = Task.Run(() => {
+                    IList<INode> nodeCollection = Session.NodeCache.Find(testSet);
+                });
+                taskList.Add(t);
+            }
+            Task.WaitAll(taskList.ToArray());
+        }
+
+        [Test, Order(1200)]
+        public void NodeCacheFindReferencesConcurrent()
+        {
+            const int TestCycles = 10;
+            if (ReferenceDescriptions == null)
+            {
+                BrowseFullAddressSpace();
+            }
+
+            Random random = new Random(62541);
+            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(TestCycles).Select(r => r.NodeId).ToList();
+            var taskList = new List<Task>();
+            var refTypeIds = new List<NodeId>() { ReferenceTypeIds.HierarchicalReferences };
+            FetchAllReferenceTypes();
+
+            // test concurrent access of FetchNodes
+            for (int i = 0; i < 10; i++)
+            {
+                Task t = Task.Run(() => {
+                    IList<INode> nodeCollection = Session.NodeCache.FindReferences(testSet, refTypeIds, false, true);
+                });
+                taskList.Add(t);
+            }
+            Task.WaitAll(taskList.ToArray());
         }
         #endregion
 
