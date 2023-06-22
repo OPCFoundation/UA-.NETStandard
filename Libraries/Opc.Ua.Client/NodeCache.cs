@@ -92,9 +92,10 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            m_cacheLock.EnterReadLock();
             try
             {
+                m_cacheLock.EnterReadLock();
+
                 // check if node alredy exists.
                 INode node = m_nodes.Find(nodeId);
 
@@ -138,32 +139,32 @@ namespace Opc.Ua.Client
             IList<INode> nodes = new List<INode>(count);
             var fetchNodeIds = new ExpandedNodeIdCollection();
 
-            int ii;
-            for (ii = 0; ii < count; ii++)
+            try
             {
-                INode node;
+                int ii;
+
                 m_cacheLock.EnterReadLock();
-                try
+
+                for (ii = 0; ii < count; ii++)
                 {
                     // check if node already exists.
-                    node = m_nodes.Find(nodeIds[ii]);
+                    INode node = m_nodes.Find(nodeIds[ii]);
+                    // do not return temporary nodes created after a Browse().
+                    if (node != null &&
+                        node?.GetType() != typeof(Node))
+                    {
+                        nodes.Add(node);
+                    }
+                    else
+                    {
+                        nodes.Add(null);
+                        fetchNodeIds.Add(nodeIds[ii]);
+                    }
                 }
-                finally
-                {
-                    m_cacheLock.ExitReadLock();
-                }
-
-                // do not return temporary nodes created after a Browse().
-                if (node != null &&
-                    node?.GetType() != typeof(Node))
-                {
-                    nodes.Add(node);
-                }
-                else
-                {
-                    nodes.Add(null);
-                    fetchNodeIds.Add(nodeIds[ii]);
-                }
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
             }
 
             if (fetchNodeIds.Count == 0)
@@ -602,9 +603,10 @@ namespace Opc.Ua.Client
             var assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
             predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes", assembly, true);
 
-            m_cacheLock.EnterWriteLock();
             try
             {
+                m_cacheLock.EnterWriteLock();
+
                 for (int ii = 0; ii < predefinedNodes.Count; ii++)
                 {
                     BaseTypeState type = predefinedNodes[ii] as BaseTypeState;
@@ -628,9 +630,10 @@ namespace Opc.Ua.Client
         public void Clear()
         {
             m_uaTypesLoaded = false;
-            m_cacheLock.EnterWriteLock();
             try
             {
+                m_cacheLock.EnterWriteLock();
+
                 m_nodes.Clear();
             }
             finally
@@ -657,9 +660,10 @@ namespace Opc.Ua.Client
                 // fetch references from server.
                 ReferenceDescriptionCollection references = m_session.FetchReferences(localId);
 
-                m_cacheLock.EnterWriteLock();
                 try
                 {
+                    m_cacheLock.EnterWriteLock();
+
                     foreach (ReferenceDescription reference in references)
                     {
                         // create a placeholder for the node if it does not already exist.
@@ -712,9 +716,10 @@ namespace Opc.Ua.Client
             m_session.ReadNodes(localIds, out IList<Node> sourceNodes, out IList<ServiceResult> readErrors);
             m_session.FetchReferences(localIds, out IList<ReferenceDescriptionCollection> referenceCollectionList, out IList<ServiceResult> fetchErrors);
 
-            m_cacheLock.EnterWriteLock();
             try
             {
+                m_cacheLock.EnterWriteLock();
+
                 int ii = 0;
                 for (ii = 0; ii < count; ii++)
                 {
