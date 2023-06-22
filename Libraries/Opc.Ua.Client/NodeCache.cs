@@ -686,6 +686,7 @@ namespace Opc.Ua.Client
                     // add to cache.
                     m_nodes.Attach(source);
 
+                    return source;
                 }
                 finally
                 {
@@ -695,6 +696,18 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 Utils.LogError("Could not fetch references for valid node with NodeId = {0}. Error = {1}", nodeId, e.Message);
+            }
+
+            try
+            {
+                m_cacheLock.EnterWriteLock();
+
+                // add to cache.
+                m_nodes.Attach(source);
+            }
+            finally
+            {
+                m_cacheLock.ExitWriteLock();
             }
 
             return source;
