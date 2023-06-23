@@ -139,32 +139,33 @@ namespace Opc.Ua.Client
             IList<INode> nodes = new List<INode>(count);
             var fetchNodeIds = new ExpandedNodeIdCollection();
 
-            try
+            int ii;
+            for (ii = 0; ii < count; ii++)
             {
-                int ii;
-
-                m_cacheLock.EnterReadLock();
-
-                for (ii = 0; ii < count; ii++)
+                INode node;
+                try
                 {
+                    m_cacheLock.EnterReadLock();
+
                     // check if node already exists.
-                    INode node = m_nodes.Find(nodeIds[ii]);
-                    // do not return temporary nodes created after a Browse().
-                    if (node != null &&
-                        node?.GetType() != typeof(Node))
-                    {
-                        nodes.Add(node);
-                    }
-                    else
-                    {
-                        nodes.Add(null);
-                        fetchNodeIds.Add(nodeIds[ii]);
-                    }
+                    node = m_nodes.Find(nodeIds[ii]);
                 }
-            }
-            finally
-            {
-                m_cacheLock.ExitReadLock();
+                finally
+                {
+                    m_cacheLock.ExitReadLock();
+                }
+
+                // do not return temporary nodes created after a Browse().
+                if (node != null &&
+                    node?.GetType() != typeof(Node))
+                {
+                    nodes.Add(node);
+                }
+                else
+                {
+                    nodes.Add(null);
+                    fetchNodeIds.Add(nodeIds[ii]);
+                }
             }
 
             if (fetchNodeIds.Count == 0)
