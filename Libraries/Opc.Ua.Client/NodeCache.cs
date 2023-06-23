@@ -223,8 +223,19 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            // find all references.
-            IList<IReference> references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+            IList<IReference> references;
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                // find all references.
+                references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
+
 
             foreach (IReference reference in references)
             {
@@ -262,8 +273,19 @@ namespace Opc.Ua.Client
                 return hits;
             }
 
-            // find all references.
-            IList<IReference> references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+            IList<IReference> references;
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                // find all references.
+                references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
+
 
             foreach (IReference reference in references)
             {
@@ -292,7 +314,16 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            return m_typeTree.IsKnown(typeId);
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                return m_typeTree.IsKnown(typeId);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
         }
 
         /// <inheritdoc/>
@@ -305,7 +336,16 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            return m_typeTree.IsKnown(typeId);
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                return m_typeTree.IsKnown(typeId);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
         }
 
         /// <inheritdoc/>
@@ -318,7 +358,17 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            return m_typeTree.FindSuperType(typeId);
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                return m_typeTree.FindSuperType(typeId);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
+
         }
 
         /// <inheritdoc/>
@@ -331,7 +381,17 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            return m_typeTree.FindSuperType(typeId);
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                return m_typeTree.FindSuperType(typeId);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
+
         }
 
         /// <inheritdoc/>
@@ -345,8 +405,19 @@ namespace Opc.Ua.Client
             }
 
             List<NodeId> subtypes = new List<NodeId>();
+            IList<IReference> references;
+            try
+            {
+                m_cacheLock.EnterReadLock();
 
-            foreach (IReference reference in type.References.Find(ReferenceTypeIds.HasSubtype, false, true, m_typeTree))
+                references = type.References.Find(ReferenceTypeIds.HasSubtype, false, true, m_typeTree);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
+
+            foreach (IReference reference in references)
             {
                 if (!reference.TargetId.IsAbsolute)
                 {
@@ -376,7 +447,17 @@ namespace Opc.Ua.Client
 
             while (supertype != null)
             {
-                ExpandedNodeId currentId = supertype.References.FindTarget(ReferenceTypeIds.HasSubtype, true, true, m_typeTree, 0);
+                ExpandedNodeId currentId;
+                try
+                {
+                    m_cacheLock.EnterReadLock();
+
+                    currentId = supertype.References.FindTarget(ReferenceTypeIds.HasSubtype, true, true, m_typeTree, 0);
+                }
+                finally
+                {
+                    m_cacheLock.ExitReadLock();
+                }
 
                 if (currentId == superTypeId)
                 {
@@ -408,7 +489,17 @@ namespace Opc.Ua.Client
 
             while (supertype != null)
             {
-                ExpandedNodeId currentId = supertype.References.FindTarget(ReferenceTypeIds.HasSubtype, true, true, m_typeTree, 0);
+                ExpandedNodeId currentId;
+                try
+                {
+                    m_cacheLock.EnterReadLock();
+
+                    currentId = supertype.References.FindTarget(ReferenceTypeIds.HasSubtype, true, true, m_typeTree, 0);
+                }
+                finally
+                {
+                    m_cacheLock.ExitReadLock();
+                }
 
                 if (currentId == superTypeId)
                 {
@@ -424,13 +515,31 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public QualifiedName FindReferenceTypeName(NodeId referenceTypeId)
         {
-            return m_typeTree.FindReferenceTypeName(referenceTypeId);
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                return m_typeTree.FindReferenceTypeName(referenceTypeId);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
         }
 
         /// <inheritdoc/>
         public NodeId FindReferenceType(QualifiedName browseName)
         {
-            return m_typeTree.FindReferenceType(browseName);
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                return m_typeTree.FindReferenceType(browseName);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
         }
 
         /// <inheritdoc/>
@@ -443,7 +552,19 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            foreach (IReference reference in encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree))
+            IList<IReference> references;
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
+
+            foreach (IReference reference in references)
             {
                 if (reference.TargetId == datatypeId)
                 {
@@ -478,8 +599,20 @@ namespace Opc.Ua.Client
                 return false;
             }
 
+            IList<IReference> references;
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
+
             // find data type.
-            foreach (IReference reference in encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree))
+            foreach (IReference reference in references)
             {
                 if (reference.TargetId == expectedTypeId)
                 {
@@ -561,7 +694,17 @@ namespace Opc.Ua.Client
                 return NodeId.Null;
             }
 
-            IList<IReference> references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+            IList<IReference> references;
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
 
             if (references.Count > 0)
             {
@@ -581,7 +724,17 @@ namespace Opc.Ua.Client
                 return NodeId.Null;
             }
 
-            IList<IReference> references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+            IList<IReference> references;
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
 
             if (references.Count > 0)
             {
@@ -812,11 +965,17 @@ namespace Opc.Ua.Client
                 return targets;
             }
 
-            IList<IReference> references = source.ReferenceTable.Find(
-                referenceTypeId,
-                isInverse,
-                includeSubtypes,
-                m_typeTree);
+            IList<IReference> references;
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
 
             var targetIds = new ExpandedNodeIdCollection(
                 references.Select(reference => reference.TargetId));
@@ -856,11 +1015,17 @@ namespace Opc.Ua.Client
 
                 foreach (var referenceTypeId in referenceTypeIds)
                 {
-                    IList<IReference> references = node.ReferenceTable.Find(
-                        referenceTypeId,
-                        isInverse,
-                        includeSubtypes,
-                        m_typeTree);
+                    IList<IReference> references;
+                    try
+                    {
+                        m_cacheLock.EnterReadLock();
+
+                        references = node.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+                    }
+                    finally
+                    {
+                        m_cacheLock.ExitReadLock();
+                    }
 
                     targetIds.AddRange(
                         references.Select(reference => reference.TargetId));
@@ -901,7 +1066,19 @@ namespace Opc.Ua.Client
             // use the modelling rule to determine which parent to follow.
             NodeId modellingRule = target.ModellingRule;
 
-            foreach (IReference reference in target.ReferenceTable.Find(ReferenceTypeIds.Aggregates, true, true, m_typeTree))
+            IList<IReference> references;
+            try
+            {
+                m_cacheLock.EnterReadLock();
+
+                references = target.ReferenceTable.Find(ReferenceTypeIds.Aggregates, true, true, m_typeTree);
+            }
+            finally
+            {
+                m_cacheLock.ExitReadLock();
+            }
+
+            foreach (IReference reference in references)
             {
                 Node parent = Find(reference.TargetId) as Node;
 
