@@ -92,25 +92,26 @@ namespace Opc.Ua.Client
                 return null;
             }
 
+            INode node;
             try
             {
                 m_cacheLock.EnterReadLock();
 
                 // check if node alredy exists.
-                INode node = m_nodes.Find(nodeId);
-
-                if (node != null)
-                {
-                    // do not return temporary nodes created after a Browse().
-                    if (node.GetType() != typeof(Node))
-                    {
-                        return node;
-                    }
-                }
+                node = m_nodes.Find(nodeId);
             }
             finally
             {
                 m_cacheLock.ExitReadLock();
+            }
+
+            if (node != null)
+            {
+                // do not return temporary nodes created after a Browse().
+                if (node.GetType() != typeof(Node))
+                {
+                    return node;
+                }
             }
 
             // fetch node from server.
@@ -663,7 +664,7 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    m_cacheLock.EnterWriteLock();
+                    m_cacheLock.EnterUpgradeableReadLock();
 
                     foreach (ReferenceDescription reference in references)
                     {
@@ -677,21 +678,17 @@ namespace Opc.Ua.Client
                             }
 
                             Node target = new Node(reference);
-                            m_nodes.Attach(target);
+
+                            InternalWriteLockedAttach(target);
                         }
 
                         // add the reference.
                         source.ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
                     }
-
-                    // add to cache.
-                    m_nodes.Attach(source);
-
-                    return source;
                 }
                 finally
                 {
-                    m_cacheLock.ExitWriteLock();
+                    m_cacheLock.ExitUpgradeableReadLock();
                 }
             }
             catch (Exception e)
@@ -699,17 +696,7 @@ namespace Opc.Ua.Client
                 Utils.LogError("Could not fetch references for valid node with NodeId = {0}. Error = {1}", nodeId, e.Message);
             }
 
-            try
-            {
-                m_cacheLock.EnterWriteLock();
-
-                // add to cache.
-                m_nodes.Attach(source);
-            }
-            finally
-            {
-                m_cacheLock.ExitWriteLock();
-            }
+            InternalWriteLockedAttach(source);
 
             return source;
         }
@@ -730,25 +717,26 @@ namespace Opc.Ua.Client
             m_session.ReadNodes(localIds, out IList<Node> sourceNodes, out IList<ServiceResult> readErrors);
             m_session.FetchReferences(localIds, out IList<ReferenceDescriptionCollection> referenceCollectionList, out IList<ServiceResult> fetchErrors);
 
-            try
+
+            int ii = 0;
+            for (ii = 0; ii < count; ii++)
             {
-                m_cacheLock.EnterWriteLock();
-
-                int ii = 0;
-                for (ii = 0; ii < count; ii++)
+                if (ServiceResult.IsBad(readErrors[ii]))
                 {
-                    if (ServiceResult.IsBad(readErrors[ii]))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    if (!ServiceResult.IsBad(fetchErrors[ii]))
-                    {
-                        // fetch references from server.
-                        ReferenceDescriptionCollection references = referenceCollectionList[ii];
+                if (!ServiceResult.IsBad(fetchErrors[ii]))
+                {
+                    // fetch references from server.
+                    ReferenceDescriptionCollection references = referenceCollectionList[ii];
 
-                        foreach (ReferenceDescription reference in references)
+                    foreach (ReferenceDescription reference in references)
+                    {
+                        try
                         {
+                            m_cacheLock.EnterUpgradeableReadLock();
+
                             // create a placeholder for the node if it does not already exist.
                             if (!m_nodes.Exists(reference.NodeId))
                             {
@@ -759,21 +747,21 @@ namespace Opc.Ua.Client
                                 }
 
                                 Node target = new Node(reference);
-                                m_nodes.Attach(target);
+
+                                InternalWriteLockedAttach(target);
                             }
-
-                            // add the reference.
-                            sourceNodes[ii].ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
                         }
-                    }
+                        finally
+                        {
+                            m_cacheLock.ExitUpgradeableReadLock();
+                        }
 
-                    // add to cache.
-                    m_nodes.Attach(sourceNodes[ii]);
+                        // add the reference.
+                        sourceNodes[ii].ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
+                    }
                 }
-            }
-            finally
-            {
-                m_cacheLock.ExitWriteLock();
+
+                InternalWriteLockedAttach(sourceNodes[ii]);
             }
 
             return sourceNodes;
@@ -986,6 +974,23 @@ namespace Opc.Ua.Client
             browsePath.Add(node.BrowseName);
 
             return typeId;
+        }
+        #endregion
+
+        #region Private Methods
+        private void InternalWriteLockedAttach(ILocalNode node)
+        {
+            try
+            {
+                m_cacheLock.EnterWriteLock();
+
+                // add to cache.
+                m_nodes.Attach(node);
+            }
+            finally
+            {
+                m_cacheLock.ExitWriteLock();
+            }
         }
         #endregion
 
