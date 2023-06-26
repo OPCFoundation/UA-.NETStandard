@@ -48,6 +48,8 @@ namespace Opc.Ua.Client.Tests
     [DisassemblyDiagnoser]
     public class NodeCacheTest : ClientTestFramework
     {
+        private const int kTestSetSize = 100;
+
         public NodeCacheTest(string uriScheme = Utils.UriSchemeOpcTcp) :
             base(uriScheme)
         {
@@ -359,14 +361,13 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(1000)]
         public void NodeCacheFetchNodesConcurrent()
         {
-            const int TestCycles = 10;
             if (ReferenceDescriptions == null)
             {
                 BrowseFullAddressSpace();
             }
 
             Random random = new Random(62541);
-            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(TestCycles).Select(r => r.NodeId).ToList();
+            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
             var taskList = new List<Task>();
 
             // test concurrent access of FetchNodes
@@ -385,14 +386,13 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(1100)]
         public void NodeCacheFindNodesConcurrent()
         {
-            const int TestCycles = 10;
             if (ReferenceDescriptions == null)
             {
                 BrowseFullAddressSpace();
             }
 
             Random random = new Random(62541);
-            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(TestCycles).Select(r => r.NodeId).ToList();
+            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
             var taskList = new List<Task>();
 
             // test concurrent access of FetchNodes
@@ -409,14 +409,13 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(1200)]
         public void NodeCacheFindReferencesConcurrent()
         {
-            const int TestCycles = 10;
             if (ReferenceDescriptions == null)
             {
                 BrowseFullAddressSpace();
             }
 
             Random random = new Random(62541);
-            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(TestCycles).Select(r => r.NodeId).ToList();
+            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
             var taskList = new List<Task>();
             var refTypeIds = new List<NodeId>() { ReferenceTypeIds.HierarchicalReferences };
             FetchAllReferenceTypes();
@@ -430,6 +429,92 @@ namespace Opc.Ua.Client.Tests
                 taskList.Add(t);
             }
             Task.WaitAll(taskList.ToArray());
+        }
+
+        // write a test for nodecache class
+        // to test concurrent access of FetchNodes
+        [Test, Order(1300)]
+        public void NodeCacheTestAllMethodsConcurrently()
+        {
+            if (ReferenceDescriptions == null)
+            {
+                BrowseFullAddressSpace();
+            }
+
+            Random random = new Random(62541);
+            var testSet1 = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
+            var testSet2 = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
+            var testSet3 = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
+            var taskList = new List<Task>();
+            var refTypeIds = new List<NodeId>() { ReferenceTypeIds.HierarchicalReferences };
+            FetchAllReferenceTypes();
+
+            // test concurrent access of many methods in INodecache interface
+            for (int i = 0; i < 10; i++)
+            {
+                int iteration = i;
+                Task t = Task.Run(() => {
+                    DateTime start = DateTime.UtcNow;
+                    do
+                    {
+                        switch (iteration)
+                        {
+                            case 0:
+                                IList<INode> result = Session.NodeCache.FindReferences(testSet1, refTypeIds, false, true);
+                                break;
+                            case 1:
+                                IList<INode> result1 = Session.NodeCache.Find(testSet2);
+                                break;
+                            case 2:
+                                IList<Node> result2 = Session.NodeCache.FetchNodes(testSet3);
+                                string displayText = Session.NodeCache.GetDisplayText(result2[0]);
+                                break;
+                            case 3:
+                                IList<INode> result3 = Session.NodeCache.FindReferences(testSet1[0], refTypeIds[0], false, true);
+                                break;
+                            case 4:
+                                INode result4 = Session.NodeCache.Find(testSet2[0]);
+                                break;
+                            case 5:
+                                Node result5 = Session.NodeCache.FetchNode(testSet3[0]);
+                                Session.NodeCache.FetchSuperTypes(result5.NodeId);
+                                break;
+                            case 6:
+                                string text = Session.NodeCache.GetDisplayText(testSet2[0]);
+                                break;
+                            case 7:
+                                NodeId number = new NodeId((int)BuiltInType.Number);
+                                bool isKnown = Session.NodeCache.IsKnown(new ExpandedNodeId((int)BuiltInType.Int64));
+                                Assert.True(isKnown);
+                                bool isKnown2 = Session.NodeCache.IsKnown((int)BuiltInType.Int64);
+                                Assert.True(isKnown2);
+                                NodeId nodeId = Session.NodeCache.FindSuperType(new ExpandedNodeId((int)BuiltInType.Int32));
+                                Assert.AreEqual(new NodeId((int)BuiltInType.Integer), nodeId);
+                                NodeId nodeId2 = Session.NodeCache.FindSuperType((int)BuiltInType.Int16);
+                                Assert.AreEqual(new NodeId((int)BuiltInType.Integer), nodeId2);
+                                IList<NodeId> subTypes = Session.NodeCache.FindSubTypes(new ExpandedNodeId((int)BuiltInType.Number));
+                                bool isTypeOf = Session.NodeCache.IsTypeOf(new ExpandedNodeId((int)BuiltInType.Int32), new ExpandedNodeId((int)BuiltInType.Number));
+                                bool isTypeOf2 = Session.NodeCache.IsTypeOf(new NodeId((int)BuiltInType.UInt32), number);
+                                break;
+                            case 8:
+                                bool isEncodingOf = Session.NodeCache.IsEncodingOf(new ExpandedNodeId((int)BuiltInType.Int32), new ExpandedNodeId((int)BuiltInType.Number));
+                                bool isEncodingFor = Session.NodeCache.IsEncodingFor(new NodeId((int)BuiltInType.UInt32), new NodeId((int)BuiltInType.UInteger));
+                                bool isEncodingFor2 = Session.NodeCache.IsEncodingFor(new NodeId((int)BuiltInType.UInt32), new NodeId((int)BuiltInType.UInteger));
+                                break;
+                            case 9:
+                                NodeId findDataTypeId = Session.NodeCache.FindDataTypeId(new ExpandedNodeId((int)Objects.DataTypeAttributes_Encoding_DefaultBinary));
+                                NodeId findDataTypeId2 = Session.NodeCache.FindDataTypeId((int)Objects.DataTypeAttributes_Encoding_DefaultBinary);
+                                break;
+                            default:
+                                break;
+                        }
+                    } while ((DateTime.UtcNow-start).TotalMilliseconds < 5000);
+
+                });
+                taskList.Add(t);
+            }
+            Task.WaitAll(taskList.ToArray());
+
         }
         #endregion
 
