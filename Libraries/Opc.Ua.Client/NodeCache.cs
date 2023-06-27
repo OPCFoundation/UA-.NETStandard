@@ -182,7 +182,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not fetch nodes from server: Reason='{1}'.", e.Message);
+                Utils.LogError("Could not fetch nodes from server: Reason='{0}'.", e.Message);
                 // m_nodes[nodeId] = null;
                 return nodes;
             }
