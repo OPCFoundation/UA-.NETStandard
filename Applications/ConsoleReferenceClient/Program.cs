@@ -129,7 +129,8 @@ namespace Quickstarts.ConsoleReferenceClient
                 // Define the UA Client application
                 ApplicationInstance.MessageDlg = new ApplicationMessageDlg(output);
                 CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(password);
-                ApplicationInstance application = new ApplicationInstance {
+                ApplicationInstance application = new ApplicationInstance
+                {
                     ApplicationName = applicationName,
                     ApplicationType = ApplicationType.Client,
                     ConfigSectionName = configSectionName,
@@ -194,6 +195,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
 
                     // create the UA Client object and connect to configured server.
+
                     using (UAClient uaClient = new UAClient(application.ApplicationConfiguration, reverseConnectManager, output, ClientBase.ValidateResponse) {
                         AutoAccept = autoAccept,
                         SessionLifeTime = 60_000,
@@ -212,8 +214,9 @@ namespace Quickstarts.ConsoleReferenceClient
 
                             // enable subscription transfer
                             uaClient.ReconnectPeriod = 1000;
+                            uaClient.ReconnectPeriodExponentialBackoff = 10000;
+                            uaClient.Session.MinPublishRequestCount = 3;
                             uaClient.Session.TransferSubscriptionsOnReconnect = true;
-
                             var samples = new ClientSamples(output, ClientBase.ValidateResponse, quitEvent, verbose);
                             if (loadTypes)
                             {
@@ -248,8 +251,9 @@ namespace Quickstarts.ConsoleReferenceClient
                                     await samples.ReadAllValuesAsync(uaClient, variableIds).ConfigureAwait(false);
                                 }
 
-                                if (subscribe)
+                                if (subscribe && (browseall || fetchall))
                                 {
+                                    // subscribe to 100 random variables
                                     const int MaxVariables = 100;
                                     NodeCollection variables = new NodeCollection();
                                     Random random = new Random(62541);
@@ -281,13 +285,13 @@ namespace Quickstarts.ConsoleReferenceClient
                                         keepAliveCount: 2).ConfigureAwait(false);
 
                                     // Wait for DataChange notifications from MonitoredItems
+                                    output.WriteLine("Subscribed to {0} variables. Press Ctrl-C to exit.", MaxVariables);
                                     quit = quitEvent.WaitOne(timeout > 0 ? waitTime : Timeout.Infinite);
                                 }
                                 else
                                 {
                                     quit = true;
                                 }
-
                             }
                             else
                             {

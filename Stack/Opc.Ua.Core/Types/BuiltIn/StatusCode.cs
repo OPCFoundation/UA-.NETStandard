@@ -827,7 +827,7 @@ namespace Opc.Ua
     /// A collection of StatusCodes.
     /// </summary>
     [CollectionDataContract(Name = "ListOfStatusCode", Namespace = Namespaces.OpcUaXsd, ItemName = "StatusCode")]
-    public partial class StatusCodeCollection : List<StatusCode>
+    public partial class StatusCodeCollection : List<StatusCode>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -884,6 +884,13 @@ namespace Opc.Ua
             return ToStatusCodeCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -894,6 +901,7 @@ namespace Opc.Ua
         {
             return new StatusCodeCollection(this);
         }
+        #endregion
     }
     #endregion
 

@@ -1543,7 +1543,7 @@ namespace Opc.Ua.Client
             ResponseHeader responseHeader = this.Read(
                 null,
                 0,
-                TimestampsToReturn.Both,
+                TimestampsToReturn.Neither,
                 nodesToRead,
                 out DataValueCollection values,
                 out DiagnosticInfoCollection diagnosticInfos);
@@ -1871,6 +1871,10 @@ namespace Opc.Ua.Client
                 {
                     namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
                 }
+                else
+                {
+                    Utils.LogWarning("Failed to load namespace {0}: {1}", namespaceNodeIds[ii], errors[ii]);
+                }
             }
 
             // build the namespace/schema import dictionary
@@ -1878,9 +1882,9 @@ namespace Opc.Ua.Client
             foreach (var r in references)
             {
                 NodeId nodeId = ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris);
-                if (schemas.TryGetValue(nodeId, out var schema))
+                if (schemas.TryGetValue(nodeId, out var schema) && namespaces.TryGetValue(nodeId, out var ns))
                 {
-                    imports[namespaces[nodeId]] = schema;
+                    imports[ns] = schema;
                 }
             }
 

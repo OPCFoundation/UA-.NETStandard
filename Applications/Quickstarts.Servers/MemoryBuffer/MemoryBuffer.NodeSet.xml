@@ -6,9 +6,51 @@
   </NamespaceUris>
   <ServerUris />
   <Nodes>
+    <Node i:type="VariableTypeNode">
+      <NodeId>
+        <Identifier>ns=1;i=1001</Identifier>
+      </NodeId>
+      <NodeClass>VariableType_16</NodeClass>
+      <BrowseName>
+        <NamespaceIndex>1</NamespaceIndex>
+        <Name>MemoryTagType</Name>
+      </BrowseName>
+      <DisplayName>
+        <Locale></Locale>
+        <Text>MemoryTagType</Text>
+      </DisplayName>
+      <Description i:nil="true" />
+      <WriteMask>0</WriteMask>
+      <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
+      <References>
+        <ReferenceNode>
+          <ReferenceTypeId>
+            <Identifier>i=45</Identifier>
+          </ReferenceTypeId>
+          <IsInverse>true</IsInverse>
+          <TargetId>
+            <Identifier>i=63</Identifier>
+          </TargetId>
+        </ReferenceNode>
+      </References>
+      <Value>
+        <Value>
+          <Null xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+        </Value>
+      </Value>
+      <DataType>
+        <Identifier>i=24</Identifier>
+      </DataType>
+      <ValueRank>-2</ValueRank>
+      <ArrayDimensions />
+      <IsAbstract>false</IsAbstract>
+    </Node>
     <Node i:type="ObjectTypeNode">
       <NodeId>
-        <Identifier>ns=1;i=1000</Identifier>
+        <Identifier>ns=1;i=1002</Identifier>
       </NodeId>
       <NodeClass>ObjectType_8</NodeClass>
       <BrowseName>
@@ -82,7 +124,7 @@
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
           <TargetId>
-            <Identifier>ns=1;i=1000</Identifier>
+            <Identifier>ns=1;i=1002</Identifier>
           </TargetId>
         </ReferenceNode>
         <ReferenceNode>
@@ -146,7 +188,7 @@
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
           <TargetId>
-            <Identifier>ns=1;i=1000</Identifier>
+            <Identifier>ns=1;i=1002</Identifier>
           </TargetId>
         </ReferenceNode>
         <ReferenceNode>
@@ -184,51 +226,9 @@
       <Historizing>false</Historizing>
       <AccessLevelEx>0</AccessLevelEx>
     </Node>
-    <Node i:type="VariableTypeNode">
-      <NodeId>
-        <Identifier>ns=1;i=1018</Identifier>
-      </NodeId>
-      <NodeClass>VariableType_16</NodeClass>
-      <BrowseName>
-        <NamespaceIndex>1</NamespaceIndex>
-        <Name>MemoryTagType</Name>
-      </BrowseName>
-      <DisplayName>
-        <Locale></Locale>
-        <Text>MemoryTagType</Text>
-      </DisplayName>
-      <Description i:nil="true" />
-      <WriteMask>0</WriteMask>
-      <UserWriteMask>0</UserWriteMask>
-      <RolePermissions />
-      <UserRolePermissions />
-      <AccessRestrictions>0</AccessRestrictions>
-      <References>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=45</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>i=63</Identifier>
-          </TargetId>
-        </ReferenceNode>
-      </References>
-      <Value>
-        <Value>
-          <Null xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
-        </Value>
-      </Value>
-      <DataType>
-        <Identifier>i=24</Identifier>
-      </DataType>
-      <ValueRank>-2</ValueRank>
-      <ArrayDimensions />
-      <IsAbstract>false</IsAbstract>
-    </Node>
     <Node i:type="ObjectNode">
       <NodeId>
-        <Identifier>ns=1;i=1025</Identifier>
+        <Identifier>ns=1;i=1005</Identifier>
       </NodeId>
       <NodeClass>Object_1</NodeClass>
       <BrowseName>

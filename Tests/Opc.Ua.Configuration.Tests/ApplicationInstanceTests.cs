@@ -355,7 +355,7 @@ namespace Opc.Ua.Configuration.Tests
             };
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                .AsServer(new string[] { EndpointUrl, "https://localhost:51001" }, new string[] { "opc.tcp://192.168.1.100:51000" })
+                .AsServer(new string[] { EndpointUrl, "opc.https://localhost:51001" }, new string[] { "opc.tcp://192.168.1.100:51000" })
                 .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                 .SetAddAppCertToTrustedStore(true)
                 .Create().ConfigureAwait(false);

@@ -839,7 +839,7 @@ namespace Quickstarts
 
         #region Subscribe Values
         /// <summary>
-        /// Output all values as JSON.
+        /// Subscribe to all variables in the list.
         /// </summary>
         /// <param name="uaClient">The UAClient with a session to use.</param>
         /// <param name="variableIds">The variables to subscribe.</param>
