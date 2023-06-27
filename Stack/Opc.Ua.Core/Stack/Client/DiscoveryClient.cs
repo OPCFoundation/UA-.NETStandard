@@ -166,11 +166,10 @@ namespace Opc.Ua
         /// Invokes the GetEndpoints service async.
         /// </summary>
         /// <param name="profileUris">The collection of profile URIs.</param>
-        /// <returns></returns>
         public async virtual Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris)
         {
-            var endpoints = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris).ConfigureAwait(false);
-            return PatchEndpointUrls(endpoints);
+            var response = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris, CancellationToken.None).ConfigureAwait(false);
+            return PatchEndpointUrls(response.Endpoints);
         }
 
         /// <summary>
@@ -237,26 +236,6 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
-        /// <summary>
-        /// Helper to get endpoints async.
-        /// </summary>
-        private Task<EndpointDescriptionCollection> GetEndpointsAsync(
-            RequestHeader requestHeader,
-            string endpointUrl,
-            StringCollection localeIds,
-            StringCollection profileUris)
-        {
-            return Task.Factory.FromAsync(
-                (callback, state) => BeginGetEndpoints(requestHeader,
-                    endpointUrl, localeIds, profileUris, callback, state),
-                result => {
-                    EndpointDescriptionCollection endpoints;
-                    var response = EndGetEndpoints(result, out endpoints);
-                    return endpoints;
-                },
-                TaskCreationOptions.DenyChildAttach);
-        }
-
         /// <summary>
         /// Patch returned endpoints urls with url used to reached the endpoint.
         /// </summary>

@@ -505,7 +505,7 @@ namespace Opc.Ua.Client.Tests
                                 NodeId number = new NodeId((int)BuiltInType.Number);
                                 bool isKnown = Session.NodeCache.IsKnown(new ExpandedNodeId((int)BuiltInType.Int64));
                                 Assert.True(isKnown);
-                                bool isKnown2 = Session.NodeCache.IsKnown(TestData.DataTypeIds.ScalarValueDataType);
+                                bool isKnown2 = Session.NodeCache.IsKnown(TestData.DataTypeIds.ScalarStructureDataType);
                                 Assert.True(isKnown2);
                                 NodeId nodeId = Session.NodeCache.FindSuperType(TestData.DataTypeIds.Vector);
                                 Assert.AreEqual(DataTypeIds.Structure, nodeId);
@@ -519,7 +519,7 @@ namespace Opc.Ua.Client.Tests
                                 bool isEncodingOf = Session.NodeCache.IsEncodingOf(new ExpandedNodeId((int)BuiltInType.Int32), DataTypeIds.Structure);
                                 Assert.False(isEncodingOf);
                                 bool isEncodingFor = Session.NodeCache.IsEncodingFor(DataTypeIds.Structure,
-                                    new TestData.ScalarValueDataType());
+                                    new TestData.ScalarStructureDataType());
                                 Assert.True(isEncodingFor);
                                 bool isEncodingFor2 = Session.NodeCache.IsEncodingFor(new NodeId((int)BuiltInType.UInt32), new NodeId((int)BuiltInType.UInteger));
                                 Assert.False(isEncodingFor2);
