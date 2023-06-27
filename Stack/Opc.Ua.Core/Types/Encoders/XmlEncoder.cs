@@ -1934,11 +1934,9 @@ namespace Opc.Ua
 
             // encode extension object in xml.
             XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(encodeable, this.Context);
-            PushNamespace(xmlName.Namespace);
             m_writer.WriteStartElement(xmlName.Name, xmlName.Namespace);
             encodeable.Encode(this);
             m_writer.WriteEndElement();
-            PopNamespace();
         }
 
         /// <summary>

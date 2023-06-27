@@ -498,7 +498,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
-            using (var encodeable = new DynamicEncodeable("FooXml", "test_dyn_typeid", "test_dyn_binaryencodingid", "test_dyn_xmlencodingid", "test_dyn_jsonencodingid", new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } }))
+            using (var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "test_dyn_typeid", "test_dyn_binaryencodingid", "test_dyn_xmlencodingid", "test_dyn_jsonencodingid", new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } }))
             {
                 using (var encoder = new JsonEncoder(Context, true, false))
                 {
@@ -526,12 +526,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var expectedJson = "{\"TypeId\":{\"IdType\":1,\"Id\":\"test_dyn2_typeid\"},\"Body\":{\"Foo\":\"bar_1\",\"Foo2\":\"bar_2\"}}";
             var expectedXml = "<uax:ExtensionObject xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">"
                 + "  <uax:TypeId><uax:Identifier>s=test_dyn2_xmlencodingid</uax:Identifier></uax:TypeId>"
-                + "  <uax:Body><FooXml><Foo>bar_1</Foo><Foo2>bar_2</Foo2></FooXml></uax:Body></uax:ExtensionObject>";
+                + "  <uax:Body><FooXml  xmlns=\"urn:dynamic_encoder_test\"><Foo>bar_1</Foo><Foo2>bar_2</Foo2></FooXml></uax:Body></uax:ExtensionObject>";
+            TestContext.Out.WriteLine("Expected XML:");
             expectedXml = PrettifyAndValidateXml(Encoding.UTF8.GetBytes(expectedXml));
-            TestContext.Out.WriteLine("Expected:");
-            _ = PrettifyAndValidateJson(expectedJson);
 
-            var encodeable = new DynamicEncodeable("FooXml", "test_dyn2_typeid", "test_dyn2_binaryencodingid", "test_dyn2_xmlencodingid", "test_dyn2_jsonencodingid", new Dictionary<string, (int, string)> {
+            var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "test_dyn2_typeid", "test_dyn2_binaryencodingid", "test_dyn2_xmlencodingid", "test_dyn2_jsonencodingid", new Dictionary<string, (int, string)> {
                 { "Foo", (1, "bar_1") },
                 { "Foo2", (2, "bar_2") },
             });
@@ -552,9 +551,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         encoder.WriteExtensionObject(null, extensionObject);
                         xmlWriter.Flush();
                     }
-                    encodedXml = PrettifyAndValidateXml(ms.ToArray());
                     TestContext.Out.WriteLine("Formatted Encoded:");
-                    TestContext.Out.WriteLine(encodedXml);
+                    encodedXml = PrettifyAndValidateXml(ms.ToArray());
                 }
             }
             Assert.That(encodedXml, Is.EqualTo(expectedXml));
@@ -584,10 +582,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
                 encodedJson = encoder.CloseAndReturnText();
 
-                TestContext.Out.WriteLine("Encoded:");
+                TestContext.Out.WriteLine("Expected Json:");
+                _ = PrettifyAndValidateJson(expectedJson);
+
+
+                TestContext.Out.WriteLine("Encoded Json:");
                 TestContext.Out.WriteLine(encodedJson);
 
-                TestContext.Out.WriteLine("Formatted Encoded:");
+                TestContext.Out.WriteLine("Formatted Encoded Json:");
                 _ = PrettifyAndValidateJson(encodedJson);
 
             }
