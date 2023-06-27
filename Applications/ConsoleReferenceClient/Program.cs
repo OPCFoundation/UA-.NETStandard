@@ -36,6 +36,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 
 namespace Quickstarts.ConsoleReferenceClient
@@ -77,14 +78,17 @@ namespace Quickstarts.ConsoleReferenceClient
             bool jsonvalues = false;
             bool verbose = false;
             bool subscribe = false;
+            bool noSecurity = false;
             string password = null;
             int timeout = Timeout.Infinite;
             string logFile = null;
+            string reverseConnectUrlString = null;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 usage,
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
+                { "nsec|nosecurity", "select endpoint with security NONE, least secure if unavailable", s => noSecurity = s != null },
                 { "un|username=", "the name of the user identity for the connection", (string u) => username = u },
                 { "up|userpassword=", "the password of the user identity for the connection", (string u) => userpassword = u },
                 { "c|console", "log to console", c => logConsole = c != null },
@@ -99,7 +103,10 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "j|json", "Output all Values as JSON", j => { if (j != null) jsonvalues = true; } },
                 { "v|verbose", "Verbose output", v => { if (v != null) verbose = true; } },
                 { "s|subscribe", "Subscribe", s => { if (s != null) subscribe = true; } },
+                { "rc|reverseconnect=", "Connect using the reverse connect endpoint. (e.g. rc=opc.tcp://localhost:65300)", (string url) => reverseConnectUrlString = url},
             };
+
+            ReverseConnectManager reverseConnectManager = null;
 
             try
             {
@@ -158,8 +165,18 @@ namespace Quickstarts.ConsoleReferenceClient
                     throw new ErrorExitException("Application instance certificate invalid!", ExitCode.ErrorCertificate);
                 }
 
+                if (reverseConnectUrlString != null)
+                {
+                    // start the reverse connection manager
+                    output.WriteLine("Create reverse connection endpoint at {0}.", reverseConnectUrlString);
+                    reverseConnectManager = new ReverseConnectManager();
+                    reverseConnectManager.AddEndpoint(new Uri(reverseConnectUrlString));
+                    reverseConnectManager.StartService(config);
+                }
+
                 // wait for timeout or Ctrl-C
-                var quitEvent = ConsoleUtils.CtrlCHandler();
+                var quitCTS = new CancellationTokenSource();
+                var quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
 
                 // connect to a server until application stops
                 bool quit = false;
@@ -177,10 +194,9 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
 
                     // create the UA Client object and connect to configured server.
-                    using (UAClient uaClient = new UAClient(
-                        application.ApplicationConfiguration, output, ClientBase.ValidateResponse) {
+                    using (UAClient uaClient = new UAClient(application.ApplicationConfiguration, reverseConnectManager, output, ClientBase.ValidateResponse) {
                         AutoAccept = autoAccept,
-                        SessionLifeTime = 60000,
+                        SessionLifeTime = 60_000,
                     })
                     {
                         // set user identity
@@ -189,7 +205,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             uaClient.UserIdentity = new UserIdentity(username, userpassword ?? string.Empty);
                         }
 
-                        bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), false).ConfigureAwait(false);
+                        bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), !noSecurity, quitCTS.Token).ConfigureAwait(false);
                         if (connected)
                         {
                             output.WriteLine("Connected! Ctrl-C to quit.");
@@ -257,7 +273,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                     }
 
                                     await samples.SubscribeAllValuesAsync(uaClient,
-                                        variableIds: new NodeCollection(variables.Take(100)),
+                                        variableIds: new NodeCollection(variables),
                                         samplingInterval: 1000,
                                         publishingInterval: 5000,
                                         queueSize: 10,
@@ -306,6 +322,11 @@ namespace Quickstarts.ConsoleReferenceClient
             catch (Exception ex)
             {
                 output.WriteLine(ex.Message);
+            }
+            finally
+            {
+                Utils.SilentDispose(reverseConnectManager);
+                output.Close();
             }
         }
     }
