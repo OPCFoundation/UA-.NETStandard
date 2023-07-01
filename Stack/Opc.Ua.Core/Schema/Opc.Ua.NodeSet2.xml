@@ -29028,7 +29028,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=12642</Reference>
     </References>
   </UAVariable>
-  <UAMethod NodeId="i=12663" BrowseName="OpenWithMasks" ParentNodeId="i=12642" MethodDeclarationId="i=12543">
+  <UAMethod NodeId="i=12663" BrowseName="OpenWithMasks" AccessRestrictions="1" ParentNodeId="i=12642" MethodDeclarationId="i=12543">
     <DisplayName>OpenWithMasks</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=12664</Reference>
@@ -29151,7 +29151,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="i=12668" BrowseName="AddCertificate" ParentNodeId="i=12642" MethodDeclarationId="i=12548">
+  <UAMethod NodeId="i=12668" BrowseName="AddCertificate" AccessRestrictions="1" ParentNodeId="i=12642" MethodDeclarationId="i=12548">
     <DisplayName>AddCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=12669</Reference>
@@ -29202,7 +29202,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="i=12670" BrowseName="RemoveCertificate" ParentNodeId="i=12642" MethodDeclarationId="i=12550">
+  <UAMethod NodeId="i=12670" BrowseName="RemoveCertificate" AccessRestrictions="1" ParentNodeId="i=12642" MethodDeclarationId="i=12550">
     <DisplayName>RemoveCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=12671</Reference>
@@ -29651,7 +29651,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=14089</Reference>
     </References>
   </UAVariable>
-  <UAMethod NodeId="i=14111" BrowseName="OpenWithMasks" ParentNodeId="i=14089" MethodDeclarationId="i=12543">
+  <UAMethod NodeId="i=14111" BrowseName="OpenWithMasks" AccessRestrictions="1" ParentNodeId="i=14089" MethodDeclarationId="i=12543">
     <DisplayName>OpenWithMasks</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=14112</Reference>
@@ -29774,7 +29774,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="i=14117" BrowseName="AddCertificate" ParentNodeId="i=14089" MethodDeclarationId="i=12548">
+  <UAMethod NodeId="i=14117" BrowseName="AddCertificate" AccessRestrictions="1" ParentNodeId="i=14089" MethodDeclarationId="i=12548">
     <DisplayName>AddCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=14118</Reference>
@@ -29825,7 +29825,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="i=14119" BrowseName="RemoveCertificate" ParentNodeId="i=14089" MethodDeclarationId="i=12550">
+  <UAMethod NodeId="i=14119" BrowseName="RemoveCertificate" AccessRestrictions="1" ParentNodeId="i=14089" MethodDeclarationId="i=12550">
     <DisplayName>RemoveCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=14120</Reference>
@@ -30274,7 +30274,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=14123</Reference>
     </References>
   </UAVariable>
-  <UAMethod NodeId="i=14145" BrowseName="OpenWithMasks" ParentNodeId="i=14123" MethodDeclarationId="i=12543">
+  <UAMethod NodeId="i=14145" BrowseName="OpenWithMasks" AccessRestrictions="1" ParentNodeId="i=14123" MethodDeclarationId="i=12543">
     <DisplayName>OpenWithMasks</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=14146</Reference>
@@ -30397,7 +30397,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="i=14151" BrowseName="AddCertificate" ParentNodeId="i=14123" MethodDeclarationId="i=12548">
+  <UAMethod NodeId="i=14151" BrowseName="AddCertificate" AccessRestrictions="1" ParentNodeId="i=14123" MethodDeclarationId="i=12548">
     <DisplayName>AddCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=14152</Reference>
@@ -30448,7 +30448,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="i=14153" BrowseName="RemoveCertificate" ParentNodeId="i=14123" MethodDeclarationId="i=12550">
+  <UAMethod NodeId="i=14153" BrowseName="RemoveCertificate" AccessRestrictions="1" ParentNodeId="i=14123" MethodDeclarationId="i=12550">
     <DisplayName>RemoveCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=14154</Reference>
@@ -30562,7 +30562,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=12637</Reference>
     </References>
   </UAVariable>
-  <UAMethod NodeId="i=13737" BrowseName="UpdateCertificate" ParentNodeId="i=12637" MethodDeclarationId="i=12616">
+  <UAMethod NodeId="i=13737" BrowseName="UpdateCertificate" AccessRestrictions="2" ParentNodeId="i=12637" MethodDeclarationId="i=12616">
     <DisplayName>UpdateCertificate</DisplayName>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part12/7.10.4</Documentation>
     <References>
@@ -30703,7 +30703,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="i=12740" BrowseName="ApplyChanges" AccessRestrictions="0" ParentNodeId="i=12637" MethodDeclarationId="i=12734">
+  <UAMethod NodeId="i=12740" BrowseName="ApplyChanges" AccessRestrictions="5" ParentNodeId="i=12637" MethodDeclarationId="i=12734">
     <DisplayName>ApplyChanges</DisplayName>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part12/7.10.6</Documentation>
     <References>
@@ -30713,7 +30713,7 @@
       <RolePermission Permissions="4193">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAMethod NodeId="i=25708" BrowseName="CancelChanges" ParentNodeId="i=12637" MethodDeclarationId="i=25698">
+  <UAMethod NodeId="i=25708" BrowseName="CancelChanges" AccessRestrictions="5" ParentNodeId="i=12637" MethodDeclarationId="i=25698">
     <DisplayName>CancelChanges</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">i=12637</Reference>
@@ -30722,7 +30722,7 @@
       <RolePermission Permissions="4193">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAMethod NodeId="i=12737" BrowseName="CreateSigningRequest" ParentNodeId="i=12637" MethodDeclarationId="i=12731">
+  <UAMethod NodeId="i=12737" BrowseName="CreateSigningRequest" AccessRestrictions="2" ParentNodeId="i=12637" MethodDeclarationId="i=12731">
     <DisplayName>CreateSigningRequest</DisplayName>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part12/7.10.7</Documentation>
     <References>
@@ -30846,7 +30846,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="i=12777" BrowseName="GetRejectedList" ParentNodeId="i=12637" MethodDeclarationId="i=12775">
+  <UAMethod NodeId="i=12777" BrowseName="GetRejectedList" AccessRestrictions="1" ParentNodeId="i=12637" MethodDeclarationId="i=12775">
     <DisplayName>GetRejectedList</DisplayName>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part12/7.10.9</Documentation>
     <References>
@@ -30885,7 +30885,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="i=25709" BrowseName="ResetToServerDefaults" ParentNodeId="i=12637" MethodDeclarationId="i=25699">
+  <UAMethod NodeId="i=25709" BrowseName="ResetToServerDefaults" AccessRestrictions="1" ParentNodeId="i=12637" MethodDeclarationId="i=25699">
     <DisplayName>ResetToServerDefaults</DisplayName>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part12/7.10.10</Documentation>
     <References>
