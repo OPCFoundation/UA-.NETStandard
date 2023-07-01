@@ -155,11 +155,11 @@ namespace Opc.Ua.Export {
         
         private string versionField;
         
-        private string modelVersionField;
-        
         private System.DateTime publicationDateField;
         
         private bool publicationDateFieldSpecified;
+        
+        private string modelVersionField;
         
         private ushort accessRestrictionsField;
         
@@ -223,17 +223,6 @@ namespace Opc.Ua.Export {
         }
         
         /// <remarks/>
-        [System.Xml.Serialization.XmlAttributeAttribute(DataType="token")]
-        public string ModelVersion {
-            get {
-                return this.modelVersionField;
-            }
-            set {
-                this.modelVersionField = value;
-            }
-        }
-        
-        /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public System.DateTime PublicationDate {
             get {
@@ -252,6 +241,17 @@ namespace Opc.Ua.Export {
             }
             set {
                 this.publicationDateFieldSpecified = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute(DataType="token")]
+        public string ModelVersion {
+            get {
+                return this.modelVersionField;
+            }
+            set {
+                this.modelVersionField = value;
             }
         }
         

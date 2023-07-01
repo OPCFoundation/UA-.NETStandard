@@ -318,7 +318,7 @@ namespace Opc.Ua.Export
                 exportedNode.RolePermissions = permissions.ToArray();
             }
 
-            if (node.AccessRestrictions != AccessRestrictionType.None)
+            if (node.AccessRestrictions != null)
             {
                 exportedNode.AccessRestrictions = (ushort)node.AccessRestrictions;
                 exportedNode.AccessRestrictionsSpecified = true;
@@ -657,7 +657,7 @@ namespace Opc.Ua.Export
 
             if (node.AccessRestrictionsSpecified)
             {
-                importedNode.AccessRestrictions = (AccessRestrictionType)node.AccessRestrictions;
+                importedNode.AccessRestrictions = (AccessRestrictionType?)node.AccessRestrictions;
             }
 
             if (!String.IsNullOrEmpty(node.SymbolicName))

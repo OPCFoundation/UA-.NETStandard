@@ -1069,10 +1069,11 @@ namespace Opc.Ua.Server
                     historyServerCapabilitiesNode.InsertEventCapability.Value = false;
                     historyServerCapabilitiesNode.ReplaceEventCapability.Value = false;
                     historyServerCapabilitiesNode.UpdateEventCapability.Value = false;
-                    historyServerCapabilitiesNode.InsertAnnotationCapability.Value = false;
+                    historyServerCapabilitiesNode.InsertAnnotationsCapability.Value = false;
                     historyServerCapabilitiesNode.InsertDataCapability.Value = false;
                     historyServerCapabilitiesNode.DeleteRawCapability.Value = false;
                     historyServerCapabilitiesNode.DeleteAtTimeCapability.Value = false;
+                    historyServerCapabilitiesNode.ServerTimestampCapability.Value = false;
 
                     NodeState parent = FindPredefinedNode(ObjectIds.Server_ServerCapabilities, typeof(ServerCapabilitiesState));
 

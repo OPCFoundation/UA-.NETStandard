@@ -113,4 +113,16 @@ namespace Opc.Ua
         }
     }
     #endregion
+
+    /// <summary>
+    /// Defines an extension for IEncodeable objects that adds a JsonEncodingId.
+    /// </summary>
+    public interface IJsonEncodeable
+    {
+        /// <summary>
+        /// Returns the UA type identifier for the default JSON encoding for the type.
+        /// </summary>
+        /// <value>The UA type identifier for the  JSON encoding id.</value>
+        ExpandedNodeId JsonEncodingId { get; }
+    }
 }
