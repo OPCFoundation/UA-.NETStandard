@@ -499,21 +499,6 @@ namespace Opc.Ua
         public const uint PubSubDiagnosticsCounterClassification = 19730;
 
         /// <remarks />
-        public const uint PublisherEndpointsType = 32680;
-
-        /// <remarks />
-        public const uint FieldSourceType = 32682;
-
-        /// <remarks />
-        public const uint DataSetSourceType = 32683;
-
-        /// <remarks />
-        public const uint ActionMetaDataType = 32684;
-
-        /// <remarks />
-        public const uint ActionSourceType = 32685;
-
-        /// <remarks />
         public const uint AliasNameDataType = 23468;
 
         /// <remarks />
@@ -686,9 +671,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationDescription = 308;
-
-        /// <remarks />
-        public const uint PublisherDescription = 32686;
 
         /// <remarks />
         public const uint RequestHeader = 389;
@@ -5477,21 +5459,6 @@ namespace Opc.Ua
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultBinary = 25532;
 
         /// <remarks />
-        public const uint PublisherEndpointsType_Encoding_DefaultBinary = 32687;
-
-        /// <remarks />
-        public const uint FieldSourceType_Encoding_DefaultBinary = 32689;
-
-        /// <remarks />
-        public const uint DataSetSourceType_Encoding_DefaultBinary = 32690;
-
-        /// <remarks />
-        public const uint ActionMetaDataType_Encoding_DefaultBinary = 32691;
-
-        /// <remarks />
-        public const uint ActionSourceType_Encoding_DefaultBinary = 32692;
-
-        /// <remarks />
         public const uint AliasNameDataType_Encoding_DefaultBinary = 23499;
 
         /// <remarks />
@@ -5574,9 +5541,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationDescription_Encoding_DefaultBinary = 310;
-
-        /// <remarks />
-        public const uint PublisherDescription_Encoding_DefaultBinary = 32693;
 
         /// <remarks />
         public const uint RequestHeader_Encoding_DefaultBinary = 391;
@@ -6476,21 +6440,6 @@ namespace Opc.Ua
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultXml = 25548;
 
         /// <remarks />
-        public const uint PublisherEndpointsType_Encoding_DefaultXml = 32715;
-
-        /// <remarks />
-        public const uint FieldSourceType_Encoding_DefaultXml = 32717;
-
-        /// <remarks />
-        public const uint DataSetSourceType_Encoding_DefaultXml = 32718;
-
-        /// <remarks />
-        public const uint ActionMetaDataType_Encoding_DefaultXml = 32719;
-
-        /// <remarks />
-        public const uint ActionSourceType_Encoding_DefaultXml = 32720;
-
-        /// <remarks />
         public const uint AliasNameDataType_Encoding_DefaultXml = 23505;
 
         /// <remarks />
@@ -6573,9 +6522,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationDescription_Encoding_DefaultXml = 309;
-
-        /// <remarks />
-        public const uint PublisherDescription_Encoding_DefaultXml = 32721;
 
         /// <remarks />
         public const uint RequestHeader_Encoding_DefaultXml = 390;
@@ -7475,21 +7421,6 @@ namespace Opc.Ua
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultJson = 25564;
 
         /// <remarks />
-        public const uint PublisherEndpointsType_Encoding_DefaultJson = 32743;
-
-        /// <remarks />
-        public const uint FieldSourceType_Encoding_DefaultJson = 32745;
-
-        /// <remarks />
-        public const uint DataSetSourceType_Encoding_DefaultJson = 32746;
-
-        /// <remarks />
-        public const uint ActionMetaDataType_Encoding_DefaultJson = 32747;
-
-        /// <remarks />
-        public const uint ActionSourceType_Encoding_DefaultJson = 32748;
-
-        /// <remarks />
         public const uint AliasNameDataType_Encoding_DefaultJson = 23511;
 
         /// <remarks />
@@ -7572,9 +7503,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationDescription_Encoding_DefaultJson = 15087;
-
-        /// <remarks />
-        public const uint PublisherDescription_Encoding_DefaultJson = 32749;
 
         /// <remarks />
         public const uint RequestHeader_Encoding_DefaultJson = 15088;
@@ -29210,21 +29138,6 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_PubSubConfigurationValueDataType = 25542;
 
         /// <remarks />
-        public const uint OpcUa_BinarySchema_PublisherEndpointsType = 32694;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_FieldSourceType = 32700;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_DataSetSourceType = 32703;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_ActionMetaDataType = 32706;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_ActionSourceType = 32709;
-
-        /// <remarks />
         public const uint OpcUa_BinarySchema_AliasNameDataType = 23502;
 
         /// <remarks />
@@ -29271,9 +29184,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_ApplicationDescription = 7665;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_PublisherDescription = 32712;
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_ServerOnNetwork = 12213;
@@ -29717,21 +29627,6 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_PubSubConfigurationValueDataType = 25558;
 
         /// <remarks />
-        public const uint OpcUa_XmlSchema_PublisherEndpointsType = 32722;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_FieldSourceType = 32728;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_DataSetSourceType = 32731;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_ActionMetaDataType = 32734;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_ActionSourceType = 32737;
-
-        /// <remarks />
         public const uint OpcUa_XmlSchema_AliasNameDataType = 23508;
 
         /// <remarks />
@@ -29778,9 +29673,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_ApplicationDescription = 8300;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_PublisherDescription = 32740;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_ServerOnNetwork = 12201;
@@ -30606,21 +30498,6 @@ namespace Opc.Ua
         public static readonly NodeId PubSubDiagnosticsCounterClassification = new NodeId(Opc.Ua.DataTypes.PubSubDiagnosticsCounterClassification);
 
         /// <remarks />
-        public static readonly NodeId PublisherEndpointsType = new NodeId(Opc.Ua.DataTypes.PublisherEndpointsType);
-
-        /// <remarks />
-        public static readonly NodeId FieldSourceType = new NodeId(Opc.Ua.DataTypes.FieldSourceType);
-
-        /// <remarks />
-        public static readonly NodeId DataSetSourceType = new NodeId(Opc.Ua.DataTypes.DataSetSourceType);
-
-        /// <remarks />
-        public static readonly NodeId ActionMetaDataType = new NodeId(Opc.Ua.DataTypes.ActionMetaDataType);
-
-        /// <remarks />
-        public static readonly NodeId ActionSourceType = new NodeId(Opc.Ua.DataTypes.ActionSourceType);
-
-        /// <remarks />
         public static readonly NodeId AliasNameDataType = new NodeId(Opc.Ua.DataTypes.AliasNameDataType);
 
         /// <remarks />
@@ -30793,9 +30670,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationDescription = new NodeId(Opc.Ua.DataTypes.ApplicationDescription);
-
-        /// <remarks />
-        public static readonly NodeId PublisherDescription = new NodeId(Opc.Ua.DataTypes.PublisherDescription);
 
         /// <remarks />
         public static readonly NodeId RequestHeader = new NodeId(Opc.Ua.DataTypes.RequestHeader);
@@ -35584,21 +35458,6 @@ namespace Opc.Ua
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultBinary);
 
         /// <remarks />
-        public static readonly NodeId PublisherEndpointsType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PublisherEndpointsType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId FieldSourceType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.FieldSourceType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId DataSetSourceType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DataSetSourceType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ActionMetaDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ActionMetaDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ActionSourceType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ActionSourceType_Encoding_DefaultBinary);
-
-        /// <remarks />
         public static readonly NodeId AliasNameDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultBinary);
 
         /// <remarks />
@@ -35681,9 +35540,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationDescription_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ApplicationDescription_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId PublisherDescription_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PublisherDescription_Encoding_DefaultBinary);
 
         /// <remarks />
         public static readonly NodeId RequestHeader_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.RequestHeader_Encoding_DefaultBinary);
@@ -36583,21 +36439,6 @@ namespace Opc.Ua
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultXml);
 
         /// <remarks />
-        public static readonly NodeId PublisherEndpointsType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PublisherEndpointsType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId FieldSourceType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.FieldSourceType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId DataSetSourceType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DataSetSourceType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ActionMetaDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ActionMetaDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ActionSourceType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ActionSourceType_Encoding_DefaultXml);
-
-        /// <remarks />
         public static readonly NodeId AliasNameDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultXml);
 
         /// <remarks />
@@ -36680,9 +36521,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationDescription_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ApplicationDescription_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId PublisherDescription_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PublisherDescription_Encoding_DefaultXml);
 
         /// <remarks />
         public static readonly NodeId RequestHeader_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.RequestHeader_Encoding_DefaultXml);
@@ -37582,21 +37420,6 @@ namespace Opc.Ua
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultJson);
 
         /// <remarks />
-        public static readonly NodeId PublisherEndpointsType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublisherEndpointsType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId FieldSourceType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.FieldSourceType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId DataSetSourceType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataSetSourceType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ActionMetaDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ActionMetaDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ActionSourceType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ActionSourceType_Encoding_DefaultJson);
-
-        /// <remarks />
         public static readonly NodeId AliasNameDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultJson);
 
         /// <remarks />
@@ -37679,9 +37502,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ApplicationDescription_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId PublisherDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublisherDescription_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId RequestHeader_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RequestHeader_Encoding_DefaultJson);
@@ -59317,21 +59137,6 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_PubSubConfigurationValueDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PubSubConfigurationValueDataType);
 
         /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_PublisherEndpointsType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PublisherEndpointsType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_FieldSourceType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_FieldSourceType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_DataSetSourceType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DataSetSourceType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_ActionMetaDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ActionMetaDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_ActionSourceType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ActionSourceType);
-
-        /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_AliasNameDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AliasNameDataType);
 
         /// <remarks />
@@ -59378,9 +59183,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_ApplicationDescription = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ApplicationDescription);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_PublisherDescription = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PublisherDescription);
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_ServerOnNetwork = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ServerOnNetwork);
@@ -59824,21 +59626,6 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_XmlSchema_PubSubConfigurationValueDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PubSubConfigurationValueDataType);
 
         /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_PublisherEndpointsType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PublisherEndpointsType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_FieldSourceType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_FieldSourceType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_DataSetSourceType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DataSetSourceType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_ActionMetaDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ActionMetaDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_ActionSourceType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ActionSourceType);
-
-        /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_AliasNameDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AliasNameDataType);
 
         /// <remarks />
@@ -59885,9 +59672,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_ApplicationDescription = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ApplicationDescription);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_PublisherDescription = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PublisherDescription);
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_ServerOnNetwork = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ServerOnNetwork);
@@ -60284,12 +60068,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string AcknowledgeableConditionType = "AcknowledgeableConditionType";
-
-        /// <remarks />
-        public const string ActionMetaDataType = "ActionMetaDataType";
-
-        /// <remarks />
-        public const string ActionSourceType = "ActionSourceType";
 
         /// <remarks />
         public const string ActionTimeStamp = "ActionTimeStamp";
@@ -61552,9 +61330,6 @@ namespace Opc.Ua
         public const string DataSetReaderType = "DataSetReaderType";
 
         /// <remarks />
-        public const string DataSetSourceType = "DataSetSourceType";
-
-        /// <remarks />
         public const string DataSetToWriter = "DataSetToWriter";
 
         /// <remarks />
@@ -62111,9 +61886,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string FieldName_Placeholder = "<FieldName>";
-
-        /// <remarks />
-        public const string FieldSourceType = "FieldSourceType";
 
         /// <remarks />
         public const string FieldTargetDataType = "FieldTargetDataType";
@@ -63779,12 +63551,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string PublishedVariableDataType = "PublishedVariableDataType";
-
-        /// <remarks />
-        public const string PublisherDescription = "PublisherDescription";
-
-        /// <remarks />
-        public const string PublisherEndpointsType = "PublisherEndpointsType";
 
         /// <remarks />
         public const string PublisherId = "PublisherId";

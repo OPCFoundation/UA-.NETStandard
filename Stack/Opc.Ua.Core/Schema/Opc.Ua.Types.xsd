@@ -2417,92 +2417,6 @@
   </xs:complexType>
   <xs:element name="ListOfPubSubDiagnosticsCounterClassification" type="tns:ListOfPubSubDiagnosticsCounterClassification" nillable="true"></xs:element>
 
-  <xs:complexType name="PublisherEndpointsType">
-    <xs:sequence>
-      <xs:element name="Endpoints" type="tns:ListOfEndpointDescription" minOccurs="0" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="PublisherEndpointsType" type="tns:PublisherEndpointsType" />
-
-  <xs:complexType name="ListOfPublisherEndpointsType">
-    <xs:sequence>
-      <xs:element name="PublisherEndpointsType" type="tns:PublisherEndpointsType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfPublisherEndpointsType" type="tns:ListOfPublisherEndpointsType" nillable="true"></xs:element>
-
-  <xs:complexType name="FieldSourceType">
-    <xs:sequence>
-      <xs:element name="NodeId" type="ua:NodeId" minOccurs="0" nillable="true" />
-      <xs:element name="AttributeId" type="xs:unsignedInt" minOccurs="0" />
-      <xs:element name="IndexRange" type="xs:string" minOccurs="0" nillable="true" />
-      <xs:element name="BrowsePath" type="ua:ListOfQualifiedName" minOccurs="0" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="FieldSourceType" type="tns:FieldSourceType" />
-
-  <xs:complexType name="ListOfFieldSourceType">
-    <xs:sequence>
-      <xs:element name="FieldSourceType" type="tns:FieldSourceType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfFieldSourceType" type="tns:ListOfFieldSourceType" nillable="true"></xs:element>
-
-  <xs:complexType name="DataSetSourceType">
-    <xs:sequence>
-      <xs:element name="Namespaces" type="ua:ListOfString" minOccurs="0" nillable="true" />
-      <xs:element name="DataSetName" type="xs:string" minOccurs="0" nillable="true" />
-      <xs:element name="ConfigurationVersion" type="tns:ConfigurationVersionDataType" minOccurs="0" nillable="true" />
-      <xs:element name="IsCyclic" type="xs:boolean" minOccurs="0" />
-      <xs:element name="Fields" type="tns:ListOfFieldSourceType" minOccurs="0" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="DataSetSourceType" type="tns:DataSetSourceType" />
-
-  <xs:complexType name="ListOfDataSetSourceType">
-    <xs:sequence>
-      <xs:element name="DataSetSourceType" type="tns:DataSetSourceType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfDataSetSourceType" type="tns:ListOfDataSetSourceType" nillable="true"></xs:element>
-
-  <xs:complexType name="ActionMetaDataType">
-    <xs:sequence>
-      <xs:element name="Namespaces" type="ua:ListOfString" minOccurs="0" nillable="true" />
-      <xs:element name="Name" type="xs:string" minOccurs="0" nillable="true" />
-      <xs:element name="ActionClassId" type="ua:Guid" minOccurs="0" />
-      <xs:element name="ConfigurationVersion" type="tns:ConfigurationVersionDataType" minOccurs="0" nillable="true" />
-      <xs:element name="Input" type="tns:DataSetMetaDataType" minOccurs="0" nillable="true" />
-      <xs:element name="Output" type="tns:DataSetMetaDataType" minOccurs="0" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ActionMetaDataType" type="tns:ActionMetaDataType" />
-
-  <xs:complexType name="ListOfActionMetaDataType">
-    <xs:sequence>
-      <xs:element name="ActionMetaDataType" type="tns:ActionMetaDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfActionMetaDataType" type="tns:ListOfActionMetaDataType" nillable="true"></xs:element>
-
-  <xs:complexType name="ActionSourceType">
-    <xs:sequence>
-      <xs:element name="Namespaces" type="ua:ListOfString" minOccurs="0" nillable="true" />
-      <xs:element name="ActionName" type="xs:string" minOccurs="0" nillable="true" />
-      <xs:element name="ConfigurationVersion" type="tns:ConfigurationVersionDataType" minOccurs="0" nillable="true" />
-      <xs:element name="ObjectId" type="ua:NodeId" minOccurs="0" nillable="true" />
-      <xs:element name="MethodId" type="ua:NodeId" minOccurs="0" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ActionSourceType" type="tns:ActionSourceType" />
-
-  <xs:complexType name="ListOfActionSourceType">
-    <xs:sequence>
-      <xs:element name="ActionSourceType" type="tns:ActionSourceType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfActionSourceType" type="tns:ListOfActionSourceType" nillable="true"></xs:element>
-
   <xs:complexType name="AliasNameDataType">
     <xs:sequence>
       <xs:element name="AliasName" type="ua:QualifiedName" minOccurs="0" nillable="true" />
@@ -3222,24 +3136,6 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfApplicationDescription" type="tns:ListOfApplicationDescription" nillable="true"></xs:element>
-
-  <xs:complexType name="PublisherDescription">
-    <xs:complexContent mixed="false">
-      <xs:extension base="tns:ApplicationDescription">
-        <xs:sequence>
-          <xs:element name="ServerCapabilities" type="ua:ListOfString" minOccurs="0" nillable="true" />
-        </xs:sequence>
-      </xs:extension>
-    </xs:complexContent>
-  </xs:complexType>
-  <xs:element name="PublisherDescription" type="tns:PublisherDescription" />
-
-  <xs:complexType name="ListOfPublisherDescription">
-    <xs:sequence>
-      <xs:element name="PublisherDescription" type="tns:PublisherDescription" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfPublisherDescription" type="tns:ListOfPublisherDescription" nillable="true"></xs:element>
 
   <xs:complexType name="RequestHeader">
     <xs:sequence>
