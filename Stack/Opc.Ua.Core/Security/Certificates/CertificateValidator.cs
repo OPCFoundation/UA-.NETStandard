@@ -361,16 +361,6 @@ namespace Opc.Ua
         /// all other UA applications that may be running on the same machine. As a result, the
         /// certificate validator cannot rely completely on the Windows certificate store and
         /// user or machine specific CTLs (certificate trust lists).
-        ///
-        /// The validator constructs the trust chain for the certificate and follows the chain
-        /// until it finds a certification that is in the application trust list. Non-fatal trust
-        /// chain errors (i.e. certificate expired) are ignored if the certificate is in the 
-        /// application trust list.
-        ///
-        /// If no certificate in the chain is trusted then the validator will still accept the
-        /// certification if there are no trust chain errors.
-        /// 
-        /// The validator may be configured to ignore the application trust list and/or trust chain.
         /// </remarks>
         public virtual void Validate(X509Certificate2Collection chain)
         {
@@ -547,23 +537,19 @@ namespace Opc.Ua
                             bool leafCertificate = true;
                             foreach (var certificate in certificateChain)
                             {
-                                if (!leafCertificate)
+                                try
                                 {
-                                    Utils.LogCertificate("Saved issuer certificate: ", certificate);
-                                }
-                                leafCertificate = false;
-                                store.Delete(certificate.Thumbprint);
-                                // save only public key
-                                if (certificate.HasPrivateKey)
-                                {
-                                    using (var cert = new X509Certificate2(certificate.RawData))
+                                    store.Add(certificate).GetAwaiter().GetResult();
+                                    if (!leafCertificate)
                                     {
-                                        store.Add(cert);
+                                        Utils.LogCertificate("Saved issuer certificate: ", certificate);
                                     }
+                                    leafCertificate = false;
                                 }
-                                else
+                                catch (ArgumentException aex)
                                 {
-                                    store.Add(certificate);
+                                    // just notify why the certificate cannot be added
+                                    Utils.LogCertificate(aex.Message, certificate);
                                 }
                             }
                         }
@@ -805,8 +791,7 @@ namespace Opc.Ua
             string serialNumber = null;
 
             // find the authority key identifier.
-            X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
-
+            var authority = X509Extensions.FindExtension<Security.Certificates.X509AuthorityKeyIdentifierExtension>(certificate);
             if (authority != null)
             {
                 keyId = authority.KeyIdentifier;
@@ -970,10 +955,11 @@ namespace Opc.Ua
                 RevocationFlag = X509RevocationFlag.EntireChain,
                 RevocationMode = X509RevocationMode.NoCheck,
                 VerificationFlags = X509VerificationFlags.NoFlag,
+                UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1),
 #if NET5_0_OR_GREATER
                 DisableCertificateDownloads = true,
 #endif
-            };
+        };
 
             foreach (CertificateIdentifier issuer in issuers)
             {
@@ -987,7 +973,6 @@ namespace Opc.Ua
 
                 // we did the revocation check in the GetIssuers call. No need here.
                 policy.RevocationMode = X509RevocationMode.NoCheck;
-                policy.UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1);
                 policy.ExtraStore.Add(issuer.Certificate);
             }
 

@@ -120,6 +120,7 @@ namespace Opc.Ua.Server
             m_configuration = configuration;
             // TODO: configure cert groups in configuration
             ServerCertificateGroup defaultApplicationGroup = new ServerCertificateGroup {
+                NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
                 BrowseName = Opc.Ua.BrowseNames.DefaultApplicationGroup,
                 CertificateTypes = new NodeId[] { ObjectTypeIds.RsaSha256ApplicationCertificateType },
                 ApplicationCertificate = configuration.SecurityConfiguration.ApplicationCertificate,
@@ -200,7 +201,8 @@ namespace Opc.Ua.Server
 
                         case ObjectTypes.CertificateGroupType:
                         {
-                            var result = m_certificateGroups.FirstOrDefault(group => group.BrowseName == passiveNode.BrowseName);
+                            var result = m_certificateGroups.FirstOrDefault(group => group.NodeId == passiveNode.NodeId);
+
                             if (result != null)
                             {
                                 CertificateGroupState activeNode = new CertificateGroupState(passiveNode.Parent);
@@ -418,8 +420,12 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Certificate data is invalid.");
                 }
 
-                // validate new subject matches the previous subject
-                if (!X509Utils.CompareDistinguishedName(certificateGroup.ApplicationCertificate.Certificate.SubjectName, newCert.SubjectName))
+                // validate new subject matches the previous subject,
+                // otherwise application may not be able to find it after restart
+                // TODO: An issuer may modify the subject of an issued certificate,
+                // but then the configuration must be updated too!
+                // NOTE: not a strict requirement here for ASN.1 byte compare 
+                if (!X509Utils.CompareDistinguishedName(certificateGroup.ApplicationCertificate.Certificate.Subject, newCert.Subject))
                 {
                     throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Subject Name of new certificate doesn't match the application.");
                 }

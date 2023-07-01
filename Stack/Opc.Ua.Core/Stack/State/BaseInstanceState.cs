@@ -61,14 +61,11 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Public Members
-        /// <summary>
-        /// The parent node.
-        /// </summary>
-        public NodeState Parent
+        #region ICloneable Members
+        /// <inheritdoc/>
+        public override object Clone()
         {
-            get { return m_parent; }
-            internal set { m_parent = value; }
+            return this.MemberwiseClone();
         }
 
         /// <summary>
@@ -80,21 +77,18 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             BaseInstanceState clone = new BaseInstanceState(this.NodeClass, this.Parent);
+            return CloneChildren(clone);
+        }
+        #endregion
 
-            if (m_children != null)
-            {
-                clone.m_children = new List<BaseInstanceState>(m_children.Count);
-
-                for (int ii = 0; ii < m_children.Count; ii++)
-                {
-                    BaseInstanceState child = (BaseInstanceState)m_children[ii].MemberwiseClone();
-                    clone.m_children.Add(child);
-                }
-            }
-
-            clone.m_changeMasks = NodeStateChangeMasks.None;
-
-            return clone;
+        #region Public Members
+        /// <summary>
+        /// The parent node.
+        /// </summary>
+        public NodeState Parent
+        {
+            get { return m_parent; }
+            internal set { m_parent = value; }
         }
 
         /// <summary>
@@ -434,7 +428,7 @@ namespace Opc.Ua
                 children[ii].SetMinimumSamplingInterval(context, minimumSamplingInterval);
             }
         }
-        #endregion 
+        #endregion
 
         #region IFilterTarget Members
         /// <summary cref="IFilterTarget.IsTypeOf" />

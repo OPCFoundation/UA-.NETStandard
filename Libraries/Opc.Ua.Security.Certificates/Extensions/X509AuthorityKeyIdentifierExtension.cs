@@ -94,6 +94,10 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Build the X509 Authority Key extension.
         /// </summary>
+        /// <remarks>
+        /// A null value for one of the parameters indicates that the optional
+        /// identifier can be ignored. Only keyId should be used for PKI use.
+        /// </remarks>
         /// <param name="subjectKeyIdentifier">The subject key identifier as a byte array.</param>
         /// <param name="authorityName">The distinguished name of the issuer.</param>
         /// <param name="serialNumber">The serial number of the issuer certificate as little endian byte array.</param>
@@ -103,9 +107,6 @@ namespace Opc.Ua.Security.Certificates
             byte[] serialNumber
             )
         {
-            if (subjectKeyIdentifier == null) throw new ArgumentNullException(nameof(subjectKeyIdentifier));
-            if (authorityName == null) throw new ArgumentNullException(nameof(authorityName));
-            if (serialNumber == null) throw new ArgumentNullException(nameof(serialNumber));
             m_issuer = authorityName;
             m_keyIdentifier = subjectKeyIdentifier;
             m_serialNumber = serialNumber;

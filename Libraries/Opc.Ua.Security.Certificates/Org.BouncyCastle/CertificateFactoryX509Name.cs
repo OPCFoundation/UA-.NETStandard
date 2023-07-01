@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -29,6 +29,9 @@
 
 #if !NETSTANDARD2_1 && !NET472_OR_GREATER && !NET5_0_OR_GREATER
 
+using System;
+using System.Security.Cryptography.X509Certificates;
+using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
 
 namespace Opc.Ua.Security.Certificates.BouncyCastle
@@ -44,9 +47,20 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
     public class CertificateFactoryX509Name : X509Name
     {
         /// <summary>
+        /// Create the X509Name from a X500DistinguishedName
+        /// ASN.1 encoded distinguished name.
+        /// </summary>
+        /// <param name="distinguishedName">The distinguished name.</param>
+        public CertificateFactoryX509Name(X500DistinguishedName distinguishedName) :
+            base((Asn1Sequence)Asn1Object.FromByteArray(distinguishedName.RawData))
+        {
+        }
+
+        /// <summary>
         /// Create the X509Name from a distinguished name.
         /// </summary>
         /// <param name="distinguishedName">The distinguished name.</param>
+        [Obsolete("Use constructor with X500DistinguishedName instead.")]
         public CertificateFactoryX509Name(string distinguishedName) :
             base(true, ConvertToX509Name(distinguishedName))
         {
@@ -57,6 +71,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         /// <param name="reverse">Reverse the order of the names.</param>
         /// <param name="distinguishedName">The distinguished name.</param>
+        [Obsolete("Use constructor with X500DistinguishedName instead.")]
         public CertificateFactoryX509Name(bool reverse, string distinguishedName) :
             base(reverse, ConvertToX509Name(distinguishedName))
         {

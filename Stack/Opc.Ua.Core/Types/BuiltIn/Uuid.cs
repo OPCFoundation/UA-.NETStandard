@@ -282,7 +282,7 @@ namespace Opc.Ua
     /// A collection of Uuids.
     /// </summary>
     [CollectionDataContract(Name = "ListOfGuid", Namespace = Namespaces.OpcUaXsd, ItemName = "Guid")]
-    public partial class UuidCollection : List<Uuid>
+    public partial class UuidCollection : List<Uuid>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -339,6 +339,13 @@ namespace Opc.Ua
             return ToUuidCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -349,6 +356,7 @@ namespace Opc.Ua
         {
             return new UuidCollection(this);
         }
+        #endregion
     }
     #endregion
 }//namespace

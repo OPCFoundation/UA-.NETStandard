@@ -216,6 +216,11 @@ namespace Opc.Ua.Client
                 Utils.SilentDispose(m_configurationWatcher);
                 m_configurationWatcher = null;
             }
+            if (m_cts != null)
+            {
+                Utils.SilentDispose(m_cts);
+                m_cts = null;
+            }
             DisposeHosts();
         }
         #endregion
@@ -725,6 +730,7 @@ namespace Opc.Ua.Client
             CancellationTokenSource cts = m_cts;
             m_cts = new CancellationTokenSource();
             cts.Cancel();
+            cts.Dispose();
         }
         #endregion
 

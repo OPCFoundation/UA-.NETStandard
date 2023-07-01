@@ -10,6 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 
@@ -18,24 +19,24 @@ namespace Opc.Ua
     /// <summary>
     /// Defines methods used to encode and decode objects.
     /// </summary>
-    public interface IEncodeable
+    public interface IEncodeable : ICloneable
     {
         /// <summary>
-        /// Returns the UA type identifier for the encodable type.
+        /// Returns the NodeId for the encodable type.
         /// </summary>
-        /// <value>The UA type identifier.</value>
+        /// <value>The NodeId.</value>
         ExpandedNodeId TypeId { get; }
 
         /// <summary>
-        /// Returns the UA type identifier for the default binary encoding for the type.
+        /// Returns the NodeId for the default binary encoding for the type.
         /// </summary>
-        /// <value>The UA type identifier for binary encoding.</value>
+        /// <value>The NodeId for binary encoding.</value>
         ExpandedNodeId BinaryEncodingId { get; }
 
         /// <summary>
-        /// Returns the UA type identifier for the default XML encoding for the type.
+        /// Returns the NodeId for the default XML encoding for the type.
         /// </summary>
-        /// <value>The UA type identifier for the  XML encoding id.</value>
+        /// <value>The NodeId for the  XML encoding id.</value>
         ExpandedNodeId XmlEncodingId { get; }
 
         /// <summary>
@@ -47,7 +48,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes the object from a stream.
         /// </summary>
-        /// <param name="decoder">The decoder to be used for decoding the current value..</param>
+        /// <param name="decoder">The decoder to be used for decoding the current value.</param>
         void Decode(IDecoder decoder);
 
         /// <summary>
@@ -113,4 +114,16 @@ namespace Opc.Ua
         }
     }
     #endregion
+
+    /// <summary>
+    /// Defines extensions to support the JSON encoding.
+    /// </summary>
+    public interface IJsonEncodeable
+    {
+        /// <summary>
+        /// Returns the NodeId for the default JSON encoding for the type.
+        /// </summary>
+        /// <value>The NodeId for the JSON encoding.</value>
+        ExpandedNodeId JsonEncodingId { get; }
+    }
 }

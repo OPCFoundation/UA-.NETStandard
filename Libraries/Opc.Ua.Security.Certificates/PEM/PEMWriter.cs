@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
-using System.Security.Cryptography;
 using System.IO;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
 namespace Opc.Ua.Security.Certificates

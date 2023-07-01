@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Xml;
@@ -51,6 +52,10 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </remarks>
     public class ComplexTypeSystem
     {
+        // an internal limit to prevent the retry
+        // datatype loader mechanism to loop forever
+        private const int MaxLoopCount = 100;
+
         #region Constructors
         /// <summary>
         /// Initializes the type system with a session to load the custom types.
@@ -259,6 +264,59 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             return m_complexTypeBuilderFactory.GetTypes();
         }
+
+        /// <summary>
+        /// Returns data types node ids for everything that was defined.
+        /// </summary>
+        /// <returns></returns>
+        public IEnumerable<ExpandedNodeId> GetDefinedDataTypeIds()
+        {
+            return m_dataTypeDefinitionCache.Keys.Select(nodeId => NodeId.ToExpandedNodeId(nodeId, m_complexTypeResolver.NamespaceUris));
+        }
+
+        /// <summary>
+        /// Get the data type definition and dependent definitions for a data type node id.
+        /// Recursive through the cache to find all dependent types for strutures fields
+        /// contained in the cache.
+        /// </summary>
+        public NodeIdDictionary<DataTypeDefinition> GetDataTypeDefinitionsForDataType(ExpandedNodeId dataTypeId)
+        {
+            var dataTypeDefinitions = new NodeIdDictionary<DataTypeDefinition>();
+
+            var dataTypeNodeId = ExpandedNodeId.ToNodeId(dataTypeId, m_complexTypeResolver.NamespaceUris);
+            if (!NodeId.IsNull(dataTypeNodeId))
+            {
+                CollectAllDataTypeDefinitions(dataTypeNodeId, dataTypeDefinitions);
+            }
+
+            return dataTypeDefinitions;
+
+            void CollectAllDataTypeDefinitions(NodeId nodeId, NodeIdDictionary<DataTypeDefinition> collect)
+            {
+                if (NodeId.IsNull(nodeId))
+                {
+                    return;
+                }
+
+                if (m_dataTypeDefinitionCache.TryGetValue(nodeId, out var dataTypeDefinition))
+                {
+                    collect[nodeId] = dataTypeDefinition;
+
+                    if (dataTypeDefinition is StructureDefinition structureDefinition)
+                    {
+                        foreach (StructureField field in structureDefinition.Fields)
+                        {
+                            if (!IsRecursiveDataType(nodeId, field.DataType) &&
+                                !collect.ContainsKey(nodeId))
+                            {
+                                CollectAllDataTypeDefinitions(field.DataType, collect);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         #endregion Public Members
 
         #region Internal Properties
@@ -333,10 +391,13 @@ namespace Opc.Ua.Client.ComplexTypes
                     AddEnumTypes(complexTypeBuilder, typeDictionary, enumList, allEnumTypes, serverEnumTypes);
 
                     // handle structures
+                    int loopCounter = 0;
                     int lastStructureCount = 0;
                     while (structureList.Count > 0 &&
-                        structureList.Count != lastStructureCount)
+                        structureList.Count != lastStructureCount &&
+                        loopCounter < MaxLoopCount)
                     {
+                        loopCounter++;
                         lastStructureCount = structureList.Count;
                         var retryStructureList = new List<Schema.Binary.TypeDescription>();
                         // build structured types
@@ -585,8 +646,10 @@ namespace Opc.Ua.Client.ComplexTypes
             m_complexTypeResolver.BrowseForEncodings(nodeIds, m_supportedEncodings);
 
             // create structured types for all namespaces
+            int loopCounter = 0;
             do
             {
+                loopCounter++;
                 retryAddStructType = false;
                 for (uint i = 0; i < namespaceCount; i++)
                 {
@@ -682,7 +745,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 // due to type dependencies, retry missing types until there is no more progress
                 if (retryAddStructType &&
-                    structTypesWorkList.Count != structTypesToDoList.Count)
+                    structTypesWorkList.Count != structTypesToDoList.Count &&
+                    loopCounter < MaxLoopCount)
                 {
                     structTypesWorkList = structTypesToDoList;
                     structTypesToDoList = new List<INode>();
@@ -691,6 +755,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     break;
                 }
+
             } while (retryAddStructType);
 
             // all types loaded
@@ -819,38 +884,23 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (enumType != null)
                 {
                     enumDescription = enumType;
+
                     // try dictionary enum definition
                     if (item is Schema.Binary.EnumeratedType enumeratedObject)
                     {
                         // 1. use Dictionary entry
-                        newType = complexTypeBuilder.AddEnumType(enumeratedObject);
+                        var enumDefinition = enumeratedObject.ToEnumDefinition();
+
+                        // Add EnumDefinition to cache
+                        m_dataTypeDefinitionCache[enumType.NodeId] = enumDefinition;
+
+                        newType = complexTypeBuilder.AddEnumType(enumeratedObject.Name, enumDefinition);
                     }
                     if (newType == null)
                     {
+                        // 2. use node cache
                         var dataTypeNode = m_complexTypeResolver.Find(enumType.NodeId) as DataTypeNode;
-                        if (dataTypeNode != null)
-                        {
-                            if (dataTypeNode.DataTypeDefinition != null)
-                            {
-                                // 2. use DataTypeDefinition 
-                                newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, dataTypeNode.DataTypeDefinition);
-                            }
-                            else
-                            {
-                                // get the EnumFields or EnumStrings property
-                                object enumTypeArray = m_complexTypeResolver.GetEnumTypeArray(enumType.NodeId);
-                                if (enumTypeArray is ExtensionObject[] extensionObject)
-                                {
-                                    // 3. use EnumValues
-                                    newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, extensionObject);
-                                }
-                                else if (enumTypeArray is LocalizedText[] localizedText)
-                                {
-                                    // 4. use EnumStrings
-                                    newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, localizedText);
-                                }
-                            }
-                        }
+                        newType = AddEnumType(complexTypeBuilder, dataTypeNode);
                     }
                 }
                 else
@@ -900,25 +950,36 @@ namespace Opc.Ua.Client.ComplexTypes
             if (enumTypeNode != null)
             {
                 QualifiedName name = enumTypeNode.BrowseName;
-                if (enumTypeNode.DataTypeDefinition != null)
-                {
-                    // 1. use DataTypeDefinition 
-                    newType = complexTypeBuilder.AddEnumType(name, enumTypeNode.DataTypeDefinition);
-                }
-                else
+
+                // 1. use DataTypeDefinition
+                if (DisableDataTypeDefinition ||
+                    !(enumTypeNode.DataTypeDefinition?.Body is EnumDefinition enumDefinition))
                 {
                     // browse for EnumFields or EnumStrings property
                     object enumTypeArray = m_complexTypeResolver.GetEnumTypeArray(enumTypeNode.NodeId);
                     if (enumTypeArray is ExtensionObject[] extensionObject)
                     {
                         // 2. use EnumValues
-                        newType = complexTypeBuilder.AddEnumType(name, extensionObject);
+                        enumDefinition = extensionObject.ToEnumDefinition();
                     }
                     else if (enumTypeArray is LocalizedText[] localizedText)
                     {
                         // 3. use EnumStrings
-                        newType = complexTypeBuilder.AddEnumType(name, localizedText);
+                        enumDefinition = localizedText.ToEnumDefinition();
                     }
+                    else
+                    {
+                        // 4. Give up
+                        enumDefinition = null;
+                    }
+                }
+
+                if (enumDefinition != null)
+                {
+                    // Add EnumDefinition to cache
+                    m_dataTypeDefinitionCache[enumTypeNode.NodeId] = enumDefinition;
+
+                    newType = complexTypeBuilder.AddEnumType(name, enumDefinition);
                 }
             }
             return newType;
@@ -940,19 +1001,22 @@ namespace Opc.Ua.Client.ComplexTypes
             // init missing type list
             missingTypes = null;
 
+            var localDataTypeId = ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris);
+            bool allowSubTypes = IsAllowSubTypes(structureDefinition);
+
             // check all types
             var typeList = new List<Type>();
             foreach (StructureField field in structureDefinition.Fields)
             {
-                Type newType = GetFieldType(field);
+                Type newType = GetFieldType(field, allowSubTypes);
                 if (newType == null &&
-                    !IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris), field.DataType))
+                    !IsRecursiveDataType(localDataTypeId, field.DataType))
                 {
                     if (missingTypes == null)
                     {
                         missingTypes = new ExpandedNodeIdCollection() { field.DataType };
                     }
-                    else
+                    else if (!missingTypes.Contains(field.DataType))
                     {
                         missingTypes.Add(field.DataType);
                     }
@@ -967,6 +1031,9 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 return null;
             }
+
+            // Add StructureDefinition to cache
+            m_dataTypeDefinitionCache[localDataTypeId] = structureDefinition;
 
             var fieldBuilder = complexTypeBuilder.AddStructuredType(
                 typeName,
@@ -983,7 +1050,8 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 // check for recursive data type:
                 //    field has the same data type as the parent structure
-                var isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris), field.DataType);
+                var nodeId = ExpandedNodeId.ToNodeId(complexTypeId, m_complexTypeResolver.NamespaceUris);
+                var isRecursiveDataType = IsRecursiveDataType(nodeId, field.DataType);
                 if (isRecursiveDataType)
                 {
                     fieldBuilder.AddField(field, fieldBuilder.GetStructureType(field.ValueRank), order);
@@ -998,13 +1066,30 @@ namespace Opc.Ua.Client.ComplexTypes
             return fieldBuilder.CreateType();
         }
 
+        bool IsAllowSubTypes(StructureDefinition structureDefinition)
+        {
+            switch (structureDefinition.StructureType)
+            {
+                case StructureType.UnionWithSubtypedValues:
+                case StructureType.StructureWithSubtypedValues:
+                    return true;
+            }
+            return false;
+        }
+
+        private bool IsAbstractType(NodeId fieldDataType)
+        {
+            var dataTypeNode = m_complexTypeResolver.Find(fieldDataType) as DataTypeNode;
+            return dataTypeNode?.IsAbstract == true;
+        }
+
         private bool IsRecursiveDataType(NodeId structureDataType, NodeId fieldDataType)
             => fieldDataType.Equals(structureDataType);
 
         /// <summary>
         /// Determine the type of a field in a StructureField definition.
         /// </summary>
-        private Type GetFieldType(StructureField field)
+        private Type GetFieldType(StructureField field, bool allowSubTypes)
         {
             if (field.ValueRank != ValueRanks.Scalar &&
                 field.ValueRank < ValueRanks.OneDimension)
@@ -1018,11 +1103,11 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (fieldType == null)
             {
-                var superType = GetBuiltInSuperType(field.DataType);
+                var superType = GetBuiltInSuperType(field.DataType, allowSubTypes, field.IsOptional);
                 if (superType?.IsNullNodeId == false)
                 {
                     field.DataType = superType;
-                    return GetFieldType(field);
+                    return GetFieldType(field, allowSubTypes);
                 }
                 return null;
             }
@@ -1042,7 +1127,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Find superType for a datatype.
         /// </summary>
-        private NodeId GetBuiltInSuperType(NodeId dataType)
+        private NodeId GetBuiltInSuperType(NodeId dataType, bool allowSubTypes, bool isOptional)
         {
             NodeId superType = dataType;
             while (true)
@@ -1061,9 +1146,25 @@ namespace Opc.Ua.Client.ComplexTypes
                         // which are not in the type system are encoded as UInt32
                         return new NodeId((uint)BuiltInType.UInt32);
                     }
-                    if (superType == DataTypeIds.Enumeration ||
-                        superType == DataTypeIds.Structure)
+                    if (superType == DataTypeIds.Enumeration)
                     {
+                        return null;
+                    }
+                    else if (superType == DataTypeIds.Structure)
+                    {
+                        // throw on invalid combinations of allowSubTypes, isOptional and abstract types
+                        // in such case the encoding as ExtensionObject is undetermined and not specified
+                        if ((dataType != DataTypeIds.Structure) &&
+                            ((allowSubTypes && !isOptional) || !allowSubTypes) &&
+                            IsAbstractType(dataType))
+                        {
+                            throw new DataTypeNotSupportedException("Invalid definition of a abstract subtype of a structure.");
+                        }
+
+                        if (allowSubTypes && isOptional)
+                        {
+                            return superType;
+                        }
                         return null;
                     }
                     break;
@@ -1117,6 +1218,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #region Private Fields
         private IComplexTypeResolver m_complexTypeResolver;
         private IComplexTypeFactory m_complexTypeBuilderFactory;
+        private NodeIdDictionary<DataTypeDefinition> m_dataTypeDefinitionCache = new NodeIdDictionary<DataTypeDefinition>();
         private static readonly string[] m_supportedEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultXml, BrowseNames.DefaultJson };
         #endregion Private Fields
     }

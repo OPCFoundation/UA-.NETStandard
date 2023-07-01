@@ -74,6 +74,27 @@ namespace Opc.Ua
             m_message.Value = message;
         }
         #endregion
+
+        #region ICloneable Members
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
+        /// <summary>
+        /// Makes a copy of the node and all children.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            BaseEventState clone = (BaseEventState)Activator.CreateInstance(this.GetType());
+            return CloneChildren(clone);
+        }
+        #endregion
+
     }
 
     /// <summary>

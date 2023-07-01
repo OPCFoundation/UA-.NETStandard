@@ -40,6 +40,7 @@ namespace Opc.Ua.Bindings
         :
             this(contextId, listener, bufferManager, quotas, serverCertificate, null, endpoints)
         {
+            m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
         }
 
         /// <summary>
@@ -56,6 +57,7 @@ namespace Opc.Ua.Bindings
         :
             base(contextId, listener, bufferManager, quotas, serverCertificate, serverCertificateChain, endpoints)
         {
+            m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
         }
         #endregion
 
@@ -234,7 +236,7 @@ namespace Opc.Ua.Bindings
                     // send response.
                     SendOpenSecureChannelResponse(requestId, token, request);
 
-                    // send any queue responses.
+                    // send any queued responses.
                     ResetQueuedResponses(OnChannelReconnected);
                 }
                 catch (Exception e)
@@ -431,24 +433,25 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    MemoryStream ostrm = new MemoryStream(buffer, 0, SendBufferSize);
-                    BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext);
+                    using (MemoryStream ostrm = new MemoryStream(buffer, 0, SendBufferSize))
+                    using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext))
+                    {
+                        encoder.WriteUInt32(null, TcpMessageType.Acknowledge);
+                        encoder.WriteUInt32(null, 0);
+                        encoder.WriteUInt32(null, 0); // ProtocolVersion
+                        encoder.WriteUInt32(null, (uint)ReceiveBufferSize);
+                        encoder.WriteUInt32(null, (uint)SendBufferSize);
+                        encoder.WriteUInt32(null, (uint)MaxRequestMessageSize);
+                        encoder.WriteUInt32(null, (uint)MaxRequestChunkCount);
 
-                    encoder.WriteUInt32(null, TcpMessageType.Acknowledge);
-                    encoder.WriteUInt32(null, 0);
-                    encoder.WriteUInt32(null, 0); // ProtocolVersion
-                    encoder.WriteUInt32(null, (uint)ReceiveBufferSize);
-                    encoder.WriteUInt32(null, (uint)SendBufferSize);
-                    encoder.WriteUInt32(null, (uint)MaxRequestMessageSize);
-                    encoder.WriteUInt32(null, (uint)MaxRequestChunkCount);
+                        int size = encoder.Close();
+                        UpdateMessageSize(buffer, 0, size);
 
-                    int size = encoder.Close();
-                    UpdateMessageSize(buffer, 0, size);
+                        // now ready for the open or bind request.
+                        State = TcpChannelState.Opening;
 
-                    // now ready for the open or bind request.
-                    State = TcpChannelState.Opening;
-
-                    BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
+                        BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
+                    }
                     buffer = null;
                 }
                 finally
@@ -877,7 +880,9 @@ namespace Opc.Ua.Bindings
             // return false would double free the buffer
             return true;
         }
+        #endregion
 
+        #region Message Processing
         /// <summary>
         /// Processes a request message.
         /// </summary>
@@ -920,6 +925,23 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
+            const int ChannelCloseCount = 5;
+            int countForDisconnect = ChannelCloseCount;
+            while (ChannelFull && countForDisconnect > 0)
+            {
+                Utils.LogInfo("Channel {0}: full -- delay processing.", Id);
+
+                // delay reading from channel
+                Thread.Sleep(1000);
+
+                if (--countForDisconnect == 0 && ChannelFull)
+                {
+                    Utils.LogWarning("Channel {0}: break socket connection.", Id);
+                    ChannelClosed();
+                    return false;
+                }
+            }
+
             BufferCollection chunksToProcess = null;
 
             try
@@ -935,11 +957,37 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody, true);
+                    bool firstChunk = SaveIntermediateChunk(requestId, messageBody, true);
+
+                    // validate the type is allowed with a discovery channel
+                    if (DiscoveryOnly)
+                    {
+                        if (firstChunk)
+                        {
+                            if (!ValidateDiscoveryServiceCall(token, requestId, messageBody, out chunksToProcess))
+                            {
+                                ChannelClosed();
+                            }
+                        }
+                        else if (GetSavedChunksTotalSize() > TcpMessageLimits.DefaultDiscoveryMaxMessageSize)
+                        {
+                            chunksToProcess = GetSavedChunks(0, messageBody, true);
+                            SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Discovery Channel message size exceeded."));
+                            ChannelClosed();
+                        }
+                    }
+
                     return true;
                 }
 
                 // Utils.LogTrace("ChannelId {0}: ProcessRequestMessage RequestId {1}", ChannelId, requestId);
+                if (DiscoveryOnly && GetSavedChunksTotalSize() == 0)
+                {
+                    if (!ValidateDiscoveryServiceCall(token, requestId, messageBody, out chunksToProcess))
+                    {
+                        return true;
+                    }
+                }
 
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
@@ -956,7 +1004,7 @@ namespace Opc.Ua.Bindings
                 // ensure that only discovery requests come through unsecured.
                 if (DiscoveryOnly)
                 {
-                    if (!(request is GetEndpointsRequest || request is FindServersRequest))
+                    if (!(request is GetEndpointsRequest || request is FindServersRequest || request is FindServersOnNetworkRequest))
                     {
                         SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
                         return true;
@@ -984,6 +1032,77 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Sends the response for the specified request.
+        /// </summary>
+        public void SendResponse(uint requestId, IServiceResponse response)
+        {
+            if (response == null) throw new ArgumentNullException(nameof(response));
+
+            lock (DataLock)
+            {
+                // must queue the response if the channel is in the faulted state.
+                if (State == TcpChannelState.Faulted)
+                {
+                    m_queuedResponses[requestId] = response;
+                    return;
+                }
+
+                Utils.EventLog.SendResponse((int)ChannelId, (int)requestId);
+
+                BufferCollection buffers = null;
+
+                try
+                {
+                    // note that the server does nothing if the message limits are exceeded.
+                    bool limitsExceeded = false;
+
+                    buffers = WriteSymmetricMessage(
+                        TcpMessageType.Message,
+                        requestId,
+                        CurrentToken,
+                        response,
+                        false,
+                        out limitsExceeded);
+
+                }
+                catch (Exception e)
+                {
+                    SendServiceFault(
+                        CurrentToken,
+                        requestId,
+                        ServiceResult.Create(e, StatusCodes.BadEncodingError, "Could not encode outgoing message."));
+
+                    return;
+                }
+
+                try
+                {
+                    BeginWriteMessage(buffers, null);
+                    buffers = null;
+                }
+                catch (Exception)
+                {
+                    if (buffers != null)
+                    {
+                        buffers.Release(BufferManager, "SendResponse");
+                    }
+
+                    m_queuedResponses[requestId] = response;
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reset the sorted dictionary of queued responses after reconnect.
+        /// </summary>
+        private void ResetQueuedResponses(Action<object> action)
+        {
+            Task.Factory.StartNew(action, m_queuedResponses);
+            m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
+        }
+
+        /// <summary>
         /// Closes the channel in case the message limits have been exceeded
         /// </summary>
         protected override void DoMessageLimitsExceeded()
@@ -991,9 +1110,34 @@ namespace Opc.Ua.Bindings
             base.DoMessageLimitsExceeded();
             ChannelClosed();
         }
+
+        /// <summary>
+        /// Validate the type of message before it is decoded.
+        /// </summary>
+        private bool ValidateDiscoveryServiceCall(ChannelToken token, uint requestId, ArraySegment<byte> messageBody, out BufferCollection chunksToProcess)
+        {
+            chunksToProcess = null;
+            using (var decoder = new BinaryDecoder(messageBody.AsMemory().ToArray(), Quotas.MessageContext))
+            {
+                // read the type of the message before more chunks are processed.
+                NodeId typeId = decoder.ReadNodeId(null);
+
+                if (typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary &&
+                    typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
+                    typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
+                {
+                    chunksToProcess = GetSavedChunks(0, messageBody, true);
+                    SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
+                    return false;
+                }
+                return true;
+            }
+        }
+
         #endregion
 
         #region Private Fields
+        private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private readonly string m_ImplementationString = ".NET Standard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
         private ReverseConnectAsyncResult m_pendingReverseHello;
         #endregion

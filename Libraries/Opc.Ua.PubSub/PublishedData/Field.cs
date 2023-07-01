@@ -27,12 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.PubSub.PublishedData
 {
     /// <summary>
     /// Base class for a DataSet field
     /// </summary>
-    public class Field
+    public class Field : ICloneable
     {
         /// <summary>
         /// Get/Set Value 
@@ -54,7 +56,13 @@ namespace Opc.Ua.PubSub.PublishedData
         /// </summary>
         public FieldMetaData FieldMetaData { get; internal set; }
 
-        #region MemberwiseClone method
+        #region ICloneable method
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Create a deep copy of current DataSet
         /// </summary>
@@ -65,7 +73,7 @@ namespace Opc.Ua.PubSub.PublishedData
             {
                 if (copy != null)
                 {
-                    copy.Value = Value.MemberwiseClone() as DataValue;
+                    copy.Value = Value.Clone() as DataValue;
                 }
             }
 
@@ -73,7 +81,7 @@ namespace Opc.Ua.PubSub.PublishedData
             {
                 if (copy != null)
                 {
-                    copy.FieldMetaData = FieldMetaData.MemberwiseClone() as FieldMetaData;
+                    copy.FieldMetaData = FieldMetaData.Clone() as FieldMetaData;
                 }
             }
             return copy;

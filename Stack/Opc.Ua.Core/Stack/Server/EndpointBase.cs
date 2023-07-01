@@ -395,7 +395,7 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <param name="exception">The exception.</param>
         /// <returns>A fault message.</returns>
-        protected static ServiceFault CreateFault(IServiceRequest request, Exception exception)
+        public static ServiceFault CreateFault(IServiceRequest request, Exception exception)
         {
             DiagnosticsMasks diagnosticsMask = DiagnosticsMasks.ServiceNoInnerStatus;
 
@@ -452,7 +452,7 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <param name="exception">The exception.</param>
         /// <returns>A fault message.</returns>
-        protected static Exception CreateSoapFault(IServiceRequest request, Exception exception)
+        public static Exception CreateSoapFault(IServiceRequest request, Exception exception)
         {
             ServiceFault fault = CreateFault(request, exception);
 

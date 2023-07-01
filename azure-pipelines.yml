@@ -61,9 +61,9 @@ stages:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      framework: net462
+      framework: net48
       agents: '@{ windows = "windows-2019" }'
-      jobnamesuffix: net462
+      jobnamesuffix: net48  
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release

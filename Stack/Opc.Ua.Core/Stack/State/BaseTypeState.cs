@@ -21,7 +21,7 @@ using System.Reflection;
 using System.Threading;
 
 namespace Opc.Ua
-{       
+{
     /// <summary> 
     /// The base class for all type nodes.
     /// </summary>
@@ -55,7 +55,13 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Public Members
+        #region ICloneable Members
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Makes a copy of the node and all children.
         /// </summary>
@@ -65,33 +71,21 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             BaseTypeState clone = new BaseTypeState(this.NodeClass);
-
-            if (m_children != null)
-            {
-                clone.m_children = new List<BaseInstanceState>(m_children.Count);
-
-                for (int ii = 0; ii < m_children.Count; ii++)
-                {
-                    BaseInstanceState child = (BaseInstanceState)m_children[ii].MemberwiseClone();
-                    clone.m_children.Add(child);
-                }
-            }
-
-            clone.m_changeMasks = NodeStateChangeMasks.None;
-
-            return clone;
+            return CloneChildren(clone);
         }
-        
+        #endregion
+
+        #region Public Members
         /// <summary>
         /// The identifier for the supertype node.
         /// </summary>
         public NodeId SuperTypeId
         {
             get
-            { 
-                return m_superTypeId;  
+            {
+                return m_superTypeId;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_superTypeId, value))
@@ -109,10 +103,10 @@ namespace Opc.Ua
         public bool IsAbstract
         {
             get
-            { 
-                return m_isAbstract;  
+            {
+                return m_isAbstract;
             }
-            
+
             set
             {
                 if (m_isAbstract != value)

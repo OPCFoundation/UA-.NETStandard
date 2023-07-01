@@ -56,6 +56,11 @@ namespace Opc.Ua.Client
     public delegate void PublishErrorEventHandler(ISession session, PublishErrorEventArgs e);
 
     /// <summary>
+    /// The delegate used to modify publish response sequence numbers to acknowledge.
+    /// </summary>
+    public delegate void PublishSequenceNumbersToAcknowledgeEventHandler(ISession session, PublishSequenceNumbersToAcknowledgeEventArgs e);
+
+    /// <summary>
     /// Manages a session with a server.
     /// </summary>
     public interface ISession : ISessionClient, IDisposable
@@ -92,6 +97,15 @@ namespace Opc.Ua.Client
         /// PublishingInterval*KeepAliveCount.
         /// </remarks>
         event PublishErrorEventHandler PublishError;
+
+        /// <summary>
+        /// Raised when a publish request is about to acknolegde sequence numbers. 
+        /// </summary>
+        /// <remarks>
+        /// If the client chose to defer acknowledge of sequenece numbers, it is responsible
+        /// to transfer these <see cref="SubscriptionAcknowledgement"/> to the deferred list.
+        /// </remarks>
+        event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge;
 
         /// <summary>
         /// Raised when a subscription is added or removed
@@ -244,6 +258,11 @@ namespace Opc.Ua.Client
         int GoodPublishRequestCount { get; }
 
         /// <summary>
+        /// Gets and sets the minimum number of publish requests to be used in the session.
+        /// </summary>
+        int MinPublishRequestCount { get; set; }
+
+        /// <summary>
         /// Stores the operation limits of a OPC UA Server.
         /// </summary>
         OperationLimits OperationLimits { get; }
@@ -296,15 +315,17 @@ namespace Opc.Ua.Client
         /// Load the list of subscriptions saved in a file.
         /// </summary>
         /// <param name="stream">The stream.</param>
+        /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
         /// <returns>The list of loaded subscriptions</returns>
-        IEnumerable<Subscription> Load(Stream stream);
+        IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false);
 
         /// <summary>
         /// Load the list of subscriptions saved in a file.
         /// </summary>
         /// <param name="filePath">The file path.</param>
+        /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
         /// <returns>The list of loaded subscriptions</returns>
-        IEnumerable<Subscription> Load(string filePath);
+        IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false);
 
         /// <summary>
         /// Updates the local copy of the server's namespace uri and server uri tables.

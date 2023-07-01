@@ -327,13 +327,13 @@ namespace Opc.Ua.Security.Certificates
                 crlWriter.WriteEncodedValue((ReadOnlySpan<byte>)IssuerName.RawData);
 
                 // this update
-                crlWriter.WriteUtcTime(this.ThisUpdate);
+                WriteTime(crlWriter, ThisUpdate);
 
                 if (NextUpdate != DateTime.MinValue &&
                     NextUpdate > ThisUpdate)
                 {
                     // next update
-                    crlWriter.WriteUtcTime(NextUpdate);
+                    WriteTime(crlWriter, NextUpdate);
                 }
 
                 // sequence to start the revoked certificates.
@@ -345,7 +345,7 @@ namespace Opc.Ua.Security.Certificates
 
                     BigInteger srlNumberValue = new BigInteger(revokedCert.UserCertificate);
                     crlWriter.WriteInteger(srlNumberValue);
-                    crlWriter.WriteUtcTime(revokedCert.RevocationDate);
+                    WriteTime(crlWriter, revokedCert.RevocationDate);
 
                     if (revokedCert.CrlEntryExtensions.Count > 0)
                     {
@@ -382,6 +382,24 @@ namespace Opc.Ua.Security.Certificates
                 crlWriter.PopSequence();
 
                 return crlWriter.Encode();
+            }
+        }
+
+        /// <summary>
+        /// Write either a UTC time or a Generalized time depending if DataTime is before or after 2050.
+        /// </summary>
+        /// <param name="writer">The writer to write to.</param>
+        /// <param name="dateTime">The date time to write.</param>
+        private static void WriteTime(AsnWriter writer, DateTime dateTime)
+        {
+            DateTime utcTime = dateTime.ToUniversalTime();
+            if (utcTime.Year < 2050)
+            {
+                writer.WriteUtcTime(utcTime);
+            }
+            else
+            {
+                writer.WriteGeneralizedTime(utcTime, true);
             }
         }
         #endregion

@@ -282,9 +282,9 @@ namespace Opc.Ua.Client.Controls
             }
             buffer.Append("This certificate validation error indicates that the hostname used to connect");
             buffer.Append(" is not listed as a valid hostname in the server certificate.");
-            buffer.Append("\r\n\r\nIgnore error and disable the hostname verification?");
+            buffer.Append("\r\n\r\nRetry with disabled hostname verification?");
 
-            if (MessageBox.Show(buffer.ToString(), caption, MessageBoxButtons.YesNo) == DialogResult.Yes)
+            if (MessageBox.Show(buffer.ToString(), caption, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
             {
                 return true;
             }
@@ -329,7 +329,7 @@ namespace Opc.Ua.Client.Controls
             buffer.Append("to a server or to allow an untrusted client to connect to your server.");
             buffer.Append("\r\n\r\nAccept anyway?");
 
-            if (MessageBox.Show(buffer.ToString(), caption, MessageBoxButtons.YesNo) == DialogResult.Yes)
+            if (MessageBox.Show(buffer.ToString(), caption, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
             {
                 e.AcceptAll = true;
             }
