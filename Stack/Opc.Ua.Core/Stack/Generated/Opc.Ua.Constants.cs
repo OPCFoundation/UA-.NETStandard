@@ -4388,6 +4388,9 @@ namespace Opc.Ua
         public const uint OrderedListType_OrderedObject_Placeholder = 23519;
 
         /// <remarks />
+        public const uint UnitType_SyntaxReferenceId_Placeholder = 32680;
+
+        /// <remarks />
         public const uint ServerUnitType_AlternativeUnits = 32452;
 
         /// <remarks />
@@ -4401,6 +4404,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint QuantityType_ServerUnits_ServerUnit_Placeholder = 32482;
+
+        /// <remarks />
+        public const uint QuantityType_SyntaxReferenceId_Placeholder = 32686;
 
         /// <remarks />
         public const uint QuantitiesFolderType_Quantity_Placeholder = 32503;
@@ -12311,6 +12317,12 @@ namespace Opc.Ua
         public const uint UnitType_Discipline = 32446;
 
         /// <remarks />
+        public const uint UnitType_SyntaxReferenceId_Placeholder_CommonName = 32681;
+
+        /// <remarks />
+        public const uint ServerUnitType_SyntaxReferenceId_Placeholder_CommonName = 32683;
+
+        /// <remarks />
         public const uint ServerUnitType_AlternativeUnits_AlternativeUnit_Placeholder_Symbol = 32588;
 
         /// <remarks />
@@ -12324,6 +12336,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerUnitType_CoherentUnit_UnitSystem = 32465;
+
+        /// <remarks />
+        public const uint AlternativeUnitType_SyntaxReferenceId_Placeholder_CommonName = 32685;
 
         /// <remarks />
         public const uint AlternativeUnitType_LinearConversion = 32472;
@@ -12369,6 +12384,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint QuantityType_ServerUnits_ServerUnit_Placeholder_CoherentUnit_UnitSystem = 32500;
+
+        /// <remarks />
+        public const uint QuantityType_SyntaxReferenceId_Placeholder_CommonName = 32687;
 
         /// <remarks />
         public const uint QuantitiesFolderType_Quantity_Placeholder_Dimension = 32508;
@@ -34387,6 +34405,9 @@ namespace Opc.Ua
         public static readonly NodeId OrderedListType_OrderedObject_Placeholder = new NodeId(Opc.Ua.Objects.OrderedListType_OrderedObject_Placeholder);
 
         /// <remarks />
+        public static readonly NodeId UnitType_SyntaxReferenceId_Placeholder = new NodeId(Opc.Ua.Objects.UnitType_SyntaxReferenceId_Placeholder);
+
+        /// <remarks />
         public static readonly NodeId ServerUnitType_AlternativeUnits = new NodeId(Opc.Ua.Objects.ServerUnitType_AlternativeUnits);
 
         /// <remarks />
@@ -34400,6 +34421,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId QuantityType_ServerUnits_ServerUnit_Placeholder = new NodeId(Opc.Ua.Objects.QuantityType_ServerUnits_ServerUnit_Placeholder);
+
+        /// <remarks />
+        public static readonly NodeId QuantityType_SyntaxReferenceId_Placeholder = new NodeId(Opc.Ua.Objects.QuantityType_SyntaxReferenceId_Placeholder);
 
         /// <remarks />
         public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder = new NodeId(Opc.Ua.Objects.QuantitiesFolderType_Quantity_Placeholder);
@@ -42310,6 +42334,12 @@ namespace Opc.Ua
         public static readonly NodeId UnitType_Discipline = new NodeId(Opc.Ua.Variables.UnitType_Discipline);
 
         /// <remarks />
+        public static readonly NodeId UnitType_SyntaxReferenceId_Placeholder_CommonName = new NodeId(Opc.Ua.Variables.UnitType_SyntaxReferenceId_Placeholder_CommonName);
+
+        /// <remarks />
+        public static readonly NodeId ServerUnitType_SyntaxReferenceId_Placeholder_CommonName = new NodeId(Opc.Ua.Variables.ServerUnitType_SyntaxReferenceId_Placeholder_CommonName);
+
+        /// <remarks />
         public static readonly NodeId ServerUnitType_AlternativeUnits_AlternativeUnit_Placeholder_Symbol = new NodeId(Opc.Ua.Variables.ServerUnitType_AlternativeUnits_AlternativeUnit_Placeholder_Symbol);
 
         /// <remarks />
@@ -42323,6 +42353,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerUnitType_CoherentUnit_UnitSystem = new NodeId(Opc.Ua.Variables.ServerUnitType_CoherentUnit_UnitSystem);
+
+        /// <remarks />
+        public static readonly NodeId AlternativeUnitType_SyntaxReferenceId_Placeholder_CommonName = new NodeId(Opc.Ua.Variables.AlternativeUnitType_SyntaxReferenceId_Placeholder_CommonName);
 
         /// <remarks />
         public static readonly NodeId AlternativeUnitType_LinearConversion = new NodeId(Opc.Ua.Variables.AlternativeUnitType_LinearConversion);
@@ -42368,6 +42401,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId QuantityType_ServerUnits_ServerUnit_Placeholder_CoherentUnit_UnitSystem = new NodeId(Opc.Ua.Variables.QuantityType_ServerUnits_ServerUnit_Placeholder_CoherentUnit_UnitSystem);
+
+        /// <remarks />
+        public static readonly NodeId QuantityType_SyntaxReferenceId_Placeholder_CommonName = new NodeId(Opc.Ua.Variables.QuantityType_SyntaxReferenceId_Placeholder_CommonName);
 
         /// <remarks />
         public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder_Dimension = new NodeId(Opc.Ua.Variables.QuantitiesFolderType_Quantity_Placeholder_Dimension);
@@ -64763,6 +64799,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string SyntaxReferenceEntryType = "SyntaxReferenceEntryType";
+
+        /// <remarks />
+        public const string SyntaxReferenceId_Placeholder = "<SyntaxReferenceId>";
 
         /// <remarks />
         public const string SystemConditionClassType = "SystemConditionClassType";
