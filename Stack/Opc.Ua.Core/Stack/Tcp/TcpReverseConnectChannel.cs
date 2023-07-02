@@ -64,13 +64,6 @@ namespace Opc.Ua.Bindings
                         return ProcessReverseHelloMessage(messageType, messageChunk);
                     }
 
-                    // check for error.
-                    else if (messageType == TcpMessageType.Error)
-                    {
-                        Utils.LogTrace("ChannelId {0}: ProcessErrorMessage", ChannelId);
-                        return ProcessErrorMessage(messageType, messageChunk);
-                    }
-
                     // invalid message type - must close socket and reconnect.
                     ForceChannelFault(
                         StatusCodes.BadTcpMessageTypeInvalid,
@@ -140,34 +133,6 @@ namespace Opc.Ua.Bindings
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Processes an Error message received over the socket.
-        /// </summary>
-        private bool ProcessErrorMessage(uint messageType, ArraySegment<byte> messageChunk)
-        {
-            // read request buffer sizes.            
-            MemoryStream istrm = new MemoryStream(messageChunk.Array, messageChunk.Offset, messageChunk.Count, false);
-            BinaryDecoder decoder = new BinaryDecoder(istrm, Quotas.MessageContext);
-
-            istrm.Seek(TcpMessageLimits.MessageTypeAndSize, SeekOrigin.Current);
-
-            try
-            {
-                ServiceResult error = ReadErrorMessageBody(decoder);
-
-                Utils.LogError("ChannelId {0}: ProcessErrorMessage({1})", ChannelId, error);
-
-                // handle the fatal error.
-                ForceChannelFault(error);
-
-                return false;
-            }
-            finally
-            {
-                decoder.Close();
-            }
         }
         #endregion
     }
