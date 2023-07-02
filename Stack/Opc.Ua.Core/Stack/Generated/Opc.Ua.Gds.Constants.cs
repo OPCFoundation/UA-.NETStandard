@@ -7653,6 +7653,9 @@ namespace Opc.Ua.Gds
         public const string KeyCredentialServiceType = "KeyCredentialServiceType";
 
         /// <remarks />
+        public const string ModelVersion = "ModelVersion";
+
+        /// <remarks />
         public const string OpcUaGds_BinarySchema = "Opc.Ua.Gds";
 
         /// <remarks />

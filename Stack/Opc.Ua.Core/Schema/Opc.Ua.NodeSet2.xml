@@ -952,6 +952,7 @@
       <Reference ReferenceType="HasProperty">i=16134</Reference>
       <Reference ReferenceType="HasProperty">i=16135</Reference>
       <Reference ReferenceType="HasProperty">i=16136</Reference>
+      <Reference ReferenceType="HasProperty">i=32408</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
     </References>
@@ -1085,6 +1086,16 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=15957</Reference>
     </References>
+  </UAVariable>
+  <UAVariable NodeId="i=32408" BrowseName="ModelVersion" ParentNodeId="i=15957" DataType="i=24263">
+    <DisplayName>ModelVersion</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=15957</Reference>
+    </References>
+    <Value>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.5.3</String>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="i=3068" BrowseName="NodeVersion" DataType="String">
     <DisplayName>NodeVersion</DisplayName>
@@ -16176,7 +16187,6 @@
       <Reference ReferenceType="HasProperty">i=32444</Reference>
       <Reference ReferenceType="HasProperty">i=32445</Reference>
       <Reference ReferenceType="HasProperty">i=32446</Reference>
-      <Reference ReferenceType="HasDictionaryEntry">i=32680</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
@@ -16210,23 +16220,6 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=32442</Reference>
-    </References>
-  </UAVariable>
-  <UAObject NodeId="i=32680" BrowseName="&lt;SyntaxReferenceId&gt;" SymbolicName="SyntaxReferenceId_Placeholder" ParentNodeId="i=32442">
-    <DisplayName>&lt;SyntaxReferenceId&gt;</DisplayName>
-    <References>
-      <Reference ReferenceType="HasProperty">i=32681</Reference>
-      <Reference ReferenceType="HasTypeDefinition">i=32439</Reference>
-      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
-      <Reference ReferenceType="HasDictionaryEntry" IsForward="false">i=32442</Reference>
-    </References>
-  </UAObject>
-  <UAVariable NodeId="i=32681" BrowseName="CommonName" ParentNodeId="i=32680" DataType="String">
-    <DisplayName>CommonName</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=32680</Reference>
     </References>
   </UAVariable>
   <UAObjectType NodeId="i=32447" BrowseName="ServerUnitType">
@@ -16355,7 +16348,6 @@
       <Reference ReferenceType="HasProperty">i=32479</Reference>
       <Reference ReferenceType="HasProperty">i=32480</Reference>
       <Reference ReferenceType="HasComponent">i=32481</Reference>
-      <Reference ReferenceType="HasDictionaryEntry">i=32686</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
@@ -16441,23 +16433,6 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=32482</Reference>
-    </References>
-  </UAVariable>
-  <UAObject NodeId="i=32686" BrowseName="&lt;SyntaxReferenceId&gt;" SymbolicName="SyntaxReferenceId_Placeholder" ParentNodeId="i=32475">
-    <DisplayName>&lt;SyntaxReferenceId&gt;</DisplayName>
-    <References>
-      <Reference ReferenceType="HasProperty">i=32687</Reference>
-      <Reference ReferenceType="HasTypeDefinition">i=32439</Reference>
-      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
-      <Reference ReferenceType="HasDictionaryEntry" IsForward="false">i=32475</Reference>
-    </References>
-  </UAObject>
-  <UAVariable NodeId="i=32687" BrowseName="CommonName" ParentNodeId="i=32686" DataType="String">
-    <DisplayName>CommonName</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=32686</Reference>
     </References>
   </UAVariable>
   <UAObjectType NodeId="i=32502" BrowseName="QuantitiesFolderType">
