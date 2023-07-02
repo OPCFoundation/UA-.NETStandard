@@ -3581,7 +3581,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        value = (ushort)m_accessRestrictions;
+                        value = accessRestrictions;
                     }
 
                     if (value != null || result != null)
