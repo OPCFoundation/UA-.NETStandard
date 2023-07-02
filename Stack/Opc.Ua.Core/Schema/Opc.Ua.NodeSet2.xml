@@ -272,7 +272,7 @@
   <UADataType NodeId="i=18" BrowseName="ExpandedNodeId">
     <DisplayName>ExpandedNodeId</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.16</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -280,7 +280,7 @@
   <UADataType NodeId="i=19" BrowseName="StatusCode">
     <DisplayName>StatusCode</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.14</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.39.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -312,7 +312,7 @@
   <UADataType NodeId="i=23" BrowseName="DataValue">
     <DisplayName>DataValue</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.11.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -320,7 +320,7 @@
   <UADataType NodeId="i=25" BrowseName="DiagnosticInfo">
     <DisplayName>DiagnosticInfo</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.12</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -54238,7 +54238,7 @@
   <UADataType NodeId="i=308" BrowseName="ApplicationDescription">
     <DisplayName>ApplicationDescription</DisplayName>
     <Category>Base Info ServerType</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -54255,7 +54255,7 @@
   <UADataType NodeId="i=20998" BrowseName="VersionTime">
     <DisplayName>VersionTime</DisplayName>
     <Category>Base Info ServerType</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.16</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.44</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
@@ -54283,7 +54283,7 @@
   <UADataType NodeId="i=302" BrowseName="MessageSecurityMode">
     <DisplayName>MessageSecurityMode</DisplayName>
     <Category>Base Info ServerType</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.20</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=7595</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
@@ -54455,7 +54455,7 @@
   <UADataType NodeId="i=344" BrowseName="SignedSoftwareCertificate">
     <DisplayName>SignedSoftwareCertificate</DisplayName>
     <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.13</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.38</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -54485,7 +54485,7 @@
   <UADataType NodeId="i=319" BrowseName="AnonymousIdentityToken">
     <DisplayName>AnonymousIdentityToken</DisplayName>
     <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.15/#12.3.15.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.41.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
@@ -54494,7 +54494,7 @@
   <UADataType NodeId="i=322" BrowseName="UserNameIdentityToken">
     <DisplayName>UserNameIdentityToken</DisplayName>
     <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.15/#12.3.15.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.41.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
@@ -54507,7 +54507,7 @@
   <UADataType NodeId="i=325" BrowseName="X509IdentityToken">
     <DisplayName>X509IdentityToken</DisplayName>
     <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.15/#12.3.15.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.41.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
@@ -54518,7 +54518,7 @@
   <UADataType NodeId="i=938" BrowseName="IssuedIdentityToken">
     <DisplayName>IssuedIdentityToken</DisplayName>
     <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.15/#12.3.15.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.41.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
@@ -55040,7 +55040,7 @@
   <UADataType NodeId="i=376" BrowseName="AddNodesItem">
     <DisplayName>AddNodesItem</DisplayName>
     <Category>Auditing NodeManagement</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/5.7.2/#5.7.2.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -55050,14 +55050,14 @@
       <Field Name="RequestedNewNodeId" DataType="i=18" />
       <Field Name="BrowseName" DataType="i=20" />
       <Field Name="NodeClass" DataType="i=257" />
-      <Field Name="NodeAttributes" DataType="i=22" AllowSubTypes="true" />
+      <Field Name="NodeAttributes" DataType="i=22" />
       <Field Name="TypeDefinition" DataType="i=18" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=379" BrowseName="AddReferencesItem">
     <DisplayName>AddReferencesItem</DisplayName>
     <Category>Auditing NodeManagement</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/5.7.3/#5.7.3.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -55073,7 +55073,7 @@
   <UADataType NodeId="i=382" BrowseName="DeleteNodesItem">
     <DisplayName>DeleteNodesItem</DisplayName>
     <Category>Auditing NodeManagement</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/5.7.4/#5.7.4.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -55085,7 +55085,7 @@
   <UADataType NodeId="i=385" BrowseName="DeleteReferencesItem">
     <DisplayName>DeleteReferencesItem</DisplayName>
     <Category>Auditing NodeManagement</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/5.7.5/#5.7.5.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -55262,7 +55262,7 @@
   <UADataType NodeId="i=291" BrowseName="NumericRange">
     <DisplayName>NumericRange</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.27</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
@@ -55385,13 +55385,13 @@
     </References>
     <Definition Name="ContentFilterElement">
       <Field Name="FilterOperator" DataType="i=576" />
-      <Field Name="FilterOperands" DataType="i=22" ValueRank="1" AllowSubTypes="true" />
+      <Field Name="FilterOperands" DataType="i=22" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=586" BrowseName="ContentFilter">
     <DisplayName>ContentFilter</DisplayName>
     <Category>Base Info ContentFilter</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.7.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -55698,7 +55698,7 @@
   </UADataType>
   <UADataType NodeId="i=948" BrowseName="AggregateConfiguration">
     <DisplayName>AggregateConfiguration</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/6.5.4/#6.5.4.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.22.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>

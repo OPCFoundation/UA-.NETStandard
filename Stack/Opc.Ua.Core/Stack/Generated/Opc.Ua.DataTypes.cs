@@ -31994,8 +31994,20 @@ namespace Opc.Ua
         [DataMember(Name = "DiscoveryConfiguration", IsRequired = false, Order = 3)]
         public ExtensionObjectCollection DiscoveryConfiguration
         {
-            get { return m_discoveryConfiguration;  }
-            set { m_discoveryConfiguration = value; }
+            get
+            {
+                return m_discoveryConfiguration;
+            }
+
+            set
+            {
+                m_discoveryConfiguration = value;
+
+                if (value == null)
+                {
+                    m_discoveryConfiguration = new ExtensionObjectCollection();
+                }
+            }
         }
         #endregion
 
@@ -44761,8 +44773,20 @@ namespace Opc.Ua
         [DataMember(Name = "FilterOperands", IsRequired = false, Order = 2)]
         public ExtensionObjectCollection FilterOperands
         {
-            get { return m_filterOperands;  }
-            set { m_filterOperands = value; }
+            get
+            {
+                return m_filterOperands;
+            }
+
+            set
+            {
+                m_filterOperands = value;
+
+                if (value == null)
+                {
+                    m_filterOperands = new ExtensionObjectCollection();
+                }
+            }
         }
         #endregion
 
@@ -52325,8 +52349,20 @@ namespace Opc.Ua
         [DataMember(Name = "HistoryUpdateDetails", IsRequired = false, Order = 2)]
         public ExtensionObjectCollection HistoryUpdateDetails
         {
-            get { return m_historyUpdateDetails;  }
-            set { m_historyUpdateDetails = value; }
+            get
+            {
+                return m_historyUpdateDetails;
+            }
+
+            set
+            {
+                m_historyUpdateDetails = value;
+
+                if (value == null)
+                {
+                    m_historyUpdateDetails = new ExtensionObjectCollection();
+                }
+            }
         }
         #endregion
 
@@ -58736,8 +58772,20 @@ namespace Opc.Ua
         [DataMember(Name = "NotificationData", IsRequired = false, Order = 3)]
         public ExtensionObjectCollection NotificationData
         {
-            get { return m_notificationData;  }
-            set { m_notificationData = value; }
+            get
+            {
+                return m_notificationData;
+            }
+
+            set
+            {
+                m_notificationData = value;
+
+                if (value == null)
+                {
+                    m_notificationData = new ExtensionObjectCollection();
+                }
+            }
         }
         #endregion
 
