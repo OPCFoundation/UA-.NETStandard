@@ -456,9 +456,11 @@ namespace Opc.Ua.Client.Tests
             }
 
             Random random = new Random(62541);
-            var testSet1 = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
-            var testSet2 = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
-            var testSet3 = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
+            var testSetAll = ReferenceDescriptions.OrderBy(o => random.Next()).Where(r=>r.NodeClass == NodeClass.Variable).Select(r => r.NodeId).ToList();
+            var testSet1 = testSetAll.Take(kTestSetSize).ToList();
+            var testSet2 = testSetAll.Skip(kTestSetSize).Take(kTestSetSize).ToList();
+            var testSet3 = testSetAll.Skip(kTestSetSize * 2).Take(kTestSetSize).ToList();
+
             var taskList = new List<Task>();
             var refTypeIds = new List<NodeId>() { ReferenceTypeIds.HierarchicalReferences };
 
