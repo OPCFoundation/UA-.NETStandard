@@ -1249,6 +1249,12 @@ namespace Opc.Ua.Client
             => Reconnect(connection, null);
 
         /// <summary>
+        /// Reconnects to the server using a new channel.
+        /// </summary>
+        public void Reconnect(ITransportChannel channel)
+            => Reconnect(null, channel);
+
+        /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.
         /// </summary>
         public void Reconnect(ITransportWaitingConnection connection, ITransportChannel transportChannel = null)

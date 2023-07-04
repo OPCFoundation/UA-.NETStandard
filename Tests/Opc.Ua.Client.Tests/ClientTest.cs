@@ -326,33 +326,59 @@ namespace Opc.Ua.Client.Tests
             session.Dispose();
         }
 
-        [Test, Order(210)]
-        public async Task ConnectAndReconnectAsync()
+        [Theory, Order(210)]
+        public async Task ConnectAndReconnectAsync(bool reconnectAbort, bool useMaxReconnectPeriod)
         {
             const int connectTimeout = MaxTimeout;
             var session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
             Assert.NotNull(session);
 
             ManualResetEvent quitEvent = new ManualResetEvent(false);
-            var reconnectHandler = new SessionReconnectHandler();
+            var reconnectHandler = new SessionReconnectHandler(reconnectAbort, useMaxReconnectPeriod ? MaxTimeout : -1);
             reconnectHandler.BeginReconnect(session, connectTimeout / 5,
                 (object sender, EventArgs e) => {
                     // ignore callbacks from discarded objects.
                     if (!Object.ReferenceEquals(sender, reconnectHandler))
                     {
-                        return;
+                        Assert.Fail("Unexpected sender");
                     }
 
-                    session = reconnectHandler.Session;
-                    reconnectHandler.Dispose();
+                    if (reconnectHandler.Session != null)
+                    {
+                        if (!Object.ReferenceEquals(reconnectHandler.Session, session))
+                        {
+                            session.Dispose();
+                            session = reconnectHandler.Session;
+                            TestContext.Out.WriteLine("Reconnected with new session.");
+                        }
+                        else
+                        {
+                            TestContext.Out.WriteLine("Reconnected with the same session.");
+                        }
+                    }
+                    else
+                    {
+                        TestContext.Out.WriteLine("Reconnect aborted reusing secure channel.");
+                    }
+
                     quitEvent.Set();
                 });
 
             var timeout = quitEvent.WaitOne(connectTimeout);
             Assert.True(timeout);
 
+            if (reconnectAbort)
+            {
+                Assert.IsNull(reconnectHandler.Session);
+            }
+            else
+            {
+                Assert.AreEqual(session, reconnectHandler.Session);
+            }
+
             var result = session.Close();
             Assert.NotNull(result);
+            reconnectHandler.Dispose();
             session.Dispose();
         }
 
@@ -436,6 +462,8 @@ namespace Opc.Ua.Client.Tests
             var session2 = ClientFixture.CreateSession(channel, endpoint);
             session2.Open("Session2", null);
 
+            _ = session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+
             session1.Close(closeChannel: false);
             session1.DetachChannel();
             session1.Dispose();
@@ -447,6 +475,66 @@ namespace Opc.Ua.Client.Tests
             session2.Dispose();
 
             channel.Dispose();
+        }
+
+        /// <summary>
+        /// Open a session on a channel, then reconnect (activate) the same session on a new channel.
+        /// Close the first channel before or after the new channel is activated.
+        /// </summary>
+        [Theory, Order(250)]
+        public async Task ReconnectSessionOnAlternateChannel(bool closeChannel)
+        {
+            ServiceResultException sre;
+            var endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+            Assert.NotNull(endpoint);
+
+            // the active channel
+            ISession session1 = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+            Assert.NotNull(session1);
+
+            ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            Assert.NotNull(value1);
+
+            var channel1 = session1.TransportChannel;
+            if (closeChannel)
+            {
+                session1.DetachChannel();
+                channel1.Dispose();
+
+                // cannot read using a detached channel
+                Assert.Throws<NullReferenceException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
+            }
+
+            // the inactive channel
+            ITransportChannel channel2 = await ClientFixture.CreateChannelAsync(endpoint).ConfigureAwait(false);
+            Assert.NotNull(channel2);
+
+            session1.Reconnect(channel2);
+
+            ServerStatusDataType value2 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            Assert.NotNull(value2);
+            Assert.AreEqual(value1.State, value2.State);
+
+            if (!closeChannel)
+            {
+                channel1.Close();
+                channel1.Dispose();
+            }
+
+            ServerStatusDataType value3 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            Assert.NotNull(value3);
+            Assert.AreEqual(value1.State, value3.State);
+
+            session1.Close(closeChannel: false);
+
+            sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
+            Assert.AreEqual(StatusCodes.BadSessionIdInvalid, sre.StatusCode, sre.Message);
+
+            channel2.Close();
+            channel2.Dispose();
+
+            sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
+            Assert.AreEqual(StatusCodes.BadSessionIdInvalid, sre.StatusCode, sre.Message);
         }
 
         [Test, Order(300)]

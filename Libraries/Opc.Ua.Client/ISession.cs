@@ -296,6 +296,11 @@ namespace Opc.Ua.Client
         void Reconnect(ITransportWaitingConnection connection);
 
         /// <summary>
+        /// Reconnects to the server using a new channel.
+        /// </summary>
+        void Reconnect(ITransportChannel channel);
+
+        /// <summary>
         /// Saves all the subscriptions of the session.
         /// </summary>
         /// <param name="filePath">The file path.</param>
