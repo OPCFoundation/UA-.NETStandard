@@ -650,7 +650,7 @@ namespace Opc.Ua.Client.Tests
                 // Write "Stopped" message along with OperationName, Id, and Duration when an activity stops
                 ActivityStopped = activity =>
                 {
-                    // Console.WriteLine("Stopped: {0,-15} {1,-60} {2,-15}", activity.OperationName, activity.Id, activity.Duration);
+                       // Console.WriteLine(activity.OperationName + " : " + activity.Id + " : " + activity.Duration);
 
                     if (activity.OperationName == "Reconnect")
                     {
@@ -679,6 +679,42 @@ namespace Opc.Ua.Client.Tests
                     if (activity.OperationName == "AddSubscription")
                     {
                         Console.WriteLine("Duration of AddSubscription(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "Create")
+                    {
+                        Console.WriteLine("Duration of Create(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "Transfer")
+                    {
+                        Console.WriteLine("Duration of Transfer(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "Delete")
+                    {
+                        Console.WriteLine("Duration of Delete(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "Modify")
+                    {
+                        Console.WriteLine("Duration of Modify(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "SetPublishingMode")
+                    {
+                        Console.WriteLine("Duration of SetPublishingMode(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "ReadAsync")
+                    {
+                        Console.WriteLine("Duration of ReadAsync(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "ReadValueAsync")
+                    {
+                        Console.WriteLine("Duration of ReadValueAsync(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "WriteAsync")
+                    {
+                        Console.WriteLine("Duration of WriteAsync(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "CallAsync")
+                    {
+                        Console.WriteLine("Duration of CallAsync(): " + activity.Duration);
                     }
                 }
             };

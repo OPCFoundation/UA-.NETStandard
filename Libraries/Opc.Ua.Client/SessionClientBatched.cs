@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,6 +41,8 @@ namespace Opc.Ua
     /// </summary>
     public class SessionClientBatched : SessionClient
     {
+        private static readonly ActivitySource activitySource = new ActivitySource("SessionClientBatchedSource");
+
         #region Constructors
         /// <summary>
         /// Intializes the object with a channel and default operation limits.
@@ -747,42 +750,45 @@ namespace Opc.Ua
             ReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            ReadResponse response = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerRead;
-            InitResponseCollections<DataValue, DataValueCollection>(
-                out var results, out var diagnosticInfos,
-                nodesToRead.Count, operationLimit
-                );
-
-            foreach (var batchAttributesToRead in
-                nodesToRead.Batch<ReadValueId, ReadValueIdCollection>(operationLimit))
+            using (var activity = activitySource.StartActivity("ReadAsync"))
             {
-                if (requestHeader != null)
+                ReadResponse response = null;
+
+                uint operationLimit = OperationLimits.MaxNodesPerRead;
+                InitResponseCollections<DataValue, DataValueCollection>(
+                    out var results, out var diagnosticInfos,
+                    nodesToRead.Count, operationLimit
+                    );
+
+                foreach (var batchAttributesToRead in
+                    nodesToRead.Batch<ReadValueId, ReadValueIdCollection>(operationLimit))
                 {
-                    requestHeader.RequestHandle = 0;
+                    if (requestHeader != null)
+                    {
+                        requestHeader.RequestHandle = 0;
+                    }
+
+                    response = await base.ReadAsync(
+                        requestHeader,
+                        maxAge,
+                        timestampsToReturn,
+                        batchAttributesToRead, ct).ConfigureAwait(false);
+
+                    DataValueCollection batchResults = response.Results;
+                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+
+                    ClientBase.ValidateResponse(batchResults, batchAttributesToRead);
+                    ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchAttributesToRead);
+
+                    AddResponses<DataValue, DataValueCollection>(
+                        ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
                 }
 
-                response = await base.ReadAsync(
-                    requestHeader,
-                    maxAge,
-                    timestampsToReturn,
-                    batchAttributesToRead, ct).ConfigureAwait(false);
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
 
-                DataValueCollection batchResults = response.Results;
-                DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
-
-                ClientBase.ValidateResponse(batchResults, batchAttributesToRead);
-                ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchAttributesToRead);
-
-                AddResponses<DataValue, DataValueCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                return response;
             }
-
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-
-            return response;
         }
 #endif
         #endregion
@@ -938,39 +944,42 @@ namespace Opc.Ua
             WriteValueCollection nodesToWrite,
             CancellationToken ct)
         {
-            WriteResponse response = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerWrite;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos,
-                nodesToWrite.Count, operationLimit
-                );
-
-            foreach (var batchNodesToWrite in
-                nodesToWrite.Batch<WriteValue, WriteValueCollection>(operationLimit))
+            using (var activity = activitySource.StartActivity("WriteAsync"))
             {
-                if (requestHeader != null)
+                WriteResponse response = null;
+
+                uint operationLimit = OperationLimits.MaxNodesPerWrite;
+                InitResponseCollections<StatusCode, StatusCodeCollection>(
+                    out var results, out var diagnosticInfos,
+                    nodesToWrite.Count, operationLimit
+                    );
+
+                foreach (var batchNodesToWrite in
+                    nodesToWrite.Batch<WriteValue, WriteValueCollection>(operationLimit))
                 {
-                    requestHeader.RequestHandle = 0;
+                    if (requestHeader != null)
+                    {
+                        requestHeader.RequestHandle = 0;
+                    }
+
+                    response = await base.WriteAsync(requestHeader,
+                        batchNodesToWrite, ct).ConfigureAwait(false);
+
+                    StatusCodeCollection batchResults = response.Results;
+                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+
+                    ClientBase.ValidateResponse(batchResults, batchNodesToWrite);
+                    ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToWrite);
+
+                    AddResponses<StatusCode, StatusCodeCollection>(
+                        ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
                 }
 
-                response = await base.WriteAsync(requestHeader,
-                    batchNodesToWrite, ct).ConfigureAwait(false);
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
 
-                StatusCodeCollection batchResults = response.Results;
-                DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
-
-                ClientBase.ValidateResponse(batchResults, batchNodesToWrite);
-                ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToWrite);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                return response;
             }
-
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-
-            return response;
         }
 #endif
         #endregion
@@ -1119,39 +1128,42 @@ namespace Opc.Ua
             CallMethodRequestCollection methodsToCall,
             CancellationToken ct)
         {
-            CallResponse response = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerMethodCall;
-            InitResponseCollections<CallMethodResult, CallMethodResultCollection>(
-                out var results, out var diagnosticInfos,
-                methodsToCall.Count, operationLimit
-                );
-
-            foreach (var batchMethodsToCall in
-                methodsToCall.Batch<CallMethodRequest, CallMethodRequestCollection>(operationLimit))
+            using (var activity = activitySource.StartActivity("CallAsync"))
             {
-                if (requestHeader != null)
+                CallResponse response = null;
+
+                uint operationLimit = OperationLimits.MaxNodesPerMethodCall;
+                InitResponseCollections<CallMethodResult, CallMethodResultCollection>(
+                    out var results, out var diagnosticInfos,
+                    methodsToCall.Count, operationLimit
+                    );
+
+                foreach (var batchMethodsToCall in
+                    methodsToCall.Batch<CallMethodRequest, CallMethodRequestCollection>(operationLimit))
                 {
-                    requestHeader.RequestHandle = 0;
+                    if (requestHeader != null)
+                    {
+                        requestHeader.RequestHandle = 0;
+                    }
+
+                    response = await base.CallAsync(requestHeader,
+                        batchMethodsToCall, ct).ConfigureAwait(false);
+
+                    CallMethodResultCollection batchResults = response.Results;
+                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+
+                    ClientBase.ValidateResponse(batchResults, batchMethodsToCall);
+                    ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchMethodsToCall);
+
+                    AddResponses<CallMethodResult, CallMethodResultCollection>(
+                        ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
                 }
 
-                response = await base.CallAsync(requestHeader,
-                    batchMethodsToCall, ct).ConfigureAwait(false);
+                response.Results = results;
+                response.DiagnosticInfos = diagnosticInfos;
 
-                CallMethodResultCollection batchResults = response.Results;
-                DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
-
-                ClientBase.ValidateResponse(batchResults, batchMethodsToCall);
-                ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchMethodsToCall);
-
-                AddResponses<CallMethodResult, CallMethodResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                return response;
             }
-
-            response.Results = results;
-            response.DiagnosticInfos = diagnosticInfos;
-
-            return response;
         }
 #endif
         #endregion
