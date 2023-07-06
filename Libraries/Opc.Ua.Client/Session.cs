@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -48,6 +49,9 @@ namespace Opc.Ua.Client
     /// </summary>
     public partial class Session : SessionClientBatched, ISession, IDisposable
     {
+
+        private static readonly ActivitySource activitySource = new ActivitySource("SessionSource");
+
         #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.
@@ -649,12 +653,12 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// If the subscriptions are deleted when a session is closed. 
+        /// If the subscriptions are deleted when a session is closed.
         /// </summary>
         /// <remarks>
         /// Default <c>true</c>, set to <c>false</c> if subscriptions need to
         /// be transferred or for durable subscriptions.
-        /// </remarks>   
+        /// </remarks>
         public bool DeleteSubscriptionsOnClose
         {
             get { return m_deleteSubscriptionsOnClose; }
@@ -662,12 +666,12 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// If the subscriptions are transferred when a session is reconnected. 
+        /// If the subscriptions are transferred when a session is reconnected.
         /// </summary>
         /// <remarks>
         /// Default <c>false</c>, set to <c>true</c> if subscriptions should
         /// be transferred after reconnect. Service must be supported by server.
-        /// </remarks>   
+        /// </remarks>
         public bool TransferSubscriptionsOnReconnect
         {
             get { return m_transferSubscriptionsOnReconnect; }
@@ -891,7 +895,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="connection">The client endpoint for the reverse connect.</param>
-        /// <param name="endpoint">A configured endpoint to connect to.</param> 
+        /// <param name="endpoint">A configured endpoint to connect to.</param>
         /// <param name="updateBeforeConnect">Update configuration based on server prior connect.</param>
         /// <param name="checkDomain">Check that the certificate specifies a valid domain (computer) name.</param>
         /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -1242,183 +1246,186 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Reconnect(ITransportWaitingConnection connection, ITransportChannel transportChannel = null)
         {
-            try
+            using (var activity = activitySource.StartActivity("Reconnect"))
             {
-                lock (SyncRoot)
+                try
                 {
-                    // check if already connecting.
-                    if (m_reconnecting)
+                    lock (SyncRoot)
                     {
-                        Utils.LogWarning("Session is already attempting to reconnect.");
+                        // check if already connecting.
+                        if (m_reconnecting)
+                        {
+                            Utils.LogWarning("Session is already attempting to reconnect.");
+
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadInvalidState,
+                                "Session is already attempting to reconnect.");
+                        }
+
+                        Utils.LogInfo("Session RECONNECT starting.");
+                        m_reconnecting = true;
+
+                        // stop keep alives.
+                        Utils.SilentDispose(m_keepAliveTimer);
+                        m_keepAliveTimer = null;
+                    }
+
+                    // create the client signature.
+                    byte[] dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, m_serverNonce);
+                    EndpointDescription endpoint = m_endpoint.Description;
+                    SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, endpoint.SecurityPolicyUri, dataToSign);
+
+                    // check that the user identity is supported by the endpoint.
+                    UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(m_identity.TokenType, m_identity.IssuedTokenType);
+
+                    if (identityPolicy == null)
+                    {
+                        Utils.LogError("Reconnect: Endpoint does not support the user identity type provided.");
 
                         throw ServiceResultException.Create(
-                            StatusCodes.BadInvalidState,
-                            "Session is already attempting to reconnect.");
+                            StatusCodes.BadUserAccessDenied,
+                            "Endpoint does not support the user identity type provided.");
                     }
 
-                    Utils.LogInfo("Session RECONNECT starting.");
-                    m_reconnecting = true;
+                    // select the security policy for the user token.
+                    string securityPolicyUri = identityPolicy.SecurityPolicyUri;
 
-                    // stop keep alives.
-                    Utils.SilentDispose(m_keepAliveTimer);
-                    m_keepAliveTimer = null;
-                }
-
-                // create the client signature.
-                byte[] dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, m_serverNonce);
-                EndpointDescription endpoint = m_endpoint.Description;
-                SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, endpoint.SecurityPolicyUri, dataToSign);
-
-                // check that the user identity is supported by the endpoint.
-                UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(m_identity.TokenType, m_identity.IssuedTokenType);
-
-                if (identityPolicy == null)
-                {
-                    Utils.LogError("Reconnect: Endpoint does not support the user identity type provided.");
-
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
-                        "Endpoint does not support the user identity type provided.");
-                }
-
-                // select the security policy for the user token.
-                string securityPolicyUri = identityPolicy.SecurityPolicyUri;
-
-                if (String.IsNullOrEmpty(securityPolicyUri))
-                {
-                    securityPolicyUri = endpoint.SecurityPolicyUri;
-                }
-
-                // need to refresh the identity (reprompt for password, refresh token).
-                if (m_RenewUserIdentity != null)
-                {
-                    m_identity = m_RenewUserIdentity(this, m_identity);
-                }
-
-                // validate server nonce and security parameters for user identity.
-                ValidateServerNonce(
-                    m_identity,
-                    m_serverNonce,
-                    securityPolicyUri,
-                    m_previousServerNonce,
-                    m_endpoint.Description.SecurityMode);
-
-                // sign data with user token.
-                UserIdentityToken identityToken = m_identity.GetIdentityToken();
-                identityToken.PolicyId = identityPolicy.PolicyId;
-                SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
-
-                // encrypt token.
-                identityToken.Encrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
-
-                // send the software certificates assigned to the client.
-                SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
-
-                Utils.LogInfo("Session REPLACING channel.");
-
-                if (connection != null)
-                {
-                    // check if the channel supports reconnect.
-                    if ((TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                    if (String.IsNullOrEmpty(securityPolicyUri))
                     {
-                        TransportChannel.Reconnect(connection);
+                        securityPolicyUri = endpoint.SecurityPolicyUri;
+                    }
+
+                    // need to refresh the identity (reprompt for password, refresh token).
+                    if (m_RenewUserIdentity != null)
+                    {
+                        m_identity = m_RenewUserIdentity(this, m_identity);
+                    }
+
+                    // validate server nonce and security parameters for user identity.
+                    ValidateServerNonce(
+                        m_identity,
+                        m_serverNonce,
+                        securityPolicyUri,
+                        m_previousServerNonce,
+                        m_endpoint.Description.SecurityMode);
+
+                    // sign data with user token.
+                    UserIdentityToken identityToken = m_identity.GetIdentityToken();
+                    identityToken.PolicyId = identityPolicy.PolicyId;
+                    SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
+
+                    // encrypt token.
+                    identityToken.Encrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
+
+                    // send the software certificates assigned to the client.
+                    SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
+
+                    Utils.LogInfo("Session REPLACING channel.");
+
+                    if (connection != null)
+                    {
+                        // check if the channel supports reconnect.
+                        if ((TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                        {
+                            TransportChannel.Reconnect(connection);
+                        }
+                        else
+                        {
+                            // initialize the channel which will be created with the server.
+                            ITransportChannel channel = SessionChannel.Create(
+                                m_configuration,
+                                connection,
+                                m_endpoint.Description,
+                                m_endpoint.Configuration,
+                                m_instanceCertificate,
+                                m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
+                                MessageContext);
+
+                            // disposes the existing channel.
+                            TransportChannel = channel;
+                        }
+                    }
+                    else if (transportChannel != null)
+                    {
+                        TransportChannel = transportChannel;
                     }
                     else
                     {
-                        // initialize the channel which will be created with the server.
-                        ITransportChannel channel = SessionChannel.Create(
-                            m_configuration,
-                            connection,
-                            m_endpoint.Description,
-                            m_endpoint.Configuration,
-                            m_instanceCertificate,
-                            m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
-                            MessageContext);
+                        // check if the channel supports reconnect.
+                        if (TransportChannel != null && (TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                        {
+                            TransportChannel.Reconnect();
+                        }
+                        else
+                        {
+                            // initialize the channel which will be created with the server.
+                            ITransportChannel channel = SessionChannel.Create(
+                                m_configuration,
+                                m_endpoint.Description,
+                                m_endpoint.Configuration,
+                                m_instanceCertificate,
+                                m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
+                                MessageContext);
 
-                        // disposes the existing channel.
-                        TransportChannel = channel;
+                            // disposes the existing channel.
+                            TransportChannel = channel;
+                        }
                     }
-                }
-                else if (transportChannel != null)
-                {
-                    TransportChannel = transportChannel;
-                }
-                else
-                {
-                    // check if the channel supports reconnect.
-                    if (TransportChannel != null && (TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+
+                    // reactivate session.
+                    byte[] serverNonce = null;
+                    StatusCodeCollection certificateResults = null;
+                    DiagnosticInfoCollection certificateDiagnosticInfos = null;
+
+                    Utils.LogInfo("Session RE-ACTIVATING session.");
+
+                    RequestHeader header = new RequestHeader() { TimeoutHint = kReconnectTimeout };
+                    IAsyncResult result = BeginActivateSession(
+                        header,
+                        clientSignature,
+                        null,
+                        m_preferredLocales,
+                        new ExtensionObject(identityToken),
+                        userTokenSignature,
+                        null,
+                        null);
+
+                    if (!result.AsyncWaitHandle.WaitOne(kReconnectTimeout / 2))
                     {
-                        TransportChannel.Reconnect();
+                        Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
                     }
-                    else
+
+                    EndActivateSession(
+                        result,
+                        out serverNonce,
+                        out certificateResults,
+                        out certificateDiagnosticInfos);
+
+                    int publishCount = 0;
+
+                    lock (SyncRoot)
                     {
-                        // initialize the channel which will be created with the server.
-                        ITransportChannel channel = SessionChannel.Create(
-                            m_configuration,
-                            m_endpoint.Description,
-                            m_endpoint.Configuration,
-                            m_instanceCertificate,
-                            m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
-                            MessageContext);
-
-                        // disposes the existing channel.
-                        TransportChannel = channel;
+                        Utils.LogInfo("Session RECONNECT completed successfully.");
+                        m_previousServerNonce = m_serverNonce;
+                        m_serverNonce = serverNonce;
+                        m_reconnecting = false;
+                        publishCount = GetMinPublishRequestCount();
                     }
+
+                    // refill pipeline.
+                    for (int ii = 0; ii < publishCount; ii++)
+                    {
+                        BeginPublish(OperationTimeout);
+                    }
+
+                    StartKeepAliveTimer();
                 }
-
-                // reactivate session.
-                byte[] serverNonce = null;
-                StatusCodeCollection certificateResults = null;
-                DiagnosticInfoCollection certificateDiagnosticInfos = null;
-
-                Utils.LogInfo("Session RE-ACTIVATING session.");
-
-                RequestHeader header = new RequestHeader() { TimeoutHint = kReconnectTimeout };
-                IAsyncResult result = BeginActivateSession(
-                    header,
-                    clientSignature,
-                    null,
-                    m_preferredLocales,
-                    new ExtensionObject(identityToken),
-                    userTokenSignature,
-                    null,
-                    null);
-
-                if (!result.AsyncWaitHandle.WaitOne(kReconnectTimeout / 2))
+                finally
                 {
-                    Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
-                }
-
-                EndActivateSession(
-                    result,
-                    out serverNonce,
-                    out certificateResults,
-                    out certificateDiagnosticInfos);
-
-                int publishCount = 0;
-
-                lock (SyncRoot)
-                {
-                    Utils.LogInfo("Session RECONNECT completed successfully.");
-                    m_previousServerNonce = m_serverNonce;
-                    m_serverNonce = serverNonce;
-                    m_reconnecting = false;
-                    publishCount = GetMinPublishRequestCount();
-                }
-
-                // refill pipeline.
-                for (int ii = 0; ii < publishCount; ii++)
-                {
-                    BeginPublish(OperationTimeout);
-                }
-
-                StartKeepAliveTimer();
-            }
-            finally
-            {
-                lock (SyncRoot)
-                {
-                    m_reconnecting = false;
+                    lock (SyncRoot)
+                    {
+                        m_reconnecting = false;
+                    }
                 }
             }
         }
@@ -3407,25 +3414,28 @@ namespace Opc.Ua.Client
         /// <param name="subscription">The subscription to add.</param>
         public bool AddSubscription(Subscription subscription)
         {
-            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
-
-            lock (SyncRoot)
+            using (var activity = activitySource.StartActivity("AddSubscription"))
             {
-                if (m_subscriptions.Contains(subscription))
+                if (subscription == null) throw new ArgumentNullException(nameof(subscription));
+
+                lock (SyncRoot)
                 {
-                    return false;
+                    if (m_subscriptions.Contains(subscription))
+                    {
+                        return false;
+                    }
+
+                    subscription.Session = this;
+                    m_subscriptions.Add(subscription);
                 }
 
-                subscription.Session = this;
-                m_subscriptions.Add(subscription);
-            }
+                if (m_SubscriptionsChanged != null)
+                {
+                    m_SubscriptionsChanged(this, null);
+                }
 
-            if (m_SubscriptionsChanged != null)
-            {
-                m_SubscriptionsChanged(this, null);
+                return true;
             }
-
-            return true;
         }
 
         /// <summary>
@@ -3434,29 +3444,32 @@ namespace Opc.Ua.Client
         /// <param name="subscription">The subscription to remove.</param>
         public bool RemoveSubscription(Subscription subscription)
         {
-            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
-
-            if (subscription.Created)
+            using (var activity = activitySource.StartActivity("RemoveSubscription"))
             {
-                subscription.Delete(false);
-            }
+                if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
-            lock (SyncRoot)
-            {
-                if (!m_subscriptions.Remove(subscription))
+                if (subscription.Created)
                 {
-                    return false;
+                    subscription.Delete(false);
                 }
 
-                subscription.Session = null;
-            }
+                lock (SyncRoot)
+                {
+                    if (!m_subscriptions.Remove(subscription))
+                    {
+                        return false;
+                    }
 
-            if (m_SubscriptionsChanged != null)
-            {
-                m_SubscriptionsChanged(this, null);
-            }
+                    subscription.Session = null;
+                }
 
-            return true;
+                if (m_SubscriptionsChanged != null)
+                {
+                    m_SubscriptionsChanged(this, null);
+                }
+
+                return true;
+            }
         }
 
         /// <summary>
@@ -3465,25 +3478,28 @@ namespace Opc.Ua.Client
         /// <param name="subscriptions">The list of subscriptions to remove.</param>
         public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
         {
-            if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
-
-            List<Subscription> subscriptionsToDelete = new List<Subscription>();
-            bool removed = PrepareSubscriptionsToDelete(subscriptions, subscriptionsToDelete);
-
-            foreach (Subscription subscription in subscriptionsToDelete)
+            using (var activity = activitySource.StartActivity("RemoveSubscriptions"))
             {
-                subscription.Delete(true);
-            }
+                if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
 
-            if (removed)
-            {
-                if (m_SubscriptionsChanged != null)
+                List<Subscription> subscriptionsToDelete = new List<Subscription>();
+                bool removed = PrepareSubscriptionsToDelete(subscriptions, subscriptionsToDelete);
+
+                foreach (Subscription subscription in subscriptionsToDelete)
                 {
-                    m_SubscriptionsChanged(this, null);
+                    subscription.Delete(true);
                 }
-            }
 
-            return removed;
+                if (removed)
+                {
+                    if (m_SubscriptionsChanged != null)
+                    {
+                        m_SubscriptionsChanged(this, null);
+                    }
+                }
+
+                return removed;
+            }
         }
 
         /// <summary>
@@ -3494,29 +3510,32 @@ namespace Opc.Ua.Client
         /// <param name="subscription">The subscription to remove.</param>
         public bool RemoveTransferredSubscription(Subscription subscription)
         {
-            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
-
-            if (subscription.Session != this)
+            using (var activity = activitySource.StartActivity("RemoveTransferredSubscription"))
             {
-                return false;
-            }
+                if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
-            lock (SyncRoot)
-            {
-                if (!m_subscriptions.Remove(subscription))
+                if (subscription.Session != this)
                 {
                     return false;
                 }
 
-                subscription.Session = null;
-            }
+                lock (SyncRoot)
+                {
+                    if (!m_subscriptions.Remove(subscription))
+                    {
+                        return false;
+                    }
 
-            if (m_SubscriptionsChanged != null)
-            {
-                m_SubscriptionsChanged(this, null);
-            }
+                    subscription.Session = null;
+                }
 
-            return true;
+                if (m_SubscriptionsChanged != null)
+                {
+                    m_SubscriptionsChanged(this, null);
+                }
+
+                return true;
+            }
         }
 
         /// <summary>
@@ -3526,68 +3545,71 @@ namespace Opc.Ua.Client
             SubscriptionCollection subscriptions,
             bool sendInitialValues)
         {
-            var subscriptionIds = new UInt32Collection();
-            foreach (var subscription in subscriptions)
+            using (var activity = activitySource.StartActivity("TransferSubscriptions"))
             {
-                if (subscription.Created && SessionId.Equals(subscription.Session.SessionId))
+                var subscriptionIds = new UInt32Collection();
+                foreach (var subscription in subscriptions)
                 {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("The subscriptionId {0} is already created.", subscription.Id));
-                }
-                if (subscription.TransferId == 0)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing transfer Id."));
-                }
-                subscriptionIds.Add(subscription.TransferId);
-            }
-
-            lock (SyncRoot)
-            {
-                if (subscriptionIds.Count > 0)
-                {
-                    ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
-                    if (!StatusCode.IsGood(responseHeader.ServiceResult))
+                    if (subscription.Created && SessionId.Equals(subscription.Session.SessionId))
                     {
-                        Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
-                        return false;
+                        throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("The subscriptionId {0} is already created.", subscription.Id));
                     }
-                    ClientBase.ValidateResponse(results, subscriptionIds);
-                    ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
-                    var failedSubscriptionIds = new UInt32Collection();
-
-                    for (int ii = 0; ii < subscriptions.Count; ii++)
+                    if (subscription.TransferId == 0)
                     {
-                        if (StatusCode.IsGood(results[ii].StatusCode))
+                        throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing transfer Id."));
+                    }
+                    subscriptionIds.Add(subscription.TransferId);
+                }
+
+                lock (SyncRoot)
+                {
+                    if (subscriptionIds.Count > 0)
+                    {
+                        ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
+                        if (!StatusCode.IsGood(responseHeader.ServiceResult))
                         {
-                            if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
-                            {   // create ack for available sequence numbers
-                                foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
-                                {
-                                    var ack = new SubscriptionAcknowledgement() {
-                                        SubscriptionId = subscriptionIds[ii],
-                                        SequenceNumber = sequenceNumber
-                                    };
-                                    m_acknowledgementsToSend.Add(ack);
+                            Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
+                            return false;
+                        }
+                        ClientBase.ValidateResponse(results, subscriptionIds);
+                        ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+                        var failedSubscriptionIds = new UInt32Collection();
+
+                        for (int ii = 0; ii < subscriptions.Count; ii++)
+                        {
+                            if (StatusCode.IsGood(results[ii].StatusCode))
+                            {
+                                if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
+                                {   // create ack for available sequence numbers
+                                    foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
+                                    {
+                                        var ack = new SubscriptionAcknowledgement() {
+                                            SubscriptionId = subscriptionIds[ii],
+                                            SequenceNumber = sequenceNumber
+                                        };
+                                        m_acknowledgementsToSend.Add(ack);
+                                    }
                                 }
                             }
+                            else
+                            {
+                                Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
+                                failedSubscriptionIds.Add(subscriptions[ii].TransferId);
+                            }
                         }
-                        else
+                        if (failedSubscriptionIds.Count > 0)
                         {
-                            Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
-                            failedSubscriptionIds.Add(subscriptions[ii].TransferId);
+                            return false;
                         }
                     }
-                    if (failedSubscriptionIds.Count > 0)
+                    else
                     {
-                        return false;
+                        Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
                     }
                 }
-                else
-                {
-                    Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
-                }
-            }
 
-            return true;
+                return true;
+            }
         }
         #endregion
 
@@ -4466,7 +4488,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Builds the node collection results based on the attribute values of the read response. 
+        /// Builds the node collection results based on the attribute values of the read response.
         /// </summary>
         /// <param name="attributesToRead">The collection of all attributes to read passed in the read request.</param>
         /// <param name="attributesPerNodeId">The attributes requested per NodeId</param>
@@ -5087,85 +5109,88 @@ namespace Opc.Ua.Client
         /// </summary>
         public IAsyncResult BeginPublish(int timeout)
         {
-            // do not publish if reconnecting.
-            if (m_reconnecting)
+            using (var activity = activitySource.StartActivity("BeginPublish"))
             {
-                Utils.LogWarning("Publish skipped due to reconnect");
-                return null;
-            }
-
-            // get event handler to modify ack list
-            PublishSequenceNumbersToAcknowledgeEventHandler callback = null;
-            lock (m_eventLock)
-            {
-                callback = m_PublishSequenceNumbersToAcknowledge;
-            }
-
-            // collect the current set if acknowledgements.
-            SubscriptionAcknowledgementCollection acknowledgementsToSend = null;
-            lock (SyncRoot)
-            {
-                if (callback != null)
+                // do not publish if reconnecting.
+                if (m_reconnecting)
                 {
-                    try
+                    Utils.LogWarning("Publish skipped due to reconnect");
+                    return null;
+                }
+
+                // get event handler to modify ack list
+                PublishSequenceNumbersToAcknowledgeEventHandler callback = null;
+                lock (m_eventLock)
+                {
+                    callback = m_PublishSequenceNumbersToAcknowledge;
+                }
+
+                // collect the current set if acknowledgements.
+                SubscriptionAcknowledgementCollection acknowledgementsToSend = null;
+                lock (SyncRoot)
+                {
+                    if (callback != null)
                     {
-                        var deferredAcknowledgementsToSend = new SubscriptionAcknowledgementCollection();
-                        callback(this, new PublishSequenceNumbersToAcknowledgeEventArgs(m_acknowledgementsToSend, deferredAcknowledgementsToSend));
+                        try
+                        {
+                            var deferredAcknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+                            callback(this, new PublishSequenceNumbersToAcknowledgeEventArgs(m_acknowledgementsToSend, deferredAcknowledgementsToSend));
+                            acknowledgementsToSend = m_acknowledgementsToSend;
+                            m_acknowledgementsToSend = deferredAcknowledgementsToSend;
+                        }
+                        catch (Exception e2)
+                        {
+                            Utils.LogError(e2, "Session: Unexpected error invoking PublishSequenceNumbersToAcknowledgeEventArgs.");
+                        }
+                    }
+
+                    if (acknowledgementsToSend == null)
+                    {
+                        // send all ack values, clear list
                         acknowledgementsToSend = m_acknowledgementsToSend;
-                        m_acknowledgementsToSend = deferredAcknowledgementsToSend;
+                        m_acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
                     }
-                    catch (Exception e2)
+
+                    foreach (var toSend in acknowledgementsToSend)
                     {
-                        Utils.LogError(e2, "Session: Unexpected error invoking PublishSequenceNumbersToAcknowledgeEventArgs.");
+                        m_latestAcknowledgementsSent[toSend.SubscriptionId] = toSend.SequenceNumber;
                     }
                 }
 
-                if (acknowledgementsToSend == null)
+                // send publish request.
+                RequestHeader requestHeader = new RequestHeader();
+
+                // ensure the publish request is discarded before the timeout occurs to ensure the channel is dropped.
+                requestHeader.TimeoutHint = (uint)OperationTimeout / 2;
+                requestHeader.ReturnDiagnostics = (uint)(int)ReturnDiagnostics;
+                requestHeader.RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter);
+
+                AsyncRequestState state = new AsyncRequestState();
+
+                state.RequestTypeId = DataTypes.PublishRequest;
+                state.RequestId = requestHeader.RequestHandle;
+                state.Timestamp = DateTime.UtcNow;
+
+                CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
+
+                try
                 {
-                    // send all ack values, clear list
-                    acknowledgementsToSend = m_acknowledgementsToSend;
-                    m_acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
-                }
 
-                foreach (var toSend in acknowledgementsToSend)
+                    IAsyncResult result = BeginPublish(
+                        requestHeader,
+                        acknowledgementsToSend,
+                        OnPublishComplete,
+                        new object[] { SessionId, acknowledgementsToSend, requestHeader });
+
+                    AsyncRequestStarted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
+
+                    return result;
+                }
+                catch (Exception e)
                 {
-                    m_latestAcknowledgementsSent[toSend.SubscriptionId] = toSend.SequenceNumber;
+                    Utils.LogError(e, "Unexpected error sending publish request.");
+                    return null;
                 }
-            }
-
-            // send publish request.
-            RequestHeader requestHeader = new RequestHeader();
-
-            // ensure the publish request is discarded before the timeout occurs to ensure the channel is dropped.
-            requestHeader.TimeoutHint = (uint)OperationTimeout / 2;
-            requestHeader.ReturnDiagnostics = (uint)(int)ReturnDiagnostics;
-            requestHeader.RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter);
-
-            AsyncRequestState state = new AsyncRequestState();
-
-            state.RequestTypeId = DataTypes.PublishRequest;
-            state.RequestId = requestHeader.RequestHandle;
-            state.Timestamp = DateTime.UtcNow;
-
-            CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
-
-            try
-            {
-
-                IAsyncResult result = BeginPublish(
-                    requestHeader,
-                    acknowledgementsToSend,
-                    OnPublishComplete,
-                    new object[] { SessionId, acknowledgementsToSend, requestHeader });
-
-                AsyncRequestStarted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
-
-                return result;
-            }
-            catch (Exception e)
-            {
-                Utils.LogError(e, "Unexpected error sending publish request.");
-                return null;
             }
         }
 
@@ -5337,93 +5362,96 @@ namespace Opc.Ua.Client
         /// </summary>
         public bool Republish(uint subscriptionId, uint sequenceNumber)
         {
-            // send publish request.
-            RequestHeader requestHeader = new RequestHeader {
-                TimeoutHint = (uint)OperationTimeout,
-                ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
-                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
-            };
-
-            try
+            using (var activity = activitySource.StartActivity("Republish"))
             {
-                Utils.LogInfo("Requesting Republish for {0}-{1}", subscriptionId, sequenceNumber);
+                // send publish request.
+                RequestHeader requestHeader = new RequestHeader {
+                    TimeoutHint = (uint)OperationTimeout,
+                    ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
+                    RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
+                };
 
-                // request republish.
-                NotificationMessage notificationMessage = null;
-
-                ResponseHeader responseHeader = Republish(
-                    requestHeader,
-                    subscriptionId,
-                    sequenceNumber,
-                    out notificationMessage);
-
-                Utils.LogInfo("Received Republish for {0}-{1}-{2}", subscriptionId, sequenceNumber, responseHeader.ServiceResult);
-
-                // process response.
-                ProcessPublishResponse(
-                    responseHeader,
-                    subscriptionId,
-                    null,
-                    false,
-                    notificationMessage);
-
-                return true;
-            }
-            catch (Exception e)
-            {
-                ServiceResult error = new ServiceResult(e);
-
-                bool result = true;
-                switch (error.StatusCode.Code)
+                try
                 {
-                    case StatusCodes.BadMessageNotAvailable:
-                        Utils.LogWarning("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
-                        break;
-                    // if encoding limits are exceeded, the issue is logged and
-                    // the published data is acknowledged to prevent the endless republish loop.
-                    case StatusCodes.BadEncodingLimitsExceeded:
-                        Utils.LogError(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
-                        var ack = new SubscriptionAcknowledgement {
-                            SubscriptionId = subscriptionId,
-                            SequenceNumber = sequenceNumber
-                        };
-                        lock (SyncRoot)
+                    Utils.LogInfo("Requesting Republish for {0}-{1}", subscriptionId, sequenceNumber);
+
+                    // request republish.
+                    NotificationMessage notificationMessage = null;
+
+                    ResponseHeader responseHeader = Republish(
+                        requestHeader,
+                        subscriptionId,
+                        sequenceNumber,
+                        out notificationMessage);
+
+                    Utils.LogInfo("Received Republish for {0}-{1}-{2}", subscriptionId, sequenceNumber, responseHeader.ServiceResult);
+
+                    // process response.
+                    ProcessPublishResponse(
+                        responseHeader,
+                        subscriptionId,
+                        null,
+                        false,
+                        notificationMessage);
+
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    ServiceResult error = new ServiceResult(e);
+
+                    bool result = true;
+                    switch (error.StatusCode.Code)
+                    {
+                        case StatusCodes.BadMessageNotAvailable:
+                            Utils.LogWarning("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
+                            break;
+                        // if encoding limits are exceeded, the issue is logged and
+                        // the published data is acknowledged to prevent the endless republish loop.
+                        case StatusCodes.BadEncodingLimitsExceeded:
+                            Utils.LogError(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
+                            var ack = new SubscriptionAcknowledgement {
+                                SubscriptionId = subscriptionId,
+                                SequenceNumber = sequenceNumber
+                            };
+                            lock (SyncRoot)
+                            {
+                                m_acknowledgementsToSend.Add(ack);
+                            }
+                            break;
+                        default:
+                            result = false;
+                            Utils.LogError(e, "Unexpected error sending republish request.");
+                            break;
+                    }
+
+                    PublishErrorEventHandler callback = null;
+
+                    lock (m_eventLock)
+                    {
+                        callback = m_PublishError;
+                    }
+
+                    // raise an error event.
+                    if (callback != null)
+                    {
+                        try
                         {
-                            m_acknowledgementsToSend.Add(ack);
+                            PublishErrorEventArgs args = new PublishErrorEventArgs(
+                                error,
+                                subscriptionId,
+                                sequenceNumber);
+
+                            callback(this, args);
                         }
-                        break;
-                    default:
-                        result = false;
-                        Utils.LogError(e, "Unexpected error sending republish request.");
-                        break;
-                }
-
-                PublishErrorEventHandler callback = null;
-
-                lock (m_eventLock)
-                {
-                    callback = m_PublishError;
-                }
-
-                // raise an error event.
-                if (callback != null)
-                {
-                    try
-                    {
-                        PublishErrorEventArgs args = new PublishErrorEventArgs(
-                            error,
-                            subscriptionId,
-                            sequenceNumber);
-
-                        callback(this, args);
+                        catch (Exception e2)
+                        {
+                            Utils.LogError(e2, "Session: Unexpected error invoking PublishErrorCallback.");
+                        }
                     }
-                    catch (Exception e2)
-                    {
-                        Utils.LogError(e2, "Session: Unexpected error invoking PublishErrorCallback.");
-                    }
-                }
 
-                return result;
+                    return result;
+                }
             }
         }
 
@@ -5477,7 +5505,7 @@ namespace Opc.Ua.Client
                 }
 
 #if DEBUG_SEQUENTIALPUBLISHING
-                // Checks for debug info only. 
+                // Checks for debug info only.
                 // Once more than a single publish request is queued, the checks are invalid
                 // because a publish response may not include the latest ack information yet.
 

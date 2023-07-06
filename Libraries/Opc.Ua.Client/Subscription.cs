@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -42,6 +43,8 @@ namespace Opc.Ua.Client
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public partial class Subscription : IDisposable
     {
+        private static readonly ActivitySource activitySource = new ActivitySource("SessionSource");
+
         #region Constructors
         /// <summary>
         /// Creates a empty object.
@@ -404,13 +407,13 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// If the available sequence numbers of a subscription
-        /// are republished or acknowledged after a transfer. 
+        /// are republished or acknowledged after a transfer.
         /// </summary>
         /// <remarks>
         /// Default <c>false</c>, set to <c>true</c> if no data loss is important
         /// and available publish requests (sequence numbers) that were never acknowledged should be
         /// recovered with a republish. The setting is used after a subscription transfer.
-        /// </remarks>   
+        /// </remarks>
         [DataMember(Name = "RepublishAfterTransfer", Order = 15)]
         public bool RepublishAfterTransfer
         {
@@ -775,38 +778,41 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Create()
         {
-            VerifySubscriptionState(false);
+            using (var activity = activitySource.StartActivity("Create"))
+            {
+                VerifySubscriptionState(false);
 
-            // create the subscription.
-            uint subscriptionId;
-            double revisedPublishingInterval;
-            uint revisedKeepAliveCount = m_keepAliveCount;
-            uint revisedLifetimeCounter = m_lifetimeCount;
+                // create the subscription.
+                uint subscriptionId;
+                double revisedPublishingInterval;
+                uint revisedKeepAliveCount = m_keepAliveCount;
+                uint revisedLifetimeCounter = m_lifetimeCount;
 
-            AdjustCounts(ref revisedKeepAliveCount, ref revisedLifetimeCounter);
+                AdjustCounts(ref revisedKeepAliveCount, ref revisedLifetimeCounter);
 
-            ManageMessageWorkerSemaphore();
+                ManageMessageWorkerSemaphore();
 
-            m_session.CreateSubscription(
-                null,
-                m_publishingInterval,
-                revisedLifetimeCounter,
-                revisedKeepAliveCount,
-                m_maxNotificationsPerPublish,
-                m_publishingEnabled,
-                m_priority,
-                out subscriptionId,
-                out revisedPublishingInterval,
-                out revisedLifetimeCounter,
-                out revisedKeepAliveCount);
+                m_session.CreateSubscription(
+                    null,
+                    m_publishingInterval,
+                    revisedLifetimeCounter,
+                    revisedKeepAliveCount,
+                    m_maxNotificationsPerPublish,
+                    m_publishingEnabled,
+                    m_priority,
+                    out subscriptionId,
+                    out revisedPublishingInterval,
+                    out revisedLifetimeCounter,
+                    out revisedKeepAliveCount);
 
-            CreateSubscription(subscriptionId, revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
+                CreateSubscription(subscriptionId, revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
 
-            CreateItems();
+                CreateItems();
 
-            ChangesCompleted();
+                ChangesCompleted();
 
-            TraceState("CREATED");
+                TraceState("CREATED");
+            }
         }
 
         /// <summary>
@@ -817,71 +823,74 @@ namespace Opc.Ua.Client
         /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
         public bool Transfer(ISession session, uint id, UInt32Collection availableSequenceNumbers)
         {
-            if (Created)
+            using (var activity = activitySource.StartActivity("Transfer"))
             {
-                // handle the case when the client has the subscription template and reconnects
-                if (id != m_id)
+                if (Created)
                 {
-                    return false;
+                    // handle the case when the client has the subscription template and reconnects
+                    if (id != m_id)
+                    {
+                        return false;
+                    }
+
+                    // remove the subscription from disconnected session
+                    if (m_session?.RemoveTransferredSubscription(this) != true)
+                    {
+                        Utils.LogError("SubscriptionId {0}: Failed to remove transferred subscription from owner SessionId={1}.", Id, m_session?.SessionId);
+                        return false;
+                    }
+
+                    // remove default subscription template which was copied in Session.Create()
+                    var subscriptionsToRemove = session.Subscriptions.Where(s => !s.Created && s.TransferId == this.Id).ToList();
+                    foreach (var subscription in subscriptionsToRemove)
+                    {
+                        session.RemoveSubscription(subscription);
+                    }
+
+                    // add transferred subscription to session
+                    if (!session.AddSubscription(this))
+                    {
+                        Utils.LogError("SubscriptionId {0}: Failed to add transferred subscription to SessionId={1}.", Id, session.SessionId);
+                        return false;
+                    }
+                }
+                else
+                {
+                    // handle the case when the client restarts and loads the saved subscriptions from storage
+                    if (!GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles))
+                    {
+                        Utils.LogError("SubscriptionId {0}: The server failed to respond to GetMonitoredItems after transfer.", Id);
+                        return false;
+                    }
+
+                    if (serverHandles.Count != m_monitoredItems.Count ||
+                        clientHandles.Count != m_monitoredItems.Count)
+                    {
+                        // invalid state
+                        Utils.LogError("SubscriptionId {0}: Number of Monitored Items on client and server do not match after transfer {1}!={2}",
+                            Id, serverHandles.Count, m_monitoredItems.Count);
+                        return false;
+                    }
+
+                    // sets state to 'Created'
+                    m_id = id;
+                    TransferItems(serverHandles, clientHandles, out IList<MonitoredItem> itemsToModify);
+
+                    ModifyItems();
                 }
 
-                // remove the subscription from disconnected session
-                if (m_session?.RemoveTransferredSubscription(this) != true)
-                {
-                    Utils.LogError("SubscriptionId {0}: Failed to remove transferred subscription from owner SessionId={1}.", Id, m_session?.SessionId);
-                    return false;
-                }
+                // add available sequence numbers to incoming
+                ProcessTransferredSequenceNumbers(availableSequenceNumbers);
 
-                // remove default subscription template which was copied in Session.Create()
-                var subscriptionsToRemove = session.Subscriptions.Where(s => !s.Created && s.TransferId == this.Id).ToList();
-                foreach (var subscription in subscriptionsToRemove)
-                {
-                    session.RemoveSubscription(subscription);
-                }
+                m_changeMask |= SubscriptionChangeMask.Transferred;
+                ChangesCompleted();
 
-                // add transferred subscription to session
-                if (!session.AddSubscription(this))
-                {
-                    Utils.LogError("SubscriptionId {0}: Failed to add transferred subscription to SessionId={1}.", Id, session.SessionId);
-                    return false;
-                }
+                StartKeepAliveTimer();
+
+                TraceState("TRANSFERRED");
+
+                return true;
             }
-            else
-            {
-                // handle the case when the client restarts and loads the saved subscriptions from storage
-                if (!GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles))
-                {
-                    Utils.LogError("SubscriptionId {0}: The server failed to respond to GetMonitoredItems after transfer.", Id);
-                    return false;
-                }
-
-                if (serverHandles.Count != m_monitoredItems.Count ||
-                    clientHandles.Count != m_monitoredItems.Count)
-                {
-                    // invalid state
-                    Utils.LogError("SubscriptionId {0}: Number of Monitored Items on client and server do not match after transfer {1}!={2}",
-                        Id, serverHandles.Count, m_monitoredItems.Count);
-                    return false;
-                }
-
-                // sets state to 'Created'
-                m_id = id;
-                TransferItems(serverHandles, clientHandles, out IList<MonitoredItem> itemsToModify);
-
-                ModifyItems();
-            }
-
-            // add available sequence numbers to incoming 
-            ProcessTransferredSequenceNumbers(availableSequenceNumbers);
-
-            m_changeMask |= SubscriptionChangeMask.Transferred;
-            ChangesCompleted();
-
-            StartKeepAliveTimer();
-
-            TraceState("TRANSFERRED");
-
-            return true;
         }
 
         /// <summary>
@@ -889,37 +898,130 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Delete(bool silent)
         {
-            if (!silent)
+            using (var activity = activitySource.StartActivity("Delete"))
             {
-                VerifySubscriptionState(true);
-            }
-
-            // nothing to do if not created.
-            if (!this.Created)
-            {
-                return;
-            }
-
-            try
-            {
-                TraceState("DELETE");
-
-                // stop the publish timer.
-                if (m_publishTimer != null)
+                if (!silent)
                 {
-                    m_publishTimer.Dispose();
-                    m_publishTimer = null;
+                    VerifySubscriptionState(true);
                 }
 
-                // delete the subscription.
+                // nothing to do if not created.
+                if (!this.Created)
+                {
+                    return;
+                }
+
+                try
+                {
+                    TraceState("DELETE");
+
+                    // stop the publish timer.
+                    if (m_publishTimer != null)
+                    {
+                        m_publishTimer.Dispose();
+                        m_publishTimer = null;
+                    }
+
+                    // delete the subscription.
+                    UInt32Collection subscriptionIds = new uint[] { m_id };
+
+                    StatusCodeCollection results;
+                    DiagnosticInfoCollection diagnosticInfos;
+
+                    ResponseHeader responseHeader = m_session.DeleteSubscriptions(
+                        null,
+                        subscriptionIds,
+                        out results,
+                        out diagnosticInfos);
+
+                    // validate response.
+                    ClientBase.ValidateResponse(results, subscriptionIds);
+                    ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+
+                    if (StatusCode.IsBad(results[0]))
+                    {
+                        throw new ServiceResultException(ClientBase.GetResult(results[0], 0, diagnosticInfos, responseHeader));
+                    }
+                }
+
+                // supress exception if silent flag is set.
+                catch (Exception e)
+                {
+                    if (!silent)
+                    {
+                        throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
+                    }
+                }
+
+                // always put object in disconnected state even if an error occurs.
+                finally
+                {
+                    DeleteSubscription();
+                }
+
+                ChangesCompleted();
+            }
+        }
+
+        /// <summary>
+        /// Modifies a subscription on the server.
+        /// </summary>
+        public void Modify()
+        {
+            using (var activity = activitySource.StartActivity("Modify"))
+            {
+                VerifySubscriptionState(true);
+
+                // modify the subscription.
+                double revisedPublishingInterval;
+                uint revisedKeepAliveCount = m_keepAliveCount;
+                uint revisedLifetimeCounter = m_lifetimeCount;
+
+                AdjustCounts(ref revisedKeepAliveCount, ref revisedLifetimeCounter);
+
+                m_session.ModifySubscription(
+                    null,
+                    m_id,
+                    m_publishingInterval,
+                    revisedLifetimeCounter,
+                    revisedKeepAliveCount,
+                    m_maxNotificationsPerPublish,
+                    m_priority,
+                    out revisedPublishingInterval,
+                    out revisedLifetimeCounter,
+                    out revisedKeepAliveCount);
+
+                // update current state.
+                ModifySubscription(
+                    revisedPublishingInterval,
+                    revisedKeepAliveCount,
+                    revisedLifetimeCounter);
+
+                ChangesCompleted();
+
+                TraceState("MODIFIED");
+            }
+        }
+
+        /// <summary>
+        /// Changes the publishing enabled state for the subscription.
+        /// </summary>
+        public void SetPublishingMode(bool enabled)
+        {
+            using (var activity = activitySource.StartActivity("SetPublishingMode"))
+            {
+                VerifySubscriptionState(true);
+
+                // modify the subscription.
                 UInt32Collection subscriptionIds = new uint[] { m_id };
 
                 StatusCodeCollection results;
                 DiagnosticInfoCollection diagnosticInfos;
 
-                ResponseHeader responseHeader = m_session.DeleteSubscriptions(
+                ResponseHeader responseHeader = m_session.SetPublishingMode(
                     null,
-                    subscriptionIds,
+                    enabled,
+                    new uint[] { m_id },
                     out results,
                     out diagnosticInfos);
 
@@ -931,99 +1033,15 @@ namespace Opc.Ua.Client
                 {
                     throw new ServiceResultException(ClientBase.GetResult(results[0], 0, diagnosticInfos, responseHeader));
                 }
+
+                // update current state.
+                m_currentPublishingEnabled = m_publishingEnabled = enabled;
+
+                m_changeMask |= SubscriptionChangeMask.Modified;
+                ChangesCompleted();
+
+                TraceState(enabled ? "PUBLISHING ENABLED" : "PUBLISHING DISABLED");
             }
-
-            // supress exception if silent flag is set.
-            catch (Exception e)
-            {
-                if (!silent)
-                {
-                    throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
-                }
-            }
-
-            // always put object in disconnected state even if an error occurs.
-            finally
-            {
-                DeleteSubscription();
-            }
-
-            ChangesCompleted();
-        }
-
-        /// <summary>
-        /// Modifies a subscription on the server.
-        /// </summary>
-        public void Modify()
-        {
-            VerifySubscriptionState(true);
-
-            // modify the subscription.
-            double revisedPublishingInterval;
-            uint revisedKeepAliveCount = m_keepAliveCount;
-            uint revisedLifetimeCounter = m_lifetimeCount;
-
-            AdjustCounts(ref revisedKeepAliveCount, ref revisedLifetimeCounter);
-
-            m_session.ModifySubscription(
-                null,
-                m_id,
-                m_publishingInterval,
-                revisedLifetimeCounter,
-                revisedKeepAliveCount,
-                m_maxNotificationsPerPublish,
-                m_priority,
-                out revisedPublishingInterval,
-                out revisedLifetimeCounter,
-                out revisedKeepAliveCount);
-
-            // update current state.
-            ModifySubscription(
-                revisedPublishingInterval,
-                revisedKeepAliveCount,
-                revisedLifetimeCounter);
-
-            ChangesCompleted();
-
-            TraceState("MODIFIED");
-        }
-
-        /// <summary>
-        /// Changes the publishing enabled state for the subscription.
-        /// </summary>
-        public void SetPublishingMode(bool enabled)
-        {
-            VerifySubscriptionState(true);
-
-            // modify the subscription.
-            UInt32Collection subscriptionIds = new uint[] { m_id };
-
-            StatusCodeCollection results;
-            DiagnosticInfoCollection diagnosticInfos;
-
-            ResponseHeader responseHeader = m_session.SetPublishingMode(
-                null,
-                enabled,
-                new uint[] { m_id },
-                out results,
-                out diagnosticInfos);
-
-            // validate response.
-            ClientBase.ValidateResponse(results, subscriptionIds);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
-
-            if (StatusCode.IsBad(results[0]))
-            {
-                throw new ServiceResultException(ClientBase.GetResult(results[0], 0, diagnosticInfos, responseHeader));
-            }
-
-            // update current state.
-            m_currentPublishingEnabled = m_publishingEnabled = enabled;
-
-            m_changeMask |= SubscriptionChangeMask.Modified;
-            ChangesCompleted();
-
-            TraceState(enabled ? "PUBLISHING ENABLED" : "PUBLISHING DISABLED");
         }
 
         /// <summary>
@@ -1042,6 +1060,7 @@ namespace Opc.Ua.Client
                 out message);
 
             return message;
+
         }
 
         /// <summary>
@@ -1912,7 +1931,7 @@ namespace Opc.Ua.Client
                     {
                         // update monitored items with unprocessed messages.
                         if (ii.Value.Message != null && !ii.Value.Processed &&
-                            // If sequential publishing is enabled, only release messages in perfect sequence. 
+                            // If sequential publishing is enabled, only release messages in perfect sequence.
                             (!m_sequentialPublishing || ii.Value.SequenceNumber <= m_lastSequenceNumberProcessed + 1))
                         {
                             if (messagesToProcess == null)

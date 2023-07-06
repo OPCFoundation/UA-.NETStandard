@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -283,7 +283,7 @@ namespace Opc.Ua.Client.Tests
                 list.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
                     foreach (var value in item.DequeueValues())
                     {
-                        valueChanges++; 
+                        valueChanges++;
                         TestContext.Out.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
                     }
                 });
@@ -589,7 +589,7 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            // wait 
+            // wait
             await Task.Delay(kDelay).ConfigureAwait(false);
 
             // close session, do not delete subscription
@@ -628,11 +628,66 @@ namespace Opc.Ua.Client.Tests
                 transferSubscriptions.AddRange(originSubscriptions);
             }
 
-            // wait 
+            // wait
             await Task.Delay(kDelay).ConfigureAwait(false);
+
+            // Set the default ID format to W3C and force it to be the default
+            Activity.DefaultIdFormat = ActivityIdFormat.W3C;
+            Activity.ForceDefaultIdFormat = true;
+
+            // Create an instance of ActivityListener and configure its properties
+            ActivityListener activityListener = new ActivityListener()
+            {
+                // Set ShouldListenTo property to true for all activity sources
+                ShouldListenTo = (source) => true,
+
+                // Sample all data and recorded activities
+                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+
+                // Write "Started" message when an activity starts
+                ActivityStarted = activity => Console.WriteLine("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id),
+
+                // Write "Stopped" message along with OperationName, Id, and Duration when an activity stops
+                ActivityStopped = activity =>
+                {
+                    // Console.WriteLine("Stopped: {0,-15} {1,-60} {2,-15}", activity.OperationName, activity.Id, activity.Duration);
+
+                    if (activity.OperationName == "Reconnect")
+                    {
+                        Console.WriteLine("Duration of Reconnect(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "BeginPublish")
+                    {
+                        Console.WriteLine("Duration of BeginPublish(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "Republish")
+                    {
+                        Console.WriteLine("Duration of Republish(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "TransferSubscriptions")
+                    {
+                        Console.WriteLine("Duration of TransferSubscriptions(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "RemoveSubscriptions")
+                    {
+                        Console.WriteLine("Duration of RemoveSubscriptions(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "RemoveSubscription")
+                    {
+                        Console.WriteLine("Duration of RemoveSubscription(): " + activity.Duration);
+                    }
+                    if (activity.OperationName == "AddSubscription")
+                    {
+                        Console.WriteLine("Duration of AddSubscription(): " + activity.Duration);
+                    }
+                }
+            };
+
+            ActivitySource.AddActivityListener(activityListener);
 
             // transfer restored subscriptions
             var result = targetSession.TransferSubscriptions(transferSubscriptions, sendInitialValues);
+
             Assert.IsTrue(result);
 
             // validate results
