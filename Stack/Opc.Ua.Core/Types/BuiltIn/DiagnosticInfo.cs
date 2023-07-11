@@ -36,9 +36,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with default values.
-        /// </remarks>
         public DiagnosticInfo()
         {
             Initialize();
@@ -72,9 +69,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with specific values.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with specific values.
-        /// </remarks>
         /// <param name="symbolicId">The symbolic ID</param>
         /// <param name="namespaceUri">The namespace URI applicable</param>
         /// <param name="locale">The locale for the localized text value</param>
@@ -97,9 +91,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an exception.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with an exception.
-        /// </remarks>
         /// <param name="diagnosticsMask">The bitmask describing the diagnostic data</param>
         /// <param name="result">The overall transaction result</param>
         /// <param name="serviceLevel">The service level</param>
@@ -125,9 +116,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an exception.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with an exception.
-        /// </remarks>
         /// <param name="diagnosticsMask">A bitmask describing the type of diagnostic data</param>
         /// <param name="exception">The exception to associated with the diagnostic data</param>
         /// <param name="serviceLevel">The service level</param>
@@ -153,9 +141,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object during deserialization.
-        /// </remarks>
         /// <param name="context">The context information of an underlying data-stream</param>
         [OnDeserializing()]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "context")]
@@ -184,9 +169,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a service result.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a service result.
-        /// </remarks>
         /// <param name="diagnosticsMask">The bitmask describing the type of diagnostic data</param>
         /// <param name="result">The transaction result</param>
         /// <param name="stringTable">An array of strings that may be used to provide additional diagnostic details</param>
@@ -197,13 +179,7 @@ namespace Opc.Ua
         {
             if (stringTable == null) throw new ArgumentNullException(nameof(stringTable));
 
-            m_symbolicId = -1;
-            m_namespaceUri = -1;
-            m_locale = -1;
-            m_localizedText = -1;
-            m_additionalInfo = null;
-            m_innerStatusCode = StatusCodes.Good;
-            m_innerDiagnosticInfo = null;
+            Initialize();
 
             if ((DiagnosticsMasks.ServiceSymbolicId & diagnosticsMask) != 0)
             {
@@ -288,9 +264,6 @@ namespace Opc.Ua
         /// <summary>
         /// The index of the symbolic id in the string table.
         /// </summary>
-        /// <remarks>
-        /// The index of the symbolic id in the string table.
-        /// </remarks>
         [DataMember(Order = 1, IsRequired = false)]
         public int SymbolicId
         {
@@ -301,9 +274,6 @@ namespace Opc.Ua
         /// <summary>
         /// The index of the namespace uri in the string table.
         /// </summary>
-        /// <remarks>
-        /// The index of the namespace uri in the string table.
-        /// </remarks>
         [DataMember(Order = 2, IsRequired = false)]
         public int NamespaceUri
         {
@@ -334,9 +304,6 @@ namespace Opc.Ua
         /// <summary>
         /// The additional debugging or trace information.
         /// </summary>
-        /// <remarks>
-        /// The additional debugging or trace information.
-        /// </remarks>
         [DataMember(Order = 5, IsRequired = false, EmitDefaultValue = false)]
         public string AdditionalInfo
         {
@@ -347,9 +314,6 @@ namespace Opc.Ua
         /// <summary>
         /// The status code returned from an underlying system.
         /// </summary>
-        /// <remarks>
-        /// The status code returned from an underlying system.
-        /// </remarks>
         [DataMember(Order = 6, IsRequired = false)]
         public StatusCode InnerStatusCode
         {
@@ -360,9 +324,6 @@ namespace Opc.Ua
         /// <summary>
         /// The diagnostic info returned from a underlying system.
         /// </summary>
-        /// <remarks>
-        /// The diagnostic info returned from a underlying system.
-        /// </remarks>
         [DataMember(Order = 7, IsRequired = false, EmitDefaultValue = false)]
         public DiagnosticInfo InnerDiagnosticInfo
         {
@@ -375,9 +336,6 @@ namespace Opc.Ua
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
-        /// <remarks>
-        /// Determines if the specified object is equal to the object.
-        /// </remarks>
         public override bool Equals(object obj)
         {
             if (Object.ReferenceEquals(this, obj))
@@ -389,6 +347,7 @@ namespace Opc.Ua
 
             if (value != null)
             {
+
                 if (this.m_symbolicId != value.m_symbolicId)
                 {
                     return false;
@@ -499,9 +458,6 @@ namespace Opc.Ua
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
-        /// <remarks>
-        /// Makes a deep copy of this object.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new DiagnosticInfo(this);
@@ -609,6 +565,7 @@ namespace Opc.Ua
             return clone;
         }
         #endregion
+
     }//class
     #endregion
 
