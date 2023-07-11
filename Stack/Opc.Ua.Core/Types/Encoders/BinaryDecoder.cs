@@ -611,6 +611,13 @@ namespace Opc.Ua
             // read the encoding byte.
             byte encodingByte = m_reader.ReadByte();
 
+            // check if the diagnostic info is null.
+            if (encodingByte == 0)
+            {
+                m_nestingLevel--;
+                return null;// DiagnosticInfo.Default;
+            }
+
             DiagnosticInfo value = new DiagnosticInfo();
 
             // read the fields of the diagnostic info structure.
@@ -1914,6 +1921,7 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
+
                 case BuiltInType.DiagnosticInfo:
                 {
                     DiagnosticInfo[] values = new DiagnosticInfo[length];

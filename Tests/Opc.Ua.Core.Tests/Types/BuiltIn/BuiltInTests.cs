@@ -240,6 +240,23 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         }
 
         /// <summary>
+        /// Ensure defaults are correct.
+        /// </summary>
+        [Test]
+        public void DiagnosticInfoDefault()
+        {
+            DiagnosticInfo diagnosticInfo = new DiagnosticInfo();
+            Assert.NotNull(diagnosticInfo);
+            Assert.AreEqual(-1, diagnosticInfo.SymbolicId);
+            Assert.AreEqual(-1, diagnosticInfo.NamespaceUri);
+            Assert.AreEqual(-1, diagnosticInfo.Locale);
+            Assert.AreEqual(-1, diagnosticInfo.LocalizedText);
+            Assert.AreEqual(null, diagnosticInfo.AdditionalInfo);
+            Assert.AreEqual(ServiceResult.Good.StatusCode, diagnosticInfo.InnerStatusCode);
+            Assert.AreEqual(null, diagnosticInfo.InnerDiagnosticInfo);
+        }
+
+        /// <summary>
         /// Ensure the matrix dimension and order is identical
         /// after constructor and ToArray is called.
         /// </summary>
@@ -300,7 +317,54 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.Throws<ArgumentException>(() => _ = new NodeId((object)(int)123, 123));
             Assert.Throws<ServiceResultException>(() => _ = NodeId.Create((uint)123, "urn:xyz", null));
             Assert.Throws<ServiceResultException>(() => _ = NodeId.Parse("ns="));
+            Assert.Throws<ServiceResultException>(() => _ = NodeId.Parse("nsu="));
             Assert.IsNull(NodeId.ToExpandedNodeId(null, null));
+        }
+
+        [Test]
+        public void NodeIdHashCode()
+        {
+            // ensure that the hash code is the same for the same node id
+            IList<NodeId> nodeIds = new List<NodeId>();
+
+            // Null NodeIds
+            nodeIds.Add(NodeId.Null);
+            nodeIds.Add(new NodeId(0));
+            nodeIds.Add(new NodeId(Guid.Empty));
+            nodeIds.Add(new NodeId(""));
+            nodeIds.Add(new NodeId(new byte[0]));
+
+            foreach (NodeId nodeId in nodeIds)
+            {
+                Assert.AreEqual(NodeId.Null.GetHashCode(), nodeId.GetHashCode(), $"NodeId={nodeId}");
+                Assert.IsTrue(nodeId.IsNullNodeId);
+            }
+
+            nodeIds.Insert(0, new NodeId(123));
+            nodeIds.Insert(0, new NodeId(123, 0));
+            Assert.AreEqual(nodeIds[0].GetHashCode(), nodeIds[1].GetHashCode());
+            Assert.AreEqual(nodeIds[0], nodeIds[1]);
+
+            nodeIds.Insert(0, new NodeId(123, 1));
+            Assert.AreNotEqual(nodeIds[0].GetHashCode(), nodeIds[1].GetHashCode());
+
+            nodeIds.Insert(0, new NodeId("Test"));
+            Assert.AreNotEqual(nodeIds[0].GetHashCode(), nodeIds[2].GetHashCode());
+
+            TestContext.Out.WriteLine("NodeIds:");
+            foreach (NodeId nodeId in nodeIds)
+            {
+                TestContext.Out.WriteLine($"NodeId={nodeId}, HashCode={nodeId.GetHashCode():x8}");
+            }
+
+            TestContext.Out.WriteLine("Distinct NodeIds:");
+            var distinctNodeIds = nodeIds.Distinct();
+            foreach (NodeId nodeId in distinctNodeIds)
+            {
+                TestContext.Out.WriteLine($"NodeId={nodeId}, HashCode={nodeId.GetHashCode():x8}");
+            }
+
+            Assert.AreEqual(4, distinctNodeIds.Count());
         }
 
         [Theory]
