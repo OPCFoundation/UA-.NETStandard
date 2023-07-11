@@ -330,6 +330,27 @@ namespace Opc.Ua
             get { return m_innerDiagnosticInfo; }
             set { m_innerDiagnosticInfo = value; }
         }
+
+        /// <summary>
+        /// Whether the object represents a Null DiagnosticInfo.
+        /// </summary>
+        public bool IsNullDiagnosticInfo
+        {
+            get
+            {
+                if (m_symbolicId == -1 &&
+                    m_locale == -1 &&
+                    m_localizedText == -1 &&
+                    m_namespaceUri == -1 &&
+                    m_additionalInfo == null &&
+                    m_innerDiagnosticInfo == null &&
+                    m_innerStatusCode == StatusCodes.Good)
+                {
+                    return true;
+                }
+                return false;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -339,6 +360,11 @@ namespace Opc.Ua
         public override bool Equals(object obj)
         {
             if (Object.ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (obj == null && IsNullDiagnosticInfo)
             {
                 return true;
             }
